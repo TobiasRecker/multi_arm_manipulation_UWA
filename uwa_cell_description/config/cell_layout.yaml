@@ -1,0 +1,59 @@
+# Metres and radians. World: X right, Y rear, Z up; origin at floor centre.
+# Table poses are floor-centre poses; mount poses refer to URDF base_link
+# relative to the table's upper surface. Height and base yaws are estimates.
+tables:
+  left:
+    xyz: [-0.45, 0.0, 0.0]
+    rpy: [0.0, 0.0, 0.0]
+    width: 0.80
+    length: 1.70
+    height: 0.90
+    top_thickness: 0.05
+    leg_width: 0.05
+  right:
+    xyz: [0.45, 0.0, 0.0]
+    rpy: [0.0, 0.0, 0.0]
+    width: 0.80
+    length: 1.70
+    height: 0.90
+    top_thickness: 0.05
+    leg_width: 0.05
+robots:
+  left_front:
+    type: ur5
+    table: left
+    mount_xyz: [0.0, -0.675, 0.0]
+    mount_rpy: [0.0, 0.0, 1.5707963267948966]
+    initial_positions: [0.0, -1.5707963267948966, 0.0, -1.5707963267948966, 0.0, 0.0]
+    kinematics_file: null
+  left_rear:
+    type: ur7e
+    table: left
+    mount_xyz: [0.0, 0.675, 0.0]
+    mount_rpy: [0.0, 0.0, -1.5707963267948966]
+    initial_positions: [0.0, -1.5707963267948966, 0.0, -1.5707963267948966, 0.0, 0.0]
+    kinematics_file: null
+  right_front:
+    type: ur5e
+    table: right
+    mount_xyz: [0.0, -0.675, 0.0]
+    mount_rpy: [0.0, 0.0, 1.5707963267948966]
+    initial_positions: [0.0, -1.5707963267948966, 0.0, -1.5707963267948966, 0.0, 0.0]
+    kinematics_file: null
+  right_rear:
+    type: ur5e
+    table: right
+    mount_xyz: [0.0, 0.675, 0.0]
+    mount_rpy: [0.0, 0.0, -1.5707963267948966]
+    initial_positions: [0.0, -1.5707963267948966, 0.0, -1.5707963267948966, 0.0, 0.0]
+    kinematics_file: null
+scan:
+  source: ~/GoogleDrive/UWA/UR Setup.ply
+  # Unregistered reference! Scale/pose are not a measured calibration.
+  scale: 1.0
+  xyz: [0.0, 0.0, 0.0]
+  rpy: [0.0, 0.0, 0.0]
+  opacity_min: 0.1
+  max_splat_scale: 0.05
+  voxel_size: 0.01
+  max_points: 200000

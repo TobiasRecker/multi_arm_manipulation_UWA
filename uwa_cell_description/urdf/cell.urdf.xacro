@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+<robot name="uwa_cell" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:arg name="layout" default="$(find uwa_cell_description)/config/cell_layout.yaml"/>
+  <xacro:arg name="controllers_file" default=""/>
+  <xacro:property name="cfg" value="${xacro.load_yaml('$(arg layout)')}"/>
+  <xacro:property name="ur_share" value="$(find ur_description)"/>
+  <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
+  <xacro:include filename="$(find ur_description)/urdf/inc/ur_joint_control.xacro"/>
+
+  <link name="world"/>
+
+  <xacro:macro name="box" params="name parent xyz size mass color">
+    <link name="${name}">
+      <visual>
+        <geometry><box size="${size[0]} ${size[1]} ${size[2]}"/></geometry>
+        <material name="${name}_material"><color rgba="${color}"/></material>
+      </visual>
+      <collision><geometry><box size="${size[0]} ${size[1]} ${size[2]}"/></geometry></collision>
+      <inertial>
+        <mass value="${mass}"/>
+        <inertia ixx="${mass*(size[1]**2+size[2]**2)/12}" ixy="0" ixz="0"
+                 iyy="${mass*(size[0]**2+size[2]**2)/12}" iyz="0"
+                 izz="${mass*(size[0]**2+size[1]**2)/12}"/>
+      </inertial>
+    </link>
+    <joint name="${name}_joint" type="fixed">
+      <parent link="${parent}"/><child link="${name}"/>
+      <origin xyz="${xyz[0]} ${xyz[1]} ${xyz[2]}"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:macro name="table" params="id t">
+    <link name="${id}_table_frame"/>
+    <joint name="world_to_${id}_table" type="fixed">
+      <parent link="world"/><child link="${id}_table_frame"/>
+      <origin xyz="${t['xyz'][0]} ${t['xyz'][1]} ${t['xyz'][2]}"
+              rpy="${t['rpy'][0]} ${t['rpy'][1]} ${t['rpy'][2]}"/>
+    </joint>
+    <link name="${id}_table_top"/>
+    <joint name="${id}_table_height" type="fixed">
+      <parent link="${id}_table_frame"/><child link="${id}_table_top"/>
+      <origin xyz="0 0 ${t['height']}"/>
+    </joint>
+    <xacro:box name="${id}_table_plate" parent="${id}_table_top"
+      xyz="${[0,0,-t['top_thickness']/2]}"
+      size="${[t['width'],t['length'],t['top_thickness']]}" mass="40" color="0.65 0.69 0.72 1"/>
+    <xacro:property name="leg_h" value="${t['height']-t['top_thickness']}"/>
+    <xacro:property name="leg_x" value="${(t['width']-t['leg_width'])/2}"/>
+    <xacro:property name="leg_y" value="${(t['length']-t['leg_width'])/2}"/>
+    <xacro:box name="${id}_leg_fl" parent="${id}_table_frame" xyz="${[-leg_x,-leg_y,leg_h/2]}"
+      size="${[t['leg_width'],t['leg_width'],leg_h]}" mass="5" color="0.22 0.25 0.28 1"/>
+    <xacro:box name="${id}_leg_fr" parent="${id}_table_frame" xyz="${[leg_x,-leg_y,leg_h/2]}"
+      size="${[t['leg_width'],t['leg_width'],leg_h]}" mass="5" color="0.22 0.25 0.28 1"/>
+    <xacro:box name="${id}_leg_rl" parent="${id}_table_frame" xyz="${[-leg_x,leg_y,leg_h/2]}"
+      size="${[t['leg_width'],t['leg_width'],leg_h]}" mass="5" color="0.22 0.25 0.28 1"/>
+    <xacro:box name="${id}_leg_rr" parent="${id}_table_frame" xyz="${[leg_x,leg_y,leg_h/2]}"
+      size="${[t['leg_width'],t['leg_width'],leg_h]}" mass="5" color="0.22 0.25 0.28 1"/>
+  </xacro:macro>
+
+  <xacro:macro name="arm" params="id r">
+    <xacro:ur_robot name="${id}" tf_prefix="${id}_" parent="${r['table']}_table_top"
+      joint_limits_parameters_file="${ur_share+'/config/'+r['type']+'/joint_limits.yaml'}"
+      kinematics_parameters_file="${r['kinematics_file'] or ur_share+'/config/'+r['type']+'/default_kinematics.yaml'}"
+      physical_parameters_file="${ur_share+'/config/'+r['type']+'/physical_parameters.yaml'}"
+      visual_parameters_file="${ur_share+'/config/'+r['type']+'/visual_parameters.yaml'}"
+      force_abs_paths="true">
+      <origin xyz="${r['mount_xyz'][0]} ${r['mount_xyz'][1]} ${r['mount_xyz'][2]}"
+              rpy="${r['mount_rpy'][0]} ${r['mount_rpy'][1]} ${r['mount_rpy'][2]}"/>
+    </xacro:ur_robot>
+  </xacro:macro>
+  <xacro:table id="left" t="${cfg['tables']['left']}"/>
+  <xacro:table id="right" t="${cfg['tables']['right']}"/>
+  <xacro:arm id="left_front" r="${cfg['robots']['left_front']}"/>
+  <xacro:arm id="left_rear" r="${cfg['robots']['left_rear']}"/>
+  <xacro:arm id="right_front" r="${cfg['robots']['right_front']}"/>
+  <xacro:arm id="right_rear" r="${cfg['robots']['right_rear']}"/>
+
+  <xacro:macro name="arm_interfaces" params="id r">
+    <xacro:property name="q" value="${r['initial_positions']}"/>
+    <xacro:ur_joint_control_description tf_prefix="${id}_"
+      initial_positions="${dict(shoulder_pan_joint=q[0],shoulder_lift_joint=q[1],elbow_joint=q[2],wrist_1_joint=q[3],wrist_2_joint=q[4],wrist_3_joint=q[5])}"/>
+  </xacro:macro>
+  <ros2_control name="UwaCellSystem" type="system">
+    <hardware><plugin>gz_ros2_control/GazeboSimSystem</plugin></hardware>
+    <xacro:arm_interfaces id="left_front" r="${cfg['robots']['left_front']}"/>
+    <xacro:arm_interfaces id="left_rear" r="${cfg['robots']['left_rear']}"/>
+    <xacro:arm_interfaces id="right_front" r="${cfg['robots']['right_front']}"/>
+    <xacro:arm_interfaces id="right_rear" r="${cfg['robots']['right_rear']}"/>
+  </ros2_control>
+  <gazebo>
+    <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <parameters>$(arg controllers_file)</parameters>
+      <ros><namespace>/uwa_cell</namespace></ros>
+    </plugin>
+  </gazebo>
+</robot>
