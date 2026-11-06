@@ -1,0 +1,4 @@
+Mode: built-in image_gen, imagegen skill. No API/CLI fallback.
+Output: assets/uwa-cell.png
+
+Use case: stylized-concept. Asset type: square Linux desktop application icon for a four-arm robotics laboratory simulation called UWA Cell. Create a polished, simplified miniature isometric 3D icon: exactly four articulated industrial robot arms, grey links and light blue rounded joints, mounted on two adjacent slim laboratory tables, two robots on each table. Symmetric compact composition, bold recognizable silhouette legible at small icon sizes, understated blue and graphite palette, soft studio lighting, smooth matte surfaces, a dark navy rounded-square tile backdrop with generous clean margins. No words, no letters, no logos, no watermark, no extra robots. This is a launcher icon, not a detailed scene or screenshot.

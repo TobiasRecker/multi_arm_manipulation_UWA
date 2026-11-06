@@ -1,6 +1,9 @@
 # Metres and radians. World: X right, Y rear, Z up; origin at floor centre.
 # Table poses are floor-centre poses; mount poses refer to URDF base_link
 # relative to the table's upper surface. Height and base yaws are estimates.
+# Cable bearings (user estimate, 2026-11-06): left_front toward the operator
+# (-Y), left_rear +Y, right_front toward the centre (-X), right_rear +X.
+# left_front is rotated -90 degrees from the initial layout (+90 -> 0).
 tables:
   left:
     xyz: [-0.45, 0.0, 0.0]
@@ -23,28 +26,28 @@ robots:
     type: ur5
     table: left
     mount_xyz: [0.0, -0.675, 0.0]
-    mount_rpy: [0.0, 0.0, 1.5707963267948966]
+    mount_rpy: [0.0, 0.0, 0.0]
     initial_positions: [0.0, -1.5707963267948966, 0.0, -1.5707963267948966, 0.0, 0.0]
     kinematics_file: null
   left_rear:
     type: ur7e
     table: left
     mount_xyz: [0.0, 0.675, 0.0]
-    mount_rpy: [0.0, 0.0, -1.5707963267948966]
+    mount_rpy: [0.0, 0.0, 3.141592653589793]
     initial_positions: [0.0, -1.5707963267948966, 0.0, -1.5707963267948966, 0.0, 0.0]
     kinematics_file: null
   right_front:
     type: ur5e
     table: right
     mount_xyz: [0.0, -0.675, 0.0]
-    mount_rpy: [0.0, 0.0, 1.5707963267948966]
+    mount_rpy: [0.0, 0.0, -1.5707963267948966]
     initial_positions: [0.0, -1.5707963267948966, 0.0, -1.5707963267948966, 0.0, 0.0]
     kinematics_file: null
   right_rear:
     type: ur5e
     table: right
     mount_xyz: [0.0, 0.675, 0.0]
-    mount_rpy: [0.0, 0.0, -1.5707963267948966]
+    mount_rpy: [0.0, 0.0, 1.5707963267948966]
     initial_positions: [0.0, -1.5707963267948966, 0.0, -1.5707963267948966, 0.0, 0.0]
     kinematics_file: null
 scan:

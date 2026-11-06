@@ -54,6 +54,41 @@ partition **`uwa_cell_sim`**. Source `scripts/env.bash` before querying or
 commanding it. This is separate from the existing MuR simulation (domain 63).
 The controller manager is `/uwa_cell/controller_manager`.
 
+## RViz and desktop application
+
+The included [RViz configuration](uwa_cell_gazebo/rviz/cell.rviz) displays the
+four arms and tables in the `world` frame, with optional TF and scan reference.
+To open it alongside an already running cell without restarting the simulation:
+
+```bash
+bash ~/UWA_ws/src/multi_arm_manipulation_UWA/scripts/cell.sh rviz
+```
+
+For a new terminal launch, use `ros2 launch uwa_cell_gazebo cell.launch.py rviz:=true`
+after sourcing `scripts/env.bash`.
+
+The **UWA Cell Simulation** start-menu application opens Gazebo, rqt joint
+control and RViz. Repeated clicks reuse the existing simulation and the
+desktop-managed RViz window. Right-click the app for **RViz öffnen** and
+**Simulation beenden**. The stop action also closes the separately managed
+RViz window. Closing RViz alone leaves the simulation running.
+
+Install or refresh the menu entry for the current user, without sudo:
+
+```bash
+python3 ~/UWA_ws/src/multi_arm_manipulation_UWA/scripts/install_desktop.py
+```
+
+The installer copies the entry to `$XDG_DATA_HOME/applications/uwa-cell.desktop`
+and the icon to `$XDG_DATA_HOME/icons/uwa-cell.png` (default data directory:
+`~/.local/share`). Reinstall after moving this repository. Desktop launch errors
+are recorded in `~/UWA_ws/setup/logs/uwa-cell-app.log`; RViz logs are available
+with `journalctl --user -u uwa-cell-rviz`.
+
+The [application icon](assets/uwa-cell.png) was generated with the built-in
+Imagegen tool; its complete [generation prompt](assets/icon-prompt.txt) is kept
+with the asset.
+
 ## Layout and calibration
 
 Edit [`cell_layout.yaml`](uwa_cell_description/config/cell_layout.yaml), then
@@ -76,7 +111,17 @@ and leg width 0.05 m. The adjacent long edges are 0.10 m apart. Mounting centres
 are 1.35 m apart along each table, leaving 0.175 m at either end.
 Moving/rotating a table in YAML carries both of its robot mounts with it.
 
-Front base yaw is provisionally +90°, rear yaw −90°. `mount_rpy` specifies
+Base yaw follows the user's approximate cable bearings (2026-11-06), anchored
+to a −90° correction of the initial front-left mounting orientation:
+
+| Robot | Approximate cable direction in the default layout | `base_link` yaw |
+|---|---|---|
+| `left_front` | Toward the operator / front (−Y) | 0° |
+| `left_rear` | Rear (+Y) | 180° |
+| `right_front` | Left, toward the centre (−X) | −90° |
+| `right_rear` | Right (+X) | +90° |
+
+These are mounting estimates pending calibration. `mount_rpy` specifies
 the **URDF `base_link`** pose, not the teach-pendant `base` frame. Official UR
 descriptions include a 180° rotation between those two frames; convert measured
 extrinsics accordingly. `kinematics_file` optionally selects each physical
