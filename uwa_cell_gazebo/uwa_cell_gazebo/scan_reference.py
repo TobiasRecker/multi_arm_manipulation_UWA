@@ -13,19 +13,26 @@ from tf2_ros import StaticTransformBroadcaster
 
 from .configuration import load_layout
 from .scan import prepare_scan
+from .scan_filter import filter_reference
 
 
 class ScanReference(Node):
     def __init__(self):
         super().__init__('scan_reference')
         layout = self.declare_parameter('layout', '').value or None
-        settings = load_layout(layout)['scan']
+        layout = load_layout(layout)
+        settings = layout['scan']
         path = prepare_scan(settings['source'], settings)
         with np.load(path, allow_pickle=False) as data:
             xyz = np.asarray(data['xyz'], dtype=np.float32) * settings['scale']
             rgb = np.asarray(data['rgb'], dtype=np.uint32)
         if not np.isfinite(xyz).all():
             raise ValueError('Scaled scan coordinates are not finite; check scan.scale')
+        xyz, rgb, cleanup = filter_reference(xyz, rgb, layout)
+        self.get_logger().info(
+            f'Scan display cleanup: {cleanup["input_points"]} -> {len(xyz)} points; '
+            f'{cleanup["outside_radius"]} outside radius; '
+            f'{sum(cleanup["excluded_by_box"].values())} inside fixed robot masks.')
         points = np.empty(len(xyz), dtype=[
             ('x', '<f4'), ('y', '<f4'), ('z', '<f4'), ('rgb', '<u4')])
         for index, key in enumerate(('x', 'y', 'z')):

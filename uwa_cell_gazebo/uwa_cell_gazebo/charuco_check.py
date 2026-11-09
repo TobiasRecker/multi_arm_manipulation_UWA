@@ -100,6 +100,7 @@ class CharucoCheck(Node):
         assert pose_error(known_board, table_board_truth)['translation_m'] < 1e-6
         assert pose_error(known_board, table_board_truth)['rotation_deg'] < 1e-5
         camera_board = detected['T_camera_board']
+        cv2.imwrite(str(self.directory / f'{rid}_raw.png'), pixels)
         table_base = known_board @ np.linalg.inv(camera_board) @ np.linalg.inv(base_camera)
         sample = {'stamp': list(key), 'corners': detected['corners'],
                   'reprojection_rms_px': detected['reprojection_rms_px'],

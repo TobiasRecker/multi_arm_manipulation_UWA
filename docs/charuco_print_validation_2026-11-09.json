@@ -1,0 +1,145 @@
+{
+  "date": "2026-11-09",
+  "source": "uwa_cell_description/config/cell_layout.yaml:charuco",
+  "opencv_version": "4.10.0",
+  "pdf_pages": {
+    "A3_1to1": {
+      "count": 2,
+      "size_mm": [
+        [
+          419.9999361111111,
+          297.0000127777778
+        ],
+        [
+          419.9999361111111,
+          297.0000127777778
+        ]
+      ],
+      "print_scaling": "None",
+      "vector_geometry_checked": true,
+      "sha256": "c1d8d0866e11a07ccc1867c41e005c921ba29437edf30a073b35b5d0ac6a4629"
+    },
+    "A4_tiled_1to1": {
+      "count": 4,
+      "size_mm": [
+        [
+          210.00000333333335,
+          297.0000127777778
+        ],
+        [
+          210.00000333333335,
+          297.0000127777778
+        ],
+        [
+          210.00000333333335,
+          297.0000127777778
+        ],
+        [
+          210.00000333333335,
+          297.0000127777778
+        ]
+      ],
+      "print_scaling": "None",
+      "vector_geometry_checked": true,
+      "sha256": "a3f36f8e655547c660f940cf469c035d0a857587ce7899bd0e6f95821df7bf3f"
+    }
+  },
+  "detections": {
+    "A3_left": {
+      "marker_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "charuco_corners": 24,
+      "same_as_simulation": true,
+      "black_pattern_iou_at_100dpi": 0.9999170934817053,
+      "source_pattern_sha256": "3e592127ff45b2a7562d9e0dc8cef5c9535ded815879c26daac97b1e6d43d24f"
+    },
+    "A4_assembled_left": {
+      "marker_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "charuco_corners": 24,
+      "same_as_simulation": true
+    },
+    "A3_right": {
+      "marker_ids": [
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66
+      ],
+      "charuco_corners": 24,
+      "same_as_simulation": true,
+      "black_pattern_iou_at_100dpi": 0.9999096587944626,
+      "source_pattern_sha256": "390bdc484ed09ae114a7a6a3d7fec2783e250621ce45a42fdda99ecc71a10a62"
+    },
+    "A4_assembled_right": {
+      "marker_ids": [
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66
+      ],
+      "charuco_corners": 24,
+      "same_as_simulation": true
+    }
+  }
+}

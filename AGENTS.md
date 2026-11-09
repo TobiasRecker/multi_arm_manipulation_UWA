@@ -34,6 +34,12 @@
 - Wrist-Camera-Linse gegenüber dem UR-Werkzeug-I/O-Anschluss montieren:
   im UR-`tool0`-Frame auf +Y. Werkzeugparameter zentral in der Layout-YAML pflegen;
   primitive Kamerageometrie und nominelle Optik nicht als kalibriertes CAD ausgeben.
+- ChArUco-Boards zentral je Tisch und Kameras initial darauf ausrichten.
+  Referenzen für diese Kalibrierung sind `left_table_top` / `right_table_top`.
+  OpenCV-Musterframe: Ursprung an der Musterecke ohne Rand, Z in die Platte.
+  Bildschätzung und Ground-Truth-Vergleich getrennt halten; keine Ground Truth
+  zur Auswahl/Initialisierung der PnP-Lösung verwenden. Bekannte Hand-Auge-
+  Transformation nicht als aus einer Einzelansicht neu kalibriert bezeichnen.
 - Simulation isoliert betreiben: Domain 64, lokale Discovery, Partition `uwa_cell_sim`.
   Hardware-Anbindung, MoveIt und kollisionsfreie Planung sind spätere Schritte.
 
@@ -53,6 +59,10 @@
 - Das App-Icon gefällt dem Nutzer. Außenrand transparent lassen, das dunkelblaue
   abgerundete Feld und das Vier-Roboter-Motiv erhalten. Den weißen Rand nicht zurückbringen.
 - Originalscan auf Google Drive belassen; keine PLY-Dateien oder Scan-Caches einchecken.
+- Scan-Bereinigung: 4 m Kugelradius in Weltmetern um den Mittelpunkt der vier
+  Roboterbasen; die aufgenommenen Roboter durch feste Scan-Masken ausblenden.
+  Masken nicht an die aktuellen bewegten Modell-TFs koppeln. Bei Änderung der
+  Scanregistrierung die Masken neu prüfen; Rohdaten und Importcache erhalten.
 
 ## Prüfen und übergeben
 

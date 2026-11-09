@@ -19,6 +19,7 @@ SCAN_DEFAULTS = {
     'xyz': [0.0, 0.0, 0.0], 'rpy': [0.0, 0.0, 0.0],
     'opacity_min': 0.1, 'max_splat_scale': 0.05,
     'voxel_size': 0.01, 'max_points': 200000,
+    'crop_radius': None, 'crop_center': None, 'exclude_boxes': [],
 }
 
 
@@ -178,6 +179,23 @@ def load_layout(path=None):
     if (isinstance(scan['max_points'], bool) or not isinstance(scan['max_points'], int)
             or scan['max_points'] <= 0):
         raise ValueError('scan.max_points must be a positive integer')
+    if scan['crop_radius'] is not None:
+        scan['crop_radius'] = number(scan['crop_radius'], 'scan.crop_radius', positive=True)
+    if scan['crop_center'] is not None:
+        scan['crop_center'] = vector(scan['crop_center'], 3, 'scan.crop_center')
+    if not isinstance(scan['exclude_boxes'], list):
+        raise ValueError('scan.exclude_boxes must be a list')
+    names = set()
+    for box in scan['exclude_boxes']:
+        if not isinstance(box, dict) or set(box) != {'name', 'min', 'max'}:
+            raise ValueError('Each scan exclusion box must define name, min and max')
+        if not isinstance(box['name'], str) or not box['name'] or box['name'] in names:
+            raise ValueError('Scan exclusion box names must be nonempty and unique')
+        names.add(box['name'])
+        for key in ('min', 'max'):
+            box[key] = vector(box[key], 3, f'scan.exclude_boxes.{box["name"]}.{key}')
+        if any(low >= high for low, high in zip(box['min'], box['max'])):
+            raise ValueError(f'Scan exclusion box {box["name"]}: min must be below max')
     source = Path(scan['source']).expanduser()
     scan['source'] = str(source if source.is_absolute() else path.parent / source)
     data['scan'] = scan

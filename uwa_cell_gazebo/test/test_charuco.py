@@ -1,4 +1,3 @@
-from copy import deepcopy
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
@@ -62,7 +61,12 @@ def test_board_frames_and_initial_camera_views_are_consistent(tmp_path):
         # OpenCV Z points into the paper, while the printed mesh faces tabletop +Z.
         np.testing.assert_allclose(actual[:3, 2], [0, 0, -1], atol=1e-12)
         mesh = root.find(f"link[@name='{table}_charuco_mount']/visual/geometry/mesh")
-        assert Path(mesh.get('filename').removeprefix('file://')).is_file()
+        mesh_path = Path(mesh.get('filename').removeprefix('file://'))
+        assert mesh_path.is_file()
+        collada = ET.parse(mesh_path)
+        ns = {'c': 'http://www.collada.org/2005/11/COLLADASchema'}
+        # Ogre2 needs surface normals; without them the white backing hides the pattern.
+        assert collada.find('.//c:triangles/c:input[@semantic="NORMAL"]', ns) is not None
     for rid in ROBOT_IDS:
         robot = layout['robots'][rid]
         chain = Chain(text, f"{robot['table']}_table_top", f'{rid}_wrist_camera_optical_frame')

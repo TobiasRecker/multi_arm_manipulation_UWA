@@ -104,3 +104,33 @@ scan:
   max_splat_scale: 0.05
   voxel_size: 0.01
   max_points: 200000
+  # Display cleanup after alignment, in WORLD METRES; raw PLY/cache stay intact.
+  crop_radius: 4.0
+  crop_center: null  # automatically use the mean position of the four robot bases
+  # Fixed masks for the CAPTURED arm poses, not the moving simulated arms.
+  # Upper masks preserve tabletop surfaces and most flat objects on them.
+  exclude_boxes:
+    - name: left_front_scan_arm
+      min: [-0.75, -1.00, 0.95]
+      max: [-0.35, -0.34, 1.65]
+    - name: left_rear_scan_arm
+      min: [-0.57, 0.08, 0.95]
+      max: [-0.13, 0.76, 1.60]
+    - name: right_front_scan_arm
+      min: [0.22, -0.77, 0.95]
+      max: [0.64, 0.00, 1.60]
+    - name: right_rear_scan_arm
+      min: [0.03, 0.25, 0.95]
+      max: [0.91, 0.86, 1.70]
+    - name: left_front_scan_base
+      min: [-0.72, -0.84, 0.915]
+      max: [-0.38, -0.54, 0.96]
+    - name: left_rear_scan_base
+      min: [-0.57, 0.48, 0.915]
+      max: [-0.25, 0.76, 0.96]
+    - name: right_front_scan_base
+      min: [0.26, -0.76, 0.915]
+      max: [0.58, -0.46, 0.96]
+    - name: right_rear_scan_base
+      min: [0.26, 0.48, 0.915]
+      max: [0.61, 0.79, 0.96]

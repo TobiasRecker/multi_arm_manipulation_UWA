@@ -42,8 +42,9 @@ Z nach oben**; „vorne“ ist die dem Nutzer zugewandte Seite (−Y).
   Tische sind in dieser Simulationsversion fest zur Welt verankert; eine geänderte
   Tischpose wird nach Neustart übernommen und verschiebt beide montierten Roboter mit.
 - Die echte Aufstellung ist beweglich: Maße/Posen zentral konfigurierbar halten.
-- Je Arm Anfangsstellung `[0, −π/2, 0, −π/2, 0, 0]`; seit 2026-11-09
-  Robotiq 2F-85 und Wrist Camera ergänzt (siehe Werkzeugabschnitt).
+- Die ursprüngliche aufrechte Anfangsstellung `[0, −π/2, 0, −π/2, 0, 0]`
+  wurde am 2026-11-09 durch ChArUco-Zielansichten ersetzt (siehe unten).
+  Robotiq 2F-85 und Wrist Camera sind seit demselben Tag ergänzt.
 - Pro Arm kann eine individuelle Kinematik-Kalibrierdatei angegeben werden.
 - Offizielle UR-Beschreibungen verwenden. UR7e hat eine eigene Parameterkonfiguration,
   teilt im installierten Upstream-Paket aber visuelle Meshes mit UR5e.
@@ -132,6 +133,72 @@ Höhe, Yaw-Werte und Scan-Pose sind weiterhin **nicht kalibriert**.
   Die getestete Positionskopplung übernimmt `gz_ros2_control`. Kein Nachweis
   realistischer Kraftkopplung oder belastbarer Objektgriff-Physik.
 
+### ChArUco und erster Basisabgleich, Nutzerauftrag 2026-11-09
+
+- Je ein Board mittig zwischen den Robotern pro Tisch; zunächst linkes Paar in
+  `left_table_top`, rechtes Paar in `right_table_top` prüfen. Der Nutzer will
+  darauf aufbauend ein Werkzeug zur relativen Roboterkalibrierung entwickeln.
+- Muster 7 × 5, Feldkante 40 mm, Marker 28 mm, Rand 20 mm, Träger 3 mm;
+  `DICT_4X4_100`, links IDs 0–16, rechts 50–66. Alles unter `charuco` in YAML.
+- Kamera-Zielansichten per URDF-FK/IK ermittelt und in `initial_positions`
+  übernommen: 0,55 m über der Boardmitte, je ±0,28 m entlang Tisch-Y versetzt.
+  Bestehende Basis-/Werkzeugmontagen erhalten; kein geplanter Bewegungsweg.
+- `charuco_check`: OpenCV 4.10 `CharucoDetector`, PnP/IPPE und LM-Verfeinerung;
+  zehn verschiedene Bildzeitstempel pro Kamera, PNGs und JSON-Bericht.
+  Ground Truth erst nach der Bildschätzung für Fehlerprüfung aus TF lesen.
+- Erste Basisformel: `T_table_base = T_table_board @ inv(T_camera_board) @ inv(T_base_camera)`.
+  Die interne TF-Kette beginnt bei URDF `base_link`, ohne bekannte Weltmontage
+  als Eingang. Boardplatzierung, Intrinsics, Hand-Auge-Transformation und
+  Gelenkkinematik werden als bekannt vorausgesetzt. Noch keine Schätzung
+  unbekannter Hand-Auge-/Gelenkparameter aus mehreren Armstellungen.
+- Offizielle Boardframes `<table>_charuco`: Musterecke ohne Rand; X rechts,
+  Y im Muster nach unten, Z in die Platte. Plattenmitte ist `<table>_charuco_mount`.
+- Erster Live-Erfolg: alle vier Gazebo-Bilder mit jeweils 24 ChArUco-Ecken.
+  Relative Basenfehler beider Tische ca. 1,9 mm / 0,17°, individuelle
+  gemittelte Basisfehler ca. 1,1–1,2 mm / 0,08–0,09°. Idealisiertes Rendering,
+  keine Genauigkeitszusage für echte Kameras. Konkrete Zahlen im
+  [datierten Bericht](docs/charuco_validation_2026-11-09.json).
+- Materialfehler beim ersten Liveversuch: Collada-Fläche ohne Normalen blieb
+  unsichtbar. Explizite +Z-Normalen ergänzt, echter Vierkamera-Test danach bestanden;
+  Assetprüfung dafür ergänzt. PNG-Muster bleiben deterministisch OpenCV-generiert.
+- **33 Offline-Tests bestanden**, beide Pakete gebaut. Vollständiger Bildbericht:
+  `setup/logs/uwa-charuco-second/report.json`, annotierte Bilder im selben Ordner;
+  Logs `uwa-cell-charuco-{build,tests,live,cell-verification}*` im Workspace.
+- Finaler Bestätigungslauf mit Roh- und Erkennungsbildern:
+  `setup/logs/uwa-charuco-final/`; zehn erfolgreiche Bilder je Kamera,
+  relative Fehler links **1,888 mm / 0,1645°**, rechts **1,843 mm / 0,1570°**.
+  Neun Controller aktiv, Zellwurzel stabil, RViz wiederhergestellt. Der separate
+  Scan-Publisher blieb erhalten; keine weiteren Zellneustarts geplant.
+- Anleitung/Formeln/Bedienung: [docs/charuco_calibration.md](docs/charuco_calibration.md).
+  `prepare_charuco_views` erzeugt nach Layoutänderungen eine alternative YAML,
+  ohne die Quelle zu überschreiben oder Bewegungen auszuführen.
+- Zusammenarbeit: Nutzer arbeitet mit mehreren unabhängigen Agenten im selben
+  Checkout. [ACTIVE_WORK.md](ACTIVE_WORK.md) plus eigene Datei je Aufgabe unter
+  `work/` eingeführt; vor Edits/Neustarts lesen, Änderungen bereichsweise anwenden.
+  Der fremde Scanregistrierungs-Diff wurde erhalten. Für Uhrenreset RViz kurz
+  schließen und danach wiederherstellen, separaten Scan-Publisher erhalten.
+
+### Druckvorlagen, Nutzerauftrag 2026-11-09
+
+- Dieselben ChArUco-Muster für echte Versuche angefordert. Originalmaß inklusive
+  Weißrand **320 × 240 mm**; Muster 280 × 200 mm, Feldkante 40 mm, Marker 28 mm.
+- `output/pdf/uwa_charuco_boards_A3_1to1.pdf`: zwei A3-Querformat-Seiten,
+  links/rechts jeweils komplett. `uwa_charuco_boards_A4_tiled_1to1.pdf` im selben
+  Ordner: vier A4-Hochformat-Seiten, je Board zwei Hälften mit 20 mm Überlappung.
+  Keine verkleinerte A4-Einblatt-Version, da sie andere metrische Maße hätte.
+- Beide PDFs als Vektorflächen aus derselben `board_image()`-Ausgabe wie Gazebo;
+  IDs links 0–16, rechts 50–66 unverändert. Generator `scripts/print_charuco.py`
+  liest die zentrale YAML; optionale PDF-Abhängigkeit `python3-reportlab`.
+- Druck: **100% / Tatsächliche Größe**, keine Seitenanpassung; 100-mm-Kontrollstrecke
+  und 40-mm-Feldkante nachmessen, plan auf festen Träger aufbringen. Für echte
+  Kalibrierung die tatsächliche Boardoberflächenpose im Tisch-KS vermessen.
+- Dateiprüfung: korrekte Seitenformate/-zahlen und metrische Vektorgeometrie,
+  alle sechs Seiten gerendert und angesehen. OpenCV erkennt auf beiden A3-Seiten
+  sowie den digital zusammengesetzten A4-Boards je alle 17 Marker und 24 Ecken.
+  Beleg: `docs/charuco_print_validation_2026-11-09.json`, vollständiges Log unter
+  `setup/logs/uwa-charuco-print-verification.log` im Workspace. Kein physischer
+  Druckertest durchgeführt. Simulation und laufende Dienste nicht verändert.
+
 ## Bedienung: aktuelles Sollverhalten
 
 - Startmenü: **UWA Cell Simulation** startet Gazebo, rqt, RViz **und Scan-Publisher**.
@@ -210,6 +277,42 @@ Höhe, Yaw-Werte und Scan-Pose sind weiterhin **nicht kalibriert**.
   `uwa-scan-alignment-landmarks.png`, `uwa-scan-aligned-rviz.png` und zugehöriges Log
   im Workspace. Analyseprogramme lagen temporär unter `/tmp/uwa-scan-alignment`.
 
+### Scan-Bereinigung, Nutzerauftrag 2026-11-09
+
+- Anforderungen: Keine Punkte weiter als **4 m vom Zentrum zwischen den Robotern**;
+  die aufgenommenen Roboter entfernen, damit keine doppelten Arme neben den
+  simulierten Robotern stehen.
+- Umgesetzt als Kugelradius im Weltkoordinatensystem um den Mittelwert der vier
+  Basispositionen, aktuell **[0; 0; 0,90] m**. `scan.crop_center: null` berechnet
+  diesen Punkt aus Tisch-/Montageposen; alternativ ist ein expliziter Punkt möglich.
+- Acht feste `scan.exclude_boxes` blenden die vier aufgenommenen Arme und ihre
+  Basisbereiche aus. Die Aufnahmeposen unterscheiden sich von den Simulationsposen;
+  deshalb keine dynamischen Modell-TFs als Entfernungsmasken verwenden.
+- Grobe räumliche Masken, keine semantische Roboterdetektion. Sie können direkt
+  angrenzende Punkte im selben Volumen mit ausblenden und sind nach einer neuen
+  Aufnahme oder Registrierung erneut zu prüfen. Tischflächen und die meisten
+  flachen Tischobjekte bleiben durch die Höhenbegrenzung erhalten.
+- Modul `scan_filter.py`, Aufruf einmal im Scan-Publisher nach der Skalierung;
+  nur die Auswahl wird in Weltkoordinaten berechnet. Publizierte Punkte bleiben
+  im bisherigen Scan-Frame. Roh-PLY und Importcache unverändert.
+- Konfiguration und Validierung: `crop_radius`, `crop_center`, `exclude_boxes`
+  unter `scan`; Radius `null` bzw. leere Maskenliste schalten die Filter ab.
+- Ergebnis für die aktuelle Aufnahme: **200.000 → 154.458 Punkte**. Entfernt:
+  **27.133** außerhalb des Radius und **18.409** innerhalb der Roboter-Masken.
+- Liveprüfung: größter Radius **3,999784 m**, keine veröffentlichten Punkte in
+  den Masken, endliche Koordinaten, genau ein Publisher. Rohcache-SHA256 und
+  Simulations-/RViz-Dienst-PIDs unverändert. Nur `uwa-cell-scan` neu gestartet.
+- RViz-Sichtprüfung: 154.458 Punkte, Transform und Anzeige „Ok“, keine doppelten
+  aufgenommenen Arme mehr; Umgebungsgeometrie und Tische sichtbar.
+- **44 Offline-Tests bestanden**, inklusive 11 neuer Filter-/Validierungsfälle:
+  Weltkoordinaten und Radiusgrenze, Farberhalt, bewegte Tische, feste Masken,
+  Überlappungen/leere Ausgabe und ungültige Konfiguration. Eine bestehende
+  protobuf-Deprecation-Warnung bleibt.
+- Belege im Workspace: `setup/logs/uwa-scan-cleanup-{counts,tests,verification}.*`,
+  `uwa-scan-cleaned-rviz.{png,log}` und `uwa-scan-cleanup-regions.png`.
+- Parallel aktive ChArUco-Arbeit über `work/` abgestimmt; keine Board-, Werkzeug-,
+  Roboter- oder Simulationsstartänderungen durch diese Bereinigung.
+
 ## Behobene Probleme und Entscheidungen
 
 | Datum | Beobachtung / Entscheidung | Ergebnis |
@@ -221,6 +324,7 @@ Höhe, Yaw-Werte und Scan-Pose sind weiterhin **nicht kalibriert**.
 | 2026-11-09 | Nutzer wünscht dauerhaftes Festhalten der Gespräche | Workspace-/Projekt-AGENTS und diese Übergabe angelegt; fortlaufende Pflege vereinbart |
 | 2026-11-09 | Icon-Klick scheint nichts zu starten, obwohl alle drei Dienste und Fenster laufen | Vorher nur „läuft schon“; nun Wiederherstellen/Aktivieren der vorhandenen Zell-Fenster ohne Neustart |
 | 2026-11-09 | Punktewolke deutlich gegenüber dem Modell verdreht | Grober Ebenen-/Rechteck-Fit; Vorderseite über freie Fläche und hintere Profilrahmen-Zelle identifiziert; keine Kalibrierungsbehauptung |
+| 2026-11-09 | Ferne Scanpunkte und doppelte aufgenommene Arme stören | 4-m-Weltradius und feste Scan-Roboter-Masken; nur Referenzpublisher neu geladen |
 
 Ein früher Tracing-Schalter löste den Clock-Bridge-Absturz nicht vollständig;
 ihn nicht als fertige Lösung wieder einführen. Zusätzlich wurde am 2026-11-06

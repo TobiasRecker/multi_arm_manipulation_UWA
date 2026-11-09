@@ -7,6 +7,8 @@ hardware only. The layout is provisional, not a calibrated digital twin.
 Project context is maintained in [HANDOVER.md](HANDOVER.md): user goals,
 requirements, preferences, decisions, verified results and open work.
 [AGENTS.md](AGENTS.md) defines the ongoing working and documentation rules.
+[ACTIVE_WORK.md](ACTIVE_WORK.md) explains task-specific status files under `work/`
+for agents sharing this checkout; read active entries before editing or restarting services.
 
 ## Build
 
@@ -210,8 +212,8 @@ All four cameras publish **640 × 480 RGB at 10 Hz in simulation time**:
 
 In RViz, add an **Image** display, select the desired image topic and set
 Reliability to **Best Effort**. The frame is `<robot_id>_wrist_camera_optical_frame`
-(X right, Y down, Z forward). The initial upright robot poses can point some
-cameras at the horizon or adjacent arms; move the arm to view the work surface.
+(X right, Y down, Z forward). Since 2026-11-09 the default initial arm poses
+aim all four cameras at their own table's central ChArUco board.
 
 Common settings live under `tools` in `cell_layout.yaml`. A robot's own `tools`
 mapping overrides individual settings, for example:
@@ -241,6 +243,43 @@ unsupported; `gz_ros2_control` supplies the verified position coupling instead.
 This is suitable for opening/closing and vision work; force-coupled grasping
 requires further physics validation.
 Sources, model revision and licenses are in [THIRD_PARTY.md](THIRD_PARTY.md).
+
+## ChArUco boards and first calibration check
+
+Each table carries a central **7 × 5 ChArUco board** with 40 mm squares,
+28 mm markers and a 20 mm white margin. Left/right use different marker IDs.
+The four initial arm configurations aim the cameras at the boards.
+Settings are central under `charuco` in `cell_layout.yaml`.
+
+Print the identical physical boards using the
+[A3 PDF (two pages, recommended)](output/pdf/uwa_charuco_boards_A3_1to1.pdf)
+or [A4 tiled PDF (four pages)](output/pdf/uwa_charuco_boards_A4_tiled_1to1.pdf).
+Each complete board is 320 × 240 mm including the white margin; it does not fit
+on one A4 sheet at the original scale. Print at **100% / Actual Size**, disable
+Fit to Page, and measure the 100 mm control bar and 40 mm square edge.
+For A4, trim at the crop marks and align the two halves with 20 mm overlap.
+Mount the result flat on a rigid backing. The optional generator is
+`python3 scripts/print_charuco.py` after sourcing `scripts/env.bash`; it additionally
+requires `python3-reportlab` and reads the board settings directly from the layout.
+
+```bash
+source ~/UWA_ws/src/multi_arm_manipulation_UWA/scripts/env.bash
+ros2 run uwa_cell_gazebo charuco_check \
+  --output-dir "$UWA_WS/setup/logs/uwa-charuco-check"
+```
+
+The read-only tool detects each board with OpenCV, saves raw/annotated camera
+images and a JSON report, and compares ten image-based poses per camera with
+timestamp-matched simulation ground truth. It also estimates each robot base
+in `left_table_top` / `right_table_top` and the relative base transform per table,
+assuming known board placement, intrinsics, camera mounting and arm kinematics.
+This is the first simulation check; estimating unknown hand-eye transforms
+requires multiple arm poses later. No estimated transform is applied automatically.
+
+See [the calibration guide](docs/charuco_calibration.md) for frames, transform
+equations, diagnostics and recalculating initial views after layout changes.
+The [dated validation report](docs/charuco_validation_2026-11-09.json) records
+the first successful four-camera check against ground truth.
 
 ## Optional scan reference
 
@@ -299,6 +338,33 @@ the simulation. Terminal launches still use `scan:=false` by default.
 Enable the **UNREGISTERED scan reference** display if you have hidden it.
 The source PLY and cached point coordinates remain unchanged; the fitted scale
 and pose are applied only when publishing/displaying the reference.
+
+### Display cleanup
+
+Since 2026-11-09 the reference display is cropped to a **4 m spherical radius**
+around the mean world position of the four robot bases (currently `[0, 0, 0.9]` m).
+This is a world-space distance, independent of the RViz camera. The center follows
+table/mount positions; `scan.crop_center` can override it explicitly.
+
+`scan.exclude_boxes` contains fixed world-coordinate masks for the four robots
+in the **recorded scan poses**, including their bases. Upper masks start above
+the tabletops to preserve their surfaces and most flat objects. These are coarse
+spatial masks, not semantic segmentation: other scan objects inside a mask are
+also hidden. The masks do not follow the simulated arm poses. Review them after
+changing the scan alignment or replacing the recording.
+
+All cleanup occurs once after scaling and pose conversion, before publishing;
+the raw PLY and import cache remain unchanged. The current recording goes from
+200,000 cached points to **154,458 displayed points**: 27,133 outside the radius
+and 18,409 in the fixed robot masks. These counts describe this recording and
+configuration, not a target point count.
+
+To disable these display filters set `scan.crop_radius: null` and
+`scan.exclude_boxes: []`. Then reload only the desktop-managed reference:
+
+```bash
+systemctl --user restart uwa-cell-scan
+```
 
 ## Verify
 

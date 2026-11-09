@@ -13,7 +13,7 @@ from scipy.spatial.transform import Rotation
 import yaml
 
 from .charuco import transform
-from .configuration import ROBOT_IDS, joint_names, load_layout, render_description
+from .configuration import ROBOT_IDS, default_layout_path, joint_names, load_layout, render_description
 
 
 class Chain:
@@ -100,8 +100,8 @@ def main():
     parser.add_argument('--output', required=True, help='Write a new layout; never overwrites the input')
     args = parser.parse_args()
     layout = load_layout(args.layout)
-    source = Path(args.layout) if args.layout else None
-    if source and Path(args.output).resolve() == source.resolve():
+    source = Path(args.layout or default_layout_path()).expanduser()
+    if Path(args.output).expanduser().resolve() == source.resolve():
         parser.error('--output must be a different file')
     with tempfile.TemporaryDirectory(prefix='uwa_charuco_views_') as directory:
         poses = solve_views(layout, render_description(layout, directory)[0])
