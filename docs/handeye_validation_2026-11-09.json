@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-09",
+  "simulation_only": true,
+  "samples_per_robot": 40,
+  "fit_per_robot": 32,
+  "validation_per_robot": 8,
+  "ground_truth_used_for_fit": false,
+  "robots": {
+    "left_front": {
+      "camera_error_mm": 0.13037300007444352,
+      "camera_error_deg": 0.034493451047866816,
+      "validation": {
+        "median_reprojection_rms_px": 0.12182320042067177,
+        "board_translation_rms_m": 0.0003850769671787647,
+        "board_rotation_rms_deg": 0.052698767636673395
+      }
+    },
+    "left_rear": {
+      "camera_error_mm": 0.049426391595773445,
+      "camera_error_deg": 0.03055130792546655,
+      "validation": {
+        "median_reprojection_rms_px": 0.07578541534131711,
+        "board_translation_rms_m": 9.554771545059155e-05,
+        "board_rotation_rms_deg": 0.04186508965365153
+      }
+    },
+    "right_front": {
+      "camera_error_mm": 0.07310760736477574,
+      "camera_error_deg": 0.027907999763278162,
+      "validation": {
+        "median_reprojection_rms_px": 0.08805865905022248,
+        "board_translation_rms_m": 0.00013594301515856255,
+        "board_rotation_rms_deg": 0.04866911139972594
+      }
+    },
+    "right_rear": {
+      "camera_error_mm": 0.04741320356112968,
+      "camera_error_deg": 0.03044790668276173,
+      "validation": {
+        "median_reprojection_rms_px": 0.07489356068137074,
+        "board_translation_rms_m": 9.961536477235605e-05,
+        "board_rotation_rms_deg": 0.046282413193408124
+      }
+    }
+  },
+  "relative_bases": {
+    "left": {
+      "distance_mm": 1350.0117880960127,
+      "error_mm": 0.6396302201400164,
+      "error_deg": 0.05329449927164796,
+      "distance_bootstrap_interval_mm": [
+        1349.7360503412133,
+        1350.8091205690212
+      ]
+    },
+    "right": {
+      "distance_mm": 1349.9889294333923,
+      "error_mm": 0.12796429734265025,
+      "error_deg": 0.02690952350299422,
+      "distance_bootstrap_interval_mm": [
+        1349.6288147967152,
+        1350.663530608985
+      ]
+    }
+  },
+  "passed": true
+}

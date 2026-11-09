@@ -146,8 +146,10 @@ class Backend(Node):
         truth_path=Path(profile.get('session_dir',''))/'ground_truth_validation.json'
         try:truth=json.loads(truth_path.read_text()) if truth_path.is_file() else {}
         except (OSError,ValueError):truth={}
+        counts={r:fit['fit_count']+fit['validation_count']+len(fit.get('excluded_samples',[])) for r,fit in profile['robots'].items()}
         return {'result_path':str(path),'summary':{r:{k:v for k,v in fit.items() if k not in ('bootstrap_base_board','validation_samples')}
                                                  for r,fit in profile['robots'].items()},
+                'counts':counts,'progress_total':sum(counts.values()),
                 'relative_bases':profile.get('relative_bases',{}),'table_bases':profile.get('table_bases',{}),'ground_truth':truth}
 
     def publish_status(self):
@@ -278,7 +280,7 @@ class Backend(Node):
             self.preparation_start=time.monotonic()
             self.frozen=dict(self.positions)
             self.state.update(phase='PREPARING',message='Prüfe Telemetrie und plane Messstellungen',plan_id='',result_path='',robot_id='',accepted=0,rejected=0,target=request.samples_per_robot,counts={r:0 for r in ids},
-                              summary={},ground_truth={},relative_bases={},table_bases={})
+                              summary={},ground_truth={},relative_bases={},table_bases={},progress_total=0)
         self.operation_thread=self.spawn(lambda:self.prepare_work(ids,request.samples_per_robot))
         response.accepted=True;response.message='Preparation started';return response
 
@@ -713,4 +715,4 @@ def main():
     try:
         while not stop.wait(.1):pass
     finally:
-        node.close();executor.shutdown(timeout_sec=3);node.destroy_node();rclpy.shutdown();spin.join(timeout=2)
+        node.close();executor.shutdown(timeout_sec=3);spin.join(timeout=2);node.destroy_node();rclpy.shutdown()

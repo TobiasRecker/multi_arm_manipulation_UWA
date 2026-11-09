@@ -64,4 +64,4 @@ def main():
     finally:
         if node.state.get('phase') in ('MOVING','RUNNING','PREPARING','CAPTURING','SETTLING','RETURNING','PAUSED','SOLVING','APPLYING'):
             node.command('stop');time.sleep(.5)
-        executor.shutdown(timeout_sec=2);node.destroy_node();rclpy.shutdown();thread.join(timeout=2)
+        executor.shutdown(timeout_sec=2);thread.join(timeout=2);node.destroy_node();rclpy.shutdown()

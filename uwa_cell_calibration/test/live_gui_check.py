@@ -84,7 +84,8 @@ def main():
         if args.output:Path(args.output).write_text(json.dumps(result,indent=2)+'\n')
         print(json.dumps(result,indent=2))
     finally:
-        window.allow_close=True;window.close();executor.shutdown(timeout_sec=2);node.destroy_node();rclpy.shutdown();thread.join(timeout=2)
+        window.timer.stop();window.allow_close=True;window.close()
+        executor.shutdown(timeout_sec=2);thread.join(timeout=2);node.destroy_node();rclpy.shutdown()
 
 
 if __name__=='__main__':main()

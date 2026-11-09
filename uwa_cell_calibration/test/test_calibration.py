@@ -191,3 +191,22 @@ def test_failed_model_loading_and_profile_commit_keep_previous_model(data,tmp_pa
                                      lambda:profile_state.update(active='previous'))
     assert profile_state['active']=='previous' and model.planner is old and not old.cancelled
     assert model.model_xml=='previous xml' and attempts[-1].cancelled
+
+
+@pytest.mark.parametrize('pause_ack',[True,False])
+@pytest.mark.parametrize('stationary,pending',[(False,False),(True,True)])
+def test_unconfirmed_stop_and_pending_acceptance_require_pause(monkeypatch,pause_ack,stationary,pending):
+    import threading
+    from types import SimpleNamespace
+    from uwa_cell_calibration import backend
+    ticks=iter(np.arange(0,100,.1))
+    monkeypatch.setattr(backend,'time',SimpleNamespace(monotonic=lambda:next(ticks),sleep=lambda _:None))
+    events=[];requests=[]
+    state=SimpleNamespace(shutdown_event=threading.Event(),abort=threading.Event(),last_joints=0.,
+        goal_callback_pending=pending,pending_goal=None,motion_handle=None,stationary=lambda:stationary,
+        pause_world=lambda:requests.append('pause') or pause_ack,
+        status=lambda phase,**values:events.append((phase,values)))
+    backend.Backend.confirm_halt(state)
+    assert requests==['pause'] and state.abort.is_set()
+    assert events[-1][0]=='STOPPED' and events[-1][1]['world_pause_confirmed'] is pause_ack
+    assert ('Weder Stillstand' in events[-1][1]['message']) is not pause_ack

@@ -48,12 +48,15 @@ class Window(QtWidgets.QMainWindow):
             image=QtWidgets.QLabel('Warte auf Kamerabild');image.setMinimumSize(300,180);image.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             image.setStyleSheet('background:#19212c; color:#dfe7ee;');box.addWidget(image)
             self.views[rid]=image;grid.addWidget(group,index//2,index%2)
-        layout.addLayout(grid,stretch=1)
-        self.results=QtWidgets.QPlainTextEdit();self.results.setReadOnly(True);self.results.setMaximumHeight(180);layout.addWidget(self.results)
+        self.tabs=QtWidgets.QTabWidget();live_page=QtWidgets.QWidget();live_page.setLayout(grid)
+        self.tabs.addTab(live_page,'Livebilder')
+        result_page=QtWidgets.QWidget();result_layout=QtWidgets.QVBoxLayout(result_page)
+        self.results=QtWidgets.QPlainTextEdit();self.results.setReadOnly(True)
         self.result_table=QtWidgets.QTableWidget(0,5)
         self.result_table.setHorizontalHeaderLabels(['Ergebnis','XYZ [mm]','Roll / Pitch / Yaw [°]','Qualität / Abstand','Ground Truth'])
         self.result_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Stretch)
-        self.result_table.setMaximumHeight(195);layout.insertWidget(layout.indexOf(self.results),self.result_table)
+        result_layout.addWidget(self.result_table,stretch=1);result_layout.addWidget(self.results)
+        self.tabs.addTab(result_page,'Ergebnisse');layout.addWidget(self.tabs,stretch=1)
         self.results.setMaximumHeight(65)
         self.info=QtWidgets.QLabel('Vor Start rqt-Ausgabe deaktivieren. Stopp hält die aktuelle Stellung; keine automatische Rückfahrt nach Abbruch.')
         self.info.setWordWrap(True);layout.addWidget(self.info)
@@ -61,6 +64,7 @@ class Window(QtWidgets.QMainWindow):
         self.last_result=''
 
     def prepare(self):
+        self.tabs.setCurrentIndex(0)
         self.node.prepare([r for r,b in self.robots.items() if b.isChecked()],self.count.value())
 
     def pause_world(self):
@@ -103,7 +107,7 @@ class Window(QtWidgets.QMainWindow):
         self.status_label.setText(f"{phase} | {NAMES.get(state.get('robot_id'), '')} | {state.get('message','Backend nicht erreichbar')}"+
                                   f" | Verworfen: {state.get('rejected',0)}"+
                                   (f"\n{self.node.error}" if self.node.error else ''))
-        counts=state.get('counts',{});total=state.get('target',40)*max(1,len(counts))
+        counts=state.get('counts',{});total=state.get('progress_total') or state.get('target',40)*max(1,len(counts))
         self.progress.setRange(0,total);self.progress.setValue(sum(counts.values()))
         for rid,label in self.views.items():
             quality=state.get('camera_quality',{}).get(rid,{})
@@ -144,8 +148,10 @@ class Window(QtWidgets.QMainWindow):
                             ' / '.join(f'{v:.2f}' for v in Rotation.from_matrix(matrix[:3,:3]).as_euler('xyz',degrees=True)),quality,truth]
                     for j,value in enumerate(values):self.result_table.setItem(i,j,QtWidgets.QTableWidgetItem(value))
                 self.last_result=text
+                self.tabs.setCurrentIndex(1)
         elif self.last_result:
             self.last_result='';self.result_table.setRowCount(0)
+            self.tabs.setCurrentIndex(0)
             self.results.setPlainText('Aktives Profil: '+state.get('active_profile','keines'))
         if self.closing and (phase in ('STOPPED','IDLE','READY','COMPLETE','ERROR') and state.get('stopped')):
             self.allow_close=True;self.closing=False;self.timer.stop();self.close()
@@ -171,4 +177,5 @@ def main():
     try:app.exec()
     finally:
         if node.state.get('client_id')==node.client_id:node.command('stop');time.sleep(.2)
-        executor.shutdown(timeout_sec=2);node.destroy_node();rclpy.shutdown();thread.join(timeout=2)
+        window.timer.stop();executor.shutdown(timeout_sec=2);thread.join(timeout=2)
+        node.destroy_node();rclpy.shutdown()

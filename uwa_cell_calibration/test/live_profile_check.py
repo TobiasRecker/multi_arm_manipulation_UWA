@@ -24,7 +24,7 @@ from uwa_cell_calibration.storage import atomic_json,fingerprint
 from uwa_cell_gazebo.charuco import pose_error,table_board_transform
 from uwa_cell_gazebo.charuco_check import tf_matrix
 from uwa_cell_gazebo.charuco_views import Chain
-from uwa_cell_gazebo.configuration import ROBOT_IDS
+from uwa_cell_gazebo.configuration import ROBOT_IDS,joint_names
 
 
 def main():
@@ -56,6 +56,8 @@ def main():
         assert fingerprint(raw)==result['description_fingerprint']
         assert 'calibrated/' not in raw and 'calibrated/left_front_base_link' in calibrated
         report={'raw_description_unchanged':True,'separate_tf_trees':True,'tf_errors':{}}
+        report['return_error_rad']=max(abs(positions[j]-plan['start'][j]) for rid in ROBOT_IDS for j in joint_names(rid))
+        assert report['return_error_rad']<.02
         def lookup(a,b):
             until(lambda:buffer.can_transform(a,b,Time()))
             return tf_matrix(buffer.lookup_transform(a,b,Time()))
@@ -104,7 +106,7 @@ def main():
         report['active_sha256']=hashlib.sha256(active.read_bytes()).hexdigest()
         atomic_json(args.output,report);print(json.dumps(report,indent=2))
     finally:
-        executor.shutdown(timeout_sec=2);node.destroy_node();rclpy.shutdown();thread.join(timeout=2)
+        executor.shutdown(timeout_sec=2);thread.join(timeout=2);node.destroy_node();rclpy.shutdown()
 
 
 if __name__=='__main__':main()
