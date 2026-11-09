@@ -4,6 +4,10 @@ ROS 2 **Lyrical**, Ubuntu 26.04 and **Gazebo Jetty**. This repository models
 two tables carrying one UR5, one UR7e and two UR5e robots. It starts simulated
 hardware only. The layout is provisional, not a calibrated digital twin.
 
+Project context is maintained in [HANDOVER.md](HANDOVER.md): user goals,
+requirements, preferences, decisions, verified results and open work.
+[AGENTS.md](AGENTS.md) defines the ongoing working and documentation rules.
+
 ## Build
 
 The workspace is expected at `~/UWA_ws`; set `UWA_WS` before sourcing the helper
@@ -68,10 +72,22 @@ For a new terminal launch, use `ros2 launch uwa_cell_gazebo cell.launch.py rviz:
 after sourcing `scripts/env.bash`.
 
 The **UWA Cell Simulation** start-menu application opens Gazebo, rqt joint
-control and RViz. Repeated clicks reuse the existing simulation and the
-desktop-managed RViz window. Right-click the app for **RViz öffnen** and
-**Simulation beenden**. The stop action also closes the separately managed
-RViz window. Closing RViz alone leaves the simulation running.
+control and RViz, and automatically starts the scan-reference publisher.
+Repeated clicks reuse the existing simulation, scan publisher and the
+desktop-managed RViz window, restore minimized windows and bring the existing
+cell windows to the front (Gazebo for normal start, RViz for the RViz/scan actions).
+This does not reset the simulated robots. The desktop entry matches Gazebo's
+window class; `scripts/show_cell_windows.py` activates only windows whose PIDs
+belong to the cell's systemd services on the XWayland display.
+Right-click the app for **RViz öffnen** and
+**Punktewolke anzeigen**, or **Simulation beenden**. The stop action also closes
+the separately managed RViz window and scan publisher. Closing RViz alone
+leaves the simulation running.
+
+The default RViz tool is **Move Camera**: left-drag rotates the orbit camera,
+the mouse wheel zooms, and middle-drag pans. The **Views** panel exposes the
+orbit distance and focal point as well. These tools are explicitly included in
+the configuration; loading a file without a `Tools` section clears RViz's tools.
 
 Install or refresh the menu entry for the current user, without sudo:
 
@@ -80,8 +96,9 @@ python3 ~/UWA_ws/src/multi_arm_manipulation_UWA/scripts/install_desktop.py
 ```
 
 The installer copies the entry to `$XDG_DATA_HOME/applications/uwa-cell.desktop`
-and the icon to `$XDG_DATA_HOME/icons/uwa-cell.png` (default data directory:
-`~/.local/share`). Reinstall after moving this repository. Desktop launch errors
+and the icon to `$XDG_DATA_HOME/icons/uwa-cell-<content-hash>.png` (default data directory:
+`~/.local/share`). The content hash refreshes the desktop's cached icon after
+image edits. Reinstall after moving this repository. Desktop launch errors
 are recorded in `~/UWA_ws/setup/logs/uwa-cell-app.log`; RViz logs are available
 with `journalctl --user -u uwa-cell-rviz`.
 
@@ -146,8 +163,84 @@ Each arm has six uniquely prefixed joints. Its native ROS action is:
 /uwa_cell/<robot_id>_trajectory_controller/follow_joint_trajectory
 ```
 
-The corresponding `joint_trajectory` topic is also available. All four
-trajectory controllers and the common joint-state broadcaster start active.
+The corresponding `joint_trajectory` topic is also available. All four arm
+controllers, four gripper controllers and the common joint-state broadcaster
+start active (nine controllers in total).
+
+## Robotiq 2F-85 grippers and Wrist Cameras
+
+Each arm now carries a **Robotiq 2F-85** and a simulated **Wrist Camera 2019**.
+The reported example devices are gripper S/N C-43008 (2020) and camera
+S/N Q-021114 (2019); individual serial-to-arm assignments are not established.
+The camera lens is mounted **opposite the UR tool I/O connector**, on +Y of
+the nominal UR `tool0` frame. Its nominal line of sight tilts 30° outward
+from the tool axis. The camera adds 13.5 mm between the flange and the gripper
+without an extra tool plate or a second gripper coupling.
+
+In the existing rqt window select `/uwa_cell/controller_manager`, then
+`<robot_id>_gripper_controller`. The single editor commands the driving
+knuckle angle: **0 rad = open, 0.8 rad = closed**. The five other finger joints
+follow through mimic coupling. Angles are not opening widths in metres.
+The gripper's trajectory action is:
+
+```
+/uwa_cell/<robot_id>_gripper_controller/follow_joint_trajectory
+```
+
+For example, close the front-left gripper gradually after sourcing `scripts/env.bash`:
+
+```bash
+ros2 action send_goal \
+  /uwa_cell/left_front_gripper_controller/follow_joint_trajectory \
+  control_msgs/action/FollowJointTrajectory \
+  '{trajectory: {joint_names: [left_front_robotiq_85_left_knuckle_joint], points: [{positions: [0.65], time_from_start: {sec: 3}}]}}'
+```
+
+Use `positions: [0.0]` to reopen. Disable rqt's output for that controller
+before sending separate action goals.
+
+All four cameras publish **640 × 480 RGB at 10 Hz in simulation time**:
+
+| Robot ID | Image topic | Calibration topic |
+|---|---|---|
+| `left_front` | `/uwa_cell/left_front/wrist_camera/image_raw` | `/uwa_cell/left_front/wrist_camera/camera_info` |
+| `left_rear` | `/uwa_cell/left_rear/wrist_camera/image_raw` | `/uwa_cell/left_rear/wrist_camera/camera_info` |
+| `right_front` | `/uwa_cell/right_front/wrist_camera/image_raw` | `/uwa_cell/right_front/wrist_camera/camera_info` |
+| `right_rear` | `/uwa_cell/right_rear/wrist_camera/image_raw` | `/uwa_cell/right_rear/wrist_camera/camera_info` |
+
+In RViz, add an **Image** display, select the desired image topic and set
+Reliability to **Best Effort**. The frame is `<robot_id>_wrist_camera_optical_frame`
+(X right, Y down, Z forward). The initial upright robot poses can point some
+cameras at the horizon or adjacent arms; move the arm to view the work surface.
+
+Common settings live under `tools` in `cell_layout.yaml`. A robot's own `tools`
+mapping overrides individual settings, for example:
+
+```yaml
+robots:
+  left_front:
+    # ... keep the robot's existing type, table and mounting settings ...
+    tools:
+      camera_rate: 5.0
+      camera_yaw: 0.0
+      gripper_initial_position: 0.0
+```
+
+Set `camera_enabled: false` or `gripper: none` to omit an individual device.
+Restart after tool changes. `camera_yaw` rotates the camera around tool0 Z;
+`gripper_yaw` rotates the gripper independently. Both default to zero.
+Headless launches (`gui:=false`) use EGL headless rendering for the cameras;
+they still require an Ogre2-compatible graphics driver.
+
+Gripper geometry, inertias and finger kinematics use the BSD-licensed PickNik
+model. The camera housing is a primitive approximation with nominal pinhole
+optics, not calibrated manufacturer CAD. Adaptive contact mechanics, Robotiq
+URCap vision functions, autofocus and controllable LEDs are not simulated.
+The installed physics backend reports that native mimic constraints are
+unsupported; `gz_ros2_control` supplies the verified position coupling instead.
+This is suitable for opening/closing and vision work; force-coupled grasping
+requires further physics validation.
+Sources, model revision and licenses are in [THIRD_PARTY.md](THIRD_PARTY.md).
 
 ## Optional scan reference
 
@@ -160,6 +253,10 @@ source ~/UWA_ws/src/multi_arm_manipulation_UWA/scripts/env.bash
 ros2 run uwa_cell_gazebo prepare_scan
 # Or use another file (quote paths containing spaces):
 ros2 run uwa_cell_gazebo prepare_scan --input '/path/to/UR Setup.ply'
+# Add the scan to an already running cell, without resetting any robot:
+bash ~/UWA_ws/src/multi_arm_manipulation_UWA/scripts/cell.sh scan
+# Or pass the same custom layout used to launch the simulation:
+bash ~/UWA_ws/src/multi_arm_manipulation_UWA/scripts/cell.sh scan /path/to/layout.yaml
 # Restart the service with the optional reference and RViz:
 bash ~/UWA_ws/src/multi_arm_manipulation_UWA/scripts/cell.sh stop
 bash ~/UWA_ws/src/multi_arm_manipulation_UWA/scripts/cell.sh start scan:=true rviz:=true
@@ -180,6 +277,14 @@ world-to-reference transform. Initial settings are identity and scale 1:
 restart. The scan never contributes collision geometry or changes robot poses.
 A missing/unreadable scan logs an optional-reference error; Gazebo keeps running.
 With `scan:=false`, the launch never accesses Google Drive.
+The desktop app automatically starts the separately managed scan publisher,
+including when using its **RViz öffnen** action. No extra checkbox or right-click
+action is needed after starting the app. The **Punktewolke anzeigen** action
+remains available for reopening the reference. A missing scan is nonfatal to
+the simulation. Terminal launches still use `scan:=false` by default.
+Enable the **UNREGISTERED scan reference** display if you have hidden it.
+The original scan axes and units are retained, so the cloud can appear tilted
+or displaced relative to the cell until its scale and pose are calibrated.
 
 ## Verify
 
@@ -190,6 +295,12 @@ python3 -m pytest ~/UWA_ws/src/multi_arm_manipulation_UWA/uwa_cell_gazebo/test -
 ros2 run uwa_cell_gazebo verify_cell
 # Explicitly test a small wrist move on each arm and restore its original pose:
 ros2 run uwa_cell_gazebo verify_cell --move
+# Check four RGB streams, calibration, tool frames and finger coupling:
+ros2 run uwa_cell_gazebo verify_tools
+# Close/open each simulated gripper and restore its original position:
+ros2 run uwa_cell_gazebo verify_tools --move
+# Optionally save image snapshots and a JSON report:
+ros2 run uwa_cell_gazebo verify_tools --images /tmp/uwa-camera-images --output /tmp/uwa-tools.json
 ```
 
 The motion check requires domain 64, validates an error below 0.03 rad and
@@ -197,9 +308,9 @@ other-arm drift below 0.01 rad, and checks both fixed base transforms and the
 actual Gazebo model-root pose. It is intended
 for this simulated cell, not a hardware commissioning procedure.
 
-The optional live UI check uses the installed rqt plugin, discovers all four
-controllers, selects six joint editors per arm and verifies current-position
-hold commands on each controller's topic:
+The optional live UI check uses the installed rqt plugin, discovers all eight
+trajectory controllers, selects six joint editors per arm and one per gripper,
+and verifies current-position hold commands on each controller's topic:
 
 ```bash
 QT_QPA_PLATFORM=offscreen python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_gazebo/test/live_rqt_check.py"
@@ -223,3 +334,14 @@ individual wrist-action test; the actual Gazebo root remains anchored. The
 standard rqt plugin selects and commands all four arms. The original scan
 imports as 200,000 finite reference points and a missing scan is nonfatal.
 Detailed test outputs and screenshots are under `~/UWA_ws/setup/logs/uwa-cell*`.
+
+Validated on 2026-11-09 with the Robotiq tools: both packages build, **24 offline
+tests pass**, nine controllers are active, all four grippers close/open and
+restore with correct finger coupling and no unrelated-joint drift above 0.01 rad.
+All four arms also pass their wrist-action/restore check with stable cell roots.
+Four RGB streams, camera calibration and optical TFs pass `verify_tools`;
+the installed rqt plugin selects and publishes hold commands for all eight
+trajectory controllers. EGL rendering with `gui:=false` also supplies all four
+camera streams; the camera/clock bridges and server shut down cleanly on restart.
+Evidence: `uwa-cell-tools-*.log` / `*.json` and
+`uwa-cell-camera-images/` under the log directory above.

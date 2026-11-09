@@ -21,7 +21,7 @@ from sensor_msgs.msg import JointState
 from trajectory_msgs.msg import JointTrajectoryPoint
 from tf2_ros import Buffer, TransformListener
 
-from .configuration import ROBOT_IDS, joint_names, load_layout
+from .configuration import ROBOT_IDS, controller_names, joint_names, load_layout
 
 
 def _blocks(text, field):
@@ -142,8 +142,7 @@ def main():
         assert client.wait_for_service(timeout_sec=15), 'Controller manager missing'
         response = node.future(client.call_async(ListControllers.Request()))
         controllers = {controller.name: controller.state for controller in response.controller}
-        expected_controllers = ['joint_state_broadcaster'] + [
-            f'{robot_id}_trajectory_controller' for robot_id in ROBOT_IDS]
+        expected_controllers = controller_names(layout)
         assert all(controllers.get(name) == 'active' for name in expected_controllers), controllers
         node.until(lambda: all(node.buffer.can_transform('world', f'{rid}_base_link', Time())
                                for rid in ROBOT_IDS))

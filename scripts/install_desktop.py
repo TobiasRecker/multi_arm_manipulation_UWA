@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Install the UWA Cell menu entry and icon for the current desktop user."""
+import hashlib
 import os
 from pathlib import Path
 import shutil
@@ -23,6 +24,9 @@ def main():
     source = repo / 'assets/uwa-cell.png'
     if not source.is_file():
         raise SystemExit(f'Application icon is missing: {source}')
+    # A new filename makes the desktop refresh its cached icon after edits.
+    digest = hashlib.sha256(source.read_bytes()).hexdigest()[:12]
+    installed_icon = icons / f'uwa-cell-{digest}.png'
     script = repo / 'scripts/desktop_cell.sh'
     command = '/usr/bin/bash ' + exec_quote(script)
     entry = f'''[Desktop Entry]
@@ -33,13 +37,14 @@ Comment=Four UR arms in Gazebo with joint control and RViz
 Comment[de]=Vier UR-Arme in Gazebo mit Gelenksteuerung und RViz
 Exec={command} start
 TryExec=/usr/bin/bash
-Icon={icons / 'uwa-cell.png'}
+Icon={installed_icon}
 Path={repo.parent.parent}
 Terminal=false
 StartupNotify=false
+StartupWMClass=Gazebo GUI
 Categories=Science;Robotics;
 Keywords=UWA;ROS;Gazebo;RViz;Roboter;Simulation;
-Actions=RViz;Stop;
+Actions=RViz;Scan;Stop;
 
 [Desktop Action RViz]
 Name=Open RViz
@@ -50,6 +55,11 @@ Exec={command} rviz
 Name=Stop simulation
 Name[de]=Simulation beenden
 Exec={command} stop
+
+[Desktop Action Scan]
+Name=Show scan reference
+Name[de]=Punktewolke anzeigen
+Exec={command} scan
 '''
     # Validate the concrete entry before changing the desktop profile.
     preview = repo / 'assets/uwa-cell.desktop'
@@ -59,14 +69,14 @@ Exec={command} stop
         subprocess.run([validator, str(preview)], check=True)
     applications.mkdir(parents=True, exist_ok=True)
     icons.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source, icons / 'uwa-cell.png')
+    shutil.copy2(source, installed_icon)
     target = applications / 'uwa-cell.desktop'
     shutil.copy2(preview, target)
     target.chmod(0o644)
     updater = shutil.which('update-desktop-database')
     if updater:
         subprocess.run([updater, str(applications)], check=True)
-    print(f'Installed menu entry: {target}\nInstalled icon: {icons / "uwa-cell.png"}')
+    print(f'Installed menu entry: {target}\nInstalled icon: {installed_icon}')
 
 
 if __name__ == '__main__':

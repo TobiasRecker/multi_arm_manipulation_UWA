@@ -1,0 +1,87 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:include filename="$(find uwa_cell_description)/urdf/robotiq_2f_85.xacro"/>
+
+  <!-- Camera dimensions/optics: Robotiq Wrist Camera manual, 2019.
+       Primitive housing and inertias are approximations, not manufacturer CAD.
+       tool0 uses UR's tool convention (Z out of the flange).
+       The lens is on local +Y; camera_yaw selects its mounting side. -->
+  <xacro:macro name="robotiq_tools" params="id t">
+    <xacro:if value="${t.get('camera_enabled', False)}">
+      <link name="${id}_wrist_camera_link">
+        <visual>
+          <origin xyz="0 0 0.0023"/>
+          <geometry><cylinder radius="0.0375" length="0.0224"/></geometry>
+          <material name="${id}_camera_metal"><color rgba="0.22 0.25 0.28 1"/></material>
+        </visual>
+        <visual>
+          <origin xyz="0 0.0357 0.002" rpy="${-pi/6} 0 0"/>
+          <geometry><cylinder radius="0.009" length="0.008"/></geometry>
+          <material name="${id}_camera_lens"><color rgba="0.03 0.08 0.12 1"/></material>
+        </visual>
+        <collision>
+          <origin xyz="0 0 0.0023"/>
+          <geometry><cylinder radius="0.0375" length="0.0224"/></geometry>
+        </collision>
+        <inertial>
+          <origin xyz="0 0.005 0.006"/>
+          <mass value="0.160"/>
+          <inertia ixx="0.00007" ixy="0" ixz="0" iyy="0.00007" iyz="0" izz="0.00011"/>
+        </inertial>
+      </link>
+      <joint name="${id}_wrist_camera_mount" type="fixed">
+        <parent link="${id}_tool0"/><child link="${id}_wrist_camera_link"/>
+        <origin rpy="0 0 ${t['camera_yaw']}"/>
+      </joint>
+      <!-- REP-103 optical frame: X right, Y down, Z along the line of sight. -->
+      <link name="${id}_wrist_camera_optical_frame"/>
+      <joint name="${id}_wrist_camera_optical_joint" type="fixed">
+        <parent link="${id}_wrist_camera_link"/><child link="${id}_wrist_camera_optical_frame"/>
+        <origin xyz="0 0.0357 -0.0001" rpy="${-pi/6} 0 0"/>
+      </joint>
+      <gazebo reference="${id}_wrist_camera_link">
+        <sensor name="${id}_wrist_camera" type="camera">
+          <frame_id>${id}_wrist_camera_optical_frame</frame_id>
+          <!-- Gazebo cameras look along +X; rotate into the optical frame. -->
+          <pose>0 0.0357 -0.0001 0 ${-pi/3} ${pi/2}</pose>
+          <always_on>true</always_on><update_rate>${t['camera_rate']}</update_rate>
+          <topic>/uwa_cell/${id}/wrist_camera/image_raw</topic>
+          <camera>
+            <horizontal_fov>${t['camera_horizontal_fov']}</horizontal_fov>
+            <image><width>${t['camera_width']}</width><height>${t['camera_height']}</height><format>R8G8B8</format></image>
+            <clip><near>0.07</near><far>5.0</far></clip>
+            <camera_info_topic>/uwa_cell/${id}/wrist_camera/camera_info</camera_info_topic>
+          </camera>
+        </sensor>
+      </gazebo>
+    </xacro:if>
+    <xacro:if value="${t.get('gripper', 'none') == '2f_85'}">
+      <xacro:robotiq_gripper prefix="${id}_" parent="${id}_tool0">
+        <!-- Camera replaces the normal coupling: 13.5 mm added height.
+             Camera-free mounting uses an approximate 10 mm coupling. -->
+        <origin xyz="0 0 ${0.0135 if t.get('camera_enabled', False) else 0.01}"
+                rpy="0 0 ${t['gripper_yaw']}"/>
+      </xacro:robotiq_gripper>
+      <xacro:unless value="${t.get('camera_enabled', False)}">
+        <xacro:box name="${id}_gripper_coupling" parent="${id}_tool0"
+          xyz="${[0, 0, 0.005]}" size="${[0.06, 0.06, 0.01]}" mass="0.05" color="0.25 0.25 0.25 1"/>
+      </xacro:unless>
+    </xacro:if>
+  </xacro:macro>
+
+  <xacro:macro name="robotiq_interfaces" params="id t">
+    <xacro:if value="${t.get('gripper', 'none') == '2f_85'}">
+      <joint name="${id}_robotiq_85_left_knuckle_joint">
+        <command_interface name="position"><param name="min">0</param><param name="max">0.8</param></command_interface>
+        <state_interface name="position"><param name="initial_value">${t['gripper_initial_position']}</param></state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+      <!-- gz_ros2_control follows the URDF mimic tags. No command interfaces. -->
+      <joint name="${id}_robotiq_85_right_knuckle_joint"><state_interface name="position"/><state_interface name="velocity"/></joint>
+      <joint name="${id}_robotiq_85_left_inner_knuckle_joint"><state_interface name="position"/><state_interface name="velocity"/></joint>
+      <joint name="${id}_robotiq_85_right_inner_knuckle_joint"><state_interface name="position"/><state_interface name="velocity"/></joint>
+      <joint name="${id}_robotiq_85_left_finger_tip_joint"><state_interface name="position"/><state_interface name="velocity"/></joint>
+      <joint name="${id}_robotiq_85_right_finger_tip_joint"><state_interface name="position"/><state_interface name="velocity"/></joint>
+    </xacro:if>
+  </xacro:macro>
+</robot>

@@ -15,7 +15,7 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 from uwa_cell_gazebo.configuration import (
-    ROBOT_IDS, default_layout_path, load_layout, render_description,
+    ROBOT_IDS, controller_names, default_layout_path, load_layout, render_description,
 )
 
 
@@ -37,8 +37,11 @@ def setup(context):
         raise
     share = Path(get_package_share_directory('uwa_cell_gazebo'))
     world = share / 'worlds/uwa_lab.sdf'
+    server_command = ['gz', 'sim', '-s', '-r', str(world), '-v', '2']
+    if not enabled(context, 'gui'):
+        server_command.append('--headless-rendering')
     server = ExecuteProcess(
-        cmd=['gz', 'sim', '-s', '-r', str(world), '-v', '2'],
+        cmd=server_command,
         name='uwa_gazebo_server', output='screen')
     spawn = Node(
         package='ros_gz_sim', executable='create', name='spawn_cell', namespace='uwa_cell',
@@ -59,6 +62,12 @@ def setup(context):
              namespace='uwa_cell',
              output='screen'),
     ]
+    cameras = [rid for rid in ROBOT_IDS if layout['robots'][rid]['tools']['camera_enabled']]
+    if cameras:
+        actions.append(Node(package='uwa_cell_gazebo', executable='camera_bridge',
+                            name='camera_bridge', namespace='uwa_cell',
+                            parameters=[{'robot_ids': cameras, 'use_sim_time': True}],
+                            output='screen'))
     if enabled(context, 'gui'):
         # The gz-sim-main wrapper leaves its GUI child behind on SIGINT on this
         # Jetty installation. Launch the packaged client directly instead.
@@ -78,8 +87,7 @@ def setup(context):
                             namespace='uwa_cell', parameters=[{
                                 'layout': layout_path, 'use_sim_time': True}], output='screen'))
 
-    controllers_to_start = ['joint_state_broadcaster'] + [
-        f'{robot_id}_trajectory_controller' for robot_id in ROBOT_IDS]
+    controllers_to_start = controller_names(layout)
     spawners = [Node(
         package='controller_manager', executable='spawner', namespace='uwa_cell',
         arguments=[name, '-c', '/uwa_cell/controller_manager',
@@ -96,7 +104,7 @@ def setup(context):
         actions.append(RegisterEventHandler(OnProcessExit(
             target_action=previous, on_exit=next_on_success)))
     if enabled(context, 'controller_gui'):
-        # Wait until all four controllers exist before opening the selector.
+        # Wait until all arm and gripper controllers exist before opening the selector.
         controller_gui = Node(
             package='rqt_joint_trajectory_controller', executable='rqt_joint_trajectory_controller',
             namespace='uwa_cell', output='screen')

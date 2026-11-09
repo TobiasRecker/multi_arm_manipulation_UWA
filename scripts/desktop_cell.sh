@@ -10,9 +10,15 @@ trap 'code=$?; if command -v notify-send >/dev/null; then notify-send --app-name
 case "${1:-start}" in
   start)
     bash "$script_dir/cell.sh" start
+    bash "$script_dir/cell.sh" scan
     bash "$script_dir/cell.sh" rviz
+    python3 "$script_dir/show_cell_windows.py" --prefer gazebo
     ;;
-  rviz) bash "$script_dir/cell.sh" rviz ;;
+  rviz|scan)
+    bash "$script_dir/cell.sh" scan
+    bash "$script_dir/cell.sh" rviz
+    python3 "$script_dir/show_cell_windows.py" --prefer rviz
+    ;;
   stop) bash "$script_dir/cell.sh" stop ;;
   *) echo "Unknown desktop action: $1" >&2; exit 2 ;;
 esac

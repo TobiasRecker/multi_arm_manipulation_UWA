@@ -29,7 +29,19 @@ case "$operation" in
       --setenv="XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" \
       /usr/bin/bash "$script_dir/start_rviz.sh"
     ;;
+  scan)
+    if systemctl --user is-active --quiet uwa-cell-scan; then
+      echo 'UWA scan reference is already running.'
+      exit 0
+    fi
+    systemd-run --user --unit=uwa-cell-scan --collect \
+      --property=TimeoutStopSec=15 --property=KillSignal=SIGINT --property=KillMode=mixed \
+      /usr/bin/bash "$script_dir/start_scan.sh" "$@"
+    ;;
   stop)
+    if systemctl --user is-active --quiet uwa-cell-scan; then
+      systemctl --user stop uwa-cell-scan
+    fi
     if systemctl --user is-active --quiet uwa-cell-rviz; then
       systemctl --user stop uwa-cell-rviz
     fi
@@ -37,5 +49,5 @@ case "$operation" in
     ;;
   status) systemctl --user status uwa-cell-sim --no-pager ;;
   logs) journalctl --user -u uwa-cell-sim -f ;;
-  *) echo "Usage: bash $0 {start [launch arguments...]|rviz|stop|status|logs}" >&2; exit 2 ;;
+  *) echo "Usage: bash $0 {start [launch arguments...]|rviz|scan [layout.yaml]|stop|status|logs}" >&2; exit 2 ;;
 esac

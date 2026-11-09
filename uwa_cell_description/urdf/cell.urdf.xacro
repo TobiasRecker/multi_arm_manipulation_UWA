@@ -6,6 +6,7 @@
   <xacro:property name="ur_share" value="$(find ur_description)"/>
   <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
   <xacro:include filename="$(find ur_description)/urdf/inc/ur_joint_control.xacro"/>
+  <xacro:include filename="$(find uwa_cell_description)/urdf/robotiq_tools.xacro"/>
 
   <link name="world"/>
 
@@ -67,6 +68,7 @@
       <origin xyz="${r['mount_xyz'][0]} ${r['mount_xyz'][1]} ${r['mount_xyz'][2]}"
               rpy="${r['mount_rpy'][0]} ${r['mount_rpy'][1]} ${r['mount_rpy'][2]}"/>
     </xacro:ur_robot>
+    <xacro:robotiq_tools id="${id}" t="${r.get('tools', cfg.get('tools', dict()))}"/>
   </xacro:macro>
   <xacro:table id="left" t="${cfg['tables']['left']}"/>
   <xacro:table id="right" t="${cfg['tables']['right']}"/>
@@ -79,6 +81,7 @@
     <xacro:property name="q" value="${r['initial_positions']}"/>
     <xacro:ur_joint_control_description tf_prefix="${id}_"
       initial_positions="${dict(shoulder_pan_joint=q[0],shoulder_lift_joint=q[1],elbow_joint=q[2],wrist_1_joint=q[3],wrist_2_joint=q[4],wrist_3_joint=q[5])}"/>
+    <xacro:robotiq_interfaces id="${id}" t="${r.get('tools', cfg.get('tools', dict()))}"/>
   </xacro:macro>
   <ros2_control name="UwaCellSystem" type="system">
     <hardware><plugin>gz_ros2_control/GazeboSimSystem</plugin></hardware>

@@ -10,6 +10,10 @@ JOINT_SUFFIXES = (
     'shoulder_pan_joint', 'shoulder_lift_joint', 'elbow_joint',
     'wrist_1_joint', 'wrist_2_joint', 'wrist_3_joint',
 )
+TOOLS_KEYS = {
+    'gripper', 'gripper_initial_position', 'gripper_yaw', 'camera_enabled',
+    'camera_yaw', 'camera_width', 'camera_height', 'camera_rate', 'camera_horizontal_fov',
+}
 SCAN_DEFAULTS = {
     'source': '~/GoogleDrive/UWA/UR Setup.ply', 'scale': 1.0,
     'xyz': [0.0, 0.0, 0.0], 'rpy': [0.0, 0.0, 0.0],
@@ -47,6 +51,12 @@ def load_layout(path=None):
         raise ValueError('Layout must define the left and right tables')
     if set(data.get('robots', {})) != set(ROBOT_IDS):
         raise ValueError(f'Layout must define exactly {ROBOT_IDS}')
+    # Tool defaults have one source: the shipped layout, also for older/custom layouts.
+    default_tools = yaml.safe_load(default_layout_path().read_text())['tools']
+    if not isinstance(default_tools, dict) or set(default_tools) != TOOLS_KEYS:
+        raise ValueError(f'The default layout tools must define exactly {sorted(TOOLS_KEYS)}')
+    if not isinstance(data.get('tools', {}), dict):
+        raise ValueError('tools must be a YAML mapping')
     for table_id, table in data['tables'].items():
         for key in ('xyz', 'rpy'):
             table[key] = vector(table.get(key), 3, f'{table_id}.{key}')
@@ -79,6 +89,29 @@ def load_layout(path=None):
                 raise ValueError(f'{robot_id}: missing kinematics file {calibration}')
             calibration = str(calibration.resolve())
         robot['kinematics_file'] = calibration or None
+        if not isinstance(robot.get('tools', {}), dict):
+            raise ValueError(f'{robot_id}: tools must be a YAML mapping')
+        tools = {**default_tools, **data.get('tools', {}), **robot.get('tools', {})}
+        unknown = set(tools) - TOOLS_KEYS
+        if unknown:
+            raise ValueError(f'{robot_id}: unknown tool settings {sorted(unknown)}')
+        if tools['gripper'] not in ('2f_85', 'none'):
+            raise ValueError(f'{robot_id}: gripper must be 2f_85 or none')
+        if not isinstance(tools['camera_enabled'], bool):
+            raise ValueError(f'{robot_id}: camera_enabled must be true or false')
+        for key in ('gripper_yaw', 'camera_yaw', 'gripper_initial_position'):
+            tools[key] = number(tools[key], f'{robot_id}.tools.{key}')
+        if not 0 <= tools['gripper_initial_position'] <= 0.8:
+            raise ValueError(f'{robot_id}: gripper_initial_position must be in [0, 0.8] rad')
+        for key in ('camera_width', 'camera_height'):
+            value = tools[key]
+            if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 4096:
+                raise ValueError(f'{robot_id}: {key} must be an integer in [1, 4096]')
+        for key in ('camera_rate', 'camera_horizontal_fov'):
+            tools[key] = number(tools[key], f'{robot_id}.tools.{key}', positive=True)
+        if tools['camera_rate'] > 30 or tools['camera_horizontal_fov'] >= math.pi:
+            raise ValueError(f'{robot_id}: camera rate must be <= 30 Hz and FOV < pi')
+        robot['tools'] = tools
     scan = {**SCAN_DEFAULTS, **data.get('scan', {})}
     for key in ('xyz', 'rpy'):
         scan[key] = vector(scan[key], 3, f'scan.{key}')
@@ -100,6 +133,17 @@ def joint_names(robot_id):
     return [f'{robot_id}_{suffix}' for suffix in JOINT_SUFFIXES]
 
 
+def gripper_joint(robot_id):
+    return f'{robot_id}_robotiq_85_left_knuckle_joint'
+
+
+def controller_names(layout):
+    return ['joint_state_broadcaster'] + [
+        f'{rid}_trajectory_controller' for rid in ROBOT_IDS] + [
+        f'{rid}_gripper_controller' for rid in ROBOT_IDS
+        if layout['robots'][rid]['tools']['gripper'] != 'none']
+
+
 def controller_parameters(layout):
     manager = {'update_rate': 100, 'use_sim_time': True,
                'joint_state_broadcaster': {'type': 'joint_state_broadcaster/JointStateBroadcaster'}}
@@ -114,6 +158,14 @@ def controller_parameters(layout):
             'action_monitor_rate': 20.0,
             'constraints': {'goal_time': 2.0, 'stopped_velocity_tolerance': 0.05},
         }}
+        if layout['robots'][robot_id]['tools']['gripper'] != 'none':
+            name = f'{robot_id}_gripper_controller'
+            manager[name] = {'type': 'joint_trajectory_controller/JointTrajectoryController'}
+            result[f'/uwa_cell/{name}'] = {'ros__parameters': {
+                'joints': [gripper_joint(robot_id)], 'command_interfaces': ['position'],
+                'state_interfaces': ['position', 'velocity'], 'use_sim_time': True,
+                'constraints': {'goal_time': 2.0, 'stopped_velocity_tolerance': 0.05},
+            }}
     return result
 
 

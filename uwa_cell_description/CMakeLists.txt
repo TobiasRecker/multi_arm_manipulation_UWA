@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
 project(uwa_cell_description)
 find_package(ament_cmake REQUIRED)
-install(DIRECTORY config urdf DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY config urdf meshes DESTINATION share/${PROJECT_NAME})
 ament_package()

@@ -21,6 +21,20 @@ tables:
     height: 0.90
     top_thickness: 0.05
     leg_width: 0.05
+# Robotiq 2F-85 (confirmed), Wrist Camera 2019, no separate tool plate.
+# Common settings; each robot can override individual keys under `tools`.
+tools:
+  gripper: 2f_85
+  gripper_initial_position: 0.0  # rad: 0=open, 0.8=closed
+  gripper_yaw: 0.0
+  camera_enabled: true
+  # UR tool0 +Y points away from the tool I/O plug: matches the real mounting.
+  # See THIRD_PARTY.md for the UR coordinate convention. pi swaps the side.
+  camera_yaw: 0.0
+  camera_width: 640
+  camera_height: 480
+  camera_rate: 10.0  # reduced rendering load for four cameras
+  camera_horizontal_fov: 0.8726646259971648  # 50 degrees
 robots:
   left_front:
     type: ur5

@@ -15,6 +15,7 @@ from python_qt_binding.QtWidgets import QApplication
 from python_qt_binding.QtCore import QCoreApplication, QEvent, QObject
 from rqt_joint_trajectory_controller.joint_trajectory_controller import JointTrajectoryController
 from trajectory_msgs.msg import JointTrajectory
+from uwa_cell_gazebo.configuration import controller_names, load_layout
 
 
 class Context(QObject):
@@ -50,14 +51,17 @@ def main():
         until(lambda: combo.findText('/uwa_cell/controller_manager') >= 0)
         combo.setCurrentIndex(combo.findText('/uwa_cell/controller_manager'))
         controllers = context.widget.jtc_combo
-        until(lambda: controllers.count() == 4)
+        expected_controllers = set(controller_names(load_layout())) - {'joint_state_broadcaster'}
+        until(lambda: {controllers.itemText(i) for i in range(controllers.count())}
+              == expected_controllers)
         names = [controllers.itemText(i) for i in range(controllers.count())]
-        assert len(set(names)) == 4
+        assert len(set(names)) == len(expected_controllers)
         for name in names:
+            count = 1 if name.endswith('_gripper_controller') else 6
             controllers.setCurrentIndex(controllers.findText(name))
-            until(lambda: len(plugin._joint_names) == 6 and
+            until(lambda: len(plugin._joint_names) == count and
                   all('position' in plugin._joint_pos[j] for j in plugin._joint_names))
-            assert len(list(plugin._joint_widgets())) == 6
+            assert len(list(plugin._joint_widgets())) == count
             # Let the monitor timer populate the editors before enabling output.
             until(lambda: all(abs(widget.value() - plugin._joint_pos[joint]['position']) < 1e-4
                               for joint, widget in zip(plugin._joint_names,
@@ -70,13 +74,13 @@ def main():
             try:
                 until(lambda: bool(received))
                 message = received[-1]
-                assert len(message.joint_names) == 6
+                assert len(message.joint_names) == count
                 assert np.isfinite(message.points[0].positions).all()
                 np.testing.assert_allclose(message.points[0].positions, held, atol=1e-4)
             finally:
                 context.widget.enable_button.setChecked(False)
                 observer.destroy_subscription(subscription)
-            print(f'rqt selector, six editors and command publishing verified: {name}', flush=True)
+            print(f'rqt selector, {count} editors and command publishing verified: {name}', flush=True)
         screenshot = os.environ.get('UWA_RQT_SCREENSHOT')
         if screenshot:
             assert context.widget.grab().save(str(Path(screenshot)))

@@ -18,5 +18,7 @@ setup(
         'scan_reference = uwa_cell_gazebo.scan_reference:main',
         'verify_cell = uwa_cell_gazebo.verify_cell:main',
         'clock_bridge = uwa_cell_gazebo.clock_bridge:main',
+        'camera_bridge = uwa_cell_gazebo.camera_bridge:main',
+        'verify_tools = uwa_cell_gazebo.verify_tools:main',
     ]},
 )

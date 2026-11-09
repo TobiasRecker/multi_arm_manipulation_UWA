@@ -1,7 +1,13 @@
 Panels:
   - Class: rviz_common/Displays
     Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
 Visualization Manager:
+  Class: ""
+  Enabled: true
+  Name: root
+  Value: true
   Global Options:
     Fixed Frame: world
     Background Color: 45; 48; 54
@@ -40,9 +46,20 @@ Visualization Manager:
       Size (m): 0.01
       Decay Time: 0
       Alpha: 0.65
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Interact
+      Hide Inactive Objects: true
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/FocusCamera
+    - Class: rviz_default_plugins/Measure
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
+      Name: Current View
+      Target Frame: <Fixed Frame>
+      Near Clip Distance: 0.01
+      Value: Orbit (rviz)
       Distance: 5.0
       Focal Point: {X: 0.0, Y: 0.0, Z: 0.9}
       Pitch: 0.55
