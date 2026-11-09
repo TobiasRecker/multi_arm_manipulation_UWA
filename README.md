@@ -152,6 +152,45 @@ The installed UR description provides an explicit UR7e configuration; its
 visual meshes are shared with UR5e upstream. The selected kinematic, physical
 and joint-limit parameters still come from the UR7e configuration.
 
+## Static OAK4 overview camera
+
+The OAK4-D is modelled on an approximate tripod to the **right** of the cell.
+Its RGB optical centre starts at world **[1.8, 0, 3.0] m**, looking at
+**[0, 0, 1.4] m**. This is a design pose, not a measured calibration.
+The nominal 67.3° horizontal FOV uses a 4000×3000 pinhole RGB image at
+3 Hz simulation time. [Detailed setup and design limits](docs/oak_overview.md).
+
+It starts with new cell launches. For an already running cell, add it without
+restarting the robots, then open its simulated live image:
+
+```bash
+cd ~/UWA_ws
+bash src/multi_arm_manipulation_UWA/scripts/overview.sh start
+bash src/multi_arm_manipulation_UWA/scripts/overview.sh view
+```
+
+Edit only `overview_camera` in the central layout (height, position, `look_at`,
+resolution), then apply it **without resetting any robots**:
+
+```bash
+bash src/multi_arm_manipulation_UWA/scripts/overview.sh reload
+bash src/multi_arm_manipulation_UWA/scripts/overview.sh coverage
+bash src/multi_arm_manipulation_UWA/scripts/overview.sh check \
+  --output ~/UWA_ws/setup/logs/uwa-oak-overview-check
+```
+
+The checker observes both boards without moving arms; actual robot poses can
+occlude them. The 3 m pose and a 2.6 m variant both detected at least 18/24 and
+20/24 left/right corners respectively in live tests. Reprojection errors were
+below 0.1 px in those snapshots; this does not establish real calibration accuracy.
+RGB and CameraInfo topics: `/uwa_cell/oak_overview/rgb/{image_raw,camera_info}`.
+TF: `world -> oak_overview_rgb_optical_frame`. The supplied RViz config includes
+the housing/tripod and frustum markers; a previously opened RViz can add a
+MarkerArray display on `/uwa_cell/oak_overview/markers`.
+
+This camera is independent of the physical Ethernet OAK. The tripod is currently
+visual-only and is not an obstacle in the hand-eye MoveIt planning scene.
+
 ## Move the arms
 
 Select `/uwa_cell/controller_manager` and one of the four trajectory

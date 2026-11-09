@@ -34,6 +34,13 @@
 - Wrist-Camera-Linse gegenüber dem UR-Werkzeug-I/O-Anschluss montieren:
   im UR-`tool0`-Frame auf +Y. Werkzeugparameter zentral in der Layout-YAML pflegen;
   primitive Kamerageometrie und nominelle Optik nicht als kalibriertes CAD ausgeben.
+- Statische OAK4-D als Übersicht auf einem Stativ rechts neben der Zelle:
+  `overview_camera` in derselben Layout-YAML verwenden, Pose/Look-at/FOV als
+  Designannahmen behandeln. Ihre eigene Gazebo-Entität/TF lässt sich ohne
+  Zellneustart neu laden. Keine Kamera-Designänderung darf Arme zurücksetzen.
+  Beide ChArUco-Boards aus echten Bildern prüfen; reine Sichtfeldprojektion
+  beweist weder fehlende Verdeckung noch kalibrierte Genauigkeit. Das bisher
+  nur visuelle Stativ ist kein Hindernis in der MoveIt-PlanningScene.
 - ChArUco-Boards zentral je Tisch und Kameras initial darauf ausrichten.
   Referenzen für diese Kalibrierung sind `left_table_top` / `right_table_top`.
   OpenCV-Musterframe: Ursprung an der Musterecke ohne Rand, Z in die Platte.

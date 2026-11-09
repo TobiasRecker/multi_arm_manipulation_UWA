@@ -406,6 +406,53 @@ aktiv; separate MuR-Simulation inaktiv. Vor weiterer Prozessarbeit neu prüfen.
   liegen unter `setup/google-drive/`; Mount/Anmeldung bei Bedarf prüfen. Keine
   Zugangsdaten in Git oder in diese Übergabe kopieren.
 
+## Statische OAK4-Übersichtskamera (2026-11-09)
+
+- Nutzerangabe: OAK4-D auf einem Stativ neben den Tischen, derzeit rechts,
+  nach unten auf die Tischplatten; Montage noch offen. Gewünscht ist Überblick
+  über die ganze Szene bei genügend ChArUco-Detail. Dafür Simulation zum
+  Vergleichen von Position, Höhe, Blickrichtung und Auflösung verwenden.
+- Umgesetzt als eigene statische Gazebo-Entität `uwa_oak_overview`, außerhalb
+  der Zell-URDF. Bestehende Zell-/Wrist-/Greifer-/Controllerkonfiguration erhalten;
+  keine Gelenkbefehle und kein Zellneustart durch diese Aufgabe.
+- Zentrale Konfiguration `overview_camera` in `cell_layout.yaml`: zunächst
+  optisches Zentrum Welt[1.8,0,3.0]m, Ziel[0,0,1.4]m, etwa41,6° nach unten,
+  nominell67,3° horizontal,4000×3000@3Hz Simulationszeit. Nicht kalibriert;
+  die reale maximal mögliche Stativhöhe ist nicht bestätigt.
+- Getrennt vom echten Kameratreiber/SDK. RGB-Pinhole-Näherung, primitive Gehäuse-
+  und Stativdarstellung. Keine Tiefenkanäle, realistische Verzeichnung,
+  Rolling-Shutter-Verzerrung, Rauschen oder Autofokus simuliert.
+- Starter `scripts/overview.sh start|view|reload|coverage|check`. Neue Zellstarts
+  starten den Kameraknoten; zur laufenden Zelle wurde er separat über
+  `uwa-cell-overview` ergänzt. Sperre pro Benutzer/Partition verhindert zwei
+  Besitzer. `cell.sh stop` beendet auch Kamera und separaten Bildbetrachter.
+- Pose-/Optikänderungen über `reload` ersetzen nur die Kamera und aktualisieren
+  TF/Marker. Nach Anpassung der YAML kein Roboterneustart nötig. Erfolgreich
+  mit2,6m Höhe / Ziel1,1m geprüft und auf3m / Ziel1,4m zurückgestellt.
+- Themen `/uwa_cell/oak_overview/rgb/image_raw` und `camera_info`, optischer TF
+  `world -> oak_overview_rgb_optical_frame`. RViz-Config ergänzt um Gehäuse,
+  Stativ und Frustum-Marker auf `/uwa_cell/oak_overview/markers` (latched).
+  Marker/TF tatsächlich empfangen: zehn Marker, Weltposition[1.8,0,3.0].
+- Theoretisch alle Tisch-Ecken im Bild; bei4k Marker-Minimalseite links/rechts
+  ca17,6/28,4px. Sichtfeldrechnung prüft keine Verdeckungen. Echte Erkennung:
+  Ausgangspose18/24 Ecken, RMS0,069/0,061px; niedrigere Variante20/24 Ecken,
+  RMS0,054/0,096px. Beide Boards jeweils im selben Bild erkannt. Zahlen sind
+  Momentaufnahmen, keine Genauigkeits-/Sichtbarkeitsgarantie für alle Armposen.
+- Gefundene Grenze: OpenCVs Standard-Minimum3% Bildkante verwirft kleine Marker
+  im4k-Gesamtbild. Neuer optionaler Parameter an `detect_pose` belässt den
+  Wrist-Standard0,03; Overview verwendet32px minimalen Umfang. Kein GT-ROI oder
+  bekannte Kamerapose zum Fit verwendet. Bild-/CameraInfo-Frame und Größe geprüft.
+- Build abgeschlossen,70 passende Offline-Tests bestanden; bisherige
+  Beschreibungs-/Scan-/Wrist-/ChArUco- und Kalibrierkern-Tests eingeschlossen.
+  Belege unter `setup/logs/uwa-oak-overview-*`, Anleitung in
+  [docs/oak_overview.md](docs/oak_overview.md). Simulationslivebild geöffnet.
+- Grenze: Stativ ist derzeit visuell, ohne Gazebo-/MoveIt-Kollision. Separate
+  Gazebo-Modelle gelangen nicht automatisch in die bestehende PlanningScene.
+  Kollisionskörper vor entsprechendem Planungs-/Hardwareeinsatz ergänzen.
+- Parallele Aufgabe `handeye-diagonal` gesehen: keine Zell-/Scan-Neustarts oder
+  Armtests durch OAK-Aufgabe. Automatische Wrist-Hand-Auge-Kalibrierung um die
+  externe OAK zu erweitern und reale Welt-Extrinsics zu bestimmen ist Folgearbeit.
+
 ## Automatische Hand-Auge-Kalibrierung (2026-11-09)
 
 - Nutzerauftrag: genehmigten Plan vollständig in der Simulation umsetzen;

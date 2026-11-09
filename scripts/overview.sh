@@ -21,6 +21,16 @@ case "${1:-view}" in
     exec ros2 service call /uwa_cell/oak_overview/reload std_srvs/srv/Trigger '{}'
     ;;
   view)
+    if systemctl --user is-active --quiet uwa-cell-overview-view; then
+      echo 'The overview image viewer is already open.'
+      exit 0
+    fi
+    systemd-run --user --unit=uwa-cell-overview-view --collect \
+      --property=KillSignal=SIGINT --property=KillMode=mixed --property=TimeoutStopSec=10 \
+      --setenv="DISPLAY=${DISPLAY:-:0}" \
+      /usr/bin/bash "$script_dir/overview.sh" view-run
+    ;;
+  view-run)
     exec ros2 run rqt_image_view rqt_image_view /uwa_cell/oak_overview/rgb/image_raw
     ;;
   coverage)

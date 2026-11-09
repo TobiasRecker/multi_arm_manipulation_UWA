@@ -7,6 +7,7 @@ import pytest
 
 from uwa_cell_gazebo.configuration import load_layout
 from uwa_cell_gazebo.overview import camera_config, coverage, model_sdf, project, transforms
+from uwa_cell_gazebo.charuco import board_image, detect_pose
 
 
 def test_world_optical_basis_target_and_default_table_coverage():
@@ -47,6 +48,18 @@ def test_sdf_stays_static_with_matching_optics_topics_and_no_controllers():
     assert sensor.findtext('topic') == '/uwa_cell/oak_overview/rgb/image_raw'
     assert root.findall('.//plugin') == []
     assert root.findall('.//collision') == []  # visual stand, not yet a planning obstacle
+
+
+def test_overview_finds_small_markers_in_large_frame_without_world_pose_input():
+    import cv2
+    config = load_layout()['charuco']
+    pattern = cv2.resize(board_image(config,'left'),(256,192),interpolation=cv2.INTER_AREA)
+    image = np.full((3000,4000),255,dtype=np.uint8)
+    image[1404:1596,1872:2128] = pattern
+    K = np.array([[3000.,0,2000],[0,3000,1500],[0,0,1]])
+    assert detect_pose(image,K,np.zeros(5),config,'left') is None
+    result = detect_pose(image,K,np.zeros(5),config,'left',min_marker_perimeter_rate=.008)
+    assert result is not None and result['corners']==24
 
 
 @pytest.mark.parametrize('change', [dict(width=True),dict(height=0),dict(rate=100),

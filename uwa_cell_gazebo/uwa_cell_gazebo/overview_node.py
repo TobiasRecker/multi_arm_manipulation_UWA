@@ -5,8 +5,10 @@ import os
 from pathlib import Path
 import time
 from threading import Lock
+import xml.etree.ElementTree as ET
+import numpy as np
 
-from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import Point, TransformStamped
 from gz.msgs.boolean_pb2 import Boolean
 from gz.msgs.camera_info_pb2 import CameraInfo as GzInfo
 from gz.msgs.entity_factory_pb2 import EntityFactory
@@ -16,15 +18,16 @@ from gz.transport import Node as TransportNode
 import rclpy
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
-from rclpy.qos import qos_profile_sensor_data
+from rclpy.qos import qos_profile_sensor_data, QoSProfile, DurabilityPolicy
 from scipy.spatial.transform import Rotation
 from sensor_msgs.msg import CameraInfo, Image
 from std_srvs.srv import Trigger
 from tf2_ros import StaticTransformBroadcaster
+from visualization_msgs.msg import Marker, MarkerArray
 
 from .camera_bridge import image_message, info_message
 from .configuration import default_layout_path, load_layout
-from .overview import MODEL, FRAME, TOPIC, camera_config, model_sdf, transforms
+from .overview import MODEL, FRAME, TOPIC, camera_config, intrinsic, model_sdf, transforms
 
 
 class Overview(Node):
@@ -35,6 +38,8 @@ class Overview(Node):
         self.world = self.get_parameter('world').value
         self.transport = TransportNode()
         self.broadcaster = StaticTransformBroadcaster(self)
+        self.markers = self.create_publisher(MarkerArray, '/uwa_cell/oak_overview/markers',
+            QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL))
         self.ready, self.closing = False, False
         self.callback_lock = Lock()
         self.subscriptions_gz = []
@@ -90,6 +95,48 @@ class Overview(Node):
         self.get_logger().info(f'OAK overview: enabled={cfg["enabled"]}, '
             f'{cfg["width"]}x{cfg["height"]}@{cfg["rate"]}, '
             f'xyz={cfg["xyz"]}, target={cfg["look_at"]}; nominal, uncalibrated')
+        self.publish_markers(cfg)
+
+    def publish_markers(self, cfg):
+        clear = Marker(action=Marker.DELETEALL)
+        clear.header.frame_id = 'world'
+        message = MarkerArray(markers=[clear])
+        if cfg['enabled']:
+            def pose_matrix(text):
+                values = np.fromstring(text or '0 0 0 0 0 0',sep=' ')
+                result = np.eye(4)
+                result[:3,3] = values[:3]
+                result[:3,:3] = Rotation.from_euler('xyz',values[3:]).as_matrix()
+                return result
+            for link in ET.fromstring(model_sdf(cfg)).findall('model/link'):
+                parent = pose_matrix(link.findtext('pose'))
+                for visual in link.findall('visual'):
+                    pose = parent @ pose_matrix(visual.findtext('pose'))
+                    marker = Marker(ns='oak_overview', id=len(message.markers), type=Marker.CUBE)
+                    marker.header.frame_id = 'world'
+                    marker.pose.position.x,marker.pose.position.y,marker.pose.position.z = pose[:3,3].tolist()
+                    q = Rotation.from_matrix(pose[:3,:3]).as_quat().tolist()
+                    marker.pose.orientation.x,marker.pose.orientation.y,marker.pose.orientation.z,marker.pose.orientation.w = q
+                    marker.scale.x,marker.scale.y,marker.scale.z = map(float,visual.findtext('geometry/box/size').split())
+                    marker.color.r,marker.color.g,marker.color.b,marker.color.a = map(float,visual.findtext('material/diffuse').split())
+                    message.markers.append(marker)
+            # A fixed-length frustum symbol, not a guarantee against occlusion.
+            optical = transforms(cfg)[1]
+            pixels = np.array([[0,0,1],[cfg['width'],0,1],
+                               [cfg['width'],cfg['height'],1],[0,cfg['height'],1]])
+            rays = pixels @ np.linalg.inv(intrinsic(cfg)).T * 2.5
+            corners = rays @ optical[:3,:3].T + optical[:3,3]
+            frustum = Marker(ns='oak_overview',id=len(message.markers),type=Marker.LINE_LIST)
+            frustum.header.frame_id='world'
+            frustum.pose.orientation.w=1.
+            frustum.scale.x=.008
+            frustum.color.r,frustum.color.g,frustum.color.b,frustum.color.a=.15,.6,1.,.45
+            for i in range(4):
+                for a,b in [(optical[:3,3],corners[i]),(corners[i],corners[(i+1)%4])]:
+                    frustum.points.extend([Point(x=float(a[0]),y=float(a[1]),z=float(a[2])),
+                                           Point(x=float(b[0]),y=float(b[1]),z=float(b[2]))])
+            message.markers.append(frustum)
+        self.markers.publish(message)
 
     def reload(self, request, response):
         try:

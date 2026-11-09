@@ -39,6 +39,9 @@ case "$operation" in
       /usr/bin/bash "$script_dir/start_scan.sh" "$@"
     ;;
   stop)
+    if systemctl --user is-active --quiet uwa-cell-overview-view; then
+      systemctl --user stop uwa-cell-overview-view
+    fi
     if systemctl --user is-active --quiet uwa-cell-overview; then
       systemctl --user stop uwa-cell-overview
     fi
