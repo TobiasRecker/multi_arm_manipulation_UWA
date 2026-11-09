@@ -222,11 +222,11 @@ class Backend(Node):
             time.sleep(.01)
         return future.result()
 
-    def require_telemetry(self,interruptible=True):
+    def require_telemetry(self,interruptible=True,force_stationary=False):
         if not self.description:raise ValueError('No live robot_description; start the simulated cell first')
         if time.monotonic()-self.last_joints>1:raise ValueError('Fresh simulated joint states are required')
         if any(j not in self.positions for r in ROBOT_IDS for j in joint_names(r)):raise ValueError('Missing arm joint states')
-        if self.state['phase'] not in ('MOVING','RETURNING','PARKING','POSITIONING'):
+        if force_stationary or self.state['phase'] not in ('MOVING','RETURNING','PARKING','POSITIONING'):
             # An isolated velocity spike is possible even on actuated joints in
             # Gazebo. Require a stable window before dispatch, rather than
             # aborting a valid dataset on one noisy telemetry sample.
@@ -308,7 +308,7 @@ class Backend(Node):
             for rid in ids:
                 if not self.layout['robots'][rid]['tools']['camera_enabled'] or rid not in self.infos:raise ValueError(f'{rid}: camera not available')
                 if time.monotonic()-self.last_images.get(rid,0)>2:raise ValueError(f'{rid}: camera stream stale')
-                if not self.detections[rid] or not self.detections[rid][-1][2]:raise ValueError(f'{rid}: assigned ChArUco board not visible at the start')
+                if not diagonal_pairs and (not self.detections[rid] or not self.detections[rid][-1][2]):raise ValueError(f'{rid}: assigned ChArUco board not visible at the start')
             stamp=datetime.now(ZoneInfo('Australia/Perth')).strftime('%Y%m%d_%H%M%S')
             self.session=self.root/(stamp+'_'+uuid.uuid4().hex[:6]);self.session.mkdir()
             start=dict(self.positions)
@@ -445,11 +445,13 @@ class Backend(Node):
         self.wait_unpaused()
         self.require_telemetry()
         ids=list(targets)
-        self.controlled_robots=set(ids)
+        self.controlled_robots=set()
+        source_positions=dict(self.positions)
+        self.frozen=dict(source_positions)
         self.status(phase,robot_id=ids[0],active_robots=ids,
                     message={'PARKING':'Wartearm zur Seite parken','POSITIONING':'Aktives Paar zum Board ausrichten',
                              'RETURNING':'Rückfahrt zur Sitzungsstartstellung'}.get(phase,'Geprüfte Messstellung des Diagonalpaars' if len(ids)==2 else 'Fahre geprüfte Messstellung'))
-        checked=self.ensure_planner().call({'op':'paths','start':dict(self.positions),'targets':targets},self.halted)
+        checked=self.ensure_planner().call({'op':'paths','start':source_positions,'targets':targets},self.halted)
         goals={}
         for rid,path in checked['paths'].items():
             if not self.trajectory_clients[rid].wait_for_server(timeout_sec=3):raise ValueError(f'{rid}: trajectory action missing')
@@ -460,11 +462,15 @@ class Backend(Node):
                 if point.time_from_start.nanosec>=1000000000:point.time_from_start.sec+=1;point.time_from_start.nanosec-=1000000000
                 goal.trajectory.points.append(point)
             goals[rid]=goal
+        self.require_telemetry(force_stationary=True)
         start_time=self.get_clock().now()+Duration(seconds=.75)
         acceptance_deadline=start_time.nanoseconds-150000000
         self.status(motion_start_ns=start_time.nanoseconds,envelope_separation_m=checked['envelope_separation_m'])
         with self.motion_lock:
             if self.halted():raise InterruptedError('Stopped before goal dispatch')
+            if any(abs(self.positions[j]-source_positions[j])>.01 for r in ROBOT_IDS for j in joint_names(r)):
+                raise ValueError('Joint state changed during planning; cohort was not dispatched')
+            self.controlled_robots=set(ids)
             self.motion_results={}
             for rid,goal in goals.items():
                 goal.trajectory.header.stamp=start_time.to_msg()
@@ -474,6 +480,10 @@ class Backend(Node):
                     self.registration_pending.discard(rid)
                     self.request_halt('Controller goal dispatch failed');raise
                 self.pending_goals[rid].add_done_callback(lambda future,r=rid:self.accept_motion(r,future))
+        if self.session:
+            event={'phase':phase,'robots':ids,'shared_start_ns':start_time.nanoseconds,
+                   'duration':checked['duration'],'envelope_separation_m':checked['envelope_separation_m']}
+            with (self.session/'motion_events.jsonl').open('a') as stream:stream.write(json.dumps(event)+'\n')
         try:
             while self.registration_pending:
                 if self.halted():raise InterruptedError('Stopped during cohort goal acceptance')
@@ -645,6 +655,7 @@ class Backend(Node):
             if self.halted():raise InterruptedError('Solving stopped')
             solved['description_fingerprint']=fingerprint(self.description)
             solved['session_dir']=str(self.session)
+            solved['execution_mode']=self.plan['mode']
             solved['robot_sessions']={r:str(self.session) for r in solved['robots']}
             solved['table_bases']={r:(table_board_transform(self.layout['charuco'],self.layout['robots'][r]['table'])@
                                        np.linalg.inv(fit['T_base_board'])).tolist() for r,fit in solved['robots'].items()}

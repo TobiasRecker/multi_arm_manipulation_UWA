@@ -5,7 +5,7 @@ enclose every collision shape; disjoint expanded boxes make the two planned
 paths independent of relative progress (including one arm holding position).
 """
 from functools import lru_cache
-from itertools import product
+from itertools import product,permutations
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
@@ -155,7 +155,10 @@ def prepare_schedule(model,layout,start,matrices,ids,count,diagonal_pairs=True,p
     for pair in cohorts(ids):
         for rid in ROBOT_IDS:
             if rid not in pair:reposition(rid,parks[rid],'parking')
-        for rid in pair:reposition(rid,[start[j] for j in joint_names(rid)],'positioning')
+        # A previous stopped session may have left these arms parked. Use the
+        # configured board-view posture as a planning reference, never require
+        # a parked camera to see the board before it can be repositioned.
+        for rid in pair:reposition(rid,list(layout['robots'][rid]['initial_positions']),'positioning')
         group=generate_plan(model,layout,state,matrices,pair,count,progress)
         plans.update(group);certificates=[]
         for index in range(count):
@@ -164,9 +167,22 @@ def prepare_schedule(model,layout,start,matrices,ids,count,diagonal_pairs=True,p
             certificates.append({'duration':checked['duration'],'envelope_separation_m':checked['envelope_separation_m']})
             for r,target in targets.items():state.update(zip(joint_names(r),target))
         stages.append({'kind':'measure','robots':pair,'certificates':certificates})
-    # Clear both workspaces before the original poses are restored. Every setup
-    # and return transition is serial and checked against the actual other arms.
-    for rid in ROBOT_IDS:reposition(rid,parks[rid],'parking')
-    for rid in ROBOT_IDS:reposition(rid,[start[j] for j in joint_names(rid)],'returning')
+    # Prefer a direct serial return order. Additional parking is only needed if
+    # no direct order is collision-free; all intermediate states are checked.
+    orders=[tuple(pair+[r for r in ROBOT_IDS if r not in pair])]+list(permutations(ROBOT_IDS))
+    for order in orders:
+        trial=dict(state);returns=[]
+        try:
+            for rid in order:
+                target=[start[j] for j in joint_names(rid)]
+                if np.max(abs(np.asarray(target)-[trial[j] for j in joint_names(rid)]))<.001:continue
+                path=timed_path(model,rid,trial,target)
+                returns.append({'kind':'returning','robot':rid,'target':target,'duration':path[-1]['time']})
+                trial.update(zip(joint_names(rid),target))
+        except ValueError:continue
+        stages.extend(returns);state=trial;break
+    else:
+        for rid in ROBOT_IDS:reposition(rid,parks[rid],'parking')
+        for rid in ROBOT_IDS:reposition(rid,[start[j] for j in joint_names(rid)],'returning')
     return {'plans':plans,'stages':stages,'parking':parks,'mode':'diagonal_pairs',
             'envelope_margin_per_arm_m':ENVELOPE_MARGIN_M}
