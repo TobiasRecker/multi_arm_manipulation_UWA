@@ -39,8 +39,9 @@ tools:
 # xyz is the RGB optical centre in WORLD; look_at is a WORLD point.
 overview_camera:
   enabled: true
-  xyz: [1.8, 0.0, 3.0]
-  look_at: [0.0, 0.0, 1.4]
+  # Current tripod maximum is 2 m (user, 2026-11-09).
+  xyz: [1.8, -0.8, 2.0]
+  look_at: [0.0, -0.1, 0.95]
   roll: 0.0  # rotation about the viewing axis, radians
   width: 4000
   height: 3000

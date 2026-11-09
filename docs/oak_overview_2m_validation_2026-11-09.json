@@ -1,0 +1,197 @@
+{
+  "date": "2026-11-09",
+  "timezone": "Australia/Perth",
+  "tripod_max_height_m": 2.0,
+  "selected": {
+    "enabled": true,
+    "xyz": [
+      1.8,
+      -0.8,
+      2.0
+    ],
+    "look_at": [
+      0.0,
+      -0.1,
+      0.95
+    ],
+    "roll": 0.0,
+    "width": 4000,
+    "height": 3000,
+    "rate": 3.0,
+    "horizontal_fov": 1.1746065865921838,
+    "near": 0.1,
+    "far": 12.0
+  },
+  "candidates": [
+    {
+      "candidate": "diagonal",
+      "success": false,
+      "image_size": [
+        4000,
+        3000
+      ],
+      "boards": {
+        "right": {
+          "corners": 24,
+          "reprojection_rms_px": 0.07936912775039673
+        }
+      }
+    },
+    {
+      "candidate": "diagonal_close",
+      "success": false,
+      "image_size": [
+        4000,
+        3000
+      ],
+      "boards": {
+        "right": {
+          "corners": 24,
+          "reprojection_rms_px": 0.05828312411904335
+        }
+      }
+    },
+    {
+      "candidate": "diagonal_mid",
+      "success": false,
+      "image_size": [
+        4000,
+        3000
+      ],
+      "boards": {
+        "right": {
+          "corners": 24,
+          "reprojection_rms_px": 0.0542510524392128
+        }
+      }
+    },
+    {
+      "candidate": "final",
+      "success": true,
+      "image_size": [
+        4000,
+        3000
+      ],
+      "boards": {
+        "left": {
+          "corners": 12,
+          "reprojection_rms_px": 0.6908400058746338
+        },
+        "right": {
+          "corners": 24,
+          "reprojection_rms_px": 0.042251694947481155
+        }
+      }
+    },
+    {
+      "candidate": "front_5k",
+      "success": false,
+      "image_size": null,
+      "boards": {}
+    },
+    {
+      "candidate": "front_margin",
+      "success": false,
+      "image_size": [
+        4000,
+        3000
+      ],
+      "boards": {
+        "right": {
+          "corners": 24,
+          "reprojection_rms_px": 0.060552842915058136
+        }
+      }
+    },
+    {
+      "candidate": "front_restored",
+      "success": true,
+      "image_size": [
+        4000,
+        3000
+      ],
+      "boards": {
+        "left": {
+          "corners": 17,
+          "reprojection_rms_px": 0.7599222660064697
+        },
+        "right": {
+          "corners": 24,
+          "reprojection_rms_px": 0.03038269840180874
+        }
+      }
+    },
+    {
+      "candidate": "right_center",
+      "success": false,
+      "image_size": [
+        4000,
+        3000
+      ],
+      "boards": {
+        "right": {
+          "corners": 24,
+          "reprojection_rms_px": 0.06624043732881546
+        }
+      }
+    },
+    {
+      "candidate": "right_front",
+      "success": true,
+      "image_size": [
+        4000,
+        3000
+      ],
+      "boards": {
+        "left": {
+          "corners": 17,
+          "reprojection_rms_px": 0.7599222660064697
+        },
+        "right": {
+          "corners": 24,
+          "reprojection_rms_px": 0.03038269840180874
+        }
+      }
+    },
+    {
+      "candidate": "right_rear",
+      "success": true,
+      "image_size": [
+        4000,
+        3000
+      ],
+      "boards": {
+        "left": {
+          "corners": 17,
+          "reprojection_rms_px": 0.6285118460655212
+        },
+        "right": {
+          "corners": 24,
+          "reprojection_rms_px": 0.02873627096414566
+        }
+      }
+    },
+    {
+      "candidate": "wide_front",
+      "success": false,
+      "image_size": null,
+      "boards": {}
+    },
+    {
+      "candidate": "wide_front_far",
+      "success": false,
+      "image_size": null,
+      "boards": {}
+    }
+  ],
+  "tests": "13 passed",
+  "extra_available_cameras": [
+    "OAK-D-S2-FF",
+    "OAK-D-S2-FF"
+  ],
+  "notes": [
+    "Image-based checks in then-current arm poses; occlusions remain possible.",
+    "6k delivered CameraInfo but no successful RGB reception; not a hardware limit claim.",
+    "No arm commands or cell restart by this task."
+  ]
+}

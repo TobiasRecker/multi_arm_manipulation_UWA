@@ -69,6 +69,23 @@ def test_non_diagonal_pair_is_never_dispatched(schedule):
         coordinated_paths(model,start,{r:[start[j] for j in joint_names(r)] for r in ['left_front','left_rear']})
 
 
+def test_new_preparation_from_parked_poses_uses_board_reference_and_returns_to_measured_start(schedule):
+    model,_,plan=schedule;layout=load_layout()
+    start={j:q for r in ROBOT_IDS for j,q in zip(joint_names(r),plan['parking'][r])}
+    ids=list(DIAGONALS[0]);matrices={r:{'k':[[686.242218,0,320],[0,686.242218,240],[0,0,1]],'width':640,'height':480} for r in ids}
+    result=prepare_schedule(model,layout,start,matrices,ids,30)
+    assert set(result['plans'])==set(ids)
+    for rid in ids:
+        positioning=next(s for s in result['stages'] if s['kind']=='positioning' and s['robot']==rid)
+        np.testing.assert_allclose(positioning['target'],layout['robots'][rid]['initial_positions'])
+    q=dict(start)
+    for stage in result['stages']:
+        if stage['kind']=='measure':
+            for rid in stage['robots']:q.update(zip(joint_names(rid),result['plans'][rid]['poses'][-1]['joints']))
+        else:q.update(zip(joint_names(stage['robot']),stage['target']))
+    assert q==start
+
+
 def test_close_swept_envelopes_fail_closed(schedule,monkeypatch):
     model,start,plan=schedule
     monkeypatch.setattr(model.arm_envelopes,'at_current_state',lambda rid:np.array([[0,0,0],[1,1,1]]))
@@ -102,3 +119,12 @@ def test_late_goal_acceptance_after_stop_is_cancelled_and_tracked_until_result(r
     assert cancelled==[rid] and node.motion_handles[rid] is handle and not node.registration_pending
     result.set_result(None)
     assert not node.motion_handles
+
+
+def test_transport_failure_does_not_treat_missing_acknowledgement_as_idle():
+    future=Future();future.set_exception(RuntimeError('transport failed'))
+    reasons=[]
+    node=SimpleNamespace(uncertain_goals=set(),registration_pending={'left_front'},request_halt=reasons.append)
+    Backend.accept_motion(node,'left_front',future)
+    assert node.uncertain_goals=={'left_front'} and not node.registration_pending
+    assert 'controller reset required' in reasons[0]

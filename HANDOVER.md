@@ -415,10 +415,23 @@ aktiv; separate MuR-Simulation inaktiv. Vor weiterer Prozessarbeit neu prüfen.
 - Umgesetzt als eigene statische Gazebo-Entität `uwa_oak_overview`, außerhalb
   der Zell-URDF. Bestehende Zell-/Wrist-/Greifer-/Controllerkonfiguration erhalten;
   keine Gelenkbefehle und kein Zellneustart durch diese Aufgabe.
-- Zentrale Konfiguration `overview_camera` in `cell_layout.yaml`: zunächst
-  optisches Zentrum Welt[1.8,0,3.0]m, Ziel[0,0,1.4]m, etwa41,6° nach unten,
-  nominell67,3° horizontal,4000×3000@3Hz Simulationszeit. Nicht kalibriert;
-  die reale maximal mögliche Stativhöhe ist nicht bestätigt.
+- Nutzerkorrektur: reales Stativ maximal **2 m**. Zusätzlich zwei **OAK-D-S2-FF**
+  verfügbar, falls tote Winkel ergänzend abgedeckt werden müssen. Keine konkreten
+  Zusatzkameraposen oder Hardwareanbindung festgelegt.
+- Aktuelle zentrale Konfiguration `overview_camera` in `cell_layout.yaml`:
+  optisches Zentrum Welt[1.8,-0.8,2.0]m, Ziel[0,-0.1,0.95]m, etwa28,5° nach unten,
+  nominell67,3° horizontal,4000×3000@3Hz Simulationszeit. Nicht kalibriert.
+- Neue2m-Pose live geprüft: alle Tisch-Ecken geometrisch im Bild, vier Arme und
+  Tischplatten im geprüften Bild sichtbar,12/24 Ecken links/rechts erkannt,
+  RMS0,691/0,042px. Links wenig Reserve; Zusatzkameras für tote Winkel/Details
+  sind eine Erweiterungsoption. Keine Garantie für alle Armstellungen.
+- Mehrere Kandidaten verglichen: mittig rechts zu wenig linke Erkennung,
+  starke Frontdiagonalen durch Arme verdeckt.6k lieferte CameraInfo, aber kein
+  erfolgreich empfangenes RGB im Zeitfenster;5k ebenfalls nicht erfolgreich.
+  Daher bei4k geblieben. Keine Behauptung einer Hardwaregrenze daraus.
+  Belege `setup/logs/uwa-oak-2m/`, finale JSON/Bilder dort unter `final/`;
+  neue Pose und Höhenlimit mit13 Offline-Tests geprüft. Aktiver Layoutpfad
+  wieder zentrale Quelldatei. Kein Zellneustart und keine Arme durch uns bewegt.
 - Getrennt vom echten Kameratreiber/SDK. RGB-Pinhole-Näherung, primitive Gehäuse-
   und Stativdarstellung. Keine Tiefenkanäle, realistische Verzeichnung,
   Rolling-Shutter-Verzerrung, Rauschen oder Autofokus simuliert.
@@ -428,12 +441,13 @@ aktiv; separate MuR-Simulation inaktiv. Vor weiterer Prozessarbeit neu prüfen.
   Besitzer. `cell.sh stop` beendet auch Kamera und separaten Bildbetrachter.
 - Pose-/Optikänderungen über `reload` ersetzen nur die Kamera und aktualisieren
   TF/Marker. Nach Anpassung der YAML kein Roboterneustart nötig. Erfolgreich
-  mit2,6m Höhe / Ziel1,1m geprüft und auf3m / Ziel1,4m zurückgestellt.
+  zunächst mit2,6m/3m geprüft; diese Versuche sind nach der Nutzerkorrektur
+  historisch. Aktueller Stand ist die oben dokumentierte2m-Pose.
 - Themen `/uwa_cell/oak_overview/rgb/image_raw` und `camera_info`, optischer TF
   `world -> oak_overview_rgb_optical_frame`. RViz-Config ergänzt um Gehäuse,
   Stativ und Frustum-Marker auf `/uwa_cell/oak_overview/markers` (latched).
-  Marker/TF tatsächlich empfangen: zehn Marker, Weltposition[1.8,0,3.0].
-- Theoretisch alle Tisch-Ecken im Bild; bei4k Marker-Minimalseite links/rechts
+  Marker/TF ursprünglich empfangen: zehn Marker, damalige Weltposition[1.8,0,3.0].
+- Historischer3m-Prüfstand: bei4k Marker-Minimalseite links/rechts
   ca17,6/28,4px. Sichtfeldrechnung prüft keine Verdeckungen. Echte Erkennung:
   Ausgangspose18/24 Ecken, RMS0,069/0,061px; niedrigere Variante20/24 Ecken,
   RMS0,054/0,096px. Beide Boards jeweils im selben Bild erkannt. Zahlen sind
@@ -454,6 +468,28 @@ aktiv; separate MuR-Simulation inaktiv. Vor weiterer Prozessarbeit neu prüfen.
   externe OAK zu erweitern und reale Welt-Extrinsics zu bestimmen ist Folgearbeit.
 
 ## Automatische Hand-Auge-Kalibrierung (2026-11-09)
+
+- **Aktueller Folgeauftrag:** diagonale Paare statt ausschließlich eines Arms:
+  links vorne + rechts hinten, danach links hinten + rechts vorne. Die jeweils
+  anderen Arme zuvor seriell zur Seite parken. Die frühere Einzelarmreihenfolge
+  bleibt in der GUI mit ausgeschalteter Option **Diagonalpaare** bzw. CLI
+  `--sequential` verfügbar. Der folgende ursprüngliche Genauigkeitsnachweis
+  wurde noch mit dem Einzelarmablauf aufgenommen.
+- Paarmodus: gemeinsame zukünftige Startzeit und Dauer beider Trajektorien;
+  volle MoveIt-Szene für die Wege plus getrennte Hüllräume aller Kollisionskörper
+  über beide Wege, mit 80 mm zusätzlichem Puffer je Arm. Die Freigabe bleibt auch
+  bei unterschiedlichem Fortschritt nominal getrennt; keine pauschale
+  Reichweitenannahme ersetzt diese Prüfung. Einrichtung und Rückfahrt seriell.
+- Anfangs-Boardansichten aus der zentralen YAML dienen zum Wiederanstellen
+  geparkter Arme. Die gemessenen tatsächlichen Sitzungsstartstellungen werden
+  erst nach Abschluss aller Gruppen wiederhergestellt; Stopp/Fehler halten
+  sämtliche aktiven Ziele an der aktuellen Stelle und sperren folgende Fahrten.
+- Neue Nachweise bisher: Offline-Park-/Paarpläne erfolgreich, mindestens ca.
+  31 cm Abstand der nominalen Diagonal-Hüllräume im ersten Layouttest. Echte
+  parallele native Gelenkbewegung live beobachtet; Wartearme dabei stationär
+  (< 1,4e−11 rad Abweichung). Gemeinsames Pause/Fortsetzen und anschließender
+  Stopp beider Controller in 0,46 s bestätigt:
+  `setup/logs/uwa-diagonal-pause-stop.json`. Vollständiger neuer 40×4-Lauf läuft.
 
 - Nutzerauftrag: genehmigten Plan vollständig in der Simulation umsetzen;
   eigene Qt-GUI, 30–50 verschiedene Stellungen pro Arm (Standard 40), links/rechts
@@ -476,8 +512,8 @@ aktiv; separate MuR-Simulation inaktiv. Vor weiterer Prozessarbeit neu prüfen.
 - Backend und Qt6-GUI getrennt; nicht befehlsfähiger Planungs-/Fit-Prozess,
   eigener Walltime-Watchdog, Besitzer-Lebenszeichen, Controller-Abbruch mit
   Abbremsparametern, Stillstandsbestätigung und Gazebo-Pause als Rückfall.
-  Kein automatisches Zurückfahren nach Stopp oder Fehler. Nach normalem Armende
-  geprüfte Rückfahrt zur gemessenen Startstellung.
+  Kein automatisches Zurückfahren nach Stopp oder Fehler. Geprüfte Rückfahrt zur
+  gemessenen Startstellung nach regulärem Abschluss (im Paarmodus nach allen Gruppen).
 - Übernehmen erzeugt ein versioniertes Profil und `calibrated/`-TF-/MoveIt-Modell.
   Physische Gazebo-Montagen und der ursprüngliche TF-Baum bleiben erhalten.
   Kandidatenprüfung vor atomarer Profilaktivierung; altes Profil bei Fehler behalten.

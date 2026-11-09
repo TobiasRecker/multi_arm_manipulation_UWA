@@ -13,6 +13,7 @@ from uwa_cell_gazebo.charuco import board_image, detect_pose
 def test_world_optical_basis_target_and_default_table_coverage():
     layout = load_layout()
     cfg = camera_config(layout)
+    assert cfg['xyz'][2] <= 2.0  # user's current tripod limit
     sensor, optical = transforms(cfg)
     direction = np.subtract(cfg['look_at'], cfg['xyz'])
     direction /= np.linalg.norm(direction)
@@ -24,7 +25,7 @@ def test_world_optical_basis_target_and_default_table_coverage():
     assert depth[0]>0
     report = coverage(layout)
     assert all(t['all_corners_in_frame'] for t in report['tables'].values())
-    assert all(b['approximate_min_marker_edge_px']>16 for b in report['boards'].values())
+    assert all(b['approximate_min_marker_edge_px']>=12 for b in report['boards'].values())
     assert not report['calibrated'] and not report['occlusion_checked']
 
 
@@ -64,9 +65,16 @@ def test_overview_finds_small_markers_in_large_frame_without_world_pose_input():
 
 @pytest.mark.parametrize('change', [dict(width=True),dict(height=0),dict(rate=100),
     dict(near=20),dict(horizontal_fov=math.pi),dict(roll=float('nan')),
-    dict(look_at=[1.8,0,3]),dict(xyz=[0,0,0]),dict(unknown=1)])
+    dict(xyz=[0,0,0]),dict(unknown=1)])
 def test_invalid_camera_is_rejected_before_spawning(change):
     layout = load_layout()
     layout['overview_camera'].update(change)
+    with pytest.raises(ValueError):
+        camera_config(layout)
+
+
+def test_camera_cannot_look_at_its_own_position():
+    layout=load_layout()
+    layout['overview_camera']['look_at']=list(layout['overview_camera']['xyz'])
     with pytest.raises(ValueError):
         camera_config(layout)

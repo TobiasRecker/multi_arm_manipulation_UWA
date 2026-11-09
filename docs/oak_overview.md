@@ -4,6 +4,9 @@ Nutzerziel vom **2026-11-09**: reale OAK4-D neben dem Tisch auf einem Stativ,
 aktuell rechts, nach unten auf beide Tischplatten gerichtet. Die genaue Montage
 ist offen. In Gazebo Höhe, Blickwinkel und Auflösung vergleichen, um Überblick
 und ChArUco-Details gleichzeitig zu erhalten. Die Wrist-Kameras bleiben erhalten.
+**Nutzerkorrektur:** Das vorhandene Stativ erreicht höchstens **2 m**. Zwei
+weitere **OAK-D-S2-FF** stehen laut Nutzer bei Bedarf für tote Winkel zur
+Verfügung; Montage, konkrete Optik/Intrinsics und Anbindung sind dafür noch offen.
 
 ## Ausgangspose und Optik
 
@@ -15,8 +18,8 @@ RGB-Sensors, `look_at` einen Zielpunkt, `roll` die Drehung um die Blickachse.
 ```yaml
 overview_camera:
   enabled: true
-  xyz: [1.8, 0.0, 3.0]
-  look_at: [0.0, 0.0, 1.4]
+  xyz: [1.8, -0.8, 2.0]
+  look_at: [0.0, -0.1, 0.95]
   roll: 0.0
   width: 4000
   height: 3000
@@ -27,10 +30,11 @@ overview_camera:
 ```
 
 Damit steht die Kamera seitlich 0,95 m außerhalb der rechten Tischkante,
-2,1 m über der Tischoberfläche und blickt etwa 41,6° nach unten.
-Der etwas höhere Zielpunkt lässt im Bild Raum für die Roboter über den Boards.
-3 m ist eine zunächst untersuchte Aufbauhöhe; ob das reale Stativ sie erreicht,
-ist noch nicht bestätigt. Eine niedrigere Variante ist ebenfalls geprüft.
+0,8 m zur Vorderseite versetzt, 1,1 m über der Tischoberfläche und blickt etwa
+28,5° nach unten. Der Zielpunkt liegt 5 cm über der Tischplatte und 10 cm vor
+der Zellmitte. Diese Designpose ist bei maximal 2 m optischer Höhe geprüft.
+Frühere 3-/2,6-m-Vorschläge überschreiten die bestätigte Stativgrenze und sind
+keine aktuellen Montageempfehlungen.
 
 Das horizontale Sichtfeld von nominell 67,3° stammt vom standardmäßigen
 [IMX586-Autofokusmodell der OAK4-D](https://docs.luxonis.com/hardware/products/OAK%204%20D).
@@ -100,14 +104,14 @@ Umfang von 32 Pixeln statt OpenCVs relativen Standardwerts von 3 % der Bildkante
 Bei 4000 Pixeln würde dieser sonst Marker unter etwa 30 Pixel Seitenlänge
 verwerfen. Der bestehende Wrist-/Hand-Eye-Standardwert bleibt unverändert.
 
-Rein geometrische Abschätzung für die 3-m-Ausgangspose:
+Rein geometrische Abschätzung für die aktuelle 2-m-Ausgangspose:
 
 | Auflösung, gleiches 4:3-Sichtfeld | Kleinste Marker-Seite links / rechts |
 |---|---:|
-| 1600×1200 | etwa 7 / 11 px |
-| 2560×1920 | etwa 11 / 18 px |
-| **4000×3000** | **etwa 18 / 28 px** |
-| 8000×6000 | etwa 35 / 57 px |
+| 1600×1200 | etwa 6 / 12 px |
+| 2560×1920 | etwa 10 / 18 px |
+| **4000×3000** | **etwa 15 / 29 px** |
+| 8000×6000 | etwa 31 / 58 px |
 
 4000×3000 ist deshalb der erste getestete Kompromiss. Eine kleinere Vorschau
 ist deutlich billiger zu rendern, bietet dem entfernten Board aber wenig Reserve.
@@ -116,7 +120,36 @@ getestet. Die 3 Hz sind eine bewusste Simulationslast-Einstellung; sie entsprech
 keiner Hardwareobergrenze. Lange Distanz, flache Sicht und Verdeckungen können
 auch bei genügend Pixeln zu fehlenden Ecken führen.
 
-Live-Nachweis am 2026-11-09:
+## Vergleich unter der 2-m-Grenze
+
+Mehrere seitliche und diagonale Kandidaten bei 2 m wurden ohne Armbewegungen
+durch diese Aufgabe getestet. Bloßes Absenken an der bisherigen seitlichen
+Position erkennt das linke Board nicht zuverlässig. Stark diagonale Positionen
+rechts vorne haben in den geprüften Armstellungen Verdeckungen durch die Arme.
+Einige seitlich versetzte4k-Varianten erkennen17/24 Ecken, schneiden aber eine
+Tischecke ab. Die aktuelle Pose verschiebt den Blick leicht nach vorne/unten:
+alle acht Tisch-Ecken liegen geometrisch im Bild; in der geprüften Aufnahme
+sind alle vier Arme und beide Tischplatten sichtbar.
+
+Aktueller Live-Nachweis: **12 Ecken links / 24 rechts**, Reprojektions-RMS
+**0,691 / 0,042 px**, bei4000×3000. Das linke Board erreicht damit gerade die
+konfigurierte Mindestzahl und hat wenig Reserve; keine verlässliche
+Sichtbarkeit für alle späteren Armbewegungen behaupten. Für bessere
+Detailabdeckung oder verdeckte Bereiche stehen zwei OAK-D-S2-FF als spätere
+Erweiterungsoption bereit. Noch keine Zusatzkamera gespawnt oder kalibriert.
+
+6k-Tests lieferten CameraInfo, aber im Prüfzeitfenster keine empfangenen
+ROS-Bilder; ein5k-Versuch scheiterte ebenfalls am End-to-End-Nachweis. Daraus
+wird keine Hardware-Auflösungsgrenze abgeleitet. Aktuell bleibt das getestete
+4k-Profil aktiv. Die endgültige YAML ist wieder die Quelle des Kameraknotens,
+kein temporärer Testlayoutpfad. Kein Zell-/Scan-Neustart, keine Gelenkbefehle.
+
+Belege: `setup/logs/uwa-oak-2m/`, insbesondere `final/report.json` und
+`final/overview.jpg`; Zusammenfassung in
+`docs/oak_overview_2m_validation_2026-11-09.json`. 13 passende Offline-Tests
+bestanden, einschließlich Stativgrenze, Tischabdeckung, Kamerabasis und Erkennung.
+
+Historischer Live-Nachweis vor Bekanntgabe der Stativgrenze (2026-11-09):
 
 | Optisches Zentrum / Zielpunkt | Tisch-Ecken im geometrischen Bild | Erkannte Ecken links / rechts | Reprojektions-RMS links / rechts |
 |---|---|---:|---:|
@@ -126,7 +159,8 @@ Live-Nachweis am 2026-11-09:
 Das sind einzelne Erkennungsnachweise bei damaligen Armstellungen, keine
 Sichtbarkeitsgarantie für alle Bewegungen oder belastbare Extrinsikkalibrierung.
 Die Kamera wurde für den Höhenvergleich ohne Zellneustart umgesetzt und danach
-auf die 3-m-Pose zurückgestellt. Keine Gelenkbefehle durch diese Werkzeuge.
+damals auf die 3-m-Pose zurückgestellt. Diese wurde inzwischen durch die
+oben dokumentierte 2-m-Pose ersetzt. Keine Gelenkbefehle durch diese Werkzeuge.
 
 Belege im Workspace unter `setup/logs/uwa-oak-overview-{initial,final,lower}/`,
 `uwa-oak-overview-visuals.json`, `uwa-oak-overview-build.log` und

@@ -155,8 +155,9 @@ and joint-limit parameters still come from the UR7e configuration.
 ## Static OAK4 overview camera
 
 The OAK4-D is modelled on an approximate tripod to the **right** of the cell.
-Its RGB optical centre starts at world **[1.8, 0, 3.0] m**, looking at
-**[0, 0, 1.4] m**. This is a design pose, not a measured calibration.
+Its RGB optical centre starts at world **[1.8, -0.8, 2.0] m**, looking at
+**[0, -0.1, 0.95] m**: right/front, about 29° downward. This respects the
+user's **2 m maximum tripod height**. It is not a measured calibration.
 The nominal 67.3° horizontal FOV uses a 4000×3000 pinhole RGB image at
 3 Hz simulation time. [Detailed setup and design limits](docs/oak_overview.md).
 
@@ -180,9 +181,12 @@ bash src/multi_arm_manipulation_UWA/scripts/overview.sh check \
 ```
 
 The checker observes both boards without moving arms; actual robot poses can
-occlude them. The 3 m pose and a 2.6 m variant both detected at least 18/24 and
-20/24 left/right corners respectively in live tests. Reprojection errors were
-below 0.1 px in those snapshots; this does not establish real calibration accuracy.
+occlude them. The current 2 m pose detected 12/24 left/right corners in the
+checked image (reprojection RMS 0.691/0.042 px). The left board has limited
+detail reserve; this does not establish real calibration accuracy. Earlier
+3 m/2.6 m experiments exceed the actual tripod limit and are historical only.
+Two additional OAK-D-S2-FF cameras are available, according to the user, for
+future blind-spot/detail coverage; no mounting poses have been assigned yet.
 RGB and CameraInfo topics: `/uwa_cell/oak_overview/rgb/{image_raw,camera_info}`.
 TF: `world -> oak_overview_rgb_optical_frame`. The supplied RViz config includes
 the housing/tripod and frustum markers; a previously opened RViz can add a
@@ -334,11 +338,16 @@ ros2 launch uwa_cell_calibration calibration.launch.py
 
 Disable manual rqt trajectory output, select the robots and **Posen vorbereiten**,
 then **Start**. The default is 40 distinct views per arm (32 fitting and eight
-held-out validation views), with one moving arm at a time and collision-checked
-paths at at most 0.10 rad/s and 0.20 rad/s². Live views show board detections;
+held-out validation views). **Diagonalpaare** is enabled by default: left front
+and right rear work together, followed by left rear and right front. Inactive arms
+park to the side first; setup/parking moves remain serial. The paired paths
+use a shared start time/duration and collision checks with separated swept
+envelopes, at at most 0.10 rad/s and 0.20 rad/s². Disable **Diagonalpaare** for
+the previous one-arm mode without parking. Live views show board detections;
 **Pause/Fortsetzen**, the red **STOPP** and a direct Gazebo pause remain accessible.
-After a regular arm run, it returns to its captured start pose. A stop or error
-keeps the current pose and requires a new preparation.
+After both cohorts finish, all repositioned arms return to their measured
+session-start poses along checked serial paths. A stop or error holds all
+active arms and requires a new preparation; parked poses can be prepared again.
 
 The tool estimates each unknown tool-to-camera transform and the relative
 front/rear bases separately for each table. Validation and ground-truth errors

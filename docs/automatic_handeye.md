@@ -27,26 +27,33 @@ Ein abweichendes `layout:=/absolute/path/cell_layout.yaml` wird nur beim
 ersten Backend-Start berücksichtigt und muss zur laufenden Zelle passen.
 
 1. In rqt die manuelle Trajektorienausgabe deaktivieren. Alle Arme und Greifer
-   müssen stillstehen; die jeweils zugeordneten Boards müssen sichtbar sein.
+   müssen stillstehen. Bereits geparkte Arme sind im Paarmodus zulässig;
+   die Vorbereitung prüft die Rückpositionierung zur konfigurierten Boardansicht.
 2. Roboter wählen, standardmäßig alle vier. Die Messzahl ist von 30 bis 50
-   einstellbar, Standard 40.
+   einstellbar, Standard 40. **Diagonalpaare** ist standardmäßig aktiv;
+   ausgeschaltet bleibt der bisherige Einzelarmmodus ohne Parkfolge verfügbar.
 3. **Posen vorbereiten** prüft Telemetrie, Controller, Sichtfeld, Kinematik,
    Kollisionswege und Rotationsvielfalt. Pro Arm werden acht oder mindestens
    20 % zusätzliche Reserveansichten gespeichert. Zu wenige gültige Ziele
    verhindern den Start. Während der Planung zeigt die GUI geprüfte Ziele
    und die Zahl ausgeschlossener Kandidaten.
-4. **Start** fährt nacheinander links vorne, links hinten, rechts vorne,
-   rechts hinten. Immer nur ein Arm bewegt sich. Kameraübersichten zeigen
-   Boardachsen, Eckenzahl und PnP-Reprojektions-RMS. Phase, aktiver Arm,
-   Gesamtfortschritt und verworfene Aufnahmen werden laufend aktualisiert.
-5. **Pause** bremst die aktuelle Fahrt ab. Erst nach bestätigtem Stillstand
-   wird **Fortsetzen** möglich. Der unterbrochene Zielweg wird aus dem
+4. **Start** parkt zuerst links hinten und rechts vorne nacheinander zur Seite.
+   **Links vorne + rechts hinten** bewegen sich anschließend gemeinsam und
+   nehmen ihre jeweiligen Boards parallel auf. Danach parken diese beiden,
+   während **links hinten + rechts vorne** zur Boardansicht fahren und parallel
+   messen. Bei einer Teilmenge werden nur ausgewählte Arme der beiden Gruppen
+   vermessen; andere Arme werden dennoch bei Bedarf geparkt. Setupwege bleiben
+   seriell. Die GUI zeigt beide aktiven Arme, Parkzustand, Schritt und Zähler je Arm.
+5. **Pause** bremst alle aktiven Controller ab. Erst nach bestätigtem Stillstand
+   aller Arme wird **Fortsetzen** möglich. Der unterbrochene Zielweg wird aus dem
    tatsächlichen Zustand neu geprüft und die Aufnahme gegebenenfalls wiederholt.
 6. **STOPP** verriegelt weitere Befehle und bricht die Sitzung ab. Bereits
    gespeicherte Daten bleiben erhalten. Es gibt nach Stopp oder Fehler keine
    automatische Rückfahrt. Eine neue Fahrt erfordert erneutes Vorbereiten.
-7. Nach regulärem Abschluss jedes Arms folgt eine erneut kollisionsgeprüfte
-   Rückfahrt zur bei Vorbereitung gemessenen Startstellung. Anschließend
+7. Nach regulärem Abschluss beider Gruppen folgt für alle umpositionierten Arme
+   eine erneut kollisionsgeprüfte serielle Rückfahrt zur tatsächlich bei
+   Sitzungsstart gemessenen Stellung. Im Einzelarmmodus bleibt die Rückfahrt
+   nach jedem Arm erhalten. Anschließend
    werden Schätzung, unabhängige Validierung und Ground-Truth-Abweichungen
    getrennt im Tab **Ergebnisse** angezeigt; **Livebilder** bleibt verfügbar.
 8. **Ergebnis übernehmen** ist eine ausdrückliche Aktivierung des bestandenen
@@ -67,6 +74,8 @@ ros2 run uwa_cell_calibration calibration_cli --samples 40
 ros2 run uwa_cell_calibration calibration_cli --samples 40 --apply
 # Nur ein Arm / eine andere Messzahl:
 ros2 run uwa_cell_calibration calibration_cli --robots left_front --samples 30
+# Bisheriger Einzelarmablauf ohne Parken anderer Arme:
+ros2 run uwa_cell_calibration calibration_cli --samples 40 --sequential
 ```
 
 ## Planung und Aufnahme
@@ -89,9 +98,33 @@ Die Verbindungen sind quintisch zeitparametrierte lokale Gelenkwege und
 werden mit MoveIt über den gesamten Verlauf geprüft, mit höchstens 0,005 rad
 Gelenkschritt und höchstens 0,1 s Zeitschritt. Sie halten 0,10 rad/s und
 0,20 rad/s² ein. Blockierte Verbindungen werden verworfen. Diese Version
-sucht keine OMPL-Umwege und enthält keine kooperative Mehrarmplanung. Vor
+sucht keine OMPL-Umwege. Vor
 jeder Ausführung erfolgt die Prüfung erneut vom tatsächlichen Gelenkzustand.
 Passiv gekoppelte Greifergelenke berechnet MoveIt aus dem angetriebenen Gelenk.
+
+Parkstellungen werden per IK seitlich über den jeweiligen Montagebereich
+berechnet und anhand erreichbarer kollisionsgeprüfter Wege ausgewählt. Es wird
+keine Kamerablickrichtung beim Parken erzwungen. Für die aktive Gruppe dienen
+die zentralen `initial_positions` als Boardansicht; alle Anfahrwege werden
+ebenfalls geprüft. Parkziele, Reihenfolge und Paar-Zertifikate stehen im Plan.
+
+Beide Trajektorien eines Diagonalpaars bekommen dieselbe Dauer und denselben
+zukünftigen ROS-Startzeitstempel. Vor dem Versand müssen die Zustände weiterhin
+still und passend sein; beide Controller müssen rechtzeitig vor dem Start
+bestätigen. Zusätzlich umschließen konservative Hüllboxen alle Kollisionskörper
+jedes Arms über seinen vollständigen geplanten Weg. Sie erhalten **80 mm Puffer
+je Arm** und müssen getrennt bleiben. Damit hängt die Trennung der nominalen
+Wege nicht von identischem Bewegungsfortschritt ab; auch ein bereits stehender
+Partner wird berücksichtigt. Überschneidende Hüllräume verhindern die Fahrt,
+selbst wenn ein exakt synchroner Verlauf kollisionsfrei wäre. Dieses Kriterium
+ersetzt keine Hardware-Sicherheitsbewertung.
+
+Die tatsächliche Reichweite wird nicht pauschal aus dem Roboternamen abgeleitet.
+Die Freigabe bezieht sich auf Modell und geplante Bewegungsräume. Die beiden
+Arme erreichen eine Stellung gemeinsam und stehen beide mindestens 0,5 s still;
+die Auswahl aus fünf frischen Bildern erfolgt dann gleichzeitig pro Kamera.
+Scheitert nur eine Aufnahme, bleibt der erfolgreich aufgenommene Partner stehen,
+während der andere sein Bild wiederholt oder eine geprüfte Reservepose anfährt.
 
 Nach Zielerreichung (maximal 0,02 rad Gelenkfehler) und mindestens 0,5 s
 Stillstand in Simulationszeit werden fünf frische gültige Bilder gesammelt.
@@ -218,7 +251,7 @@ Unter `/uwa_cell/calibration`:
 
 | Schnittstelle | Typ | Zweck |
 |---|---|---|
-| `prepare` | `PrepareCalibration` Service | Roboter, Messzahl, Besitzer-ID; startet Vorbereitung asynchron |
+| `prepare` | `PrepareCalibration` Service | Roboter, Messzahl, Besitzer-ID, `diagonal_pairs` (Standard true); startet Vorbereitung asynchron |
 | `run` | `RunCalibration` Action | geprüfte `plan_id`, Feedback, Ergebnis, Abbruch |
 | `pause`, `resume`, `stop` | `std_srvs/Trigger` | bewusste Steuerung und verriegelter Stopp |
 | `pause_world` | `std_srvs/Trigger` | zusätzliche Gazebo-Pause |
@@ -239,12 +272,20 @@ Bewegung erkannt; die Routine beansprucht keine exklusive Sperre fremder ROS-
 Programme. Manuelle rqt-Ausgabe deshalb vor dem Start deaktivieren.
 
 Der Stopp sperrt den Versand unter demselben Lock wie das Absenden eines
-Trajektorienziels, storniert auch ein gerade erst bestätigtes Ziel und wartet
-auf dessen Ende sowie gemessenen Stillstand. Die Armcontroller bremsen
-stornierte Ziele kontrolliert ab. Wird der Stillstand nicht innerhalb 1,5 s
+Trajektorienpaars, storniert **beide** Ziele einschließlich spät bestätigter
+Ziele und wartet auf alle Ergebnisse sowie gemessenen Stillstand. Ein Fehler
+eines Controllers stoppt die gesamte Gruppe. Die Armcontroller bremsen
+stornierte Ziele kontrolliert ab; mindestens 0,5 rad/s² konfigurierte
+Abbremsung wird vor der Sitzung geprüft. Wird der Stillstand nicht innerhalb 1,5 s
 bestätigt, wird die Gazebo-Pause angefordert und deren Antwort ausgewertet.
 Planung und Optimierung laufen in einem eigenen Prozess ohne Befehlsclients;
 dessen Abbruch kann die Bewegungsüberwachung nicht blockieren.
+
+Ist wegen eines Transportfehlers unklar, ob ein Controller ein Ziel angenommen
+hat, wird dies nicht als Leerlauf gewertet: die Weltpause greift und eine neue
+Sitzung bleibt bis zur Klärung bzw. einem Controller-/Zellreset gesperrt.
+`motion_events.jsonl` protokolliert versendete Gruppen, gemeinsame Startzeiten,
+Dauern und Hüllraumabstände; Sitzungsrohdaten bleiben außerhalb Git.
 
 Dies ist ein überwachter Softwarestopp für die Simulation. Eine spätere
 Hardwareversion braucht die reale UR-Anbindung und deren Stoppsystem.

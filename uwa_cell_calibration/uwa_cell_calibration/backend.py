@@ -85,6 +85,7 @@ class Backend(Node):
         self.processed={};self.heartbeat=0.;self.owner='';self.clock_value=None;self.last_clock_change=time.monotonic()
         self.frozen={};self.hold_positions={};self.camera_quality={}
         self.motion_handles={};self.pending_goals={};self.registration_pending=set();self.motion_results={}
+        self.uncertain_goals=set()
         self.controlled_robots=set();self.goal_reserved=False;self.run_handle=None
         self.plan=None;self.session=None;self.halt_thread=None;self.running=False;self.threads=[]
         self.profile_restored=False;self.command_sent=0.;self.preparation_start=0.
@@ -263,7 +264,7 @@ class Backend(Node):
                 if not client.wait_for_service(timeout_sec=3):raise ValueError('Controller parameters unavailable')
                 params=['constraints.decelerate_on_cancel']+[f'constraints.{j}.max_deceleration_on_cancel' for j in joint_names(rid)]
                 response=self.wait_future(client.call_async(GetParameters.Request(names=params)))
-                if not response.values[0].bool_value or any(v.double_value<=0 for v in response.values[1:]):
+                if not response.values[0].bool_value or any(v.double_value<.5-1e-9 for v in response.values[1:]):
                     raise ValueError('Restart the cell with the updated decelerate-on-cancel controller settings')
             finally:self.destroy_client(client)
 
@@ -274,6 +275,8 @@ class Backend(Node):
 
     def prepare(self,request,response):
         with self.mutex:
+            if self.uncertain_goals:
+                response.accepted=False;response.message='Unklare Controller-Bestätigung: Controller/Zelle vor einer neuen Sitzung zurücksetzen; pausierte Welt nicht einfach fortsetzen.';return response
             if self.state['phase'] not in ('IDLE','READY','COMPLETE','STOPPED','ERROR') or self.goal_reserved or (self.operation_thread and self.operation_thread.is_alive()):
                 response.accepted=False;response.message='A calibration operation is already active';return response
             ids=[r for r in ROBOT_IDS if r in request.robot_ids]
@@ -372,7 +375,7 @@ class Backend(Node):
     def confirm_halt(self):
         deadline=time.monotonic()+1.5;stable=None
         while time.monotonic()<deadline and not self.shutdown_event.is_set():
-            pending=bool(self.registration_pending) or any(not f.done() for f in list(self.pending_goals.values()))
+            pending=bool(self.registration_pending) or bool(self.uncertain_goals) or any(not f.done() for f in list(self.pending_goals.values()))
             stopped=(self.stationary() and time.monotonic()-self.last_joints<.5)
             if stopped and not pending and not self.motion_handles:
                 stable=stable or time.monotonic()
@@ -438,7 +441,9 @@ class Backend(Node):
                     self.motion_results[rid].add_done_callback(finished)
                     if self.halted():handle.cancel_goal_async()
                 else:self.request_halt(f'{rid}: trajectory rejected; cancelling whole cohort')
-        except Exception as error:self.request_halt(f'{rid}: goal acknowledgement failed: {error}')
+        except Exception as error:
+            self.uncertain_goals.add(rid)
+            self.request_halt(f'{rid}: goal acknowledgement uncertain; controller reset required: {error}')
         finally:self.registration_pending.discard(rid)
 
     def move_many(self,targets,phase='MOVING'):
@@ -478,6 +483,7 @@ class Backend(Node):
                 try:self.pending_goals[rid]=self.trajectory_clients[rid].send_goal_async(goal)
                 except Exception:
                     self.registration_pending.discard(rid)
+                    self.uncertain_goals.add(rid)
                     self.request_halt('Controller goal dispatch failed');raise
                 self.pending_goals[rid].add_done_callback(lambda future,r=rid:self.accept_motion(r,future))
         if self.session:

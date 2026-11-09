@@ -32,10 +32,13 @@ def main():
     node.create_subscription(JointState,'/uwa_cell/joint_states',joints,10)
     thread=threading.Thread(target=executor.spin,daemon=True);thread.start()
     app=QtWidgets.QApplication([]);window=Window(node);window.show()
+    last_message=['']
     def until(condition,seconds=120):
         end=time.monotonic()+seconds
         while time.monotonic()<end:
             app.processEvents();time.sleep(.02)
+            message=f"{node.state.get('phase','')} {node.state.get('active_robots',[])} {node.state.get('accepted',0)} {node.state.get('message','')}"
+            if message!=last_message[0]:print(message,flush=True);last_message[0]=message
             if errors:raise AssertionError(errors)
             if node.error:raise RuntimeError(node.error)
             if condition():return
@@ -61,6 +64,9 @@ def main():
             until(lambda:node.state.get('phase')=='COMPLETE')
             assert all(node.state['counts'][r]==40 for r in ROBOT_IDS)
             assert set(observed)=={'+'.join(pair) for pair in DIAGONALS}
+            completed_plan=json.loads((Path(plan['session_dir'])/'plan.json').read_text())
+            return_error=max(abs(telemetry['positions'][j]-completed_plan['run_start'][j]) for rid in ROBOT_IDS for j in joint_names(rid))
+            assert return_error<.02
         else:
             if a.mode=='parking':
                 until(lambda:node.state.get('phase')=='PARKING' and any(abs(v)>.01 for j,v in telemetry.get('velocities',{}).items() if 'robotiq' not in j))
@@ -85,6 +91,7 @@ def main():
                 'max_parked_arm_joint_error_rad':max(park_drift,default=0.),'passed':True,
                 'reason':node.state.get('message'),'result_path':node.state.get('result_path')}
         if a.mode!='full':report['seconds_to_stop_both']=stop_seconds
+        else:report['max_return_error_rad']=return_error
         if a.screenshot:app.processEvents();assert window.grab().save(a.screenshot)
         atomic_json(a.output,report);print(json.dumps(report,indent=2))
     finally:

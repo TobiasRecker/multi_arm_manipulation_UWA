@@ -38,6 +38,12 @@
   `overview_camera` in derselben Layout-YAML verwenden, Pose/Look-at/FOV als
   Designannahmen behandeln. Ihre eigene Gazebo-Entität/TF lässt sich ohne
   Zellneustart neu laden. Keine Kamera-Designänderung darf Arme zurücksetzen.
+  Nutzerkorrektur vom 2026-11-09: vorhandenes Stativ erreicht **höchstens 2 m**;
+  aktuelle Montagevorschläge daran ausrichten. Die früheren 3-/2,6-m-Posen
+  sind nur historische Designversuche, keine umsetzbare Standardmontage.
+  Zusätzlich stehen laut Nutzer zwei **OAK-D-S2-FF** zur Verfügung, um bei
+  Bedarf tote Winkel abzudecken. Deren Montageposen und Einsatz sind noch offen;
+  keine zusätzlichen Hardwarekameras als verbunden oder kalibriert voraussetzen.
   Beide ChArUco-Boards aus echten Bildern prüfen; reine Sichtfeldprojektion
   beweist weder fehlende Verdeckung noch kalibrierte Genauigkeit. Das bisher
   nur visuelle Stativ ist kein Hindernis in der MoveIt-PlanningScene.
