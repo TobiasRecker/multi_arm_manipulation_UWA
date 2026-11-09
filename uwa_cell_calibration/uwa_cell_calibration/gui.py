@@ -1,6 +1,7 @@
 """Responsive Qt session UI. Motion ownership lives in the separate ROS backend."""
 import json,os,sys,threading,time
 import numpy as np
+from scipy.spatial.transform import Rotation
 from python_qt_binding import QtCore,QtGui,QtWidgets
 import rclpy
 from rclpy.executors import SingleThreadedExecutor
@@ -12,6 +13,7 @@ NAMES={'left_front':'Links vorne','left_rear':'Links hinten','right_front':'Rech
 class Window(QtWidgets.QMainWindow):
     def __init__(self,node):
         super().__init__();self.node=node;self.closing=False;self.close_started=None;self.stamps={}
+        self.allow_close=False;self.pause_pending=False;self.world_paused=False
         self.setWindowTitle('UWA Hand-Auge-Kalibrierung | Simulation');self.resize(1200,850)
         central=QtWidgets.QWidget();self.setCentralWidget(central);layout=QtWidgets.QVBoxLayout(central)
         title=QtWidgets.QLabel('Hand-Auge-Kalibrierung der UWA-Zelle')
@@ -38,11 +40,16 @@ class Window(QtWidgets.QMainWindow):
         grid=QtWidgets.QGridLayout();self.views={}
         for index,rid in enumerate(ROBOT_IDS):
             group=QtWidgets.QGroupBox(NAMES[rid]);box=QtWidgets.QVBoxLayout(group)
-            image=QtWidgets.QLabel('Warte auf Kamerabild');image.setMinimumSize(300,180);image.setAlignment(QtCore.Qt.AlignCenter)
+            image=QtWidgets.QLabel('Warte auf Kamerabild');image.setMinimumSize(300,180);image.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             image.setStyleSheet('background:#19212c; color:#dfe7ee;');box.addWidget(image)
             self.views[rid]=image;grid.addWidget(group,index//2,index%2)
         layout.addLayout(grid,stretch=1)
         self.results=QtWidgets.QPlainTextEdit();self.results.setReadOnly(True);self.results.setMaximumHeight(180);layout.addWidget(self.results)
+        self.result_table=QtWidgets.QTableWidget(0,5)
+        self.result_table.setHorizontalHeaderLabels(['Ergebnis','XYZ [mm]','Roll / Pitch / Yaw [°]','Qualität / Abstand','Ground Truth'])
+        self.result_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Stretch)
+        self.result_table.setMaximumHeight(195);layout.insertWidget(layout.indexOf(self.results),self.result_table)
+        self.results.setMaximumHeight(65)
         self.info=QtWidgets.QLabel('Vor Start rqt-Ausgabe deaktivieren. Stopp hält die aktuelle Stellung; keine automatische Rückfahrt nach Abbruch.')
         self.info.setWordWrap(True);layout.addWidget(self.info)
         self.timer=QtCore.QTimer(self);self.timer.timeout.connect(self.refresh);self.timer.start(100)
@@ -59,7 +66,8 @@ class Window(QtWidgets.QMainWindow):
                 from gz.transport import Node
                 from gz.msgs.world_control_pb2 import WorldControl
                 from gz.msgs.boolean_pb2 import Boolean
-                transport=Node();transport.request('/world/uwa_lab/control',WorldControl(pause=True),WorldControl,Boolean,1000)
+                transport=Node();ok,response=transport.request('/world/uwa_lab/control',WorldControl(pause=True),WorldControl,Boolean,1000)
+                self.world_paused=bool(ok and response.data)
             except Exception as error:self.node.error=f'Gazebo-Pause fehlgeschlagen: {error}'
         threading.Thread(target=call,daemon=True).start()
 
@@ -67,20 +75,25 @@ class Window(QtWidgets.QMainWindow):
         answer=QtWidgets.QMessageBox.question(self,'Kalibriertes Modell aktivieren',
           'Das geprüfte Profil wird aktiv und ersetzt das getrennte kalibrierte TF-/Planungsmodell.\n'
           'Die Roboterpositionen in Gazebo und Ground Truth bleiben unverändert.\n\nÜbernehmen?',
-          QtWidgets.QMessageBox.Yes|QtWidgets.QMessageBox.No,QtWidgets.QMessageBox.No)
-        if answer==QtWidgets.QMessageBox.Yes:self.node.apply()
+          QtWidgets.QMessageBox.StandardButton.Yes|QtWidgets.QMessageBox.StandardButton.No,QtWidgets.QMessageBox.StandardButton.No)
+        if answer==QtWidgets.QMessageBox.StandardButton.Yes:self.node.apply()
 
     def refresh(self):
+        self.node.pulse()
         state=self.node.state;phase=state.get('phase','OFFLINE')
+        owns=state.get('client_id')==self.node.client_id
         busy=phase in ('PREPARING','RUNNING','MOVING','SETTLING','CAPTURING','RETURNING','HALTING','PAUSED','SOLVING','APPLYING')
+        if busy and time.monotonic()-self.node.last_status>1.5 and not self.pause_pending:
+            self.pause_pending=True;self.pause_world();self.node.error='Backend verloren; Gazebo-Pause angefordert'
         self.prepare_button.setEnabled(not busy and bool(state))
-        self.start_button.setEnabled(phase=='READY')
-        self.pause_button.setEnabled(phase in ('MOVING','RUNNING','SETTLING','CAPTURING','RETURNING','PAUSED'))
+        self.start_button.setEnabled(phase=='READY' and owns)
+        self.pause_button.setEnabled(owns and phase in ('MOVING','RUNNING','SETTLING','CAPTURING','RETURNING','PAUSED'))
         self.pause_button.setText('Fortsetzen' if phase=='PAUSED' else 'Pause')
         self.apply_button.setEnabled(phase=='COMPLETE' and bool(state.get('result_path')) and state.get('stopped',False))
         for box in self.robots.values():box.setEnabled(not busy)
         self.count.setEnabled(not busy)
         self.status_label.setText(f"{phase} | {NAMES.get(state.get('robot_id'), '')} | {state.get('message','Backend nicht erreichbar')}"+
+                                  f" | Verworfen: {state.get('rejected',0)}"+
                                   (f"\n{self.node.error}" if self.node.error else ''))
         counts=state.get('counts',{});total=state.get('target',40)*max(1,len(counts))
         self.progress.setRange(0,total);self.progress.setValue(sum(counts.values()))
@@ -90,20 +103,43 @@ class Window(QtWidgets.QMainWindow):
             stamp=(msg.header.stamp.sec,msg.header.stamp.nanosec)
             if self.stamps.get(rid)==stamp:continue
             self.stamps[rid]=stamp
-            image=QtGui.QImage(bytes(msg.data),msg.width,msg.height,msg.step,QtGui.QImage.Format_RGB888).rgbSwapped().copy()
-            label.setPixmap(QtGui.QPixmap.fromImage(image).scaled(label.size(),QtCore.Qt.KeepAspectRatio,QtCore.Qt.SmoothTransformation))
+            image=QtGui.QImage(bytes(msg.data),msg.width,msg.height,msg.step,QtGui.QImage.Format.Format_RGB888).rgbSwapped().copy()
+            label.setPixmap(QtGui.QPixmap.fromImage(image).scaled(label.size(),QtCore.Qt.AspectRatioMode.KeepAspectRatio,QtCore.Qt.TransformationMode.SmoothTransformation))
         if state.get('result_path'):
             report={'Ergebnisdatei':state['result_path'],'Aktives Profil':state.get('active_profile',''),
-                    'Relative Basen':state.get('relative_bases',{}),'Hand-Auge und Validierung':state.get('summary',{}),
-                    'Ground Truth (nur Kontrolle)':state.get('ground_truth',{})}
-            text=json.dumps(report,indent=2,ensure_ascii=False)
-            if text!=self.last_result:self.results.setPlainText(text);self.last_result=text
+                    'summary':state.get('summary',{}),'pairs':state.get('relative_bases',{}),'truth':state.get('ground_truth',{})}
+            text=json.dumps(report,sort_keys=True)
+            if text!=self.last_result:
+                self.results.setPlainText('Ergebnis: '+state['result_path']+'\nAktives Profil: '+state.get('active_profile','')+'\nStreuung ist keine Zusage absoluter Genauigkeit.')
+                rows=[]
+                for rid,fit in state.get('summary',{}).items():
+                    matrix=np.asarray(fit['T_tool0_camera']);quality=fit['validation']
+                    gt=state.get('ground_truth',{}).get('robots',{}).get(rid,{}).get('handeye_error',{})
+                    rows.append([NAMES[rid]+' Kamera an tool0',matrix,
+                                 f"Val: {quality['median_reprojection_rms_px']:.3f} px / {quality['board_translation_rms_m']*1000:.2f} mm",
+                                 f"{gt.get('translation_m',0)*1000:.2f} mm / {gt.get('rotation_deg',0):.3f}°"])
+                for table,pair in state.get('relative_bases',{}).items():
+                    gt=state.get('ground_truth',{}).get('relative_bases',{}).get(table,{})
+                    interval=pair.get('distance_bootstrap_interval_mm')
+                    label=f"Abstand {pair['distance_mm']:.2f} mm"
+                    if interval:label+=f"; 95%-Streuung {interval[0]:.2f}–{interval[1]:.2f}"
+                    rows.append([('Links' if table=='left' else 'Rechts')+' vorne → hinten',np.asarray(pair['T_front_rear']),label,
+                                 f"{gt.get('translation_m',0)*1000:.2f} mm / {gt.get('rotation_deg',0):.3f}°"])
+                self.result_table.setRowCount(len(rows))
+                for i,(label,matrix,quality,truth) in enumerate(rows):
+                    values=[label,' / '.join(f'{v:.2f}' for v in matrix[:3,3]*1000),
+                            ' / '.join(f'{v:.2f}' for v in Rotation.from_matrix(matrix[:3,:3]).as_euler('xyz',degrees=True)),quality,truth]
+                    for j,value in enumerate(values):self.result_table.setItem(i,j,QtWidgets.QTableWidgetItem(value))
+                self.last_result=text
         if self.closing and (phase in ('STOPPED','IDLE','READY','COMPLETE','ERROR') and state.get('stopped')):
-            self.close_started=None;self.closing=False;self.timer.stop();self.close()
+            self.allow_close=True;self.closing=False;self.timer.stop();self.close()
         elif self.closing and time.monotonic()-self.close_started>3:
-            self.pause_world();self.closing=False;self.close_started=None;self.timer.stop();self.close()
+            if not self.pause_pending:self.pause_pending=True;self.pause_world()
+            if self.world_paused:self.allow_close=True;self.closing=False;self.timer.stop();self.close()
 
     def closeEvent(self,event):
+        if self.node.state.get('client_id')!=self.node.client_id:event.accept();return
+        if self.allow_close:event.accept();return
         if self.close_started is None and not self.closing and self.node.state.get('phase') not in ('MOVING','RUNNING','SETTLING','CAPTURING','RETURNING','PREPARING','SOLVING','PAUSED','HALTING'):
             event.accept();return
         if not self.closing:
@@ -118,5 +154,5 @@ def main():
     app=QtWidgets.QApplication(sys.argv);window=Window(node);window.show()
     try:app.exec()
     finally:
-        node.command('stop');time.sleep(.2)
+        if node.state.get('client_id')==node.client_id:node.command('stop');time.sleep(.2)
         executor.shutdown(timeout_sec=2);node.destroy_node();rclpy.shutdown();thread.join(timeout=2)

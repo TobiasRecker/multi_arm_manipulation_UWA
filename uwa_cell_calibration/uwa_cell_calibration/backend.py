@@ -36,7 +36,7 @@ from tf2_ros import Buffer, TransformListener, TransformBroadcaster, TransformEx
 from uwa_cell_calibration_msgs.action import RunCalibration
 from uwa_cell_calibration_msgs.srv import PrepareCalibration, ApplyCalibration
 
-from uwa_cell_gazebo.configuration import load_layout, joint_names, ROBOT_IDS, default_layout_path
+from uwa_cell_gazebo.configuration import load_layout, joint_names, gripper_joint, ROBOT_IDS, default_layout_path, render_description
 from uwa_cell_gazebo.charuco import detect_pose, pose_error
 from uwa_cell_gazebo.charuco_check import tf_matrix
 from .model import calibrated_description
@@ -45,6 +45,10 @@ from .storage import atomic_json, fingerprint, validate_result
 
 PREFIX='/uwa_cell/calibration'
 ACTIVE={'PREPARING','RUNNING','MOVING','SETTLING','CAPTURING','RETURNING','PAUSED','SOLVING'}
+
+
+class CaptureFailure(ValueError):
+    """Only image acquisition failures may consume reserve poses."""
 
 
 def rgb_image(msg):
@@ -61,9 +65,11 @@ class Backend(Node):
         self.declare_parameter('session_root',str(Path(os.environ.get('UWA_WS',str(Path.home()/'UWA_ws')))/'setup/calibration'))
         self.layout_path=Path(self.get_parameter('layout').value)
         self.layout=load_layout(self.layout_path)
+        self.stop_joints=[j for rid in ROBOT_IDS for j in joint_names(rid)]+[
+            gripper_joint(rid) for rid in ROBOT_IDS if self.layout['robots'][rid]['tools']['gripper']!='none']
         self.root=Path(self.get_parameter('session_root').value).expanduser().resolve()
         self.root.mkdir(parents=True,exist_ok=True)
-        self.lockfile=(self.root/'.backend.lock').open('a')
+        self.lockfile=(Path(tempfile.gettempdir())/f'uwa-cell-calibration-{os.getuid()}-64.lock').open('a')
         try:fcntl.flock(self.lockfile,fcntl.LOCK_EX|fcntl.LOCK_NB)
         except BlockingIOError:raise RuntimeError('Another calibration backend owns this cell')
         self.mutex=threading.RLock();self.motion_lock=threading.RLock()
@@ -74,10 +80,11 @@ class Backend(Node):
         self.positions={};self.velocities={};self.last_joints=0.;self.history=deque(maxlen=3000)
         self.images={};self.infos={};self.last_images={};self.detections={r:deque(maxlen=80) for r in ROBOT_IDS}
         self.processed={};self.heartbeat=0.;self.owner='';self.clock_value=None;self.last_clock_change=time.monotonic()
-        self.handle=None;self.pending_goal=None;self.goal_reserved=False;self.run_handle=None
+        self.motion_handle=None;self.pending_goal=None;self.goal_reserved=False;self.run_handle=None
         self.motion_result=None
         self.plan=None;self.session=None;self.halt_thread=None;self.running=False;self.threads=[]
         self.profile_restored=False;self.command_sent=0.;self.preparation_start=0.
+        self.operation_thread=None
         self.buffer=Buffer();self.listener=TransformListener(self.buffer,self)
         self.broadcaster=TransformBroadcaster(self)
         self.group=ReentrantCallbackGroup()
@@ -88,13 +95,13 @@ class Backend(Node):
         self.status_pub=self.create_publisher(String,PREFIX+'/status',transient)
         self.description_pub=self.create_publisher(String,'/uwa_cell/calibrated/robot_description',transient)
         self.preview={}
-        self.clients={}
+        self.trajectory_clients={}
         for rid in ROBOT_IDS:
             self.create_subscription(Image,f'/uwa_cell/{rid}/wrist_camera/image_raw',lambda m,r=rid:self.on_image(r,m),qos_profile_sensor_data,callback_group=self.group)
             self.create_subscription(CameraInfo,f'/uwa_cell/{rid}/wrist_camera/camera_info',lambda m,r=rid:self.infos.update({r:m}),qos_profile_sensor_data,callback_group=self.group)
             self.create_subscription(JointTrajectory,f'/uwa_cell/{rid}_trajectory_controller/joint_trajectory',lambda m,r=rid:self.external_command(r,m),10,callback_group=self.group)
             self.preview[rid]=self.create_publisher(Image,f'{PREFIX}/{rid}/image_annotated',qos_profile_sensor_data)
-            self.clients[rid]=ActionClient(self,FollowJointTrajectory,f'/uwa_cell/{rid}_trajectory_controller/follow_joint_trajectory',callback_group=self.group)
+            self.trajectory_clients[rid]=ActionClient(self,FollowJointTrajectory,f'/uwa_cell/{rid}_trajectory_controller/follow_joint_trajectory',callback_group=self.group)
         self.create_service(PrepareCalibration,PREFIX+'/prepare',self.prepare,callback_group=self.group)
         self.create_service(ApplyCalibration,PREFIX+'/apply',self.apply,callback_group=self.group)
         for command in ('pause','resume','stop','pause_world'):
@@ -115,7 +122,8 @@ class Backend(Node):
 
     def publish_status(self):
         with self.mutex:state=dict(self.state)
-        state['stopped']=bool(self.velocities) and max(abs(v) for v in self.velocities.values())<.01
+        state['client_id']=self.owner
+        state['stopped']=self.stationary()
         self.status_pub.publish(String(data=json.dumps(state)))
         if self.run_handle and self.run_handle.is_active:
             feedback=RunCalibration.Feedback()
@@ -180,8 +188,14 @@ class Backend(Node):
         if not self.description:raise ValueError('No live robot_description; start the simulated cell first')
         if time.monotonic()-self.last_joints>1:raise ValueError('Fresh simulated joint states are required')
         if any(j not in self.positions for r in ROBOT_IDS for j in joint_names(r)):raise ValueError('Missing arm joint states')
-        if self.state['phase'] not in ('MOVING','RETURNING') and any(abs(v)>.01 for v in self.velocities.values()):
+        if self.state['phase'] not in ('MOVING','RETURNING') and not self.stationary():
             raise ValueError('All arms/grippers must be stationary')
+
+    def stationary(self):
+        # Passive mimic velocity telemetry jitters in this Gazebo backend.
+        # Check every actuated arm/gripper joint; independently monitor all link
+        # joint positions for unexpected changes during acquisition.
+        return all(abs(self.velocities.get(j,1.))<.01 for j in self.stop_joints)
 
     def require_controllers(self,ids):
         client=self.create_client(ListControllers,'/uwa_cell/controller_manager/list_controllers',callback_group=self.group)
@@ -208,7 +222,7 @@ class Backend(Node):
 
     def prepare(self,request,response):
         with self.mutex:
-            if self.state['phase'] not in ('IDLE','READY','COMPLETE','STOPPED','ERROR') or self.goal_reserved:
+            if self.state['phase'] not in ('IDLE','READY','COMPLETE','STOPPED','ERROR') or self.goal_reserved or (self.operation_thread and self.operation_thread.is_alive()):
                 response.accepted=False;response.message='A calibration operation is already active';return response
             ids=[r for r in ROBOT_IDS if r in request.robot_ids]
             if len(ids)!=len(request.robot_ids) or not ids or not 30<=request.samples_per_robot<=50 or not request.client_id:
@@ -216,13 +230,17 @@ class Backend(Node):
             self.abort.clear();self.pause.clear();self.owner=request.client_id;self.heartbeat=time.monotonic()
             self.preparation_start=time.monotonic()
             self.state.update(phase='PREPARING',message='Prüfe Telemetrie und plane Messstellungen',plan_id='',result_path='',robot_id='',accepted=0,rejected=0,target=request.samples_per_robot,counts={r:0 for r in ids})
-        self.spawn(lambda:self.prepare_work(ids,request.samples_per_robot))
+        self.operation_thread=self.spawn(lambda:self.prepare_work(ids,request.samples_per_robot))
         response.accepted=True;response.message='Preparation started';return response
 
     def prepare_work(self,ids,count):
         try:
             self.require_telemetry();self.require_controllers(ids)
             self.layout=load_layout(self.layout_path)
+            with tempfile.TemporaryDirectory(prefix='uwa_calibration_reference_') as directory:
+                expected=render_description(self.layout,directory)[0]
+            if fingerprint(expected)!=fingerprint(self.description):
+                raise ValueError('Layout does not match the running cell; restart the cell with this layout')
             active=self.root/'profiles/active.json'
             if not self.profile_restored:
                 self.profile_restored=True
@@ -230,6 +248,7 @@ class Backend(Node):
                     profile=json.loads(active.read_text())
                     if profile.get('description_fingerprint')!=fingerprint(self.description):raise ValueError('Active profile does not match the current cell; remove/replace it explicitly')
                     self.install_model(profile)
+                    self.state['active_profile']=str(active)
             for rid in ids:
                 if not self.layout['robots'][rid]['tools']['camera_enabled'] or rid not in self.infos:raise ValueError(f'{rid}: camera not available')
                 if time.monotonic()-self.last_images.get(rid,0)>2:raise ValueError(f'{rid}: camera stream stale')
@@ -250,11 +269,11 @@ class Backend(Node):
         except InterruptedError:
             self.status('STOPPED',message='Vorbereitung gestoppt')
         except Exception as error:
-            self.status('ERROR',message=str(error));self.get_logger().error(str(error))
+            self.status('STOPPED' if self.abort.is_set() else 'ERROR',message=str(error));self.get_logger().error(str(error))
 
     def accept_goal(self,request):
         with self.mutex:
-            if self.state['phase']!='READY' or self.goal_reserved or not self.plan or request.plan_id!=self.plan['plan_id'] or self.abort.is_set():return GoalResponse.REJECT
+            if self.state['phase']!='READY' or self.goal_reserved or not self.plan or request.plan_id!=self.plan['plan_id'] or self.abort.is_set() or time.monotonic()-self.heartbeat>1.5:return GoalResponse.REJECT
             self.goal_reserved=True
             return GoalResponse.ACCEPT
 
@@ -280,11 +299,11 @@ class Backend(Node):
     def request_halt(self,reason,pause=False):
         with self.motion_lock:
             (self.pause if pause and not self.abort.is_set() else self.abort).set()
-            if self.handle is not None:
-                try:self.handle.cancel_goal_async()
+            if self.motion_handle is not None:
+                try:self.motion_handle.cancel_goal_async()
                 except Exception:pass
         if self.state['phase'] in ACTIVE or self.running:
-            self.status('HALTING',message=reason)
+            self.status('HALTING',message=reason,stop_reason=reason)
             if self.halt_thread is None or not self.halt_thread.is_alive():
                 self.halt_thread=self.spawn(self.confirm_halt)
         else:
@@ -294,11 +313,11 @@ class Backend(Node):
         deadline=time.monotonic()+1.5;stable=None
         while time.monotonic()<deadline and not self.shutdown_event.is_set():
             pending=self.pending_goal is not None and not self.pending_goal.done()
-            stopped=(self.velocities and max(abs(v) for v in self.velocities.values())<.01 and time.monotonic()-self.last_joints<.5)
-            if stopped and not pending and self.handle is None:
+            stopped=(self.stationary() and time.monotonic()-self.last_joints<.5)
+            if stopped and not pending and self.motion_handle is None:
                 stable=stable or time.monotonic()
                 if time.monotonic()-stable>=.2:
-                    self.status('PAUSED' if self.pause.is_set() and not self.abort.is_set() else 'STOPPED',message='Stillstand bestätigt')
+                    self.status('PAUSED' if self.pause.is_set() and not self.abort.is_set() else 'STOPPED',message='Stillstand bestätigt: '+self.state.get('stop_reason',''))
                     return
             else:stable=None
             time.sleep(.02)
@@ -349,7 +368,7 @@ class Backend(Node):
             point.time_from_start.sec=int(p['time']);point.time_from_start.nanosec=round((p['time']-int(p['time']))*1e9)
             if point.time_from_start.nanosec>=1000000000:point.time_from_start.sec+=1;point.time_from_start.nanosec-=1000000000
             goal.trajectory.points.append(point)
-        client=self.clients[rid]
+        client=self.trajectory_clients[rid]
         if not client.wait_for_server(timeout_sec=3):raise ValueError(f'{rid}: trajectory action missing')
         with self.motion_lock:
             if self.halted():raise InterruptedError('Stopped before goal dispatch')
@@ -358,12 +377,12 @@ class Backend(Node):
                 try:
                     handle=future.result()
                     with self.motion_lock:
-                        self.handle=handle if handle.accepted else None
+                        self.motion_handle=handle if handle.accepted else None
                         if handle.accepted:
                             self.motion_result=handle.get_result_async()
                             def finished(result):
                                 with self.motion_lock:
-                                    if self.handle is handle:self.handle=None
+                                    if self.motion_handle is handle:self.motion_handle=None
                             self.motion_result.add_done_callback(finished)
                         if self.halted() and handle.accepted:handle.cancel_goal_async()
                 except Exception:pass
@@ -373,7 +392,7 @@ class Backend(Node):
         result_future=self.motion_result
         if result_future is None:raise ValueError('Trajectory result callback was not registered')
         result=self.wait_future(result_future,timeout=path[-1]['time']*5+10)
-        self.handle=None;self.pending_goal=None
+        self.motion_handle=None;self.pending_goal=None
         if result.status!=4 or result.result.error_code!=0:raise ValueError(f'{rid}: trajectory aborted: {result.result.error_string}')
         if max(abs(self.positions[j]-q) for j,q in zip(joint_names(rid),target))>.02:raise ValueError('Goal tracking error exceeds 0.02 rad')
         self.status('SETTLING',message='Warte auf Stillstand und frische Bilder')
@@ -410,7 +429,7 @@ class Backend(Node):
                 choices.append((score,msg,info,detected,pixels,tf,joint_sample))
                 if len(choices)>=5:break
             time.sleep(.02)
-        if len(choices)<5:raise ValueError(f'{rid}: no five valid fresh board views within capture timeout')
+        if len(choices)<5:raise CaptureFailure(f'{rid}: only {len(choices)} of five valid fresh board views within capture timeout')
         _,msg,info,detected,pixels,tf,joint_sample=max(choices,key=lambda item:item[0])
         folder=self.session/rid;folder.mkdir(exist_ok=True)
         name=f'sample_{index:03d}'
@@ -451,7 +470,7 @@ class Backend(Node):
                         except InterruptedError:
                             if self.abort.is_set():raise
                             self.wait_unpaused();continue
-                        except (ValueError,TimeoutError) as error:
+                        except CaptureFailure as error:
                             # Motion failures are never recovered by blindly dispatching another goal.
                             if self.state['phase']!='CAPTURING':raise
                             attempt+=1;self.status(rejected=self.state['rejected']+1,message=str(error))
@@ -504,24 +523,33 @@ class Backend(Node):
         return result
 
     def apply(self,request,response):
-        if self.state['phase'] not in ('COMPLETE','READY','IDLE','STOPPED','ERROR') or self.goal_reserved:
+        if self.state['phase'] not in ('COMPLETE','READY','IDLE','STOPPED','ERROR') or self.goal_reserved or (self.operation_thread and self.operation_thread.is_alive()):
             response.accepted=False;response.message='Apply is allowed only while idle and stationary';return response
         try:
             self.require_telemetry()
             path=Path(request.result_path).resolve()
             profile=json.loads(path.read_text());validate_result(profile)
             if profile.get('description_fingerprint')!=fingerprint(self.description):raise ValueError('Result does not match current cell geometry')
+            active=self.root/'profiles/active.json'
+            if active.is_file():
+                previous=json.loads(active.read_text())
+                if previous.get('description_fingerprint')==profile['description_fingerprint']:
+                    validate_result(previous)
+                    profile['robots']={**previous['robots'],**profile['robots']}
         except Exception as error:response.accepted=False;response.message=str(error);return response
         self.status('APPLYING',message='Prüfe und aktiviere getrenntes kalibriertes Modell')
-        self.spawn(lambda:self.apply_work(profile,path))
+        self.operation_thread=self.spawn(lambda:self.apply_work(profile,path))
         response.accepted=True;response.message='Profile activation started';return response
 
-    def install_model(self,profile):
+    def install_model(self,profile,commit=None):
         validate_result(profile)
         description=calibrated_description(self.description,self.layout,profile)
         candidate=PlanningProcess(description,self.root/'calibrated_planning')
         try:
             if not candidate.call({'op':'check','positions':dict(self.positions)}):raise ValueError('Calibrated planning scene is in collision')
+        except Exception:candidate.cancel();raise
+        try:
+            if commit:commit()
         except Exception:candidate.cancel();raise
         old=self.planner;self.planner=candidate;self.active_description=description;self.model_xml=ET.fromstring(description)
         self.description_pub.publish(String(data=description))
@@ -530,10 +558,11 @@ class Backend(Node):
     def apply_work(self,profile,path):
         previous=self.active_description;old_profile=self.state['active_profile']
         try:
-            self.install_model(profile)
             profiles=self.root/'profiles';profiles.mkdir(exist_ok=True)
             destination=profiles/(self.session.name+'.json' if self.session else uuid.uuid4().hex+'.json')
-            atomic_json(destination,profile);atomic_json(profiles/'active.json',profile)
+            def commit():
+                atomic_json(destination,profile);atomic_json(profiles/'active.json',profile)
+            self.install_model(profile,commit)
             self.status('COMPLETE',active_profile=str(destination),message='Kalibriertes TF- und Planungsmodell aktiv; Gazebo unverändert')
             self.plan=None;self.state['plan_id']=''
         except Exception as error:

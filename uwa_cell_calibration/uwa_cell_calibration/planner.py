@@ -137,12 +137,17 @@ def generate_plan(model, layout, start, matrices, ids, count, progress=lambda va
         state=dict(start)
         for p in ordered:
             p['path']=timed_path(model,rid,state,p['joints']);state.update(zip(names,p['joints']))
+        from .solver import diverse
+        tool_chain=Chain(model.description,model.prefix+f'{rid}_base_link',model.prefix+f'{rid}_tool0')
+        singular=diverse([{'T_base_tool0':tool_chain.forward(dict(zip(names,p['joints']))).tolist()}
+                         for p in ordered if p['role']=='fit'])
         accepted=ordered+reserve
         # Return paths are checked from the final main and reserve targets.
         for p in (accepted[count-1],accepted[-1]):
             state=dict(start);state.update(zip(names,p['joints']))
             timed_path(model,rid,state,[start[j] for j in names])
         plans[rid]={'poses':accepted[:count],'reserve':accepted[count:],
+                    'rotation_singular_values':singular,
                     'rejected_candidates':rejected,'start_joints':[start[j] for j in names]}
     return plans
 

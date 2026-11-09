@@ -25,12 +25,15 @@ def main():
         while not node.prepare_client.service_is_ready() and time.monotonic()<deadline:time.sleep(.1)
         future=node.prepare(args.robots,args.samples)
         if future is None:raise RuntimeError(node.error)
-        while not future.done():time.sleep(.05)
+        while not future.done():node.pulse();time.sleep(.05)
         if not future.result().accepted:raise RuntimeError(future.result().message)
-        last='';started=None;paused_at=None;paused_once=False;stop_sent=False;disconnected=False;applying=False
+        last='';started=None;paused_at=None;paused_once=False;resume_sent=False;stop_sent=False;disconnected=False;applying=False
         while True:
+            node.pulse()
             if node.error:raise RuntimeError(node.error)
             state=node.state;phase=state.get('phase','')
+            if state.get('client_id')!=node.client_id:
+                time.sleep(.05);continue
             message=f"{phase} {state.get('robot_id','')} {state.get('accepted',0)}/{state.get('target',0)} {state.get('message','')}"
             if message!=last:print(message,flush=True);last=message
             if interrupted.is_set() and not stop_sent:node.command('stop');stop_sent=True
@@ -46,11 +49,11 @@ def main():
                     node.command('pause');paused_once=True
                 if phase=='PAUSED':
                     paused_at=paused_at or time.monotonic()
-                    if time.monotonic()-paused_at>=args.resume_after:node.command('resume')
+                    if time.monotonic()-paused_at>=args.resume_after and not resume_sent:node.command('resume');resume_sent=True
             if phase in ('ERROR','STOPPED'):
                 if stop_sent or disconnected:return 0
                 raise RuntimeError(state.get('message',phase))
-            if node.result is not None and not node.result.success:raise RuntimeError(node.result.message)
+            if node.result is not None and not node.result.success and not (stop_sent or disconnected):raise RuntimeError(node.result.message)
             if phase=='COMPLETE' and node.result is not None:
                 print('RESULT',state.get('result_path'),flush=True)
                 if args.apply and not applying:node.apply();applying=True

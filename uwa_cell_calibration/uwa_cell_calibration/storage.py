@@ -26,6 +26,8 @@ def fingerprint(description):
 def validate_result(result):
     if result.get('schema_version') != 1 or result.get('passed') is not True or not result.get('robots'):
         raise ValueError('Only successful version-1 calibration results can be activated')
+    from uwa_cell_gazebo.configuration import ROBOT_IDS
+    if not set(result['robots'])<=set(ROBOT_IDS):raise ValueError('Unknown robot IDs in calibration profile')
     for fit in result['robots'].values():
         if not fit['passed'] or fit['fit_count'] < 12 or fit['validation_count'] < 6:
             raise ValueError('Insufficient independent calibration/validation observations')
