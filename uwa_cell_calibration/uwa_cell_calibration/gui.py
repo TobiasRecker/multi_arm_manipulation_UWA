@@ -130,8 +130,11 @@ class Window(QtWidgets.QMainWindow):
                 for rid,fit in state.get('summary',{}).items():
                     matrix=np.asarray(fit['T_tool0_camera']);quality=fit['validation']
                     gt=state.get('ground_truth',{}).get('robots',{}).get(rid,{}).get('handeye_error',{})
+                    quality_text=f"Val: {quality['median_reprojection_rms_px']:.3f} px / {quality['board_translation_rms_m']*1000:.2f} mm / {quality['board_rotation_rms_deg']:.3f}°"
+                    repeat=fit.get('handeye_repeatability')
+                    if repeat:quality_text+='; Bootstrap σ XYZ [mm]: '+' / '.join(f'{v:.3f}' for v in repeat['translation_std_mm'])
                     rows.append([NAMES[rid]+' Kamera an tool0',matrix,
-                                 f"Val: {quality['median_reprojection_rms_px']:.3f} px / {quality['board_translation_rms_m']*1000:.2f} mm",
+                                 quality_text,
                                  f"{gt.get('translation_m',0)*1000:.2f} mm / {gt.get('rotation_deg',0):.3f}°"])
                 for rid,matrix in state.get('table_bases',{}).items():
                     rows.append([NAMES[rid]+' Basis im Tisch',np.asarray(matrix),'abhängig von konfigurierter Boardpose',''])
@@ -146,7 +149,8 @@ class Window(QtWidgets.QMainWindow):
                 for i,(label,matrix,quality,truth) in enumerate(rows):
                     values=[label,' / '.join(f'{v:.2f}' for v in matrix[:3,3]*1000),
                             ' / '.join(f'{v:.2f}' for v in Rotation.from_matrix(matrix[:3,:3]).as_euler('xyz',degrees=True)),quality,truth]
-                    for j,value in enumerate(values):self.result_table.setItem(i,j,QtWidgets.QTableWidgetItem(value))
+                    for j,value in enumerate(values):
+                        item=QtWidgets.QTableWidgetItem(value);item.setToolTip(value);self.result_table.setItem(i,j,item)
                 self.last_result=text
                 self.tabs.setCurrentIndex(1)
         elif self.last_result:

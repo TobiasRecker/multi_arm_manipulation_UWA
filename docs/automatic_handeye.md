@@ -48,7 +48,7 @@ ersten Backend-Start berücksichtigt und muss zur laufenden Zelle passen.
 7. Nach regulärem Abschluss jedes Arms folgt eine erneut kollisionsgeprüfte
    Rückfahrt zur bei Vorbereitung gemessenen Startstellung. Anschließend
    werden Schätzung, unabhängige Validierung und Ground-Truth-Abweichungen
-   getrennt angezeigt.
+   getrennt im Tab **Ergebnisse** angezeigt; **Livebilder** bleibt verfügbar.
 8. **Ergebnis übernehmen** ist eine ausdrückliche Aktivierung des bestandenen
    Ergebnisses im Stillstand. Der Dialog beschreibt das getrennte Modell.
 
@@ -152,6 +152,10 @@ Qualitätsfreigabe verlangt:
 - medianen Validierungs-Reprojektions-RMS ≤ 1 px,
 - Boardkonsistenz der Validierungsposen ≤ 5 mm Translation und ≤ 0,5° Rotation
   als RMS.
+
+Ein aktivierbares Profil muss 30–50 tatsächlich erfasste unterschiedliche
+Stellungen je enthaltenem Roboter nachweisen; kürzere diagnostische Teilfits
+können berechnet, aber nicht aktiviert werden.
 
 100 Park-Bootstrap-Ziehungen liefern Kamerastreuung, relative Posestreuung
 und ein 95%-Quantilintervall des Basisabstands. Das beschreibt die
@@ -263,9 +267,28 @@ Zelle ohne andere Messfahrt; sie bewegen ausschließlich den linken vorderen Arm
 ```bash
 python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_gui_check.py" --exercise
 python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_gui_check.py" --freeze
+python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_gui_check.py" --planning
+python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_gui_check.py" --capture
+python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_gui_check.py" --world-pause
 ros2 run uwa_cell_calibration calibration_cli --robots left_front --stop-after 1
 ros2 run uwa_cell_calibration calibration_cli --robots left_front --pause-after 3 --resume-after 2 --stop-after 12
 ```
+
+Vollständigen 40×4-Datensatz offline prüfen und bei unverändert zurückgekehrten
+Armen die Live-Profilprüfung ausführen:
+
+```bash
+python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/check_completed_session.py" \
+  "$UWA_WS/setup/calibration/<Sitzung>" --output /tmp/handeye-acceptance.json
+python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_profile_check.py" \
+  "$UWA_WS/setup/calibration/<Sitzung>" --output /tmp/handeye-profile-check.json
+```
+
+Der [Prüfbericht vom 2026-11-09](handeye_validation_2026-11-09.json) dokumentiert
+den bestandenen vollständigen Lauf: maximal 0,131 mm / 0,035° Kamerafehler und
+0,640 mm / 0,054° relativer Basisfehler gegen Ground Truth. Die synthetischen
+und Offlineprüfungen umfassen 57 bestandene Tests. Das sind Nachweise in der
+Simulation, keine Genauigkeitsfreigabe für die reale Zelle.
 
 Den datierten Stand der tatsächlich ausgeführten Prüfungen und ihrer Grenzen
 enthält [HANDOVER.md](../HANDOVER.md). Referenzen:

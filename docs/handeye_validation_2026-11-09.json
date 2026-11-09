@@ -64,5 +64,90 @@
       ]
     }
   },
-  "passed": true
+  "passed": true,
+  "offline_tests_passed": 57,
+  "live_stop_checks": {
+    "planning": {
+      "four_live_images": true,
+      "red_stop_enabled": true,
+      "count_range": [
+        30,
+        50
+      ],
+      "stopped": true,
+      "seconds_to_confirm": 0.1023016170001938,
+      "reason": "Vorbereitung gestoppt"
+    },
+    "exercise": {
+      "four_live_images": true,
+      "red_stop_enabled": true,
+      "count_range": [
+        30,
+        50
+      ],
+      "stopped": true,
+      "seconds_to_confirm": 0.29921537399968656,
+      "reason": "Stillstand best\u00e4tigt: Stopp angefordert"
+    },
+    "capture": {
+      "four_live_images": true,
+      "red_stop_enabled": true,
+      "count_range": [
+        30,
+        50
+      ],
+      "stopped": true,
+      "seconds_to_confirm": 0.2896892030003073,
+      "reason": "Stillstand best\u00e4tigt: Stopp angefordert"
+    },
+    "freeze": {
+      "four_live_images": true,
+      "red_stop_enabled": true,
+      "count_range": [
+        30,
+        50
+      ],
+      "stopped": true,
+      "seconds_to_confirm": 2.26554511500035,
+      "reason": "Stillstand best\u00e4tigt: GUI/client heartbeat lost"
+    },
+    "world-pause": {
+      "four_live_images": true,
+      "red_stop_enabled": true,
+      "count_range": [
+        30,
+        50
+      ],
+      "direct_gazebo_pause_confirmed": true,
+      "status_updates_while_paused": true,
+      "simulation_resumed": true
+    }
+  },
+  "profile_checks": {
+    "raw_description_unchanged": true,
+    "separate_tf_trees": true,
+    "return_error_rad": 1.3502088336281304e-11,
+    "invalid_quality_preserved_previous_profile": true,
+    "colliding_model_preserved_previous_profile": true,
+    "valid_profile_reactivated": true
+  },
+  "cell_checks": {
+    "joint_count": 24,
+    "clock_advances": true,
+    "controllers": {
+      "right_rear_gripper_controller": "active",
+      "right_front_gripper_controller": "active",
+      "left_rear_gripper_controller": "active",
+      "left_front_gripper_controller": "active",
+      "right_rear_trajectory_controller": "active",
+      "right_front_trajectory_controller": "active",
+      "left_rear_trajectory_controller": "active",
+      "left_front_trajectory_controller": "active",
+      "joint_state_broadcaster": "active"
+    },
+    "bases_match_layout": true,
+    "gazebo_cell_root_stable": true,
+    "motion_tested_and_restored": [],
+    "ros_domain": 64
+  }
 }

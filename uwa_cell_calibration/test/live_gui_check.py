@@ -38,6 +38,10 @@ def main():
         assert window.stop_button.isEnabled() and 'bb1825' in window.stop_button.styleSheet()
         until(lambda:all(label.pixmap() is not None and not label.pixmap().isNull() for label in window.views.values()))
         result={'four_live_images':True,'red_stop_enabled':True,'count_range':[30,50]}
+        if node.state.get('summary'):
+            count=len(node.state['summary'])+len(node.state.get('table_bases',{}))+len(node.state.get('relative_bases',{}))
+            until(lambda:window.result_table.rowCount()==count)
+            result['result_rows']=count
         if args.exercise or args.freeze or args.planning or args.capture:
             assert node.state['phase'] in ('IDLE','STOPPED','ERROR','READY','COMPLETE'), 'Another session is active'
             for rid,box in window.robots.items():box.setChecked(rid=='left_front')
@@ -70,10 +74,12 @@ def main():
             transport=Node()
             try:
                 window.world_button.click();until(lambda:window.world_paused)
-                time.sleep(.2);stamp=telemetry['stamp'];start=time.monotonic()
+                time.sleep(.2);stamp=telemetry['stamp'];start=time.monotonic();status_before=node.last_status
                 until(lambda:time.monotonic()-start>.4)
                 assert telemetry['stamp']==stamp
+                assert node.last_status>status_before+.1
                 result['direct_gazebo_pause_confirmed']=True
+                result['status_updates_while_paused']=True
             finally:
                 ok,response=transport.request('/world/uwa_lab/control',WorldControl(pause=False),WorldControl,Boolean,1000)
                 assert ok and response.data

@@ -434,11 +434,34 @@ aktiv; separate MuR-Simulation inaktiv. Vor weiterer Prozessarbeit neu prüfen.
 - Übernehmen erzeugt ein versioniertes Profil und `calibrated/`-TF-/MoveIt-Modell.
   Physische Gazebo-Montagen und der ursprüngliche TF-Baum bleiben erhalten.
   Kandidatenprüfung vor atomarer Profilaktivierung; altes Profil bei Fehler behalten.
-- Bisherige Prüfnachweise: vier Pakete gebaut, 51 Offline-Tests bestanden
-  (`setup/logs/uwa-handeye-all-tests-final.log`); CLI-Stopp, Besitzerverlust und
-  Pause/Fortsetzen live geprüft. Qt6-GUI mit vier echten annotierten Bildern
-  geprüft. Vollständiger 40×4-Lauf und abschließende Übernahme-/GUI-Stopptests
-  laufen noch; keine vollständige Genauigkeitsfreigabe aus Teilmessungen ableiten.
+- Prüfnachweise: vier Pakete gebaut, **57 Offline-Tests bestanden**
+  (`setup/logs/uwa-handeye-all-tests-final.log`). Vollständige Sitzung
+  `setup/calibration/20261109_122753_b901ad`: **40 Aufnahmen je Arm**, jeweils
+  32 Fit + acht Validierung, alle Qualitäts- und Ground-Truth-Ziele bestanden.
+  [Datierter Bericht](docs/handeye_validation_2026-11-09.json).
+- Kameraextrinsics-Fehler: links vorne **0,130 mm / 0,0345°**, links hinten
+  **0,049 mm / 0,0306°**, rechts vorne **0,073 mm / 0,0279°**, rechts hinten
+  **0,047 mm / 0,0304°**. Validierungs-Reprojektion 0,075–0,122 px medianer RMS.
+- Relative Basispose links **0,640 mm / 0,0533°** Fehler, Abstand **1350,012 mm**;
+  rechts **0,128 mm / 0,0269°**, Abstand **1349,989 mm**. Park-Bootstrapintervalle
+  des Abstands links 1349,736–1350,809 mm, rechts 1349,629–1350,664 mm.
+- `setup/logs/uwa-handeye-profile-check.json`: Rückkehrfehler aller Armgelenke
+  < 1,4e−11 rad; getrennte rohe/kalibrierte TFs stimmen mit ihrem jeweiligen Modell
+  überein. Schlechte Qualität und ein absichtlich kollidierendes Kandidatenmodell
+  behalten vorheriges Profil und Modell; gültige Reaktivierung erfolgreich.
+  Gespeichertes Profil wird beim Backend-Neustart wieder geladen.
+- Echte GUI-Knöpfe live geprüft: Stopp während Planung, tatsächlicher Fahrt und
+  Aufnahme; Stillstand bei Fahrt/Aufnahme nach rund **0,30 / 0,29 s** bestätigt.
+  Eingefrorenes GUI-Lebenszeichen trotz weiterlaufendem ROS-Thread stoppt nach
+  rund **2,27 s** einschließlich Lease-Frist. Keine folgende Bewegung/Aufnahme.
+  Direkte Gazebo-Pause bestätigt und anschließend Welt erfolgreich fortgesetzt.
+  Logs/JSON: `setup/logs/uwa-handeye-gui-{planning,exercise,capture,freeze,world-pause}.*`.
+- GUI zeigt Livebilder und die vollständige Ergebnistabelle in getrennten Tabs,
+  bei unverändert erreichbaren Steuerknöpfen. Statusmeldungen verwenden eine
+  Steady-Clock und bleiben auch bei pausierter Simulationszeit verfügbar.
+- Beim ersten Freeze-Test trat erst nach erfolgreicher Stillstandsbestätigung
+  ein Prozessabsturz beim Beenden auf. ROS-Executor-Threads werden nun vor der
+  Node-/Kontextzerstörung beendet; wiederholter Freeze-Test beendet sich sauber.
 - Behobene Simulationsbesonderheit: passive Robotiq-Mimic-Geschwindigkeiten
   können trotz Stillstand stark rauschen. Für den Bewegungsstopp alle
   angetriebenen Gelenke prüfen und zusätzlich unerwartete Gelenkpositionsänderungen
