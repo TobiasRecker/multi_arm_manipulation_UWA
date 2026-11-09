@@ -1,0 +1,122 @@
+"""Responsive Qt session UI. Motion ownership lives in the separate ROS backend."""
+import json,os,sys,threading,time
+import numpy as np
+from python_qt_binding import QtCore,QtGui,QtWidgets
+import rclpy
+from rclpy.executors import SingleThreadedExecutor
+from .client import Client
+from uwa_cell_gazebo.configuration import ROBOT_IDS
+
+NAMES={'left_front':'Links vorne','left_rear':'Links hinten','right_front':'Rechts vorne','right_rear':'Rechts hinten'}
+
+class Window(QtWidgets.QMainWindow):
+    def __init__(self,node):
+        super().__init__();self.node=node;self.closing=False;self.close_started=None;self.stamps={}
+        self.setWindowTitle('UWA Hand-Auge-Kalibrierung | Simulation');self.resize(1200,850)
+        central=QtWidgets.QWidget();self.setCentralWidget(central);layout=QtWidgets.QVBoxLayout(central)
+        title=QtWidgets.QLabel('Hand-Auge-Kalibrierung der UWA-Zelle')
+        title.setStyleSheet('font-size:22px; font-weight:600;');layout.addWidget(title)
+        layout.addWidget(QtWidgets.QLabel('Simulation · je Tisch ein Roboterpaar · ein bewegter Arm · getrenntes kalibriertes Modell'))
+        selection=QtWidgets.QHBoxLayout();self.robots={}
+        for rid in ROBOT_IDS:
+            box=QtWidgets.QCheckBox(NAMES[rid]);box.setChecked(True);self.robots[rid]=box;selection.addWidget(box)
+        selection.addStretch();selection.addWidget(QtWidgets.QLabel('Stellungen je Arm:'))
+        self.count=QtWidgets.QSpinBox();self.count.setRange(30,50);self.count.setValue(40);selection.addWidget(self.count);layout.addLayout(selection)
+        buttons=QtWidgets.QHBoxLayout()
+        self.prepare_button=QtWidgets.QPushButton('1  Posen vorbereiten');self.prepare_button.clicked.connect(self.prepare)
+        self.start_button=QtWidgets.QPushButton('2  Start');self.start_button.clicked.connect(node.start)
+        self.pause_button=QtWidgets.QPushButton('Pause');self.pause_button.clicked.connect(lambda:node.command('resume' if node.state.get('phase')=='PAUSED' else 'pause'))
+        self.stop_button=QtWidgets.QPushButton('STOPP');self.stop_button.setMinimumHeight(48)
+        self.stop_button.setStyleSheet('background:#bb1825; color:white; font-size:20px; font-weight:bold; padding:8px 28px;')
+        self.stop_button.clicked.connect(lambda:node.command('stop'))
+        self.world_button=QtWidgets.QPushButton('Simulation pausieren');self.world_button.clicked.connect(self.pause_world)
+        self.apply_button=QtWidgets.QPushButton('3  Ergebnis übernehmen');self.apply_button.clicked.connect(self.apply)
+        for widget in (self.prepare_button,self.start_button,self.pause_button,self.stop_button,self.world_button,self.apply_button):buttons.addWidget(widget)
+        layout.addLayout(buttons)
+        self.status_label=QtWidgets.QLabel('Warte auf Kalibrierungsbackend …');self.status_label.setWordWrap(True);layout.addWidget(self.status_label)
+        self.progress=QtWidgets.QProgressBar();layout.addWidget(self.progress)
+        grid=QtWidgets.QGridLayout();self.views={}
+        for index,rid in enumerate(ROBOT_IDS):
+            group=QtWidgets.QGroupBox(NAMES[rid]);box=QtWidgets.QVBoxLayout(group)
+            image=QtWidgets.QLabel('Warte auf Kamerabild');image.setMinimumSize(300,180);image.setAlignment(QtCore.Qt.AlignCenter)
+            image.setStyleSheet('background:#19212c; color:#dfe7ee;');box.addWidget(image)
+            self.views[rid]=image;grid.addWidget(group,index//2,index%2)
+        layout.addLayout(grid,stretch=1)
+        self.results=QtWidgets.QPlainTextEdit();self.results.setReadOnly(True);self.results.setMaximumHeight(180);layout.addWidget(self.results)
+        self.info=QtWidgets.QLabel('Vor Start rqt-Ausgabe deaktivieren. Stopp hält die aktuelle Stellung; keine automatische Rückfahrt nach Abbruch.')
+        self.info.setWordWrap(True);layout.addWidget(self.info)
+        self.timer=QtCore.QTimer(self);self.timer.timeout.connect(self.refresh);self.timer.start(100)
+        self.last_result=''
+
+    def prepare(self):
+        self.node.prepare([r for r,b in self.robots.items() if b.isChecked()],self.count.value())
+
+    def pause_world(self):
+        # Direct transport request is independent of the motion backend's process.
+        self.node.command('stop')
+        def call():
+            try:
+                from gz.transport import Node
+                from gz.msgs.world_control_pb2 import WorldControl
+                from gz.msgs.boolean_pb2 import Boolean
+                transport=Node();transport.request('/world/uwa_lab/control',WorldControl(pause=True),WorldControl,Boolean,1000)
+            except Exception as error:self.node.error=f'Gazebo-Pause fehlgeschlagen: {error}'
+        threading.Thread(target=call,daemon=True).start()
+
+    def apply(self):
+        answer=QtWidgets.QMessageBox.question(self,'Kalibriertes Modell aktivieren',
+          'Das geprüfte Profil wird aktiv und ersetzt das getrennte kalibrierte TF-/Planungsmodell.\n'
+          'Die Roboterpositionen in Gazebo und Ground Truth bleiben unverändert.\n\nÜbernehmen?',
+          QtWidgets.QMessageBox.Yes|QtWidgets.QMessageBox.No,QtWidgets.QMessageBox.No)
+        if answer==QtWidgets.QMessageBox.Yes:self.node.apply()
+
+    def refresh(self):
+        state=self.node.state;phase=state.get('phase','OFFLINE')
+        busy=phase in ('PREPARING','RUNNING','MOVING','SETTLING','CAPTURING','RETURNING','HALTING','PAUSED','SOLVING','APPLYING')
+        self.prepare_button.setEnabled(not busy and bool(state))
+        self.start_button.setEnabled(phase=='READY')
+        self.pause_button.setEnabled(phase in ('MOVING','RUNNING','SETTLING','CAPTURING','RETURNING','PAUSED'))
+        self.pause_button.setText('Fortsetzen' if phase=='PAUSED' else 'Pause')
+        self.apply_button.setEnabled(phase=='COMPLETE' and bool(state.get('result_path')) and state.get('stopped',False))
+        for box in self.robots.values():box.setEnabled(not busy)
+        self.count.setEnabled(not busy)
+        self.status_label.setText(f"{phase} | {NAMES.get(state.get('robot_id'), '')} | {state.get('message','Backend nicht erreichbar')}"+
+                                  (f"\n{self.node.error}" if self.node.error else ''))
+        counts=state.get('counts',{});total=state.get('target',40)*max(1,len(counts))
+        self.progress.setRange(0,total);self.progress.setValue(sum(counts.values()))
+        for rid,label in self.views.items():
+            msg=self.node.images.get(rid)
+            if msg is None:continue
+            stamp=(msg.header.stamp.sec,msg.header.stamp.nanosec)
+            if self.stamps.get(rid)==stamp:continue
+            self.stamps[rid]=stamp
+            image=QtGui.QImage(bytes(msg.data),msg.width,msg.height,msg.step,QtGui.QImage.Format_RGB888).rgbSwapped().copy()
+            label.setPixmap(QtGui.QPixmap.fromImage(image).scaled(label.size(),QtCore.Qt.KeepAspectRatio,QtCore.Qt.SmoothTransformation))
+        if state.get('result_path'):
+            report={'Ergebnisdatei':state['result_path'],'Aktives Profil':state.get('active_profile',''),
+                    'Relative Basen':state.get('relative_bases',{}),'Hand-Auge und Validierung':state.get('summary',{}),
+                    'Ground Truth (nur Kontrolle)':state.get('ground_truth',{})}
+            text=json.dumps(report,indent=2,ensure_ascii=False)
+            if text!=self.last_result:self.results.setPlainText(text);self.last_result=text
+        if self.closing and (phase in ('STOPPED','IDLE','READY','COMPLETE','ERROR') and state.get('stopped')):
+            self.close_started=None;self.closing=False;self.timer.stop();self.close()
+        elif self.closing and time.monotonic()-self.close_started>3:
+            self.pause_world();self.closing=False;self.close_started=None;self.timer.stop();self.close()
+
+    def closeEvent(self,event):
+        if self.close_started is None and not self.closing and self.node.state.get('phase') not in ('MOVING','RUNNING','SETTLING','CAPTURING','RETURNING','PREPARING','SOLVING','PAUSED','HALTING'):
+            event.accept();return
+        if not self.closing:
+            self.closing=True;self.close_started=time.monotonic();self.node.command('stop')
+        event.ignore()
+
+
+def main():
+    if os.environ.get('ROS_DOMAIN_ID')!='64':raise SystemExit('Source scripts/env.bash: simulation domain 64 required')
+    rclpy.init();node=Client();executor=SingleThreadedExecutor();executor.add_node(node)
+    thread=threading.Thread(target=executor.spin,daemon=True);thread.start()
+    app=QtWidgets.QApplication(sys.argv);window=Window(node);window.show()
+    try:app.exec()
+    finally:
+        node.command('stop');time.sleep(.2)
+        executor.shutdown(timeout_sec=2);node.destroy_node();rclpy.shutdown();thread.join(timeout=2)

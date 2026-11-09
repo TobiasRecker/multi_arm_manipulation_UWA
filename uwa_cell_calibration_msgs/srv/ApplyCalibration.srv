@@ -1,0 +1,4 @@
+string result_path
+---
+bool accepted
+string message

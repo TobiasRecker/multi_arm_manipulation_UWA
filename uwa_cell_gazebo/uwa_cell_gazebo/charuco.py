@@ -128,4 +128,6 @@ def detect_pose(image, camera_matrix, distortion, config, table):
     cv2.drawFrameAxes(annotated, camera_matrix, distortion, rvec, tvec,
                       config['square_length'] * 2, 2)
     return {'T_camera_board': pose, 'corners': int(len(ids)), 'reprojection_rms_px': rms,
-            'annotated': annotated, 'corner_ids': ids.reshape(-1).tolist()}
+            'annotated': annotated, 'corner_ids': ids.reshape(-1).tolist(),
+            'object_points': objects.reshape(-1, 3).astype(float).tolist(),
+            'image_points': pixels.reshape(-1, 2).astype(float).tolist()}

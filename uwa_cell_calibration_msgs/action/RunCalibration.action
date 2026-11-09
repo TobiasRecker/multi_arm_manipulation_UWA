@@ -1,0 +1,12 @@
+string plan_id
+---
+bool success
+string result_path
+string message
+---
+string phase
+string robot_id
+uint32 accepted
+uint32 target
+uint32 rejected
+string message
