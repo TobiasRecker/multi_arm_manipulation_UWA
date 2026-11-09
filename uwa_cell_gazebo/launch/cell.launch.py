@@ -68,6 +68,10 @@ def setup(context):
                             name='camera_bridge', namespace='uwa_cell',
                             parameters=[{'robot_ids': cameras, 'use_sim_time': True}],
                             output='screen'))
+    if layout.get('overview_camera', {}).get('enabled', False):
+        actions.append(Node(package='uwa_cell_gazebo', executable='oak_overview',
+                            parameters=[{'layout': layout_path, 'use_sim_time': True}],
+                            output='screen'))
     if enabled(context, 'gui'):
         # The gz-sim-main wrapper leaves its GUI child behind on SIGINT on this
         # Jetty installation. Launch the packaged client directly instead.

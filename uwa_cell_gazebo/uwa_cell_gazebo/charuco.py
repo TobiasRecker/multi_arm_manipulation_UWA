@@ -88,12 +88,13 @@ def pose_error(estimate, reference):
                 estimate[:3, :3] @ reference[:3, :3].T).magnitude()))}
 
 
-def detect_pose(image, camera_matrix, distortion, config, table):
+def detect_pose(image, camera_matrix, distortion, config, table, *, min_marker_perimeter_rate=0.03):
     board = make_board(config, table)
     parameters = cv2.aruco.CharucoParameters()
     parameters.cameraMatrix = np.asarray(camera_matrix, dtype=np.float64)
     parameters.distCoeffs = np.asarray(distortion, dtype=np.float64)
     detector_parameters = cv2.aruco.DetectorParameters()
+    detector_parameters.minMarkerPerimeterRate = min_marker_perimeter_rate
     detector_parameters.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
     detector = cv2.aruco.CharucoDetector(board, parameters, detector_parameters)
     corners, ids, marker_corners, marker_ids = detector.detectBoard(image)

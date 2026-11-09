@@ -350,6 +350,7 @@ class Backend(Node):
             response.success=True;response.message='Resuming';return response
 
     def request_halt(self,reason,pause=False):
+        self.status(stop_reason=reason)
         with self.motion_lock:
             (self.pause if pause and not self.abort.is_set() else self.abort).set()
             if self.motion_handle is not None:

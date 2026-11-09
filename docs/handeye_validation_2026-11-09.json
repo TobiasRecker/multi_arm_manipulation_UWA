@@ -149,5 +149,15 @@
     "gazebo_cell_root_stable": true,
     "motion_tested_and_restored": [],
     "ros_domain": 64
+  },
+  "gui_profile_reload": {
+    "four_live_images": true,
+    "red_stop_enabled": true,
+    "count_range": [
+      30,
+      50
+    ],
+    "result_rows": 10,
+    "automatic_startup_restore": true
   }
 }

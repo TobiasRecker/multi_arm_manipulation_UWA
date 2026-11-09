@@ -35,6 +35,19 @@ tools:
   camera_height: 480
   camera_rate: 10.0  # reduced rendering load for four cameras
   camera_horizontal_fov: 0.8726646259971648  # 50 degrees
+# Static overview camera; pose/FOV are design assumptions, NOT calibration.
+# xyz is the RGB optical centre in WORLD; look_at is a WORLD point.
+overview_camera:
+  enabled: true
+  xyz: [1.8, 0.0, 3.0]
+  look_at: [0.0, 0.0, 1.4]
+  roll: 0.0  # rotation about the viewing axis, radians
+  width: 4000
+  height: 3000
+  rate: 3.0
+  horizontal_fov: 1.1746065865921838  # nominal IMX586 AF: 67.3 degrees
+  near: 0.1
+  far: 12.0
 charuco:
   enabled: true
   dictionary: DICT_4X4_100

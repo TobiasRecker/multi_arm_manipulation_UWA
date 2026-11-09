@@ -19,26 +19,26 @@ from sensor_msgs.msg import CameraInfo, Image
 from .configuration import ROBOT_IDS
 
 
-def header(target, source, robot_id):
+def header(target, source, robot_id, frame_id=None):
     target.stamp.sec = source.stamp.sec
     target.stamp.nanosec = source.stamp.nsec
-    target.frame_id = f'{robot_id}_wrist_camera_optical_frame'
+    target.frame_id = frame_id or f'{robot_id}_wrist_camera_optical_frame'
 
 
-def image_message(source, robot_id):
+def image_message(source, robot_id=None, *, frame_id=None):
     if source.pixel_format_type != RGB_INT8:
         raise ValueError(f'Expected RGB_INT8, got {source.pixel_format_type}')
     target = Image()
-    header(target.header, source.header, robot_id)
+    header(target.header, source.header, robot_id, frame_id)
     target.width, target.height = source.width, source.height
     target.encoding, target.is_bigendian = 'rgb8', 0
     target.step, target.data = source.step, source.data
     return target
 
 
-def info_message(source, robot_id):
+def info_message(source, robot_id=None, *, frame_id=None):
     target = CameraInfo()
-    header(target.header, source.header, robot_id)
+    header(target.header, source.header, robot_id, frame_id)
     target.width, target.height = source.width, source.height
     target.distortion_model = 'plumb_bob'
     target.d = list(source.distortion.k)

@@ -459,6 +459,10 @@ aktiv; separate MuR-Simulation inaktiv. Vor weiterer Prozessarbeit neu prüfen.
 - GUI zeigt Livebilder und die vollständige Ergebnistabelle in getrennten Tabs,
   bei unverändert erreichbaren Steuerknöpfen. Statusmeldungen verwenden eine
   Steady-Clock und bleiben auch bei pausierter Simulationszeit verfügbar.
+- Nur die besitzende GUI fordert bei verlorener Backend-Verbindung automatisch
+  die Weltpause an. Beobachterfenster dürfen eine laufende Sitzung nicht durch
+  ihre eigene verzögerte Verbindung unterbrechen; Profilwiederherstellung hat
+  noch keinen GUI-Besitzer und versendet keine Fahrbefehle.
 - Beim ersten Freeze-Test trat erst nach erfolgreicher Stillstandsbestätigung
   ein Prozessabsturz beim Beenden auf. ROS-Executor-Threads werden nun vor der
   Node-/Kontextzerstörung beendet; wiederholter Freeze-Test beendet sich sauber.

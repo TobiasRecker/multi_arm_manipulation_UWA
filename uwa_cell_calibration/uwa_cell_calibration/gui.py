@@ -93,7 +93,7 @@ class Window(QtWidgets.QMainWindow):
         owns=state.get('client_id')==self.node.client_id
         online=time.monotonic()-self.node.last_status<1.5
         busy=phase in ('RESTORING','PREPARING','RUNNING','MOVING','SETTLING','CAPTURING','RETURNING','HALTING','PAUSED','SOLVING','APPLYING')
-        if busy and time.monotonic()-self.node.last_status>1.5 and not self.pause_pending:
+        if busy and owns and time.monotonic()-self.node.last_status>1.5 and not self.pause_pending:
             self.pause_pending=True;self.pause_world();self.node.error='Backend verloren; Gazebo-Pause angefordert'
         self.prepare_button.setEnabled(online and not busy and bool(state))
         self.start_button.setEnabled(online and phase=='READY' and owns)
