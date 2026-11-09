@@ -7,6 +7,7 @@
   <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
   <xacro:include filename="$(find ur_description)/urdf/inc/ur_joint_control.xacro"/>
   <xacro:include filename="$(find uwa_cell_description)/urdf/robotiq_tools.xacro"/>
+  <xacro:include filename="$(find uwa_cell_description)/urdf/charuco_boards.xacro"/>
 
   <link name="world"/>
 
@@ -72,6 +73,10 @@
   </xacro:macro>
   <xacro:table id="left" t="${cfg['tables']['left']}"/>
   <xacro:table id="right" t="${cfg['tables']['right']}"/>
+  <xacro:if value="${cfg.get('charuco', dict()).get('enabled', False)}">
+    <xacro:charuco_board id="left" b="${cfg['charuco']['boards']['left']}" c="${cfg['charuco']}"/>
+    <xacro:charuco_board id="right" b="${cfg['charuco']['boards']['right']}" c="${cfg['charuco']}"/>
+  </xacro:if>
   <xacro:arm id="left_front" r="${cfg['robots']['left_front']}"/>
   <xacro:arm id="left_rear" r="${cfg['robots']['left_rear']}"/>
   <xacro:arm id="right_front" r="${cfg['robots']['right_front']}"/>

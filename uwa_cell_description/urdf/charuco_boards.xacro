@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="charuco_board" params="id b c">
+    <xacro:property name="width" value="${c['squares_x']*c['square_length']}"/>
+    <xacro:property name="height" value="${c['squares_y']*c['square_length']}"/>
+    <link name="${id}_charuco_mount">
+      <xacro:if value="${'mesh_file' in b}">
+        <visual><geometry><mesh filename="file://${b['mesh_file']}"/></geometry></visual>
+      </xacro:if>
+    </link>
+    <joint name="${id}_charuco_mount_joint" type="fixed">
+      <parent link="${id}_table_top"/><child link="${id}_charuco_mount"/>
+      <origin xyz="${b['center_xyz'][0]} ${b['center_xyz'][1]} ${b['center_xyz'][2]}"
+              rpy="0 0 ${b['yaw']}"/>
+    </joint>
+    <xacro:box name="${id}_charuco_plate" parent="${id}_charuco_mount"
+      xyz="${[0,0,-c['thickness']/2-0.00005]}"
+      size="${[width+2*c['margin'],height+2*c['margin'],c['thickness']]}" mass="0.1" color="1 1 1 1"/>
+    <!-- OpenCV pattern origin (margin excluded): X right, Y down, Z into paper. -->
+    <link name="${id}_charuco"/>
+    <joint name="${id}_charuco_pattern_joint" type="fixed">
+      <parent link="${id}_charuco_mount"/><child link="${id}_charuco"/>
+      <origin xyz="${-width/2} ${height/2} 0" rpy="${pi} 0 0"/>
+    </joint>
+  </xacro:macro>
+</robot>

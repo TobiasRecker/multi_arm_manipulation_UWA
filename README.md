@@ -272,9 +272,23 @@ Source data is read-only and is never added to this Git repository.
 
 RViz displays `/uwa_cell/scan_reference` in the `uwa_scan_reference` frame.
 `scan.scale` scales point coordinates; `scan.xyz`/`scan.rpy` set the static
-world-to-reference transform. Initial settings are identity and scale 1:
-**UNREGISTERED**, with no claim that scan units are metres. Changes require a
-restart. The scan never contributes collision geometry or changes robot poses.
+world-to-reference transform. Since 2026-11-09 the default layout contains a
+**coarse visual alignment** fitted to the floor normal and both tabletop rectangles.
+The original identity transform and scale 1 are superseded. The orientation was
+disambiguated using the user's landmarks: a high item-profile robot cell behind
+the tables (+Y) and approximately two metres of open space in front (−Y).
+The fitted scan scale is about 0.9532; roll/pitch/yaw are approximately
+−89.761° / +0.350° / +60.141°. See the
+[dated fit report](docs/scan_alignment_2026-11-09.json).
+
+This is **not a measured calibration**. The model's assumed 0.90 m table height
+puts the fitted scan floor about 0.13 m above the model floor. The scan and model
+also contain different arm poses. Neither discrepancy should be fixed by silently
+changing robot mounts. The RViz display retains its **UNREGISTERED** label to
+indicate that there is no calibrated registration. After editing scan settings,
+restart only `uwa-cell-scan` if using the desktop-managed publisher; no reset
+of the robot simulation is needed. The scan never contributes collision geometry
+or changes robot poses.
 A missing/unreadable scan logs an optional-reference error; Gazebo keeps running.
 With `scan:=false`, the launch never accesses Google Drive.
 The desktop app automatically starts the separately managed scan publisher,
@@ -283,8 +297,8 @@ action is needed after starting the app. The **Punktewolke anzeigen** action
 remains available for reopening the reference. A missing scan is nonfatal to
 the simulation. Terminal launches still use `scan:=false` by default.
 Enable the **UNREGISTERED scan reference** display if you have hidden it.
-The original scan axes and units are retained, so the cloud can appear tilted
-or displaced relative to the cell until its scale and pose are calibrated.
+The source PLY and cached point coordinates remain unchanged; the fitted scale
+and pose are applied only when publishing/displaying the reference.
 
 ## Verify
 

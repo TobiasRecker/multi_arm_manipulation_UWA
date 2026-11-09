@@ -35,41 +35,71 @@ tools:
   camera_height: 480
   camera_rate: 10.0  # reduced rendering load for four cameras
   camera_horizontal_fov: 0.8726646259971648  # 50 degrees
+charuco:
+  enabled: true
+  dictionary: DICT_4X4_100
+  squares_x: 7
+  squares_y: 5
+  square_length: 0.04
+  marker_length: 0.028
+  margin: 0.02
+  thickness: 0.003
+  pixels_per_square: 200
+  # Camera targets used by prepare_charuco_views; coordinates above each tabletop.
+  view_height: 0.55
+  view_offset: 0.28
+  min_corners: 12
+  samples: 10
+  max_translation_error: 0.01
+  max_rotation_error_deg: 2.0
+  max_reprojection_error_px: 1.0
+  boards:
+    left:
+      center_xyz: [0.0, 0.0, 0.003]
+      yaw: 0.0
+      marker_start: 0
+    right:
+      center_xyz: [0.0, 0.0, 0.003]
+      yaw: 0.0
+      marker_start: 50
 robots:
   left_front:
     type: ur5
     table: left
     mount_xyz: [0.0, -0.675, 0.0]
     mount_rpy: [0.0, 0.0, 0.0]
-    initial_positions: [0.0, -1.5707963267948966, 0.0, -1.5707963267948966, 0.0, 0.0]
+    initial_positions: [1.249400825263, -1.843683752555, 1.712763937445, -2.410104221538, -1.302728224516, -0.179475624579]
     kinematics_file: null
   left_rear:
     type: ur7e
     table: left
     mount_xyz: [0.0, 0.675, 0.0]
     mount_rpy: [0.0, 0.0, 3.141592653589793]
-    initial_positions: [0.0, -1.5707963267948966, 0.0, -1.5707963267948966, 0.0, 0.0]
+    initial_positions: [1.156343972423, -1.923678973178, 1.937577321054, -2.538078577348, -1.226379855048, -0.235292530833]
     kinematics_file: null
   right_front:
     type: ur5e
     table: right
     mount_xyz: [0.0, -0.675, 0.0]
     mount_rpy: [0.0, 0.0, -1.5707963267948966]
-    initial_positions: [0.0, -1.5707963267948966, 0.0, -1.5707963267948966, 0.0, 0.0]
+    initial_positions: [0.414452354372, -1.217913680412, -1.937577321053, -0.603514076241, 1.226379855048, 0.235292530833]
     kinematics_file: null
   right_rear:
     type: ur5e
     table: right
     mount_xyz: [0.0, 0.675, 0.0]
     mount_rpy: [0.0, 0.0, 1.5707963267948966]
-    initial_positions: [0.0, -1.5707963267948966, 0.0, -1.5707963267948966, 0.0, 0.0]
+    initial_positions: [0.414452354372, -1.217913680412, -1.937577321053, -0.603514076241, 1.226379855048, 0.235292530833]
     kinematics_file: null
 scan:
   source: ~/GoogleDrive/UWA/UR Setup.ply
-  # Unregistered reference! Scale/pose are not a measured calibration.
-  scale: 1.0
-  xyz: [0.0, 0.0, 0.0]
-  rpy: [0.0, 0.0, 0.0]
+  # Coarse tabletop fit, 2026-11-09; NOT a measured calibration.
+  # Uses floor normal + the two tabletop rectangles. Heading resolved using:
+  # high item-profile robot cell behind (+Y), ~2 m clear space in front (-Y).
+  # Table height remains the provisional model value; floor mismatch is ~0.13 m.
+  scale: 0.9531928101629115
+  xyz: [-0.2874986696433722, -0.43623572063603466, 0.5876544767930126]
+  rpy: [-1.5666319041686247, 0.006099951639325196, 1.0496523179958193]
   opacity_min: 0.1
   max_splat_scale: 0.05
   voxel_size: 0.01

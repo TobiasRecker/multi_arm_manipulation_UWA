@@ -171,12 +171,44 @@ Höhe, Yaw-Werte und Scan-Pose sind weiterhin **nicht kalibriert**.
 - Cache: `$XDG_CACHE_HOME/uwa_cell/scans` bzw. `~/.cache/uwa_cell/scans`, NPZ ohne Pickle.
 - Publisher: `/uwa_cell/scan_reference`, `PointCloud2`, Reliable / Transient Local.
   Frame `uwa_scan_reference`; statischer Transform von `world`.
-- Ausgangswerte: Maßstab **1**, Identitätspose, ausdrücklich **UNREGISTERED**.
-  Scan-Einheiten sind nicht als Meter bestätigt. Die Wolke kann gekippt/versetzt sein.
+- Ursprünglich Maßstab **1** und Identitätspose; diese Anzeige war deutlich gekippt.
+  Seit 2026-11-09 ist eine grobe Tischflächen-Ausrichtung eingestellt (siehe unten).
+  Die Referenz bleibt ausdrücklich **nicht kalibriert**.
 - Ein fehlender Scan darf Gazebo nicht verhindern. Bei `scan:=false` liest der
   direkte Launch den Scan nicht. **Aktuelle Grenze:** Auch zur Cache-Auswahl fragt
   der Importer noch Dateimetadaten des Originals ab; kein garantierter Offline-Fallback
   bei vollständig fehlendem Drive-Mount. Das ist keine bereits erledigte Anforderung.
+
+### Grobausrichtung des Scans, 2026-11-09
+
+- Nutzerauftrag: Die deutlich verdrehte Punktewolke an der Szene ausrichten;
+  bei nötigen Bezugspunkten unterstützt der Nutzer.
+- Vorgehen: Dominante Boden-/Tischebenen im lokalen Scan-Cache bestimmen,
+  zwei zentrale zusammenhängende Tischflächen isolieren und ihre Rechteckkanten
+  an den nominellen 0,80 × 1,70 m ausrichten. Keine Roboterposen aus dem Scan ableiten.
+- Maßstab **0,9531928102**, Translation **[−0,28749867; −0,43623572; +0,58765448]**,
+  RPY in Grad **[−89,761396; +0,349501; +60,140648]**.
+  Die Runtime-Werte bleiben zentral in `cell_layout.yaml`; der datierte
+  [Fit-Bericht](docs/scan_alignment_2026-11-09.json) dokumentiert ihre Herleitung.
+- Die zunächst mögliche 180°-Verwechslung wurde mit konkreten Nutzerangaben aufgelöst:
+  **hinter** den Tischen steht eine hohe weitere Roboterzelle aus item-Profilen;
+  **vorne** sind zunächst etwa zwei Meter freie Fläche. Die passende Scan-Richtung
+  ist bereits eingestellt (+Y zur hohen Profilrahmen-Zelle, −Y zur freien Fläche).
+- Der Nutzer konnte die abstrakte A/B-Draufsicht nicht eindeutig zuordnen.
+  Bei weiteren Rückfragen besser konkrete reale Gegenstände/Bezugspunkte benennen.
+- Nur `uwa-cell-scan` wurde neu gestartet; Simulation, Modellmaße, Robotermontagen,
+  Greifer/Kameras und laufende Benutzer-RViz-Ansicht wurden nicht zurückgesetzt.
+- Grenzen: Keine metrische Kalibrierung. Die vorläufige Modell-Tischhöhe 0,90 m
+  ergibt bei diesem Scan-Fit ca. **0,132 m Bodenversatz**. Reale Höhe noch messen;
+  die aktuelle Scan-Schätzung allein ist kein Auftrag, das Modellmaß zu ändern.
+  Abweichende Armstellungen zwischen Aufnahme und Simulation sind erwartbar.
+- Prüfung: 200.000 endliche Punkte, publizierter Maßstab und Welt-TF entsprechen
+  der YAML, genau ein Publisher. Beide bestehenden Dienst-PIDs (Simulation/RViz)
+  blieben erhalten. RViz meldet 200.000 dargestellte Punkte und Transform „Ok“.
+  **24 vorhandene Offline-Tests bestanden**; protobuf meldet eine Deprecation-Warnung.
+- Belege: `setup/logs/uwa-scan-alignment-{estimate,verification}.json`,
+  `uwa-scan-alignment-landmarks.png`, `uwa-scan-aligned-rviz.png` und zugehöriges Log
+  im Workspace. Analyseprogramme lagen temporär unter `/tmp/uwa-scan-alignment`.
 
 ## Behobene Probleme und Entscheidungen
 
@@ -188,6 +220,7 @@ Höhe, Yaw-Werte und Scan-Pose sind weiterhin **nicht kalibriert**.
 | 2026-11-09 | App zeigte keine Wolke, manuell gestarteter Scan schon | Scan fehlte im normalen Desktop-Start; Start und RViz-Aktion laden ihn jetzt automatisch |
 | 2026-11-09 | Nutzer wünscht dauerhaftes Festhalten der Gespräche | Workspace-/Projekt-AGENTS und diese Übergabe angelegt; fortlaufende Pflege vereinbart |
 | 2026-11-09 | Icon-Klick scheint nichts zu starten, obwohl alle drei Dienste und Fenster laufen | Vorher nur „läuft schon“; nun Wiederherstellen/Aktivieren der vorhandenen Zell-Fenster ohne Neustart |
+| 2026-11-09 | Punktewolke deutlich gegenüber dem Modell verdreht | Grober Ebenen-/Rechteck-Fit; Vorderseite über freie Fläche und hintere Profilrahmen-Zelle identifiziert; keine Kalibrierungsbehauptung |
 
 Ein früher Tracing-Schalter löste den Clock-Bridge-Absturz nicht vollständig;
 ihn nicht als fertige Lösung wieder einführen. Zusätzlich wurde am 2026-11-06
@@ -269,8 +302,9 @@ aktiv; separate MuR-Simulation inaktiv. Vor weiterer Prozessarbeit neu prüfen.
 
 1. Echte Tischhöhe und Montageposen messen, Basisorientierungen kalibrieren.
 2. Individuelle UR-Kinematikdateien übernehmen, sobald verfügbar.
-3. Scan-Maßstab, Achsen und Welt-Pose registrieren; daraus keine unbestätigte
-   Montagekalibrierung automatisch als wahr übernehmen.
+3. Vorhandene grobe Scan-Ausrichtung metrisch kalibrieren, insbesondere reale
+   Tischhöhe und Bodenversatz klären. Keine unbestätigte Montagekalibrierung
+   automatisch als wahr übernehmen.
 4. Später MoveIt und kooperative/kollisionsfreie Bewegungsplanung ergänzen.
 5. Später explizit geplante Hardware-Anbindung und Synchronisation untersuchen.
 

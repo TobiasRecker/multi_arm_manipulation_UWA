@@ -1,0 +1,94 @@
+{
+  "method": "two tabletop rectangles; coarse visual estimate, not calibrated",
+  "scale": 0.9531928101629115,
+  "xyz": [
+    -0.2874986696433722,
+    -0.43623572063603466,
+    0.5876544767930126
+  ],
+  "rpy": [
+    -1.5666319041686247,
+    0.006099951639325196,
+    1.0496523179958193
+  ],
+  "rpy_deg": [
+    -89.76139615940583,
+    0.3495014841672415,
+    60.14064777728423
+  ],
+  "table_dimensions_scan_units": [
+    [
+      1.7847568210619895,
+      0.8617920704953331
+    ],
+    [
+      1.7501575787272572,
+      0.8808822890869771
+    ]
+  ],
+  "table_dimensions_fitted_metres": [
+    [
+      1.7012173697255024,
+      0.8214540054515604
+    ],
+    [
+      1.6682376206949512,
+      0.8396506645575539
+    ]
+  ],
+  "front_back_confirmed": true,
+  "quality": {
+    "tabletops": [
+      {
+        "bounds_m": [
+          [
+            -0.873587023513472,
+            -0.8454142637080156,
+            0.8870992058124384
+          ],
+          [
+            -0.05213301806191149,
+            0.8558031060174861,
+            0.9105670262275462
+          ]
+        ],
+        "points": 6034,
+        "median_table_height_m": 0.898343505262504,
+        "table_height_rms_m": 0.005586135857467989
+      },
+      {
+        "bounds_m": [
+          [
+            0.04303468850891483,
+            -0.8393132315022106,
+            0.8891297592205708
+          ],
+          [
+            0.8826853530664688,
+            0.8289243891927405,
+            0.9128651822891468
+          ]
+        ],
+        "points": 7499,
+        "median_table_height_m": 0.901422252912607,
+        "table_height_rms_m": 0.005396449140023319
+      }
+    ],
+    "fitted_floor_height_m": 0.1319790248240411,
+    "floor_normal_world": [
+      3.6006969001617585e-17,
+      2.5234847649299423e-16,
+      0.9999999999999999
+    ],
+    "front_back_ambiguity_deg": 0,
+    "not_calibrated": true,
+    "nominal_dimensions_are_estimates": true,
+    "table_residual_is_not_independent_calibration_accuracy": true
+  },
+  "date": "2026-11-09",
+  "source": "~/GoogleDrive/UWA/UR Setup.ply",
+  "heading_evidence": "User: high item-profile robot cell behind the tables; about two metres free in front. Matching scan landmarks resolve the 180-degree ambiguity; front is -Y.",
+  "calibrated": false,
+  "transform_convention": "world = R_xyz(rpy) * (scale * scan_xyz) + xyz",
+  "model_geometry_changed": false
+}

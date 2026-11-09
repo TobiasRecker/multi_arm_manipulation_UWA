@@ -20,5 +20,7 @@ setup(
         'clock_bridge = uwa_cell_gazebo.clock_bridge:main',
         'camera_bridge = uwa_cell_gazebo.camera_bridge:main',
         'verify_tools = uwa_cell_gazebo.verify_tools:main',
+        'charuco_check = uwa_cell_gazebo.charuco_check:main',
+        'prepare_charuco_views = uwa_cell_gazebo.charuco_views:main',
     ]},
 )

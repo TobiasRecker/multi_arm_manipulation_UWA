@@ -2,6 +2,10 @@
 
 ## Vor der Arbeit
 
+- [ACTIVE_WORK.md](ACTIVE_WORK.md) und aktive Einträge unter `work/` lesen.
+  Eigene Aufgabe dort vor Änderungen eintragen und laufend aktualisieren;
+  Statusdatei je Aufgabe verwenden, fremde Einträge erhalten. Dienstneustarts
+  und gemeinsame Dateibereiche nennen, bestehende Diffs vor Edits erneut prüfen.
 - [HANDOVER.md](HANDOVER.md) enthält Ziele, Entscheidungen, bekannte Grenzen und
   Prüfnachweise; [README.md](README.md) enthält Bedienung und Build-Anweisungen.
 - Die übergeordneten Workspace-Regeln gelten zusätzlich.
