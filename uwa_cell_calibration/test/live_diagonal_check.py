@@ -54,7 +54,10 @@ def main():
             candidate=json.loads(file.read_text())
             if candidate['plan_id']==node.state['plan_id']:plan.update(candidate);break
         assert plan['mode']=='diagonal_pairs'
-        until(lambda:window.start_button.isEnabled());window.start_button.click()
+        until(lambda:window.start_button.isEnabled())
+        window.diagonal.setChecked(False);until(lambda:not window.start_button.isEnabled())
+        window.diagonal.setChecked(True);until(lambda:window.start_button.isEnabled())
+        window.start_button.click()
         def pair_moving():
             ids=node.state.get('active_robots',[])
             return node.state.get('phase')=='MOVING' and len(ids)==2 and all(any(abs(telemetry.get('velocities',{}).get(j,0))>.01 for j in joint_names(r)) for r in ids)

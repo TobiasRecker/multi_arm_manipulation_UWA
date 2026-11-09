@@ -5,8 +5,10 @@ aktuell rechts, nach unten auf beide Tischplatten gerichtet. Die genaue Montage
 ist offen. In Gazebo Höhe, Blickwinkel und Auflösung vergleichen, um Überblick
 und ChArUco-Details gleichzeitig zu erhalten. Die Wrist-Kameras bleiben erhalten.
 **Nutzerkorrektur:** Das vorhandene Stativ erreicht höchstens **2 m**. Zwei
-weitere **OAK-D-S2-FF** stehen laut Nutzer bei Bedarf für tote Winkel zur
-Verfügung; Montage, konkrete Optik/Intrinsics und Anbindung sind dafür noch offen.
+weitere OAK-Kameras stehen laut Nutzer bei Bedarf für tote Winkel zur Verfügung.
+Die erste wurde per USB als **OAK-D Pro AF (RVC2)** identifiziert; die zweite
+ist noch ungeprüft. Die frühere Vermutung „beide OAK-D-S2-FF“ ist damit überholt.
+Montage und Einbindung als zusätzliche Zellkameras bleiben offen.
 
 ## Ausgangspose und Optik
 
@@ -135,7 +137,7 @@ Aktueller Live-Nachweis: **12 Ecken links / 24 rechts**, Reprojektions-RMS
 **0,691 / 0,042 px**, bei4000×3000. Das linke Board erreicht damit gerade die
 konfigurierte Mindestzahl und hat wenig Reserve; keine verlässliche
 Sichtbarkeit für alle späteren Armbewegungen behaupten. Für bessere
-Detailabdeckung oder verdeckte Bereiche stehen zwei OAK-D-S2-FF als spätere
+Detailabdeckung oder verdeckte Bereiche stehen die zwei zusätzlichen OAKs als spätere
 Erweiterungsoption bereit. Noch keine Zusatzkamera gespawnt oder kalibriert.
 
 6k-Tests lieferten CameraInfo, aber im Prüfzeitfenster keine empfangenen

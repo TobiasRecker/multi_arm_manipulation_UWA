@@ -415,9 +415,12 @@ aktiv; separate MuR-Simulation inaktiv. Vor weiterer Prozessarbeit neu prüfen.
 - Umgesetzt als eigene statische Gazebo-Entität `uwa_oak_overview`, außerhalb
   der Zell-URDF. Bestehende Zell-/Wrist-/Greifer-/Controllerkonfiguration erhalten;
   keine Gelenkbefehle und kein Zellneustart durch diese Aufgabe.
-- Nutzerkorrektur: reales Stativ maximal **2 m**. Zusätzlich zwei **OAK-D-S2-FF**
-  verfügbar, falls tote Winkel ergänzend abgedeckt werden müssen. Keine konkreten
-  Zusatzkameraposen oder Hardwareanbindung festgelegt.
+- Nutzerkorrektur: reales Stativ maximal **2 m**. Zwei zusätzliche OAK-Kameras
+  verfügbar, falls tote Winkel ergänzend abgedeckt werden müssen. Die erste
+  unbeschriftete Kamera per USB identifiziert: EEPROM **OAK-D Pro AF**, SDK
+  **OAK-D-PRO-AF**, RVC2/DM9098, IMX378-Autofokus + zwei OV9282. Zweite Kamera
+  noch ungeprüft; frühere gemeinsame Bezeichnung OAK-D-S2-FF ist überholt.
+  Keine konkreten Zusatzkameraposen festgelegt. Diagnose im OAK-Repo-Handover.
 - Aktuelle zentrale Konfiguration `overview_camera` in `cell_layout.yaml`:
   optisches Zentrum Welt[1.8,-0.8,2.0]m, Ziel[0,-0.1,0.95]m, etwa28,5° nach unten,
   nominell67,3° horizontal,4000×3000@3Hz Simulationszeit. Nicht kalibriert.

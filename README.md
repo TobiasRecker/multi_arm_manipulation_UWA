@@ -185,8 +185,10 @@ occlude them. The current 2 m pose detected 12/24 left/right corners in the
 checked image (reprojection RMS 0.691/0.042 px). The left board has limited
 detail reserve; this does not establish real calibration accuracy. Earlier
 3 m/2.6 m experiments exceed the actual tripod limit and are historical only.
-Two additional OAK-D-S2-FF cameras are available, according to the user, for
-future blind-spot/detail coverage; no mounting poses have been assigned yet.
+Two additional OAK cameras are available for future blind-spot/detail coverage;
+the first was identified over USB as **OAK-D Pro AF (RVC2)**, while the second
+remains unverified. The earlier S2-FF assumption is superseded. No mounting
+poses have been assigned yet.
 RGB and CameraInfo topics: `/uwa_cell/oak_overview/rgb/{image_raw,camera_info}`.
 TF: `world -> oak_overview_rgb_optical_frame`. The supplied RViz config includes
 the housing/tripod and frustum markers; a previously opened RViz can add a

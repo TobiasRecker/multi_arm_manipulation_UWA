@@ -41,9 +41,10 @@
   Nutzerkorrektur vom 2026-11-09: vorhandenes Stativ erreicht **höchstens 2 m**;
   aktuelle Montagevorschläge daran ausrichten. Die früheren 3-/2,6-m-Posen
   sind nur historische Designversuche, keine umsetzbare Standardmontage.
-  Zusätzlich stehen laut Nutzer zwei **OAK-D-S2-FF** zur Verfügung, um bei
-  Bedarf tote Winkel abzudecken. Deren Montageposen und Einsatz sind noch offen;
-  keine zusätzlichen Hardwarekameras als verbunden oder kalibriert voraussetzen.
+  Zwei zusätzliche OAK-Kameras sind laut Nutzer für tote Winkel verfügbar.
+  Die erste wurde per USB als **OAK-D Pro AF (RVC2)** identifiziert (2026-11-09);
+  die frühere Vermutung „beide OAK-D-S2-FF“ ist überholt. Zweites Modell noch
+  ungeprüft. Montage/Einsatz offen; keine Kalibrierung der Zusatzkameras voraussetzen.
   Beide ChArUco-Boards aus echten Bildern prüfen; reine Sichtfeldprojektion
   beweist weder fehlende Verdeckung noch kalibrierte Genauigkeit. Das bisher
   nur visuelle Stativ ist kein Hindernis in der MoveIt-PlanningScene.

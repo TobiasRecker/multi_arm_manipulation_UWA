@@ -12,5 +12,11 @@
   unabhängiges Abbremsen berücksichtigen; bei Stopp beide Controller stornieren.
 - Gemeinsame Ressource: nur eigenen Kalibrierbackend neu laden, keine Zell-
   oder Scan-Neustarts. Autorisierte Simulationsfahrten zum Prüfen nötig.
-- Nächster Schritt: Parkstellungen und Paarwege offline prüfen, dann Ablauf und
-  gemeinsame Stoppüberwachung umstellen und live validieren.
+- Implementiert: zwei kohortenweise parallele Messfahrten, serielle Park-/Anfahr-/
+  Rückfahrfolge, gemeinsame Startzeit und Dauer, separate Hüllraumprüfung mit
+  80 mm Puffer je Arm, Zwei-Controller-Stopp einschließlich später Bestätigungen.
+- Nachweise: 79 aktuelle Offline-Tests bestanden. Echte simultane Gelenkbewegung
+  im ersten Diagonalpaar, stationäre Wartearme sowie Pause/Fortsetzen und Stopp
+  beider Controller nach 0,46 s live geprüft. Vollständiger 40×4-Lauf aktiv.
+- Nächster Schritt: Volltest/Genauigkeit und Rückkehrstellungen abschließen,
+  GUI-Verlust und Aufnahmestopp mit zwei Armen prüfen; endgültige GUI bereitstellen.

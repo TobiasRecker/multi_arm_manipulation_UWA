@@ -98,7 +98,10 @@ class Window(QtWidgets.QMainWindow):
         if busy and owns and time.monotonic()-self.node.last_status>1.5 and not self.pause_pending:
             self.pause_pending=True;self.pause_world();self.node.error='Backend verloren; Gazebo-Pause angefordert'
         self.prepare_button.setEnabled(online and not busy and bool(state))
-        self.start_button.setEnabled(online and phase=='READY' and owns)
+        selected=[r for r,b in self.robots.items() if b.isChecked()]
+        settings_match=(selected==list(state.get('counts',{})) and self.count.value()==state.get('target') and
+                        state.get('mode')==('diagonal_pairs' if self.diagonal.isChecked() else 'sequential'))
+        self.start_button.setEnabled(online and phase=='READY' and owns and settings_match)
         self.pause_button.setEnabled(online and owns and phase in ('MOVING','PARKING','POSITIONING','RUNNING','SETTLING','CAPTURING','RETURNING','PAUSED'))
         self.pause_button.setText('Fortsetzen' if phase=='PAUSED' else 'Pause')
         fits=state.get('summary',{})
@@ -111,6 +114,7 @@ class Window(QtWidgets.QMainWindow):
         step=f" | Schritt {state['stage_index']}/{state['stage_total']}" if state.get('stage_total') else ''
         self.status_label.setText(f"{phase} | {names}{step} | {state.get('message','Backend nicht erreichbar')}"+
                                   f" | Verworfen: {state.get('rejected',0)}"+
+                                  (' | Einstellungen geändert: erneut vorbereiten' if phase=='READY' and owns and not settings_match else '')+
                                   (f"\n{self.node.error}" if self.node.error else ''))
         counts=state.get('counts',{});total=state.get('progress_total') or state.get('target',40)*max(1,len(counts))
         self.progress.setRange(0,total);self.progress.setValue(sum(counts.values()))
