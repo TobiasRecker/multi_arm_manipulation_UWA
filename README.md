@@ -13,11 +13,12 @@ for agents sharing this checkout; read active entries before editing or restarti
 ## Build
 
 The workspace is expected at `~/UWA_ws`; set `UWA_WS` before sourcing the helper
-if it lives elsewhere. Dependencies are declared in both package manifests.
-On an existing ROS desktop installation, install the standard control panel:
+if it lives elsewhere. Dependencies are declared in the package manifests.
+On an existing ROS desktop installation, install the control panel and calibration dependencies:
 
 ```bash
-sudo apt-get install --no-remove ros-lyrical-rqt-joint-trajectory-controller
+sudo apt-get install --no-remove ros-lyrical-rqt-joint-trajectory-controller \
+  ros-lyrical-moveit-py ros-lyrical-python-qt-binding python3-scipy python3-opencv
 cd ~/UWA_ws
 source /opt/ros/lyrical/setup.bash
 colcon --log-base log_lyrical build \
@@ -157,7 +158,8 @@ Select `/uwa_cell/controller_manager` and one of the four trajectory
 controllers in the **rqt Joint Trajectory Controller** window. Enable control
 and adjust joint targets conservatively. This is direct joint control, not
 collision-free path planning. Tables/robot links have collision geometry;
-MoveIt coordination and real-cell synchronization are future work.
+The automatic calibration below uses its own collision-checked MoveIt model.
+General multi-arm coordination and real-cell synchronization are future work.
 
 Each arm has six uniquely prefixed joints. Its native ROS action is:
 
@@ -273,13 +275,43 @@ images and a JSON report, and compares ten image-based poses per camera with
 timestamp-matched simulation ground truth. It also estimates each robot base
 in `left_table_top` / `right_table_top` and the relative base transform per table,
 assuming known board placement, intrinsics, camera mounting and arm kinematics.
-This is the first simulation check; estimating unknown hand-eye transforms
-requires multiple arm poses later. No estimated transform is applied automatically.
+This is the first simulation check and assumes known hand-eye transforms.
+The automatic routine below estimates these from multiple arm poses.
+No estimated transform is applied automatically.
 
 See [the calibration guide](docs/charuco_calibration.md) for frames, transform
 equations, diagnostics and recalculating initial views after layout changes.
 The [dated validation report](docs/charuco_validation_2026-11-09.json) records
 the first successful four-camera check against ground truth.
+
+## Automatic hand-eye calibration
+
+With the cell running, open the separate Qt calibration window:
+
+```bash
+source ~/UWA_ws/src/multi_arm_manipulation_UWA/scripts/env.bash
+ros2 launch uwa_cell_calibration calibration.launch.py
+```
+
+Disable manual rqt trajectory output, select the robots and **Posen vorbereiten**,
+then **Start**. The default is 40 distinct views per arm (32 fitting and eight
+held-out validation views), with one moving arm at a time and collision-checked
+paths at at most 0.10 rad/s and 0.20 rad/s². Live views show board detections;
+**Pause/Fortsetzen**, the red **STOPP** and a direct Gazebo pause remain accessible.
+After a regular arm run, it returns to its captured start pose. A stop or error
+keeps the current pose and requires a new preparation.
+
+The tool estimates each unknown tool-to-camera transform and the relative
+front/rear bases separately for each table. Validation and ground-truth errors
+are displayed separately. **Ergebnis übernehmen** explicitly activates a
+versioned profile and a separate `calibrated/` TF/planning model; Gazebo geometry
+and the original ground-truth model stay unchanged. Sessions and raw images go
+to `$UWA_WS/setup/calibration/`, outside this repository.
+
+On first installation, restart the cell once to load controlled controller
+deceleration on cancellation. The backend verifies these parameters before moving.
+This routine is for simulation only. See the [full calibration guide](docs/automatic_handeye.md)
+for quality limits, files, APIs, interruption behavior, offline fitting and tests.
 
 ## Optional scan reference
 

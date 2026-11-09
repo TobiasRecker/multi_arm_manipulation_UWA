@@ -11,9 +11,12 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   Die bestehenden Jazzy-Repositories wurden dafür lokal angepasst.
 - Einen digitalen Zwilling der echten Roboterzelle in Gazebo erstellen, im Repository
   `multi_arm_manipulation_UWA` unter `~/UWA_ws/src/`.
-- Zunächst Geometrie und steuerbare Kinematik; kalibrierte Genauigkeit, MoveIt,
-  kollisionsfreie kooperative Planung und Synchronisation mit echter Hardware später.
-- Bestehende rqt-Gelenksteuerung verwenden; für diese Version keine eigene Roboter-GUI.
+- Zunächst Geometrie und steuerbare Kinematik. Seit 2026-11-09 zusätzlich automatische
+  Hand-Auge-Kalibrierung mit MoveIt-Kollisionsprüfung; allgemeine kooperative Planung
+  und Synchronisation mit echter Hardware bleiben Folgearbeit.
+- rqt für manuelle Gelenksteuerung erhalten. Neuer ausdrücklicher Auftrag vom
+  2026-11-09: eine eigene Qt-GUI für Vorbereitung, Aufnahme, Überwachung, Stopp und
+  Übernahme der automatischen Kalibrierung (ersetzt die frühere Einschränkung dafür).
 - Bequemer Start wie eine Desktop-App mit eigenem Icon und RViz-Konfiguration.
 - **Neuester Bedienwunsch, 2026-11-09:** Der normale App-Klick soll die Punktewolke
   mitladen. Keine zusätzliche Rechtsklick-Aktion zum erstmaligen Anzeigen verlangen.
@@ -113,7 +116,8 @@ Höhe, Yaw-Werte und Scan-Pose sind weiterhin **nicht kalibriert**.
   expliziter Abmeldung vor Shutdown. Gazebo-Sensors-System ergänzt.
 - Grenzen: Keine herstellergenaue Kameragehäuseform, Objektivkalibrierung,
   URCap-Bildverarbeitung, Autofokus-/LED-Steuerung oder adaptive Kontaktmechanik.
-  MoveIt und reale Hardware bleiben Folgearbeit.
+  Die spätere Kalibrier-Routine ergänzt MoveIt-Kollisionsprüfung;
+  reale Hardware bleibt Folgearbeit.
 - Prüfstand 2026-11-09: beide Pakete gebaut, **24 Offline-Tests erfolgreich**;
   vier gültige RGB-/CameraInfo-Streams, korrekte optische TFs und Zeitstempel,
   neun aktive Controller. Alle vier Greifer einzeln geschlossen/geöffnet und
@@ -402,6 +406,47 @@ aktiv; separate MuR-Simulation inaktiv. Vor weiterer Prozessarbeit neu prüfen.
   liegen unter `setup/google-drive/`; Mount/Anmeldung bei Bedarf prüfen. Keine
   Zugangsdaten in Git oder in diese Übergabe kopieren.
 
+## Automatische Hand-Auge-Kalibrierung (2026-11-09)
+
+- Nutzerauftrag: genehmigten Plan vollständig in der Simulation umsetzen;
+  eigene Qt-GUI, 30–50 verschiedene Stellungen pro Arm (Standard 40), links/rechts
+  getrennte relative Basen, unbekannte Kameraextrinsics und explizite Übernahme.
+- Neue Pakete `uwa_cell_calibration_msgs` und `uwa_cell_calibration`. Start neben
+  der bestehenden Zelle: `ros2 launch uwa_cell_calibration calibration.launch.py`.
+  Anleitung: [docs/automatic_handeye.md](docs/automatic_handeye.md).
+- Vollständiges MoveIt-Modell mit vier Gruppen und allen Kollisionskörpern;
+  lokale quintische Wege mit maximal 0,10 rad/s und 0,20 rad/s² werden vollständig
+  gesampelt geprüft. Blockierte Wege werden verworfen, keine OMPL-Umwegsuche.
+  Deterministische Kugelkappenansichten mit acht Reserveposen bei 40 Messungen.
+- Datensatz: rohe und annotierte Bilder, CameraInfo, Bild-/Objektpunkte,
+  zeitlich passende Gelenkwerte und `T_base_link_tool0` unter Workspace
+  `setup/calibration/`. Keine Sitzungsdaten ins Repository übernehmen.
+- Fit ausschließlich aus Bildern und Werkzeugkinematik: Park-Initialisierung,
+  robuste gemeinsame Bildeckenverfeinerung von `X` und `Y` in `M_i X C_i=Y`.
+  Bei 40 Stellungen 32 Fit + acht vorab bestimmte, unabhängige Validierungen.
+  Keine nominellen Extrinsics / Ground Truth im Fit. Boardpose erst für die
+  abgeleiteten absoluten Tischkoordinaten erforderlich.
+- Backend und Qt6-GUI getrennt; nicht befehlsfähiger Planungs-/Fit-Prozess,
+  eigener Walltime-Watchdog, Besitzer-Lebenszeichen, Controller-Abbruch mit
+  Abbremsparametern, Stillstandsbestätigung und Gazebo-Pause als Rückfall.
+  Kein automatisches Zurückfahren nach Stopp oder Fehler. Nach normalem Armende
+  geprüfte Rückfahrt zur gemessenen Startstellung.
+- Übernehmen erzeugt ein versioniertes Profil und `calibrated/`-TF-/MoveIt-Modell.
+  Physische Gazebo-Montagen und der ursprüngliche TF-Baum bleiben erhalten.
+  Kandidatenprüfung vor atomarer Profilaktivierung; altes Profil bei Fehler behalten.
+- Bisherige Prüfnachweise: vier Pakete gebaut, 51 Offline-Tests bestanden
+  (`setup/logs/uwa-handeye-all-tests-final.log`); CLI-Stopp, Besitzerverlust und
+  Pause/Fortsetzen live geprüft. Qt6-GUI mit vier echten annotierten Bildern
+  geprüft. Vollständiger 40×4-Lauf und abschließende Übernahme-/GUI-Stopptests
+  laufen noch; keine vollständige Genauigkeitsfreigabe aus Teilmessungen ableiten.
+- Behobene Simulationsbesonderheit: passive Robotiq-Mimic-Geschwindigkeiten
+  können trotz Stillstand stark rauschen. Für den Bewegungsstopp alle
+  angetriebenen Gelenke prüfen und zusätzlich unerwartete Gelenkpositionsänderungen
+  überwachen; vor Fahrbefehlen ein stabiles Geschwindigkeitsfenster verlangen.
+- Grenzen: Simulation mit idealen Intrinsics und angenäherter Kamerageometrie;
+  keine reale Stoppsystem-/Hardwarefreigabe. Bootstrapwerte sind
+  Wiederholungsstreuung, keine Garantie absoluter Genauigkeit.
+
 ## Offene Ziele / noch nicht freigegebene Genauigkeitsannahmen
 
 1. Echte Tischhöhe und Montageposen messen, Basisorientierungen kalibrieren.
@@ -409,7 +454,8 @@ aktiv; separate MuR-Simulation inaktiv. Vor weiterer Prozessarbeit neu prüfen.
 3. Vorhandene grobe Scan-Ausrichtung metrisch kalibrieren, insbesondere reale
    Tischhöhe und Bodenversatz klären. Keine unbestätigte Montagekalibrierung
    automatisch als wahr übernehmen.
-4. Später MoveIt und kooperative/kollisionsfreie Bewegungsplanung ergänzen.
+4. MoveIt über die nun vorhandene Kalibrier-Kollisionsprüfung hinaus für allgemeine
+   und kooperative Bewegungsplanung ergänzen.
 5. Später explizit geplante Hardware-Anbindung und Synchronisation untersuchen.
 
 Die Liste beschreibt offene Arbeitspakete, keinen Auftrag, sie ohne weitere

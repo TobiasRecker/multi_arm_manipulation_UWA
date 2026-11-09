@@ -144,7 +144,7 @@ class CollisionModel:
             self.scene.allowed_collision_matrix.set_entry(name, 'calibration_floor', True)
         self.bounds = {j.get('name'): (float(j.find('limit').get('lower')),
                                        float(j.find('limit').get('upper')))
-                       for j in root.findall('joint') if j.get('type') == 'revolute'}
+                       for j in root.findall('joint') if j.get('type') == 'revolute' and j.find('mimic') is None}
 
     def check(self, positions, contacts=False):
         from moveit.core.collision_detection import CollisionRequest, CollisionResult

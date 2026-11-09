@@ -1,4 +1,5 @@
 string result_path
+string client_id
 ---
 bool accepted
 string message

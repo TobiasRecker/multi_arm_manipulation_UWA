@@ -70,4 +70,4 @@ class Client(Node):
         future.add_done_callback(accepted)
 
     def apply(self):
-        return self.service(self.apply_client,ApplyCalibration.Request(result_path=self.state.get('result_path','')))
+        return self.service(self.apply_client,ApplyCalibration.Request(result_path=self.state.get('result_path',''),client_id=self.client_id))

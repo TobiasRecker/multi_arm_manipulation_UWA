@@ -1,5 +1,9 @@
 """Responsive Qt session UI. Motion ownership lives in the separate ROS backend."""
 import json,os,sys,threading,time
+# VS Code's Snap terminal can inject incompatible GTK/GIO libraries into a
+# system Qt process. Remove only Snap-specific module overrides in this GUI.
+for _name in ('GTK_PATH','GTK_EXE_PREFIX','GTK_IM_MODULE_FILE','GIO_MODULE_DIR'):
+    if '/snap/' in os.environ.get(_name,''):os.environ.pop(_name,None)
 import numpy as np
 from scipy.spatial.transform import Rotation
 from python_qt_binding import QtCore,QtGui,QtWidgets
@@ -37,9 +41,10 @@ class Window(QtWidgets.QMainWindow):
         layout.addLayout(buttons)
         self.status_label=QtWidgets.QLabel('Warte auf Kalibrierungsbackend …');self.status_label.setWordWrap(True);layout.addWidget(self.status_label)
         self.progress=QtWidgets.QProgressBar();layout.addWidget(self.progress)
-        grid=QtWidgets.QGridLayout();self.views={}
+        grid=QtWidgets.QGridLayout();self.views={};self.view_groups={}
         for index,rid in enumerate(ROBOT_IDS):
             group=QtWidgets.QGroupBox(NAMES[rid]);box=QtWidgets.QVBoxLayout(group)
+            self.view_groups[rid]=group
             image=QtWidgets.QLabel('Warte auf Kamerabild');image.setMinimumSize(300,180);image.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             image.setStyleSheet('background:#19212c; color:#dfe7ee;');box.addWidget(image)
             self.views[rid]=image;grid.addWidget(group,index//2,index%2)
@@ -82,14 +87,17 @@ class Window(QtWidgets.QMainWindow):
         self.node.pulse()
         state=self.node.state;phase=state.get('phase','OFFLINE')
         owns=state.get('client_id')==self.node.client_id
-        busy=phase in ('PREPARING','RUNNING','MOVING','SETTLING','CAPTURING','RETURNING','HALTING','PAUSED','SOLVING','APPLYING')
+        online=time.monotonic()-self.node.last_status<1.5
+        busy=phase in ('RESTORING','PREPARING','RUNNING','MOVING','SETTLING','CAPTURING','RETURNING','HALTING','PAUSED','SOLVING','APPLYING')
         if busy and time.monotonic()-self.node.last_status>1.5 and not self.pause_pending:
             self.pause_pending=True;self.pause_world();self.node.error='Backend verloren; Gazebo-Pause angefordert'
-        self.prepare_button.setEnabled(not busy and bool(state))
-        self.start_button.setEnabled(phase=='READY' and owns)
-        self.pause_button.setEnabled(owns and phase in ('MOVING','RUNNING','SETTLING','CAPTURING','RETURNING','PAUSED'))
+        self.prepare_button.setEnabled(online and not busy and bool(state))
+        self.start_button.setEnabled(online and phase=='READY' and owns)
+        self.pause_button.setEnabled(online and owns and phase in ('MOVING','RUNNING','SETTLING','CAPTURING','RETURNING','PAUSED'))
         self.pause_button.setText('Fortsetzen' if phase=='PAUSED' else 'Pause')
-        self.apply_button.setEnabled(phase=='COMPLETE' and bool(state.get('result_path')) and state.get('stopped',False))
+        fits=state.get('summary',{})
+        passed=bool(fits) and all(f.get('passed',False) for f in fits.values())
+        self.apply_button.setEnabled(online and passed and phase=='COMPLETE' and bool(state.get('result_path')) and state.get('stopped',False))
         for box in self.robots.values():box.setEnabled(not busy)
         self.count.setEnabled(not busy)
         self.status_label.setText(f"{phase} | {NAMES.get(state.get('robot_id'), '')} | {state.get('message','Backend nicht erreichbar')}"+
@@ -98,6 +106,9 @@ class Window(QtWidgets.QMainWindow):
         counts=state.get('counts',{});total=state.get('target',40)*max(1,len(counts))
         self.progress.setRange(0,total);self.progress.setValue(sum(counts.values()))
         for rid,label in self.views.items():
+            quality=state.get('camera_quality',{}).get(rid,{})
+            self.view_groups[rid].setTitle(NAMES[rid]+f" · {quality.get('corners',0)} Ecken"+
+              (f" · RMS {quality['reprojection_rms_px']:.3f} px" if 'reprojection_rms_px' in quality else ' · Board nicht erkannt'))
             msg=self.node.images.get(rid)
             if msg is None:continue
             stamp=(msg.header.stamp.sec,msg.header.stamp.nanosec)
@@ -118,6 +129,8 @@ class Window(QtWidgets.QMainWindow):
                     rows.append([NAMES[rid]+' Kamera an tool0',matrix,
                                  f"Val: {quality['median_reprojection_rms_px']:.3f} px / {quality['board_translation_rms_m']*1000:.2f} mm",
                                  f"{gt.get('translation_m',0)*1000:.2f} mm / {gt.get('rotation_deg',0):.3f}°"])
+                for rid,matrix in state.get('table_bases',{}).items():
+                    rows.append([NAMES[rid]+' Basis im Tisch',np.asarray(matrix),'abhängig von konfigurierter Boardpose',''])
                 for table,pair in state.get('relative_bases',{}).items():
                     gt=state.get('ground_truth',{}).get('relative_bases',{}).get(table,{})
                     interval=pair.get('distance_bootstrap_interval_mm')
@@ -131,6 +144,9 @@ class Window(QtWidgets.QMainWindow):
                             ' / '.join(f'{v:.2f}' for v in Rotation.from_matrix(matrix[:3,:3]).as_euler('xyz',degrees=True)),quality,truth]
                     for j,value in enumerate(values):self.result_table.setItem(i,j,QtWidgets.QTableWidgetItem(value))
                 self.last_result=text
+        elif self.last_result:
+            self.last_result='';self.result_table.setRowCount(0)
+            self.results.setPlainText('Aktives Profil: '+state.get('active_profile','keines'))
         if self.closing and (phase in ('STOPPED','IDLE','READY','COMPLETE','ERROR') and state.get('stopped')):
             self.allow_close=True;self.closing=False;self.timer.stop();self.close()
         elif self.closing and time.monotonic()-self.close_started>3:
@@ -140,7 +156,7 @@ class Window(QtWidgets.QMainWindow):
     def closeEvent(self,event):
         if self.node.state.get('client_id')!=self.node.client_id:event.accept();return
         if self.allow_close:event.accept();return
-        if self.close_started is None and not self.closing and self.node.state.get('phase') not in ('MOVING','RUNNING','SETTLING','CAPTURING','RETURNING','PREPARING','SOLVING','PAUSED','HALTING'):
+        if self.close_started is None and not self.closing and self.node.state.get('phase') not in ('MOVING','RUNNING','SETTLING','CAPTURING','RETURNING','PREPARING','SOLVING','PAUSED','HALTING','APPLYING'):
             event.accept();return
         if not self.closing:
             self.closing=True;self.close_started=time.monotonic();self.node.command('stop')

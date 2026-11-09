@@ -41,7 +41,20 @@
   zur Auswahl/Initialisierung der PnP-Lösung verwenden. Bekannte Hand-Auge-
   Transformation nicht als aus einer Einzelansicht neu kalibriert bezeichnen.
 - Simulation isoliert betreiben: Domain 64, lokale Discovery, Partition `uwa_cell_sim`.
-  Hardware-Anbindung, MoveIt und kollisionsfreie Planung sind spätere Schritte.
+  Seit 2026-11-09 ist MoveIt-Kollisionsprüfung für die automatische Kalibrierung
+  umgesetzt. Allgemeine kooperative Planung und Hardware-Anbindung bleiben Folgearbeit.
+- Automatische Hand-Auge-Kalibrierung: unbekannte Kameraextrinsics aus mehreren
+  Stellungen schätzen, nominelle Montagen ausschließlich zum Planen verwenden.
+  Validierungsbilder vor Aufnahme festlegen und nie zum Fit verwenden. Ground
+  Truth erst nach dem Fit getrennt vergleichen. Linkes/rechtes Tischpaar getrennt.
+- Genehmigte Bedienung: eigene Qt-GUI für die Kalibrierung mit Vorbereitung,
+  Start, Pause/Fortsetzen, jederzeit erreichbarem Stopp und explizitem Übernehmen.
+  rqt bleibt die manuelle Zellsteuerung. Nur ein Arm bewegt sich; alle Wege
+  werden gegen die vollständige MoveIt-Szene geprüft. Blockierte Wege ablehnen.
+- Übernommene Kalibrierung ausschließlich als versioniertes Profil und separates
+  `calibrated/`-TF-/Planungsmodell aktivieren. Physische Gazebo-Montagen und
+  Ground-Truth-Modell erhalten. Keine automatische Rückfahrt nach Stopp/Fehler.
+  Sitzungen/Rohbilder unter `$UWA_WS/setup/calibration/` nicht einchecken.
 
 ## Verbindliche Bedienerwartungen
 

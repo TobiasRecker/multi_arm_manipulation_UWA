@@ -19,6 +19,7 @@ from scipy.spatial.transform import Rotation
 import rclpy
 from rclpy.action import ActionClient, ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.clock import Clock,ClockType
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy, qos_profile_sensor_data
@@ -37,14 +38,14 @@ from uwa_cell_calibration_msgs.action import RunCalibration
 from uwa_cell_calibration_msgs.srv import PrepareCalibration, ApplyCalibration
 
 from uwa_cell_gazebo.configuration import load_layout, joint_names, gripper_joint, ROBOT_IDS, default_layout_path, render_description
-from uwa_cell_gazebo.charuco import detect_pose, pose_error
+from uwa_cell_gazebo.charuco import detect_pose, pose_error, table_board_transform
 from uwa_cell_gazebo.charuco_check import tf_matrix
 from .model import calibrated_description
 from .planner import PlanningProcess
 from .storage import atomic_json, fingerprint, validate_result
 
 PREFIX='/uwa_cell/calibration'
-ACTIVE={'PREPARING','RUNNING','MOVING','SETTLING','CAPTURING','RETURNING','PAUSED','SOLVING'}
+ACTIVE={'PREPARING','RUNNING','MOVING','SETTLING','CAPTURING','RETURNING','PAUSED','SOLVING','APPLYING'}
 
 
 class CaptureFailure(ValueError):
@@ -80,6 +81,7 @@ class Backend(Node):
         self.positions={};self.velocities={};self.last_joints=0.;self.history=deque(maxlen=3000)
         self.images={};self.infos={};self.last_images={};self.detections={r:deque(maxlen=80) for r in ROBOT_IDS}
         self.processed={};self.heartbeat=0.;self.owner='';self.clock_value=None;self.last_clock_change=time.monotonic()
+        self.frozen={};self.hold_positions={};self.camera_quality={};self.goal_callback_pending=False
         self.motion_handle=None;self.pending_goal=None;self.goal_reserved=False;self.run_handle=None
         self.motion_result=None
         self.plan=None;self.session=None;self.halt_thread=None;self.running=False;self.threads=[]
@@ -108,22 +110,51 @@ class Backend(Node):
             self.create_service(Trigger,PREFIX+'/'+command,lambda req,res,c=command:self.control(c,res),callback_group=self.group)
         self.action=ActionServer(self,RunCalibration,PREFIX+'/run',execute_callback=self.execute,
                                  goal_callback=self.accept_goal,cancel_callback=self.cancel_goal,callback_group=self.group)
-        self.create_timer(.1,self.publish_status,callback_group=self.group)
+        self.status_clock=Clock(clock_type=ClockType.STEADY_TIME)
+        self.create_timer(.1,self.publish_status,clock=self.status_clock,callback_group=self.group)
         self.create_timer(.05,self.publish_model,callback_group=self.group)
         self.spawn(self.image_loop);self.spawn(self.watchdog)
+        if (self.root/'profiles/active.json').is_file():
+            self.status('RESTORING',message='Lade gespeichertes kalibriertes Modell')
+            self.operation_thread=self.spawn(self.restore_existing)
 
     def spawn(self,function):
         thread=threading.Thread(target=function,daemon=True);self.threads.append(thread);thread.start();return thread
+
+    def restore_existing(self):
+        try:
+            deadline=time.monotonic()+30
+            while not self.description or time.monotonic()-self.last_joints>1:
+                if self.halted():raise InterruptedError('Profile restore stopped')
+                if time.monotonic()>deadline:raise TimeoutError('Start the simulated cell before restoring its calibration profile')
+                time.sleep(.05)
+            profile=json.loads((self.root/'profiles/active.json').read_text())
+            if profile.get('description_fingerprint')!=fingerprint(self.description):raise ValueError('Active profile does not match the current cell')
+            self.install_model(profile);self.profile_restored=True
+            self.status('IDLE',active_profile=str(self.root/'profiles/active.json'),message='Gespeichertes kalibriertes Modell aktiv',
+                        **self.result_fields(profile,self.root/'profiles/active.json'))
+        except Exception as error:
+            self.status('STOPPED' if self.abort.is_set() else 'ERROR',message=str(error))
+            self.get_logger().error(str(error))
 
     def status(self,phase=None,**fields):
         with self.mutex:
             if phase:self.state['phase']=phase
             self.state.update(fields)
 
+    def result_fields(self,profile,path):
+        truth_path=Path(profile.get('session_dir',''))/'ground_truth_validation.json'
+        try:truth=json.loads(truth_path.read_text()) if truth_path.is_file() else {}
+        except (OSError,ValueError):truth={}
+        return {'result_path':str(path),'summary':{r:{k:v for k,v in fit.items() if k not in ('bootstrap_base_board','validation_samples')}
+                                                 for r,fit in profile['robots'].items()},
+                'relative_bases':profile.get('relative_bases',{}),'table_bases':profile.get('table_bases',{}),'ground_truth':truth}
+
     def publish_status(self):
         with self.mutex:state=dict(self.state)
         state['client_id']=self.owner
-        state['stopped']=self.stationary()
+        state['stopped']=self.stationary() and time.monotonic()-self.last_joints<.5
+        state['camera_quality']=dict(self.camera_quality)
         self.status_pub.publish(String(data=json.dumps(state)))
         if self.run_handle and self.run_handle.is_active:
             feedback=RunCalibration.Feedback()
@@ -170,6 +201,8 @@ class Backend(Node):
                     pixels=rgb_image(msg)
                     detected=detect_pose(pixels,np.array(info.k).reshape(3,3),np.array(info.d),self.layout['charuco'],self.layout['robots'][rid]['table'])
                     self.detections[rid].append((msg,info,detected,pixels))
+                    self.camera_quality[rid]=({'corners':detected['corners'],'reprojection_rms_px':detected['reprojection_rms_px']}
+                                              if detected else {'corners':0})
                     annotated=detected['annotated'] if detected else pixels
                     out=Image();out.header=msg.header;out.encoding='bgr8';out.height,out.width=annotated.shape[:2]
                     out.step=out.width*3;out.data=annotated.tobytes();self.preview[rid].publish(out)
@@ -184,12 +217,26 @@ class Backend(Node):
             time.sleep(.01)
         return future.result()
 
-    def require_telemetry(self):
+    def require_telemetry(self,interruptible=True):
         if not self.description:raise ValueError('No live robot_description; start the simulated cell first')
         if time.monotonic()-self.last_joints>1:raise ValueError('Fresh simulated joint states are required')
         if any(j not in self.positions for r in ROBOT_IDS for j in joint_names(r)):raise ValueError('Missing arm joint states')
-        if self.state['phase'] not in ('MOVING','RETURNING') and not self.stationary():
-            raise ValueError('All arms/grippers must be stationary')
+        if self.state['phase'] not in ('MOVING','RETURNING'):
+            # An isolated velocity spike is possible even on actuated joints in
+            # Gazebo. Require a stable window before dispatch, rather than
+            # aborting a valid dataset on one noisy telemetry sample.
+            deadline=time.monotonic()+2.;stable=None
+            while time.monotonic()<deadline:
+                if interruptible and self.halted():raise InterruptedError('Stationary check interrupted')
+                if time.monotonic()-self.last_joints>1:raise ValueError('Joint telemetry stale')
+                if self.stationary():
+                    stable=stable or time.monotonic()
+                    if time.monotonic()-stable>=.2:break
+                else:stable=None
+                time.sleep(.02)
+            else:
+                moving={j:self.velocities.get(j) for j in self.stop_joints if abs(self.velocities.get(j,1))>=.01}
+                raise ValueError(f'All arms/grippers must be stationary: {moving}')
 
     def stationary(self):
         # Passive mimic velocity telemetry jitters in this Gazebo backend.
@@ -229,7 +276,9 @@ class Backend(Node):
                 response.accepted=False;response.message='Select unique cell robot IDs, 30-50 samples and a client ID';return response
             self.abort.clear();self.pause.clear();self.owner=request.client_id;self.heartbeat=time.monotonic()
             self.preparation_start=time.monotonic()
-            self.state.update(phase='PREPARING',message='Prüfe Telemetrie und plane Messstellungen',plan_id='',result_path='',robot_id='',accepted=0,rejected=0,target=request.samples_per_robot,counts={r:0 for r in ids})
+            self.frozen=dict(self.positions)
+            self.state.update(phase='PREPARING',message='Prüfe Telemetrie und plane Messstellungen',plan_id='',result_path='',robot_id='',accepted=0,rejected=0,target=request.samples_per_robot,counts={r:0 for r in ids},
+                              summary={},ground_truth={},relative_bases={},table_bases={})
         self.operation_thread=self.spawn(lambda:self.prepare_work(ids,request.samples_per_robot))
         response.accepted=True;response.message='Preparation started';return response
 
@@ -243,12 +292,12 @@ class Backend(Node):
                 raise ValueError('Layout does not match the running cell; restart the cell with this layout')
             active=self.root/'profiles/active.json'
             if not self.profile_restored:
-                self.profile_restored=True
                 if active.is_file():
                     profile=json.loads(active.read_text())
                     if profile.get('description_fingerprint')!=fingerprint(self.description):raise ValueError('Active profile does not match the current cell; remove/replace it explicitly')
                     self.install_model(profile)
                     self.state['active_profile']=str(active)
+                self.profile_restored=True
             for rid in ids:
                 if not self.layout['robots'][rid]['tools']['camera_enabled'] or rid not in self.infos:raise ValueError(f'{rid}: camera not available')
                 if time.monotonic()-self.last_images.get(rid,0)>2:raise ValueError(f'{rid}: camera stream stale')
@@ -265,7 +314,9 @@ class Backend(Node):
                        'robots':ids,'samples_per_robot':count,'start':start,'matrices':matrices,'plans':plans,
                        'layout':self.layout,'session_dir':str(self.session)}
             atomic_json(self.session/'plan.json',self.plan)
-            self.status('READY',plan_id=self.plan['plan_id'],robot_id='',accepted=0,target=count,message='Posen und Wege geprüft. Start ist möglich.')
+            with self.motion_lock:
+                if self.halted():raise InterruptedError('Preparation interrupted before ready')
+                self.status('READY',plan_id=self.plan['plan_id'],robot_id='',accepted=0,target=count,message='Posen und Wege geprüft. Start ist möglich.')
         except InterruptedError:
             self.status('STOPPED',message='Vorbereitung gestoppt')
         except Exception as error:
@@ -312,17 +363,20 @@ class Backend(Node):
     def confirm_halt(self):
         deadline=time.monotonic()+1.5;stable=None
         while time.monotonic()<deadline and not self.shutdown_event.is_set():
-            pending=self.pending_goal is not None and not self.pending_goal.done()
+            pending=self.goal_callback_pending or (self.pending_goal is not None and not self.pending_goal.done())
             stopped=(self.stationary() and time.monotonic()-self.last_joints<.5)
             if stopped and not pending and self.motion_handle is None:
                 stable=stable or time.monotonic()
                 if time.monotonic()-stable>=.2:
+                    self.hold_positions=dict(self.positions)
                     self.status('PAUSED' if self.pause.is_set() and not self.abort.is_set() else 'STOPPED',message='Stillstand bestätigt: '+self.state.get('stop_reason',''))
                     return
             else:stable=None
             time.sleep(.02)
-        self.pause_world()
-        self.abort.set();self.status('STOPPED',message='Stopp nicht rechtzeitig bestätigt; Gazebo pausiert. Sitzung abgebrochen.')
+        paused=self.pause_world()
+        self.abort.set();self.status('STOPPED',world_pause_confirmed=paused,
+                                    message=('Stopp nicht rechtzeitig bestätigt; Gazebo-Pause bestätigt. Sitzung abgebrochen.' if paused
+                                             else 'ACHTUNG: Weder Stillstand noch Gazebo-Pause bestätigt. Keine weiteren Fahrbefehle.'))
 
     def pause_world(self):
         try:
@@ -341,14 +395,15 @@ class Backend(Node):
             if phase not in ACTIVE:continue
             if now-self.heartbeat>1.5:
                 self.request_halt('GUI/client heartbeat lost');continue
-            if phase=='PREPARING':continue
             if now-self.last_joints>1 or now-self.last_clock_change>1:
                 self.request_halt('Joint telemetry or simulation clock stale');continue
-            if self.running:
+            if self.running or phase in ('PREPARING','APPLYING'):
                 rid=self.state['robot_id']
                 if rid and now-self.last_images.get(rid,0)>2:self.request_halt('Camera stream lost')
-                controlled=set(joint_names(rid)) if rid else set()
-                for joint,position in self.frozen.items():
+                holding=phase in ('PAUSED','CAPTURING')
+                controlled=set(joint_names(rid)) if rid and self.running and not holding else set()
+                baseline=self.hold_positions if holding else self.frozen
+                for joint,position in baseline.items():
                     if joint not in controlled and abs(self.positions.get(joint,position)-position)>.015:
                         self.request_halt(f'Unexpected movement of {joint}');break
 
@@ -372,7 +427,9 @@ class Backend(Node):
         if not client.wait_for_server(timeout_sec=3):raise ValueError(f'{rid}: trajectory action missing')
         with self.motion_lock:
             if self.halted():raise InterruptedError('Stopped before goal dispatch')
-            self.pending_goal=client.send_goal_async(goal)
+            registered=threading.Event();self.goal_callback_pending=True
+            try:self.pending_goal=client.send_goal_async(goal)
+            except Exception:self.goal_callback_pending=False;raise
             def accepted(future):
                 try:
                     handle=future.result()
@@ -386,8 +443,13 @@ class Backend(Node):
                             self.motion_result.add_done_callback(finished)
                         if self.halted() and handle.accepted:handle.cancel_goal_async()
                 except Exception:pass
+                finally:self.goal_callback_pending=False;registered.set()
             self.pending_goal.add_done_callback(accepted)
         handle=self.wait_future(self.pending_goal)
+        callback_deadline=time.monotonic()+2
+        while not registered.wait(.01):
+            if self.halted():raise InterruptedError('Stopped during goal registration')
+            if time.monotonic()>callback_deadline:raise TimeoutError('Controller goal registration timed out')
         if not handle.accepted:raise ValueError(f'{rid}: trajectory rejected')
         result_future=self.motion_result
         if result_future is None:raise ValueError('Trajectory result callback was not registered')
@@ -407,6 +469,7 @@ class Backend(Node):
         raise TimeoutError('Robot did not settle')
 
     def capture(self,rid,pose,index):
+        self.hold_positions=dict(self.positions)
         self.status('CAPTURING',message='Wähle scharfes Bild aus fünf frischen Boardansichten')
         after=self.clock_value;deadline=time.monotonic()+6;seen=set();choices=[]
         expected=self.plan['matrices'][rid]
@@ -440,6 +503,7 @@ class Backend(Node):
                 'T_base_tool0':tf_matrix(tf).tolist(),'T_camera_board':detected['T_camera_board'].tolist(),
                 'camera_matrix':np.asarray(info.k).reshape(3,3).tolist(),'distortion':list(info.d),
                 'camera_info':{'frame':info.header.frame_id,'width':info.width,'height':info.height,'k':list(info.k),'d':list(info.d),'r':list(info.r),'p':list(info.p),'distortion_model':info.distortion_model},
+                'joint_stamp':joint_sample[0],
                 'object_points':detected['object_points'],'image_points':detected['image_points'],
                 'corners':detected['corners'],'reprojection_rms_px':detected['reprojection_rms_px'],
                 'joint_names':joint_names(rid),'joints':[joint_sample[1][j] for j in joint_names(rid)]}
@@ -453,8 +517,17 @@ class Backend(Node):
             self.require_telemetry();self.require_controllers(self.plan['robots'])
             if fingerprint(self.description)!=self.plan['description_fingerprint']:raise ValueError('Cell model changed since preparation')
             if any(abs(self.positions.get(j,q)-q)>.015 for j,q in self.plan['start'].items()):raise ValueError('Joint state changed since preparation; prepare again')
+            for rid,expected in self.plan['matrices'].items():
+                info=self.infos.get(rid)
+                if (info is None or info.header.frame_id!=expected['frame'] or
+                    (info.width,info.height)!=(expected['width'],expected['height']) or
+                    not np.allclose(info.k,np.asarray(expected['k']).ravel()) or list(info.d)!=expected['d']):
+                    raise ValueError('CameraInfo changed since preparation; prepare again')
             self.frozen=dict(self.positions)
             self.status('RUNNING',message='Messfahrt gestartet')
+            run_start=dict(self.positions)
+            self.plan['run_start']=run_start;self.plan['run_start_stamp']=self.clock_value
+            atomic_json(self.session/'plan.json',self.plan)
             for rid in self.plan['robots']:
                 self.status(robot_id=rid,accepted=0,target=self.plan['samples_per_robot'])
                 spare=iter(self.plan['plans'][rid]['reserve'])
@@ -471,6 +544,7 @@ class Backend(Node):
                             if self.abort.is_set():raise
                             self.wait_unpaused();continue
                         except CaptureFailure as error:
+                            self.get_logger().warn(str(error))
                             # Motion failures are never recovered by blindly dispatching another goal.
                             if self.state['phase']!='CAPTURING':raise
                             attempt+=1;self.status(rejected=self.state['rejected']+1,message=str(error))
@@ -481,15 +555,19 @@ class Backend(Node):
                     counts=dict(self.state['counts']);counts[rid]=len(records[rid])
                     self.status(accepted=len(records[rid]),counts=counts)
                 while True:
-                    try:self.move(rid,self.plan['plans'][rid]['start_joints'],returning=True);break
+                    try:self.move(rid,[run_start[j] for j in joint_names(rid)],returning=True);break
                     except InterruptedError:
                         if self.abort.is_set():raise
                         self.wait_unpaused()
                 self.frozen.update({j:self.positions[j] for j in joint_names(rid)})
             self.status('SOLVING',robot_id='',message='Hand-Auge-Schätzung und unabhängige Validierung')
             solved=self.ensure_planner().call({'op':'solve','records':records},self.halted)
+            if self.halted():raise InterruptedError('Solving stopped')
             solved['description_fingerprint']=fingerprint(self.description)
             solved['session_dir']=str(self.session)
+            solved['robot_sessions']={r:str(self.session) for r in solved['robots']}
+            solved['table_bases']={r:(table_board_transform(self.layout['charuco'],self.layout['robots'][r]['table'])@
+                                       np.linalg.inv(fit['T_base_board'])).tolist() for r,fit in solved['robots'].items()}
             # Truth is obtained only after fitting, and is stored separately.
             truth={}
             for rid in records:
@@ -506,11 +584,13 @@ class Backend(Node):
             atomic_json(self.session/'result.json',solved)
             result.success=solved['passed'];result.result_path=str(self.session/'result.json')
             result.message='Calibration passed' if result.success else 'Independent validation failed'
-            self.status('COMPLETE',result_path=result.result_path,message=result.message,ground_truth=validation,
-                        summary={r:{k:v for k,v in fit.items() if k not in ('bootstrap_base_board','validation_samples')} for r,fit in solved['robots'].items()},
-                        relative_bases=solved['relative_bases'])
-            if result.success:goal.succeed()
-            else:goal.abort()
+            with self.motion_lock:
+                if self.halted():raise InterruptedError('Session stopped before publishing result')
+                self.status('COMPLETE',result_path=result.result_path,message=result.message,ground_truth=validation,
+                            summary={r:{k:v for k,v in fit.items() if k not in ('bootstrap_base_board','validation_samples')} for r,fit in solved['robots'].items()},
+                            relative_bases=solved['relative_bases'],table_bases=solved['table_bases'])
+                if result.success:goal.succeed()
+                else:goal.abort()
         except InterruptedError:
             result.success=False;result.message='Session stopped; accepted observations preserved'
             if goal.is_cancel_requested:goal.canceled()
@@ -523,8 +603,14 @@ class Backend(Node):
         return result
 
     def apply(self,request,response):
-        if self.state['phase'] not in ('COMPLETE','READY','IDLE','STOPPED','ERROR') or self.goal_reserved or (self.operation_thread and self.operation_thread.is_alive()):
-            response.accepted=False;response.message='Apply is allowed only while idle and stationary';return response
+        with self.mutex:
+            if self.state['phase'] not in ('COMPLETE','READY','IDLE','STOPPED','ERROR') or self.goal_reserved or (self.operation_thread and self.operation_thread.is_alive()):
+                response.accepted=False;response.message='Apply is allowed only while idle and stationary';return response
+            if not request.client_id:
+                response.accepted=False;response.message='A responsive client ID is required';return response
+            self.abort.clear();self.pause.clear();self.frozen=dict(self.positions)
+            self.owner=request.client_id;self.heartbeat=time.monotonic()
+            self.status('APPLYING',message='Prüfe und aktiviere getrenntes kalibriertes Modell')
         try:
             self.require_telemetry()
             path=Path(request.result_path).resolve()
@@ -536,34 +622,54 @@ class Backend(Node):
                 if previous.get('description_fingerprint')==profile['description_fingerprint']:
                     validate_result(previous)
                     profile['robots']={**previous['robots'],**profile['robots']}
-        except Exception as error:response.accepted=False;response.message=str(error);return response
-        self.status('APPLYING',message='Prüfe und aktiviere getrenntes kalibriertes Modell')
+                    profile['robot_sessions']={**previous.get('robot_sessions',{}),**profile.get('robot_sessions',{})}
+                    from .solver import relative_bases
+                    profile['relative_bases']=relative_bases(profile['robots'])
+            profile['table_bases']={r:(table_board_transform(self.layout['charuco'],self.layout['robots'][r]['table'])@
+                                     np.linalg.inv(fit['T_base_board'])).tolist() for r,fit in profile['robots'].items()}
+        except Exception as error:
+            if not self.abort.is_set():self.status('ERROR',message=f'Profil nicht übernommen: {error}')
+            response.accepted=False;response.message=str(error);return response
         self.operation_thread=self.spawn(lambda:self.apply_work(profile,path))
         response.accepted=True;response.message='Profile activation started';return response
 
-    def install_model(self,profile,commit=None):
+    def install_model(self,profile,commit=None,rollback=None):
         validate_result(profile)
         description=calibrated_description(self.description,self.layout,profile)
+        parsed=ET.fromstring(description)
         candidate=PlanningProcess(description,self.root/'calibrated_planning')
         try:
-            if not candidate.call({'op':'check','positions':dict(self.positions)}):raise ValueError('Calibrated planning scene is in collision')
+            if not candidate.call({'op':'check','positions':dict(self.positions)},self.halted):raise ValueError('Calibrated planning scene is in collision')
         except Exception:candidate.cancel();raise
+        committed=False
         try:
-            if commit:commit()
-        except Exception:candidate.cancel();raise
-        old=self.planner;self.planner=candidate;self.active_description=description;self.model_xml=ET.fromstring(description)
-        self.description_pub.publish(String(data=description))
+            self.require_telemetry()
+            with self.motion_lock:
+                if self.halted():raise InterruptedError('Model activation stopped')
+                if commit:commit();committed=True
+                self.description_pub.publish(String(data=description))
+                old=self.planner;self.planner=candidate;self.active_description=description;self.model_xml=parsed
+        except Exception:
+            candidate.cancel()
+            if committed and rollback:rollback()
+            raise
         if old:old.cancel()
 
     def apply_work(self,profile,path):
         previous=self.active_description;old_profile=self.state['active_profile']
         try:
             profiles=self.root/'profiles';profiles.mkdir(exist_ok=True)
-            destination=profiles/(self.session.name+'.json' if self.session else uuid.uuid4().hex+'.json')
+            active=profiles/'active.json'
+            saved=json.loads(active.read_text()) if active.is_file() else None
+            destination=profiles/((self.session.name+'_' if self.session else '')+uuid.uuid4().hex[:8]+'.json')
             def commit():
-                atomic_json(destination,profile);atomic_json(profiles/'active.json',profile)
-            self.install_model(profile,commit)
-            self.status('COMPLETE',active_profile=str(destination),message='Kalibriertes TF- und Planungsmodell aktiv; Gazebo unverändert')
+                atomic_json(destination,profile);atomic_json(active,profile)
+            def rollback():
+                if saved is None:active.unlink(missing_ok=True)
+                else:atomic_json(active,saved)
+            self.install_model(profile,commit,rollback)
+            self.status('STOPPED' if self.abort.is_set() else 'COMPLETE',active_profile=str(destination),message='Kalibriertes TF- und Planungsmodell aktiv; Gazebo unverändert',
+                        **self.result_fields(profile,path))
             self.plan=None;self.state['plan_id']=''
         except Exception as error:
             # No active profile file is replaced until the new model has loaded successfully.

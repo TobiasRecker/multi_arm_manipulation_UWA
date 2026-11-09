@@ -113,7 +113,9 @@ def test_calibrated_model_is_separate_and_other_arms_are_collision_geometry(data
     assert 'calibrated/left_front_base_link' in changed
     assert 'calibrated/' not in description
     assert ET.fromstring(changed).find('gazebo') is None
-    assert fingerprint(description)==fingerprint(description)
+    for rid in ROBOT_IDS:
+        actual=Chain(changed,'calibrated/'+rid+'_tool0','calibrated/'+rid+'_wrist_camera_optical_frame').forward({})
+        np.testing.assert_allclose(actual,truth[rid]['x'],atol=1e-10)
     original=ET.fromstring(description)
     # Put the second arm on top of the first to prove cross-arm collision checks
     # are retained; fixed table contacts must not disable moving-arm checks.
@@ -132,3 +134,60 @@ def test_invalid_profile_is_rejected_before_publication(data):
     with pytest.raises(ValueError):validate_result(bad)
     bad=deepcopy(result);bad['robots']['left_front']['validation']['median_reprojection_rms_px']=10
     with pytest.raises(ValueError):validate_result(bad)
+
+
+def test_passive_mimic_velocity_does_not_mask_actual_arm_motion():
+    from types import SimpleNamespace
+    from uwa_cell_calibration.backend import Backend
+    state=SimpleNamespace(stop_joints=['arm_joint','gripper_driver'],velocities={'arm_joint':0.,'gripper_driver':0.,'mimic':.2})
+    assert Backend.stationary(state)
+    state.velocities['arm_joint']=.02
+    assert not Backend.stationary(state)
+
+
+def test_stationary_window_recovers_from_one_transient_velocity_sample():
+    import time
+    from types import SimpleNamespace
+    from uwa_cell_calibration.backend import Backend
+    readings=iter([False]+[True]*100)
+    state=SimpleNamespace(description='live',last_joints=time.monotonic(),
+        positions={j:0. for r in ROBOT_IDS for j in joint_names(r)},state={'phase':'CAPTURING'},
+        halted=lambda:False,stationary=lambda:next(readings),velocities={},stop_joints=[])
+    started=time.monotonic()
+    Backend.require_telemetry(state)
+    assert time.monotonic()-started>=.2
+
+
+def test_failed_model_loading_and_profile_commit_keep_previous_model(data,tmp_path,monkeypatch):
+    import threading
+    from types import SimpleNamespace
+    from uwa_cell_calibration import backend
+    result=solve_session({'left_front':data[-2]['left_front']},bootstrap_count=0)
+    attempts=[];publications=[]
+    class Candidate:
+        allowed=False
+        def __init__(self,*args):self.cancelled=False;attempts.append(self)
+        def call(self,*args):return self.allowed
+        def cancel(self):self.cancelled=True
+    old=Candidate()
+    model=SimpleNamespace(description=data[1],layout=data[0],root=tmp_path,positions=data[3],
+        halted=lambda:False,require_telemetry=lambda:None,motion_lock=threading.RLock(),
+        planner=old,active_description='previous',model_xml='previous xml',
+        description_pub=SimpleNamespace(publish=publications.append))
+    monkeypatch.setattr(backend,'PlanningProcess',Candidate)
+    with pytest.raises(ValueError,match='collision'):backend.Backend.install_model(model,result)
+    assert model.planner is old and model.active_description=='previous' and not old.cancelled
+    assert attempts[-1].cancelled and not publications
+    Candidate.allowed=True
+    def failing_commit():raise OSError('disk unavailable')
+    with pytest.raises(OSError):backend.Backend.install_model(model,result,failing_commit)
+    assert model.planner is old and not old.cancelled and not publications
+    assert attempts[-1].cancelled
+    profile_state={'active':'previous'}
+    def publish_failure(_):raise RuntimeError('publisher unavailable')
+    model.description_pub=SimpleNamespace(publish=publish_failure)
+    with pytest.raises(RuntimeError,match='publisher'):
+        backend.Backend.install_model(model,result,lambda:profile_state.update(active='new'),
+                                     lambda:profile_state.update(active='previous'))
+    assert profile_state['active']=='previous' and model.planner is old and not old.cancelled
+    assert model.model_xml=='previous xml' and attempts[-1].cancelled

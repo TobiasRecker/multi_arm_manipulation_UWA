@@ -155,6 +155,15 @@ eine neue Layoutdatei; die Eingabedatei wird nicht überschrieben. Er führt
 keine Bewegung aus und garantiert keine Kollisionsfreiheit. Die gelieferten
 Defaultstellungen werden zusätzlich mit den echten Gazebo-Bildern geprüft.
 
+## Unbekannte Kameramontage aus mehreren Stellungen kalibrieren
+
+Die hier beschriebene erste Bildprüfung verwendet die nominell bekannte
+Hand-Auge-Transformation. Für deren tatsächliche Schätzung gibt es jetzt die
+[automatische Hand-Auge-Routine mit Qt-GUI](automatic_handeye.md). Sie erfasst
+standardmäßig 40 unterschiedliche Stellungen pro Arm, trennt Fit und
+Validierung, bestimmt beide relativen Tischpaare und aktiviert Ergebnisse
+erst nach ausdrücklichem Übernehmen in einem getrennten Modell.
+
 ## Abhängigkeiten und Quellen
 
 Benötigt wird OpenCV mit `aruco.CharucoDetector` und `CharucoBoard.matchImagePoints`;

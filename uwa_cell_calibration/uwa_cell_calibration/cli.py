@@ -27,7 +27,7 @@ def main():
         if future is None:raise RuntimeError(node.error)
         while not future.done():node.pulse();time.sleep(.05)
         if not future.result().accepted:raise RuntimeError(future.result().message)
-        last='';started=None;paused_at=None;paused_once=False;resume_sent=False;stop_sent=False;disconnected=False;applying=False
+        last='';started=None;paused_at=None;paused_once=False;resume_sent=False;stop_sent=False;disconnected=False;applying=False;previous_profile=None
         while True:
             node.pulse()
             if node.error:raise RuntimeError(node.error)
@@ -56,11 +56,12 @@ def main():
             if node.result is not None and not node.result.success and not (stop_sent or disconnected):raise RuntimeError(node.result.message)
             if phase=='COMPLETE' and node.result is not None:
                 print('RESULT',state.get('result_path'),flush=True)
-                if args.apply and not applying:node.apply();applying=True
-                elif not args.apply or state.get('active_profile'):
+                if args.apply and not applying:
+                    previous_profile=state.get('active_profile');node.apply();applying=True
+                elif not args.apply or (state.get('active_profile') and state.get('active_profile')!=previous_profile):
                     print(json.dumps({k:state.get(k) for k in ('result_path','relative_bases','ground_truth','active_profile')},indent=2));return 0
             time.sleep(.1)
     finally:
-        if node.state.get('phase') in ('MOVING','RUNNING','PREPARING','CAPTURING','SETTLING','RETURNING','PAUSED','SOLVING'):
+        if node.state.get('phase') in ('MOVING','RUNNING','PREPARING','CAPTURING','SETTLING','RETURNING','PAUSED','SOLVING','APPLYING'):
             node.command('stop');time.sleep(.5)
         executor.shutdown(timeout_sec=2);node.destroy_node();rclpy.shutdown();thread.join(timeout=2)

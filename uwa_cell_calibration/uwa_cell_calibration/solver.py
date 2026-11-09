@@ -22,6 +22,17 @@ def mean_pose(poses):
     return result
 
 
+def pose_repeatability(poses):
+    """Spread of bootstrap estimates; deliberately not an accuracy claim."""
+    if len(poses) < 2:
+        return None
+    matrices = [np.asarray(p) for p in poses]
+    centre = mean_pose(matrices)
+    return {'draws': len(matrices),
+            'translation_std_mm': (1000*np.std([m[:3, 3] for m in matrices], axis=0, ddof=1)).tolist(),
+            'rotation_rms_deg': float(np.sqrt(np.mean([pose_error(m, centre)['rotation_deg']**2 for m in matrices])))}
+
+
 def pack(matrix):
     return np.r_[Rotation.from_matrix(matrix[:3, :3]).as_rotvec(), matrix[:3, 3]]
 
@@ -123,36 +134,44 @@ def solve_robot(records, bootstrap_count=100):
     }
     passed = (metrics['median_reprojection_rms_px'] <= 1. and
               metrics['board_translation_rms_m'] <= .005 and metrics['board_rotation_rms_deg'] <= .5)
-    rng, draws = np.random.default_rng(4264), []
+    rng, draws, camera_draws = np.random.default_rng(4264), [], []
     for _ in range(bootstrap_count):
         sampled = [kept[i] for i in rng.integers(0, len(kept), len(kept))]
         try:
             bx, by = park(sampled)
             if np.isfinite(by).all():
                 draws.append(by.tolist())
+                camera_draws.append(bx.tolist())
         except (ValueError, cv2.error):
             pass
     return {'passed': passed, 'T_tool0_camera': x.tolist(), 'T_base_board': y.tolist(),
             'fit_count': len(kept), 'validation_count': len(validation), 'excluded_samples': excluded,
             'rotation_singular_values': singular, 'validation': metrics, 'validation_samples': held_out,
-            'bootstrap_base_board': draws, 'uncertainty_label': 'bootstrap repeatability; not absolute accuracy'}
+            'bootstrap_base_board': draws, 'handeye_repeatability': pose_repeatability(camera_draws),
+            'uncertainty_label': 'Park bootstrap repeatability; not absolute accuracy'}
 
 
-def solve_session(records_by_robot, bootstrap_count=100):
-    robots = {rid: solve_robot(records, bootstrap_count) for rid, records in records_by_robot.items()}
+def relative_bases(robots):
     pairs = {}
     for table in ('left', 'right'):
         front, rear = f'{table}_front', f'{table}_rear'
         if front not in robots or rear not in robots:
             continue
         relative = np.asarray(robots[front]['T_base_board']) @ np.linalg.inv(robots[rear]['T_base_board'])
-        distances = [1000*np.linalg.norm((np.asarray(a) @ np.linalg.inv(b))[:3, 3])
-                     for a, b in zip(robots[front]['bootstrap_base_board'], robots[rear]['bootstrap_base_board'])]
+        draws = [np.asarray(a) @ np.linalg.inv(b)
+                 for a, b in zip(robots[front]['bootstrap_base_board'], robots[rear]['bootstrap_base_board'])]
+        distances = [1000*np.linalg.norm(p[:3, 3]) for p in draws]
         pairs[table] = {'T_front_rear': relative.tolist(),
                         'distance_mm': float(1000*np.linalg.norm(relative[:3, 3])),
+                        'pose_repeatability': pose_repeatability(draws),
                         'distance_bootstrap_interval_mm': np.percentile(distances, [2.5,97.5]).tolist() if distances else None}
+    return pairs
+
+
+def solve_session(records_by_robot, bootstrap_count=100):
+    robots = {rid: solve_robot(records, bootstrap_count) for rid, records in records_by_robot.items()}
     return {'schema_version': 1, 'passed': all(r['passed'] for r in robots.values()),
-            'robots': robots, 'relative_bases': pairs,
+            'robots': robots, 'relative_bases': relative_bases(robots),
             'method': 'Park initialization + robust joint image refinement; fixed intrinsics',
             'ground_truth_used_for_fit': False}
 
@@ -168,6 +187,16 @@ def main():
     if not records:
         parser.error('No saved observations found')
     result = solve_session(records)
+    plan_path = args.session/'plan.json'
+    if plan_path.is_file():
+        plan = json.loads(plan_path.read_text())
+        result['description_fingerprint'] = plan['description_fingerprint']
+        result['session_dir'] = str(args.session.resolve())
+        # Derived output only, after the image-only estimation has finished.
+        from uwa_cell_gazebo.charuco import table_board_transform
+        layout = plan['layout']
+        result['table_bases'] = {r: (table_board_transform(layout['charuco'], layout['robots'][r]['table']) @
+                                    np.linalg.inv(fit['T_base_board'])).tolist() for r, fit in result['robots'].items()}
     output = args.session/'result.json'
     output.write_text(json.dumps(result, indent=2)+'\n')
     print(output, 'PASS' if result['passed'] else 'FAIL')
