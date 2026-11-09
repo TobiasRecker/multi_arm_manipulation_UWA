@@ -6,6 +6,7 @@ string message
 ---
 string phase
 string robot_id
+string[] robot_ids
 uint32 accepted
 uint32 target
 uint32 rejected

@@ -22,11 +22,11 @@ from uwa_cell_gazebo.configuration import joint_names
 from .model import CollisionModel
 
 
-def timed_path(model, rid, start, target, velocity=.10, acceleration=.20):
+def timed_path(model, rid, start, target, velocity=.10, acceleration=.20, duration=None):
     names = joint_names(rid)
     q0 = np.array([start[j] for j in names])
     delta = np.asarray(target)-q0
-    duration = max(1., 1.875*np.max(abs(delta))/velocity,
+    duration = max(duration or 0., 1., 1.875*np.max(abs(delta))/velocity,
                    np.sqrt(5.774*np.max(abs(delta))/acceleration))
     count = max(20, int(np.ceil(duration/.1)), int(np.ceil(np.max(abs(delta))/.005)))
     points = []
@@ -160,9 +160,13 @@ def worker(connection, description, directory):
             request=connection.recv()
             try:
                 if request['op']=='prepare':
-                    result=generate_plan(model,request['layout'],request['start'],request['matrices'],
-                                         request['robots'],request['count'],
-                                         lambda p:connection.send({'progress':p}))
+                    from .diagonal import prepare_schedule
+                    result=prepare_schedule(model,request['layout'],request['start'],request['matrices'],
+                                            request['robots'],request['count'],request.get('diagonal_pairs',True),
+                                            lambda p:connection.send({'progress':p}))
+                elif request['op']=='paths':
+                    from .diagonal import coordinated_paths
+                    result=coordinated_paths(model,request['start'],request['targets'])
                 elif request['op']=='path':
                     result=timed_path(model,request['robot'],request['start'],request['target'])
                 elif request['op']=='solve':

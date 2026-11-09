@@ -203,7 +203,7 @@ def test_unconfirmed_stop_and_pending_acceptance_require_pause(monkeypatch,pause
     monkeypatch.setattr(backend,'time',SimpleNamespace(monotonic=lambda:next(ticks),sleep=lambda _:None))
     events=[];requests=[]
     state=SimpleNamespace(shutdown_event=threading.Event(),abort=threading.Event(),last_joints=0.,
-        goal_callback_pending=pending,pending_goal=None,motion_handle=None,stationary=lambda:stationary,
+        registration_pending={'left_front'} if pending else set(),pending_goals={},motion_handles={},stationary=lambda:stationary,
         pause_world=lambda:requests.append('pause') or pause_ack,
         status=lambda phase,**values:events.append((phase,values)))
     backend.Backend.confirm_halt(state)

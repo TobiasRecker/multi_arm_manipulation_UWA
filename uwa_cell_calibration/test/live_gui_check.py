@@ -45,6 +45,7 @@ def main():
         if args.exercise or args.freeze or args.planning or args.capture:
             assert node.state['phase'] in ('IDLE','STOPPED','ERROR','READY','COMPLETE'), 'Another session is active'
             for rid,box in window.robots.items():box.setChecked(rid=='left_front')
+            window.diagonal.setChecked(False)
             window.prepare_button.click()
             if args.planning:
                 until(lambda:node.state.get('phase')=='PREPARING' and node.state.get('accepted',0)>0 and node.state.get('client_id')==node.client_id)

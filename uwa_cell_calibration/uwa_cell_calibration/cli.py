@@ -10,6 +10,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--robots',nargs='+',choices=ROBOT_IDS,default=list(ROBOT_IDS))
     p.add_argument('--samples',type=int,default=40)
+    p.add_argument('--sequential',action='store_true',help='Legacy one-arm mode without diagonal parking')
     p.add_argument('--apply',action='store_true')
     p.add_argument('--stop-after',type=float)
     p.add_argument('--pause-after',type=float)
@@ -23,7 +24,7 @@ def main():
     deadline=time.monotonic()+15
     try:
         while not node.prepare_client.service_is_ready() and time.monotonic()<deadline:time.sleep(.1)
-        future=node.prepare(args.robots,args.samples)
+        future=node.prepare(args.robots,args.samples,not args.sequential)
         if future is None:raise RuntimeError(node.error)
         while not future.done():node.pulse();time.sleep(.05)
         if not future.result().accepted:raise RuntimeError(future.result().message)
@@ -34,7 +35,8 @@ def main():
             state=node.state;phase=state.get('phase','')
             if state.get('client_id')!=node.client_id:
                 time.sleep(.05);continue
-            message=f"{phase} {state.get('robot_id','')} {state.get('accepted',0)}/{state.get('target',0)} {state.get('message','')}"
+            robots='+'.join(state.get('active_robots',[])) or state.get('robot_id','')
+            message=f"{phase} {robots} {state.get('accepted',0)}/{state.get('target',0)} {state.get('message','')}"
             if message!=last:print(message,flush=True);last=message
             if interrupted.is_set() and not stop_sent:node.command('stop');stop_sent=True
             if phase=='READY' and started is None:
@@ -62,6 +64,6 @@ def main():
                     print(json.dumps({k:state.get(k) for k in ('result_path','relative_bases','ground_truth','active_profile')},indent=2));return 0
             time.sleep(.1)
     finally:
-        if node.state.get('phase') in ('MOVING','RUNNING','PREPARING','CAPTURING','SETTLING','RETURNING','PAUSED','SOLVING','APPLYING'):
+        if node.state.get('phase') in ('MOVING','PARKING','POSITIONING','RUNNING','PREPARING','CAPTURING','SETTLING','RETURNING','PAUSED','SOLVING','APPLYING'):
             node.command('stop');time.sleep(.5)
         executor.shutdown(timeout_sec=2);thread.join(timeout=2);node.destroy_node();rclpy.shutdown()

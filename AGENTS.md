@@ -56,8 +56,12 @@
   Truth erst nach dem Fit getrennt vergleichen. Linkes/rechtes Tischpaar getrennt.
 - Genehmigte Bedienung: eigene Qt-GUI für die Kalibrierung mit Vorbereitung,
   Start, Pause/Fortsetzen, jederzeit erreichbarem Stopp und explizitem Übernehmen.
-  rqt bleibt die manuelle Zellsteuerung. Nur ein Arm bewegt sich; alle Wege
-  werden gegen die vollständige MoveIt-Szene geprüft. Blockierte Wege ablehnen.
+  rqt bleibt die manuelle Zellsteuerung. Seit dem Folgeauftrag vom 2026-11-09
+  standardmäßig links vorne + rechts hinten, danach links hinten + rechts vorne
+  parallel kalibrieren; andere Arme vorher seriell zur Seite parken. Alle Wege
+  gegen die vollständige MoveIt-Szene und getrennte gepufferte Bewegungsräume
+  prüfen; blockierte Wege ablehnen. Stopp/Pause betreffen das gesamte aktive Paar.
+  Einzelarmmodus bleibt als Auswahl erhalten; keine automatische Rückfahrt nach Stopp.
 - Übernommene Kalibrierung ausschließlich als versioniertes Profil und separates
   `calibrated/`-TF-/Planungsmodell aktivieren. Physische Gazebo-Montagen und
   Ground-Truth-Modell erhalten. Keine automatische Rückfahrt nach Stopp/Fehler.

@@ -51,9 +51,9 @@ class Client(Node):
             except Exception as error:self.error=str(error)
         future.add_done_callback(done);return future
 
-    def prepare(self,robots,count):
+    def prepare(self,robots,count,diagonal_pairs=True):
         self.error='';self.result=None
-        return self.service(self.prepare_client,PrepareCalibration.Request(robot_ids=robots,samples_per_robot=count,client_id=self.client_id))
+        return self.service(self.prepare_client,PrepareCalibration.Request(robot_ids=robots,samples_per_robot=count,client_id=self.client_id,diagonal_pairs=diagonal_pairs))
 
     def command(self,name):return self.service(self.commands[name],Trigger.Request())
 

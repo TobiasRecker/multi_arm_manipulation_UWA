@@ -1,6 +1,7 @@
 string[] robot_ids
 uint32 samples_per_robot
 string client_id
+bool diagonal_pairs true
 ---
 bool accepted
 string message

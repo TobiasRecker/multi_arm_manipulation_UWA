@@ -1,5 +1,6 @@
 """Independent ROS session owner, capture engine and wall-time motion watchdog."""
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 import fcntl
 import json
@@ -20,6 +21,7 @@ import rclpy
 from rclpy.action import ActionClient, ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.clock import Clock,ClockType
+from rclpy.duration import Duration
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy, qos_profile_sensor_data
@@ -45,7 +47,7 @@ from .planner import PlanningProcess
 from .storage import atomic_json, fingerprint, validate_result
 
 PREFIX='/uwa_cell/calibration'
-ACTIVE={'PREPARING','RUNNING','MOVING','SETTLING','CAPTURING','RETURNING','PAUSED','SOLVING','APPLYING'}
+ACTIVE={'PREPARING','RUNNING','PARKING','POSITIONING','MOVING','SETTLING','CAPTURING','RETURNING','PAUSED','SOLVING','APPLYING'}
 
 
 class CaptureFailure(ValueError):
@@ -81,9 +83,9 @@ class Backend(Node):
         self.positions={};self.velocities={};self.last_joints=0.;self.history=deque(maxlen=3000)
         self.images={};self.infos={};self.last_images={};self.detections={r:deque(maxlen=80) for r in ROBOT_IDS}
         self.processed={};self.heartbeat=0.;self.owner='';self.clock_value=None;self.last_clock_change=time.monotonic()
-        self.frozen={};self.hold_positions={};self.camera_quality={};self.goal_callback_pending=False
-        self.motion_handle=None;self.pending_goal=None;self.goal_reserved=False;self.run_handle=None
-        self.motion_result=None
+        self.frozen={};self.hold_positions={};self.camera_quality={}
+        self.motion_handles={};self.pending_goals={};self.registration_pending=set();self.motion_results={}
+        self.controlled_robots=set();self.goal_reserved=False;self.run_handle=None
         self.plan=None;self.session=None;self.halt_thread=None;self.running=False;self.threads=[]
         self.profile_restored=False;self.command_sent=0.;self.preparation_start=0.
         self.operation_thread=None
@@ -161,6 +163,7 @@ class Backend(Node):
         if self.run_handle and self.run_handle.is_active:
             feedback=RunCalibration.Feedback()
             for key in ('phase','robot_id','accepted','target','rejected','message'):setattr(feedback,key,state[key])
+            feedback.robot_ids=state.get('active_robots',[])
             self.run_handle.publish_feedback(feedback)
 
     def on_description(self,msg):
@@ -223,7 +226,7 @@ class Backend(Node):
         if not self.description:raise ValueError('No live robot_description; start the simulated cell first')
         if time.monotonic()-self.last_joints>1:raise ValueError('Fresh simulated joint states are required')
         if any(j not in self.positions for r in ROBOT_IDS for j in joint_names(r)):raise ValueError('Missing arm joint states')
-        if self.state['phase'] not in ('MOVING','RETURNING'):
+        if self.state['phase'] not in ('MOVING','RETURNING','PARKING','POSITIONING'):
             # An isolated velocity spike is possible even on actuated joints in
             # Gazebo. Require a stable window before dispatch, rather than
             # aborting a valid dataset on one noisy telemetry sample.
@@ -280,13 +283,15 @@ class Backend(Node):
             self.preparation_start=time.monotonic()
             self.frozen=dict(self.positions)
             self.state.update(phase='PREPARING',message='Prüfe Telemetrie und plane Messstellungen',plan_id='',result_path='',robot_id='',accepted=0,rejected=0,target=request.samples_per_robot,counts={r:0 for r in ids},
-                              summary={},ground_truth={},relative_bases={},table_bases={},progress_total=0)
-        self.operation_thread=self.spawn(lambda:self.prepare_work(ids,request.samples_per_robot))
+                              summary={},ground_truth={},relative_bases={},table_bases={},progress_total=0,
+                              active_robots=[],cohort=[],parked_robots=[],stage_index=0,stage_total=0,
+                              mode='diagonal_pairs' if request.diagonal_pairs else 'sequential')
+        self.operation_thread=self.spawn(lambda:self.prepare_work(ids,request.samples_per_robot,request.diagonal_pairs))
         response.accepted=True;response.message='Preparation started';return response
 
-    def prepare_work(self,ids,count):
+    def prepare_work(self,ids,count,diagonal_pairs=True):
         try:
-            self.require_telemetry();self.require_controllers(ids)
+            self.require_telemetry();self.require_controllers(ROBOT_IDS if diagonal_pairs else ids)
             self.layout=load_layout(self.layout_path)
             with tempfile.TemporaryDirectory(prefix='uwa_calibration_reference_') as directory:
                 expected=render_description(self.layout,directory)[0]
@@ -310,10 +315,11 @@ class Backend(Node):
             matrices={r:{'k':np.asarray(self.infos[r].k).reshape(3,3).tolist(),'width':self.infos[r].width,'height':self.infos[r].height,
                          'd':list(self.infos[r].d),'frame':self.infos[r].header.frame_id} for r in ids}
             def progress(p):self.status(**p,message=f"{p['robot_id']}: prüfe Ziel {p['accepted']}/{p['target']}")
-            plans=self.ensure_planner().call({'op':'prepare','layout':self.layout,'start':start,'matrices':matrices,'robots':ids,'count':count},self.halted,progress)
+            prepared=self.ensure_planner().call({'op':'prepare','layout':self.layout,'start':start,'matrices':matrices,'robots':ids,'count':count,
+                                                'diagonal_pairs':diagonal_pairs},self.halted,progress)
             if self.halted():raise InterruptedError('Preparation interrupted')
             self.plan={'schema_version':1,'plan_id':uuid.uuid4().hex,'description_fingerprint':fingerprint(self.description),
-                       'robots':ids,'samples_per_robot':count,'start':start,'matrices':matrices,'plans':plans,
+                       'robots':ids,'samples_per_robot':count,'start':start,'matrices':matrices,**prepared,
                        'layout':self.layout,'session_dir':str(self.session)}
             atomic_json(self.session/'plan.json',self.plan)
             with self.motion_lock:
@@ -353,8 +359,8 @@ class Backend(Node):
         self.status(stop_reason=reason)
         with self.motion_lock:
             (self.pause if pause and not self.abort.is_set() else self.abort).set()
-            if self.motion_handle is not None:
-                try:self.motion_handle.cancel_goal_async()
+            for handle in list(self.motion_handles.values()):
+                try:handle.cancel_goal_async()
                 except Exception:pass
         if self.state['phase'] in ACTIVE or self.running:
             self.status('HALTING',message=reason,stop_reason=reason)
@@ -366,9 +372,9 @@ class Backend(Node):
     def confirm_halt(self):
         deadline=time.monotonic()+1.5;stable=None
         while time.monotonic()<deadline and not self.shutdown_event.is_set():
-            pending=self.goal_callback_pending or (self.pending_goal is not None and not self.pending_goal.done())
+            pending=bool(self.registration_pending) or any(not f.done() for f in list(self.pending_goals.values()))
             stopped=(self.stationary() and time.monotonic()-self.last_joints<.5)
-            if stopped and not pending and self.motion_handle is None:
+            if stopped and not pending and not self.motion_handles:
                 stable=stable or time.monotonic()
                 if time.monotonic()-stable>=.2:
                     self.hold_positions=dict(self.positions)
@@ -401,10 +407,10 @@ class Backend(Node):
             if now-self.last_joints>1 or now-self.last_clock_change>1:
                 self.request_halt('Joint telemetry or simulation clock stale');continue
             if self.running or phase in ('PREPARING','APPLYING'):
-                rid=self.state['robot_id']
-                if rid and now-self.last_images.get(rid,0)>2:self.request_halt('Camera stream lost')
+                for rid in self.state.get('cohort',[]):
+                    if now-self.last_images.get(rid,0)>2:self.request_halt(f'{rid}: camera stream lost')
                 holding=phase in ('PAUSED','CAPTURING')
-                controlled=set(joint_names(rid)) if rid and self.running and not holding else set()
+                controlled={j for rid in self.controlled_robots for j in joint_names(rid)} if self.running and not holding else set()
                 baseline=self.hold_positions if holding else self.frozen
                 for joint,position in baseline.items():
                     if joint not in controlled and abs(self.positions.get(joint,position)-position)>.015:
@@ -416,65 +422,102 @@ class Backend(Node):
         if self.abort.is_set() or self.shutdown_event.is_set():raise InterruptedError('Session stopped')
 
     def move(self,rid,target,returning=False):
+        return self.move_many({rid:target},'RETURNING' if returning else 'MOVING')
+
+    def accept_motion(self,rid,future):
+        """Register every acknowledgement, including those arriving after Stop."""
+        try:
+            handle=future.result()
+            with self.motion_lock:
+                if handle.accepted:
+                    self.motion_handles[rid]=handle
+                    self.motion_results[rid]=handle.get_result_async()
+                    def finished(result,robot=rid,h=handle):
+                        with self.motion_lock:
+                            if self.motion_handles.get(robot) is h:self.motion_handles.pop(robot,None)
+                    self.motion_results[rid].add_done_callback(finished)
+                    if self.halted():handle.cancel_goal_async()
+                else:self.request_halt(f'{rid}: trajectory rejected; cancelling whole cohort')
+        except Exception as error:self.request_halt(f'{rid}: goal acknowledgement failed: {error}')
+        finally:self.registration_pending.discard(rid)
+
+    def move_many(self,targets,phase='MOVING'):
         self.wait_unpaused()
         self.require_telemetry()
-        self.status('RETURNING' if returning else 'MOVING',robot_id=rid,message='Rückfahrt' if returning else 'Fahre geprüfte Messstellung')
-        path=self.ensure_planner().call({'op':'path','robot':rid,'start':dict(self.positions),'target':target},self.halted)
-        goal=FollowJointTrajectory.Goal();goal.trajectory.joint_names=joint_names(rid)
-        for p in path[1:]:
-            point=JointTrajectoryPoint(positions=p['positions'],velocities=p['velocities'],accelerations=p['accelerations'])
-            point.time_from_start.sec=int(p['time']);point.time_from_start.nanosec=round((p['time']-int(p['time']))*1e9)
-            if point.time_from_start.nanosec>=1000000000:point.time_from_start.sec+=1;point.time_from_start.nanosec-=1000000000
-            goal.trajectory.points.append(point)
-        client=self.trajectory_clients[rid]
-        if not client.wait_for_server(timeout_sec=3):raise ValueError(f'{rid}: trajectory action missing')
+        ids=list(targets)
+        self.controlled_robots=set(ids)
+        self.status(phase,robot_id=ids[0],active_robots=ids,
+                    message={'PARKING':'Wartearm zur Seite parken','POSITIONING':'Aktives Paar zum Board ausrichten',
+                             'RETURNING':'Rückfahrt zur Sitzungsstartstellung'}.get(phase,'Geprüfte Messstellung des Diagonalpaars' if len(ids)==2 else 'Fahre geprüfte Messstellung'))
+        checked=self.ensure_planner().call({'op':'paths','start':dict(self.positions),'targets':targets},self.halted)
+        goals={}
+        for rid,path in checked['paths'].items():
+            if not self.trajectory_clients[rid].wait_for_server(timeout_sec=3):raise ValueError(f'{rid}: trajectory action missing')
+            goal=FollowJointTrajectory.Goal();goal.trajectory.joint_names=joint_names(rid)
+            for p in path[1:]:
+                point=JointTrajectoryPoint(positions=p['positions'],velocities=p['velocities'],accelerations=p['accelerations'])
+                point.time_from_start.sec=int(p['time']);point.time_from_start.nanosec=round((p['time']-int(p['time']))*1e9)
+                if point.time_from_start.nanosec>=1000000000:point.time_from_start.sec+=1;point.time_from_start.nanosec-=1000000000
+                goal.trajectory.points.append(point)
+            goals[rid]=goal
+        start_time=self.get_clock().now()+Duration(seconds=.75)
+        acceptance_deadline=start_time.nanoseconds-150000000
+        self.status(motion_start_ns=start_time.nanoseconds,envelope_separation_m=checked['envelope_separation_m'])
         with self.motion_lock:
             if self.halted():raise InterruptedError('Stopped before goal dispatch')
-            registered=threading.Event();self.goal_callback_pending=True
-            try:self.pending_goal=client.send_goal_async(goal)
-            except Exception:self.goal_callback_pending=False;raise
-            def accepted(future):
-                try:
-                    handle=future.result()
-                    with self.motion_lock:
-                        self.motion_handle=handle if handle.accepted else None
-                        if handle.accepted:
-                            self.motion_result=handle.get_result_async()
-                            def finished(result):
-                                with self.motion_lock:
-                                    if self.motion_handle is handle:self.motion_handle=None
-                            self.motion_result.add_done_callback(finished)
-                        if self.halted() and handle.accepted:handle.cancel_goal_async()
-                except Exception:pass
-                finally:self.goal_callback_pending=False;registered.set()
-            self.pending_goal.add_done_callback(accepted)
-        handle=self.wait_future(self.pending_goal)
-        callback_deadline=time.monotonic()+2
-        while not registered.wait(.01):
-            if self.halted():raise InterruptedError('Stopped during goal registration')
-            if time.monotonic()>callback_deadline:raise TimeoutError('Controller goal registration timed out')
-        if not handle.accepted:raise ValueError(f'{rid}: trajectory rejected')
-        result_future=self.motion_result
-        if result_future is None:raise ValueError('Trajectory result callback was not registered')
-        result=self.wait_future(result_future,timeout=path[-1]['time']*5+10)
-        self.motion_handle=None;self.pending_goal=None
-        if result.status!=4 or result.result.error_code!=0:raise ValueError(f'{rid}: trajectory aborted: {result.result.error_string}')
-        if max(abs(self.positions[j]-q) for j,q in zip(joint_names(rid),target))>.02:raise ValueError('Goal tracking error exceeds 0.02 rad')
+            self.motion_results={}
+            for rid,goal in goals.items():
+                goal.trajectory.header.stamp=start_time.to_msg()
+                self.registration_pending.add(rid)
+                try:self.pending_goals[rid]=self.trajectory_clients[rid].send_goal_async(goal)
+                except Exception:
+                    self.registration_pending.discard(rid)
+                    self.request_halt('Controller goal dispatch failed');raise
+                self.pending_goals[rid].add_done_callback(lambda future,r=rid:self.accept_motion(r,future))
+        try:
+            while self.registration_pending:
+                if self.halted():raise InterruptedError('Stopped during cohort goal acceptance')
+                if self.get_clock().now().nanoseconds>=acceptance_deadline:raise TimeoutError('Not all goals acknowledged before shared start; cohort cancelled')
+                time.sleep(.01)
+            if self.get_clock().now().nanoseconds>=acceptance_deadline:raise TimeoutError('Cohort acknowledgements arrived too late for shared start')
+            if self.halted():raise InterruptedError('Cohort start stopped')
+            if set(self.motion_results)!=set(ids):raise ValueError('Missing trajectory acceptance/result future')
+            deadline=time.monotonic()+checked['duration']*5+10
+            remaining=set(ids)
+            while remaining:
+                if self.halted():raise InterruptedError('Cohort motion interrupted')
+                if time.monotonic()>deadline:raise TimeoutError('Cohort trajectory timed out')
+                for rid in list(remaining):
+                    future=self.motion_results[rid]
+                    if not future.done():continue
+                    result=future.result()
+                    if result.status!=4 or result.result.error_code!=0:raise ValueError(f'{rid}: trajectory aborted: {result.result.error_string}')
+                    remaining.remove(rid)
+                time.sleep(.01)
+            for rid,target in targets.items():
+                if max(abs(self.positions[j]-q) for j,q in zip(joint_names(rid),target))>.02:raise ValueError(f'{rid}: goal tracking error exceeds 0.02 rad')
+        except InterruptedError:raise
+        except Exception as error:self.request_halt(str(error));raise
+        with self.motion_lock:
+            self.pending_goals={r:f for r,f in self.pending_goals.items() if r not in ids}
         self.status('SETTLING',message='Warte auf Stillstand und frische Bilder')
         start=None;deadline=time.monotonic()+8
         while time.monotonic()<deadline:
             if self.halted():raise InterruptedError('Settling interrupted')
-            if all(abs(self.velocities.get(j,1))<.01 for j in joint_names(rid)):
+            if all(abs(self.velocities.get(j,1))<.01 for rid in ids for j in joint_names(rid)):
                 start=self.clock_value if start is None else start
-                if self.clock_value-start>=.5:return
+                if self.clock_value-start>=.5:
+                    self.frozen=dict(self.positions);self.controlled_robots=set();return
             else:start=None
             time.sleep(.02)
         raise TimeoutError('Robot did not settle')
 
-    def capture(self,rid,pose,index):
-        self.hold_positions=dict(self.positions)
-        self.status('CAPTURING',message='Wähle scharfes Bild aus fünf frischen Boardansichten')
-        after=self.clock_value;deadline=time.monotonic()+6;seen=set();choices=[]
+    def capture(self,rid,pose,index,announce=True,after=None):
+        if announce:
+            self.hold_positions=dict(self.positions)
+            self.status('CAPTURING',message='Wähle scharfes Bild aus fünf frischen Boardansichten')
+        after=self.clock_value if after is None else after
+        deadline=time.monotonic()+6;seen=set();choices=[]
         expected=self.plan['matrices'][rid]
         while time.monotonic()<deadline and len(choices)<5:
             if self.halted():raise InterruptedError('Capture interrupted')
@@ -513,11 +556,76 @@ class Backend(Node):
         atomic_json(folder/(name+'.json'),record)
         return record
 
+    def measure_cohort(self,ids,records):
+        self.status(cohort=list(ids),active_robots=list(ids),robot_id=ids[0],accepted=0,
+                    target=self.plan['samples_per_robot'])
+        spare={r:iter(self.plan['plans'][r]['reserve']) for r in ids}
+        for index in range(self.plan['samples_per_robot']):
+            pending={r:dict(self.plan['plans'][r]['poses'][index]) for r in ids}
+            attempts={r:0 for r in ids}
+            while pending:
+                self.wait_unpaused()
+                try:
+                    self.move_many({r:p['joints'] for r,p in pending.items()})
+                    self.hold_positions=dict(self.positions)
+                    self.status('CAPTURING',active_robots=list(pending),robot_id=next(iter(pending)),
+                                message='Je Kamera das schärfste von fünf frischen Bildern auswählen')
+                    after=self.clock_value;outcomes={}
+                    with ThreadPoolExecutor(max_workers=len(pending),thread_name_prefix='calibration_capture') as pool:
+                        captures={r:pool.submit(self.capture,r,pose,index,False,after) for r,pose in pending.items()}
+                        for rid,future in captures.items():
+                            try:outcomes[rid]=future.result()
+                            except Exception as error:
+                                outcomes[rid]=error
+                                if not isinstance(error,(CaptureFailure,InterruptedError)):self.request_halt(str(error))
+                    interrupted=False
+                    for rid,outcome in outcomes.items():
+                        if isinstance(outcome,InterruptedError):interrupted=True;continue
+                        if isinstance(outcome,CaptureFailure):
+                            self.get_logger().warn(str(outcome));attempts[rid]+=1
+                            self.status(rejected=self.state['rejected']+1,message=str(outcome))
+                            if attempts[rid]>=3:
+                                try:replacement=dict(next(spare[rid]))
+                                except StopIteration:raise ValueError(f'{rid}: reserve poses exhausted') from outcome
+                                replacement['role']=pending[rid]['role'];pending[rid]=replacement;attempts[rid]=0
+                        elif isinstance(outcome,Exception):raise outcome
+                        else:
+                            records[rid].append(outcome);pending.pop(rid)
+                    counts={r:len(samples) for r,samples in records.items()}
+                    self.status(counts=counts,accepted=min(counts[r] for r in ids))
+                    if self.abort.is_set():raise InterruptedError('Cohort stopped; accepted observations preserved')
+                    if interrupted:self.wait_unpaused()
+                except InterruptedError:
+                    if self.abort.is_set():raise
+                    self.wait_unpaused()
+
+    def run_stages(self,records,run_start):
+        for index,stage in enumerate(self.plan['stages']):
+            self.wait_unpaused()
+            self.status(stage_index=index+1,stage_total=len(self.plan['stages']))
+            if stage['kind']=='measure':
+                self.measure_cohort(stage['robots'],records)
+                continue
+            rid=stage['robot'];target=stage['target']
+            if stage['kind']=='returning':target=[run_start[j] for j in joint_names(rid)]
+            self.status(cohort=[])
+            while True:
+                try:
+                    self.move_many({rid:target},stage['kind'].upper())
+                    parked=set(self.state.get('parked_robots',[]))
+                    if stage['kind']=='parking':parked.add(rid)
+                    else:parked.discard(rid)
+                    self.status(parked_robots=sorted(parked))
+                    break
+                except InterruptedError:
+                    if self.abort.is_set():raise
+                    self.wait_unpaused()
+
     def execute(self,goal):
         self.run_handle=goal;self.running=True;records={r:[] for r in self.plan['robots']}
         result=RunCalibration.Result()
         try:
-            self.require_telemetry();self.require_controllers(self.plan['robots'])
+            self.require_telemetry();self.require_controllers(ROBOT_IDS if self.plan['mode']=='diagonal_pairs' else self.plan['robots'])
             if fingerprint(self.description)!=self.plan['description_fingerprint']:raise ValueError('Cell model changed since preparation')
             if any(abs(self.positions.get(j,q)-q)>.015 for j,q in self.plan['start'].items()):raise ValueError('Joint state changed since preparation; prepare again')
             for rid,expected in self.plan['matrices'].items():
@@ -531,39 +639,8 @@ class Backend(Node):
             run_start=dict(self.positions)
             self.plan['run_start']=run_start;self.plan['run_start_stamp']=self.clock_value
             atomic_json(self.session/'plan.json',self.plan)
-            for rid in self.plan['robots']:
-                self.status(robot_id=rid,accepted=0,target=self.plan['samples_per_robot'])
-                spare=iter(self.plan['plans'][rid]['reserve'])
-                for index,original in enumerate(self.plan['plans'][rid]['poses']):
-                    pose=dict(original);attempt=0
-                    while True:
-                        self.wait_unpaused()
-                        try:
-                            self.move(rid,pose['joints'])
-                            record=self.capture(rid,pose,index)
-                            records[rid].append(record)
-                            break
-                        except InterruptedError:
-                            if self.abort.is_set():raise
-                            self.wait_unpaused();continue
-                        except CaptureFailure as error:
-                            self.get_logger().warn(str(error))
-                            # Motion failures are never recovered by blindly dispatching another goal.
-                            if self.state['phase']!='CAPTURING':raise
-                            attempt+=1;self.status(rejected=self.state['rejected']+1,message=str(error))
-                            if attempt<3:continue
-                            try:replacement=dict(next(spare))
-                            except StopIteration:raise ValueError('Reserve poses exhausted') from error
-                            replacement['role']=original['role'];pose=replacement;attempt=0
-                    counts=dict(self.state['counts']);counts[rid]=len(records[rid])
-                    self.status(accepted=len(records[rid]),counts=counts)
-                while True:
-                    try:self.move(rid,[run_start[j] for j in joint_names(rid)],returning=True);break
-                    except InterruptedError:
-                        if self.abort.is_set():raise
-                        self.wait_unpaused()
-                self.frozen.update({j:self.positions[j] for j in joint_names(rid)})
-            self.status('SOLVING',robot_id='',message='Hand-Auge-Schätzung und unabhängige Validierung')
+            self.run_stages(records,run_start)
+            self.status('SOLVING',robot_id='',active_robots=[],cohort=[],message='Hand-Auge-Schätzung und unabhängige Validierung')
             solved=self.ensure_planner().call({'op':'solve','records':records},self.halted)
             if self.halted():raise InterruptedError('Solving stopped')
             solved['description_fingerprint']=fingerprint(self.description)

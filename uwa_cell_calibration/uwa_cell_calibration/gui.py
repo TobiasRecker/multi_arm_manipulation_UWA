@@ -22,11 +22,13 @@ class Window(QtWidgets.QMainWindow):
         central=QtWidgets.QWidget();self.setCentralWidget(central);layout=QtWidgets.QVBoxLayout(central)
         title=QtWidgets.QLabel('Hand-Auge-Kalibrierung der UWA-Zelle')
         title.setStyleSheet('font-size:22px; font-weight:600;');layout.addWidget(title)
-        layout.addWidget(QtWidgets.QLabel('Simulation · je Tisch ein Roboterpaar · ein bewegter Arm · getrenntes kalibriertes Modell'))
+        layout.addWidget(QtWidgets.QLabel('Simulation · diagonale Paare parallel · Wartearme parken · getrenntes kalibriertes Modell'))
         selection=QtWidgets.QHBoxLayout();self.robots={}
         for rid in ROBOT_IDS:
             box=QtWidgets.QCheckBox(NAMES[rid]);box.setChecked(True);self.robots[rid]=box;selection.addWidget(box)
-        selection.addStretch();selection.addWidget(QtWidgets.QLabel('Stellungen je Arm:'))
+        self.diagonal=QtWidgets.QCheckBox('Diagonalpaare');self.diagonal.setChecked(True)
+        self.diagonal.setToolTip('Links vorne + rechts hinten, danach links hinten + rechts vorne. Andere Arme werden vorher geparkt.')
+        selection.addWidget(self.diagonal);selection.addStretch();selection.addWidget(QtWidgets.QLabel('Stellungen je Arm:'))
         self.count=QtWidgets.QSpinBox();self.count.setRange(30,50);self.count.setValue(40);selection.addWidget(self.count);layout.addLayout(selection)
         buttons=QtWidgets.QHBoxLayout()
         self.prepare_button=QtWidgets.QPushButton('1  Posen vorbereiten');self.prepare_button.clicked.connect(self.prepare)
@@ -65,7 +67,7 @@ class Window(QtWidgets.QMainWindow):
 
     def prepare(self):
         self.tabs.setCurrentIndex(0)
-        self.node.prepare([r for r,b in self.robots.items() if b.isChecked()],self.count.value())
+        self.node.prepare([r for r,b in self.robots.items() if b.isChecked()],self.count.value(),self.diagonal.isChecked())
 
     def pause_world(self):
         # Direct transport request is independent of the motion backend's process.
@@ -92,26 +94,31 @@ class Window(QtWidgets.QMainWindow):
         state=self.node.state;phase=state.get('phase','OFFLINE')
         owns=state.get('client_id')==self.node.client_id
         online=time.monotonic()-self.node.last_status<1.5
-        busy=phase in ('RESTORING','PREPARING','RUNNING','MOVING','SETTLING','CAPTURING','RETURNING','HALTING','PAUSED','SOLVING','APPLYING')
+        busy=phase in ('RESTORING','PREPARING','RUNNING','PARKING','POSITIONING','MOVING','SETTLING','CAPTURING','RETURNING','HALTING','PAUSED','SOLVING','APPLYING')
         if busy and owns and time.monotonic()-self.node.last_status>1.5 and not self.pause_pending:
             self.pause_pending=True;self.pause_world();self.node.error='Backend verloren; Gazebo-Pause angefordert'
         self.prepare_button.setEnabled(online and not busy and bool(state))
         self.start_button.setEnabled(online and phase=='READY' and owns)
-        self.pause_button.setEnabled(online and owns and phase in ('MOVING','RUNNING','SETTLING','CAPTURING','RETURNING','PAUSED'))
+        self.pause_button.setEnabled(online and owns and phase in ('MOVING','PARKING','POSITIONING','RUNNING','SETTLING','CAPTURING','RETURNING','PAUSED'))
         self.pause_button.setText('Fortsetzen' if phase=='PAUSED' else 'Pause')
         fits=state.get('summary',{})
         passed=bool(fits) and all(f.get('passed',False) for f in fits.values())
         self.apply_button.setEnabled(online and passed and phase=='COMPLETE' and bool(state.get('result_path')) and state.get('stopped',False))
         for box in self.robots.values():box.setEnabled(not busy)
         self.count.setEnabled(not busy)
-        self.status_label.setText(f"{phase} | {NAMES.get(state.get('robot_id'), '')} | {state.get('message','Backend nicht erreichbar')}"+
+        self.diagonal.setEnabled(not busy)
+        names=' + '.join(NAMES.get(r,r) for r in state.get('active_robots',[])) or NAMES.get(state.get('robot_id'),'')
+        step=f" | Schritt {state['stage_index']}/{state['stage_total']}" if state.get('stage_total') else ''
+        self.status_label.setText(f"{phase} | {names}{step} | {state.get('message','Backend nicht erreichbar')}"+
                                   f" | Verworfen: {state.get('rejected',0)}"+
                                   (f"\n{self.node.error}" if self.node.error else ''))
         counts=state.get('counts',{});total=state.get('progress_total') or state.get('target',40)*max(1,len(counts))
         self.progress.setRange(0,total);self.progress.setValue(sum(counts.values()))
         for rid,label in self.views.items():
             quality=state.get('camera_quality',{}).get(rid,{})
-            self.view_groups[rid].setTitle(NAMES[rid]+f" · {quality.get('corners',0)} Ecken"+
+            count_text=f" · {state['counts'][rid]}/{state.get('target',40)}" if rid in state.get('counts',{}) else ''
+            parked=' · geparkt' if rid in state.get('parked_robots',[]) else ''
+            self.view_groups[rid].setTitle(NAMES[rid]+count_text+parked+f" · {quality.get('corners',0)} Ecken"+
               (f" · RMS {quality['reprojection_rms_px']:.3f} px" if 'reprojection_rms_px' in quality else ' · Board nicht erkannt'))
             msg=self.node.images.get(rid)
             if msg is None:continue
@@ -166,7 +173,7 @@ class Window(QtWidgets.QMainWindow):
     def closeEvent(self,event):
         if self.node.state.get('client_id')!=self.node.client_id:event.accept();return
         if self.allow_close:event.accept();return
-        if self.close_started is None and not self.closing and self.node.state.get('phase') not in ('MOVING','RUNNING','SETTLING','CAPTURING','RETURNING','PREPARING','SOLVING','PAUSED','HALTING','APPLYING'):
+        if self.close_started is None and not self.closing and self.node.state.get('phase') not in ('MOVING','PARKING','POSITIONING','RUNNING','SETTLING','CAPTURING','RETURNING','PREPARING','SOLVING','PAUSED','HALTING','APPLYING'):
             event.accept();return
         if not self.closing:
             self.closing=True;self.close_started=time.monotonic();self.node.command('stop')
