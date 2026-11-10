@@ -9,7 +9,8 @@ from uwa_cell_control.wrist_camera import WristCamera, CameraError, save_snapsho
 
 @pytest.fixture
 def camera():
-    state = {'focus': 100, 'focusAuto': True, 'lightingValue': 43, 'gain': 12}
+    state = {'focus': 100, 'focusAuto': True, 'lightingValue': 43, 'lightingMode': 1,
+             'gain': 32, 'exposure': 20000, 'exposureAuto': True, 'exposureSensitivity': 0}
     calls = []
     rejected = [False]
 
@@ -56,7 +57,7 @@ def test_focus_mapping_preserves_settings_and_restores_only_focus(camera):
     original = client.settings()
     result = client.manual(400)
     assert result['focus'] == 623 and result['focusAuto'] is False
-    assert state['lightingValue'] == 43 and state['gain'] == 12
+    assert state['lightingValue'] == 43 and state['gain'] == 32
     state['lightingValue'] = 50  # Another user changed the light after our write.
     client.restore(original)
     assert state['focus'] == 100 and state['focusAuto'] is True
@@ -70,7 +71,34 @@ def test_autofocus_enables_auto_and_triggers_focus_only(camera):
     state['focusAuto'] = False
     assert client.refocus()['focusAuto'] is True
     assert ('POST', '/trigger?focus=true&exposure=false&whiteBalance=false') in calls
-    assert state['gain'] == 12 and state['lightingValue'] == 43
+    assert state['gain'] == 32 and state['lightingValue'] == 43
+
+
+def test_exposure_led_and_restore_preserve_the_current_focus(camera):
+    client, state, calls, _ = camera
+    original = client.settings()
+    client.exposure(40000, 3)
+    assert state['exposure'] == 40000 and state['gain'] == 48 and not state['exposureAuto']
+    client.lighting(2, 30)
+    assert state['lightingMode'] == 2 and state['lightingValue'] == 53
+    state['focus'] = 404  # User focuses after the exposure snapshot.
+    state['focusAuto'] = False
+    client.restore_appearance(original)
+    assert state['focus'] == 404 and not state['focusAuto']
+    assert state['exposureAuto'] is True and state['lightingMode'] == 1
+    assert ('POST', '/trigger?focus=false&exposure=true&whiteBalance=false') in calls
+
+
+def test_appearance_limits_do_not_send_invalid_controls(camera):
+    client, _, calls, _ = camera
+    for value in (0, 66605, True):
+        with pytest.raises(ValueError):
+            client.exposure(value)
+    with pytest.raises(ValueError):
+        client.lighting(2, 101)
+    with pytest.raises(ValueError):
+        client.auto_exposure(8)
+    assert not calls
 
 
 def test_rejection_and_invalid_values_do_not_claim_success(camera):

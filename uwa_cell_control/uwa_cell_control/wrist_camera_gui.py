@@ -35,6 +35,8 @@ class CameraWorker(QtCore.QThread):
         self.current = None
         self.last_image = None
         self.focus_touched = False
+        self.appearance_original = None
+        self.appearance_touched = False
 
     def run(self):
         try:
@@ -56,6 +58,9 @@ class CameraWorker(QtCore.QThread):
                 action, value = '', None
             try:
                 if action in ('close', 'restore'):
+                    if action == 'close' and value and self.appearance_touched:
+                        self.current = self.camera.restore_appearance(self.appearance_original)
+                        self.appearance_touched = False
                     if action == 'restore' or (value and self.focus_touched):
                         self.current = self.camera.restore(self.original)
                         self.settings_ready.emit(self.current)
@@ -74,11 +79,34 @@ class CameraWorker(QtCore.QThread):
                     self.current = self.camera.refocus()
                     self.settings_ready.emit(self.current)
                     self.message.emit('Autofocus trigger completed; check the image.', False)
+                elif action in ('exposure', 'auto_exposure', 'lighting'):
+                    if self.appearance_original is None:
+                        self.appearance_original = self.camera.settings(refresh=True)
+                        (self.directory/'original_appearance.json').write_text(json.dumps(self.appearance_original, indent=2)+'\n')
+                    self.appearance_touched = True
+                    if action == 'exposure':
+                        self.current = self.camera.exposure(*value)
+                    elif action == 'auto_exposure':
+                        self.current = self.camera.auto_exposure(value)
+                    else:
+                        self.current = self.camera.lighting(*value)
+                    self.settings_ready.emit(self.current)
+                    self.message.emit('Exposure / lighting applied and read back. Focus preserved.', False)
+                elif action == 'restore_appearance':
+                    if self.appearance_original is not None:
+                        self.current = self.camera.restore_appearance(self.appearance_original)
+                        self.appearance_touched = False
+                        self.settings_ready.emit(self.current)
+                    self.message.emit('Original exposure / lighting restored; focus preserved.', False)
                 elif action == 'save':
                     self.current = self.camera.settings()
                     jpeg = self.camera.image()
                     name = datetime.now(ZoneInfo('Australia/Perth')).strftime('%Y%m%d_%H%M%S_%f')
-                    path = save_snapshot(self.directory, name, jpeg, self.current)
+                    decoded = QtGui.QImage.fromData(jpeg)
+                    if decoded.isNull():
+                        raise ValueError('Camera photo could not be decoded')
+                    path = save_snapshot(self.directory, name, jpeg, self.current,
+                                         dimensions=[decoded.width(), decoded.height()])
                     self.message.emit(f'Saved {path}', False)
                 if time.monotonic() >= settings_deadline:
                     self.current = self.camera.settings()
@@ -109,7 +137,7 @@ class Window(QtWidgets.QMainWindow):
         self.closing = False
         self.slider_edited = False
         self.setWindowTitle('UWA · Right rear wrist camera')
-        self.resize(1060, 900)
+        self.resize(1120, 940)
         root = QtWidgets.QWidget()
         self.setCentralWidget(root)
         layout = QtWidgets.QVBoxLayout(root)
@@ -118,7 +146,7 @@ class Window(QtWidgets.QMainWindow):
         layout.addWidget(heading)
         self.image_label = QtWidgets.QLabel('Connecting to camera…')
         self.image_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.image_label.setMinimumSize(640, 480)
+        self.image_label.setMinimumSize(640, 360)
         self.image_label.setStyleSheet('background: #141414; color: white;')
         layout.addWidget(self.image_label, 1)
         self.image_status = QtWidgets.QLabel('No image received')
@@ -126,6 +154,8 @@ class Window(QtWidgets.QMainWindow):
         layout.addWidget(self.image_status)
         self.settings_label = QtWidgets.QLabel('Reading focus settings…')
         layout.addWidget(self.settings_label)
+        self.appearance_label = QtWidgets.QLabel('Reading exposure / lighting…')
+        layout.addWidget(self.appearance_label)
         row = QtWidgets.QHBoxLayout()
         row.addWidget(QtWidgets.QLabel('Manual focus (Robotiq scale):'))
         self.slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
@@ -159,7 +189,43 @@ class Window(QtWidgets.QMainWindow):
         self.auto_button.clicked.connect(lambda: self.submit('autofocus'))
         self.save_button.clicked.connect(lambda: self.submit('save'))
         layout.addLayout(buttons)
-        self.restore_on_close = QtWidgets.QCheckBox('Restore original focus when closing')
+        exposure_row = QtWidgets.QHBoxLayout()
+        self.exposure_us = QtWidgets.QSpinBox()
+        self.exposure_us.setRange(1, 66604)
+        self.exposure_us.setValue(40000)
+        self.exposure_us.setSuffix(' µs')
+        self.gain = QtWidgets.QSpinBox()
+        self.gain.setRange(1, 63)
+        self.gain.setValue(2)
+        self.gain.setSuffix(' × gain')
+        self.ev = QtWidgets.QSpinBox()
+        self.ev.setRange(-7, 7)
+        self.ev.setSuffix(' EV')
+        self.exposure_button = QtWidgets.QPushButton('Apply manual exposure')
+        self.auto_exposure_button = QtWidgets.QPushButton('Auto exposure + EV')
+        for widget in (self.exposure_us, self.gain, self.exposure_button, self.ev, self.auto_exposure_button):
+            exposure_row.addWidget(widget)
+        layout.addLayout(exposure_row)
+        led_row = QtWidgets.QHBoxLayout()
+        self.led_mode = QtWidgets.QComboBox()
+        self.led_mode.addItems(['LED Auto', 'LED Off', 'LED Manual'])
+        self.led_percent = QtWidgets.QSpinBox()
+        self.led_percent.setRange(0, 100)
+        self.led_percent.setValue(30)
+        self.led_percent.setSuffix(' % LED')
+        self.led_button = QtWidgets.QPushButton('Apply LED')
+        self.restore_appearance_button = QtWidgets.QPushButton('Restore exposure / LED')
+        for widget in (self.led_mode, self.led_percent, self.led_button, self.restore_appearance_button):
+            led_row.addWidget(widget)
+        layout.addLayout(led_row)
+        self.buttons += (self.exposure_button, self.auto_exposure_button, self.led_button, self.restore_appearance_button)
+        for button in self.buttons:
+            button.setEnabled(False)
+        self.exposure_button.clicked.connect(lambda: self.submit('exposure', (self.exposure_us.value(), self.gain.value())))
+        self.auto_exposure_button.clicked.connect(lambda: self.submit('auto_exposure', self.ev.value()))
+        self.led_button.clicked.connect(lambda: self.submit('lighting', (self.led_mode.currentIndex(), self.led_percent.value())))
+        self.restore_appearance_button.clicked.connect(lambda: self.submit('restore_appearance'))
+        self.restore_on_close = QtWidgets.QCheckBox('Restore controls changed in this window when closing')
         self.restore_on_close.setChecked(True)
         layout.addWidget(self.restore_on_close)
         self.feedback = QtWidgets.QLabel('CONNECTING')
@@ -185,6 +251,10 @@ class Window(QtWidgets.QMainWindow):
     def show_settings(self, settings):
         self.settings_label.setText(f'Server mode: {"AUTO" if settings["focusAuto"] else "MANUAL"} · '
                                     f'API focus value: {settings["focus"]} · Robotiq display: {1023-settings["focus"]}')
+        self.appearance_label.setText(f'Exposure: {"AUTO" if settings.get("exposureAuto") else "MANUAL"} · '
+            f'{settings.get("exposure", "?")} µs · raw gain {settings.get("gain", "?")} · '
+            f'EV {settings.get("exposureSensitivity", "?")} · LED mode {settings.get("lightingMode", "?")} '
+            '(0=Auto, 1=Off, 2=Manual)')
         if not self.slider_edited:
             self.slider.setValue(max(0, min(1023, 1023-settings['focus'])))
             self.slider_edited = False

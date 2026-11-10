@@ -43,11 +43,73 @@ class WristCamera:
             raise CameraError(f'Camera rejected request: {result}')
         return result
 
-    def settings(self):
-        result = self.request('/getcamerasettings').get('cameraSettings')
+    def settings(self, *, refresh=False):
+        result = self.request('/getcamerasettings'+('?forceRefresh=true' if refresh else '')).get('cameraSettings')
         if not isinstance(result, dict) or type(result.get('focus')) is not int or type(result.get('focusAuto')) is not bool:
             raise CameraError('Camera response has no valid focus settings')
         return result
+
+    def update_controls(self, changes):
+        """Only send named camera fields; never overwrite the user's focus."""
+        bounds = {'exposure': (1, 66604), 'gain': (16, 1008),
+                  'exposureSensitivity': (-7, 7), 'lightingMode': (0, 2),
+                  'lightingValue': (0, 175)}
+        for key, value in changes.items():
+            if key == 'exposureAuto':
+                if type(value) is not bool:
+                    raise ValueError('exposureAuto must be boolean')
+            elif key not in bounds or type(value) is not int or not bounds[key][0] <= value <= bounds[key][1]:
+                raise ValueError(f'Invalid camera control: {key}={value}')
+        before = self.settings()
+        self.request('/setcamerasettings?setManualValuesIfModeChanged=true', body={'cameraSettings': changes})
+        after = self.settings()
+        for key, value in changes.items():
+            if after.get(key) != value:
+                raise CameraError(f'{key} readback differs: requested {value}, received {after.get(key)}')
+        if any(before[k] != after[k] for k in ('focus', 'focusAuto')):
+            raise CameraError('Focus changed during exposure/lighting operation')
+        return after
+
+    def exposure(self, microseconds, gain_multiplier=1):
+        if type(gain_multiplier) is not int or not 1 <= gain_multiplier <= 63:
+            raise ValueError('Gain multiplier must be 1…63')
+        return self.update_controls({'exposureAuto': False, 'exposure': microseconds, 'gain': 16*gain_multiplier})
+
+    def auto_exposure(self, ev=0):
+        result = self.update_controls({'exposureAuto': True, 'exposureSensitivity': ev})
+        self.trigger(exposure=True)
+        return self.settings()
+
+    def lighting(self, mode, percent):
+        if type(percent) is not int or not 0 <= percent <= 100:
+            raise ValueError('LED intensity must be 0…100 percent')
+        return self.update_controls({'lightingMode': mode, 'lightingValue': int(percent*1.75+.5)})
+
+    def restore_appearance(self, original):
+        changes = {key: original[key] for key in ('exposureAuto', 'exposureSensitivity', 'lightingMode', 'lightingValue')}
+        # Auto-mode cached defaults can be zero; never send them as manual values.
+        if 1 <= original.get('exposure', 0) <= 66604:
+            changes['exposure'] = original['exposure']
+        if 16 <= original.get('gain', 0) <= 1008:
+            changes['gain'] = original['gain']
+        result = self.update_controls(changes)
+        if original['exposureAuto']:
+            self.trigger(exposure=True)
+            result = self.settings()
+        return result
+
+    def trigger(self, *, focus=False, exposure=False, wait_seconds=12.):
+        self.request(f'/trigger?focus={str(focus).lower()}&exposure={str(exposure).lower()}&whiteBalance=false', post=True)
+        deadline = time.monotonic()+wait_seconds
+        while True:
+            progress = self.request('/triggerinprogress').get('triggerInProgress')
+            if type(progress) is not bool:
+                raise CameraError('Missing camera trigger completion confirmation')
+            if not progress:
+                return
+            if time.monotonic() >= deadline:
+                raise CameraError('Camera trigger did not finish within the time limit')
+            time.sleep(.1)
 
     def image(self):
         return self.request('/current.jpg?type=color', image=True)
@@ -84,18 +146,8 @@ class WristCamera:
         current = self.settings()
         if not current['focusAuto']:
             self.update_focus(focus=current['focus'], auto=True)
-        self.request('/trigger?focus=true&exposure=false&whiteBalance=false', post=True)
-        deadline = time.monotonic()+wait_seconds
-        while True:
-            result = self.request('/triggerinprogress')
-            progress = result.get('triggerInProgress')
-            if type(progress) is not bool:
-                raise CameraError('Missing autofocus progress confirmation')
-            if not progress:
-                return self.settings()
-            if time.monotonic() >= deadline:
-                raise CameraError('Autofocus did not finish within the time limit')
-            time.sleep(.1)
+        self.trigger(focus=True, wait_seconds=wait_seconds)
+        return self.settings()
 
 
 def save_snapshot(directory, name, jpeg, settings, *, dimensions=None):

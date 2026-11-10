@@ -12,6 +12,7 @@ import yaml
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--exercise', action='store_true')
+    parser.add_argument('--appearance', action='store_true', help='Test exposure / LED buttons without changing focus')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     ws = Path(os.environ.get('UWA_WS', str(Path.home()/'UWA_ws')))
@@ -37,6 +38,28 @@ def main():
     try:
         wait(lambda: window.pixmap is not None and window.apply_button.isEnabled(), 15, 'preview connection')
         report['live_image'] = True
+        if args.appearance:
+            focus_before = {k: window.worker.current[k] for k in ('focus', 'focusAuto')}
+            window.exposure_us.setValue(40000)
+            window.gain.setValue(2)
+            window.exposure_button.click()
+            wait(lambda: window.worker.current.get('exposure') == 40000 and not window.worker.current['exposureAuto']
+                 and window.exposure_button.isEnabled(), 10, 'exposure readback')
+            settle(4)
+            window.save_button.click()
+            wait(lambda: 'Saved ' in window.feedback.text(), 10, 'exposure photo saved')
+            window.grab().save(str(args.output/'manual-exposure.png'))
+            window.led_mode.setCurrentIndex(2)
+            window.led_percent.setValue(30)
+            window.led_button.click()
+            wait(lambda: window.worker.current.get('lightingMode') == 2 and window.led_button.isEnabled(), 10, 'LED readback')
+            window.restore_appearance_button.click()
+            wait(lambda: 'Original exposure / lighting restored' in window.feedback.text(), 20, 'appearance restored')
+            settle(3)
+            report['appearance_verified'] = True
+            report['focus_preserved'] = all(window.worker.current[k] == v for k,v in focus_before.items())
+            report['settings_after'] = window.worker.current
+            report['photo_saved'] = [str(p) for p in (args.output/'photos').glob('*.jpg')]
         if args.exercise:
             window.spin.setValue(511)
             window.apply_button.click()
