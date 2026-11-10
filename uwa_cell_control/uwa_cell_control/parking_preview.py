@@ -35,7 +35,7 @@ def preview(path):
         manager=config['Visualization Manager']
         grid=manager['Displays'][0]
         robot=manager['Displays'][1]
-        robot.update(Name='PARKING PREVIEW - no hardware commands',Alpha=1.)
+        robot.update(Name=plan.get('purpose','PARKING').upper()+' PREVIEW - no hardware commands',Alpha=1.)
         robot['Description Topic']['Value']='/robot_description'
         manager['Displays']=[grid,robot,{'Class':'rviz_default_plugins/MarkerArray','Name':'Path and limitations',
             'Enabled':True,'Marker Topic':{'Value':'/uwa_parking/preview_markers'}}]

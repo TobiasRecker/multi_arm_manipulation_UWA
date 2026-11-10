@@ -217,6 +217,6 @@ def write_preview(plan, path):
         ax.axis('equal');ax.grid(True, alpha=.3)
     axes[0].legend(fontsize=8)
     warning = 'PREVIEW ONLY: unobserved '+', '.join(plan['unobserved_arms']) if plan['unobserved_arms'] else 'Checked model path; physical geometry remains provisional'
-    figure.suptitle(f"{plan['arm']} parking · {plan['duration']:.1f} s · {warning}", fontsize=12)
+    figure.suptitle(f"{plan['arm']} {plan.get('purpose','parking')} · {plan['duration']:.1f} s · {warning}", fontsize=12)
     figure.text(.5, .015, 'Joint-chain sketch only. Use the RViz animation for full robot/tool geometry. No real motion is sent.', ha='center', fontsize=9)
     figure.tight_layout(rect=(0,.04,1,.94));figure.savefig(path, dpi=150);plt.close(figure)

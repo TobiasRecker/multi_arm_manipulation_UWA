@@ -1,6 +1,7 @@
 # Kollisionsgeprüfte Wartepose für Hardwarearme
 
-- Status: **aktiv**.
+- Status: **abgeschlossen** (Skript, Vorschau, Tests und freigegebene reale
+  right_front-Parkfahrt erfolgreich).
 - Datum: 2026-11-10, Australia/Perth.
 - Nutzer bestätigt reale Jog-Bewegung right_rear. Neuer Auftrag: generisches
   Parkskript zur Vorbereitung der Kamerakalibrierung, zunächst right_front
@@ -27,6 +28,14 @@
   Controller sauber inaktiv. Nutzer um frischen Stop→Play vorne rechts gebeten;
   weitere Fahrt erst bei wiederhergestellter Verbindung, gleicher freigegebener
   Weg und erneuter Start-/Kollisionsprüfung. Toleranzen nicht lockern.
+- Nach Nutzer-Stop→Play alle Verbindungen bestätigt, natives Programmflagtrue.
+  Derselbe freigegebene Weg erfolgreich am echten Frontarm ausgeführt:
+  native Action SUCCEEDED/0, Endfehler0,0000356rad, hinten max0,000101rad
+  Messrauschen. Linke Arme nicht kommandiert, weiterhin nur nominelle Nutzer-
+  Home-Stellungen. Keine Toleranzen geändert. Ergebnis/Belege in HANDOVER.md
+  und docs/hardware_parking.md sowie setup/calibration/parking/right_front_hardware/.
+  Front-JTC hält, Rear-Bewegungscontroller inaktiv; GUI/Treiber erhalten,
+  eigene Vorschau beendet. Kein automatischer Kamerakalibrierlauf gestartet.
 - Nutzerkorrektur: linke Arme in nomineller Default-Home-Pose aufrecht;
   als user_nominal_home, nicht als gemessene Pendantwinkel verwenden.
   Vorne rechts laut Nutzer RUNNING und URCap .209:53002 eingerichtet.

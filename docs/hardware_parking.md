@@ -68,7 +68,7 @@ Konfiguration und der reale Fahrbereich müssen zum Modell passen.
 Ein IK-Suchlauf sucht das Werkzeug kompakt zur jeweiligen Tischaußenseite,
 etwa0,25–0,40m seitlich und0,50–0,65m über der Basis. Er hält Gelenkänderungen
 klein und erzwingt keine neue Werkzeugorientierung. Als Alternative kann
-`--target-deg q1,q2,q3,q4,q5,q6` eine explizite Gelenkpose vorgegeben werden.
+`--target-deg=q1,q2,q3,q4,q5,q6` eine explizite Gelenkpose vorgegeben werden.
 Die Gelenkreihenfolge ist immer Schulter-Pan, Schulter-Lift, Ellenbogen,
 Handgelenk1/2/3. Bezeichnungen in ROS-Nachrichten werden darauf abgebildet.
 
@@ -130,6 +130,29 @@ lokalen Sitzungs-/Zustandsdateien ins Git übernehmen.
   Front-Launch ohne aktiven Bewegungscontroller ersetzt; beide rechten Treiber
   inaktiv neu gestartet. Frische ROS-Winkel stimmen danach mit RTDE überein.
   `setup/logs/uwa-parking-ready-joints.json` und `uwa-parking-{front,rear}-rtde.json`.
-- Erste tatsächliche Hardware-Parkfahrt und überprüfte Zielpose werden hier
-  ergänzt, sobald der konkrete Realweg geprüft/ausgeführt wurde. Noch kein
-  automatischer Kalibrierlauf an Hardware.
+- **Erster Realtest erfolgreich**, nach ausdrücklicher Prüfung/Freigabe der
+  konkreten RViz-Vorschau durch den Nutzer. Gespeicherter Weg etwa61,81s bei
+  0,05rad/s und0,10rad/s²,620 MoveIt-Zwischenstände. Native skalierte JTC-Action
+  SUCCEEDED/0, Endfehler maximal **0,0000356rad**. Hinterer rechter Arm während
+  der Beobachtung höchstens0,000101rad Änderung (Messrauschen); linke Arme wurden
+  nicht kommandiert und bleiben mangels Netzwerkdaten nur als Nutzer-Home bekannt.
+- Nominelles tool0-Ziel im Modell **[0,8504,−0,6741,1,5500]m**; kein Nachweis
+  kalibrierter kartesischer Genauigkeit. Gelenkziel in Grad:
+  `[-283.049166,-104.221739,85.111850,-89.934257,-114.930279,-133.975544]`.
+  Gespeicherte Winkel nicht modulo360 normalisieren: das kann einen anderen
+  Gelenkweg erzeugen. Wiederholungen immer aus aktuellem Zustand neu planen.
+- Ein erster Versuch brach ohne relevante Bewegung an der nativen Pfadtoleranz
+  ab: Nach Treiberneustart fehlte die Reverse-Verbindung trotz DashboardPLAYING.
+  Nutzer führte Stop→Play aus; danach53001/53003/53004 verbunden und natives
+  robot_program_running=true. Derselbe freigegebene Weg wurde erfolgreich
+  wiederholt. Keine Toleranzen erweitert, kein anderer Weg ausgeführt.
+- Prüfnachweise: `setup/logs/uwa-parking-hardware-attempt2.log`,
+  `uwa-parking-hardware-motion2.json`, `uwa-parking-final-{status,joints}.json`.
+  Plan, Nutzerfreigabe, Vorschau und `execution_result.json` unter
+  `setup/calibration/parking/right_front_hardware/`. Vorne rechts hält danach
+  der aktive skalierte JTC; hinten rechts alle Bewegungscontroller inaktiv.
+  Eigene Vorschau beendet, Hardware-GUI/Treiber geöffnet belassen.
+- Keine automatische Hardware-Kamerakalibrierung gestartet. Native Logs enthalten
+  weiterhin gelegentliche500Hz-Loop-Overruns und nicht fatale Typesupport-/MoveIt-
+  Loggingwarnungen. Der Test beweist die einzelne Parkfahrt, keine garantierte
+  Echtzeitfähigkeit oder allgemeine kooperative Bewegungsplanung.

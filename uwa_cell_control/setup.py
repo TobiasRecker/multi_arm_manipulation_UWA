@@ -10,4 +10,5 @@ setup(name='uwa_cell_control',version='0.1.0',packages=find_packages(),
       description='UWA local multi-arm preparation GUI',
       entry_points={'console_scripts':['uwa_control_gui = uwa_cell_control.gui:main',
                                       'park_arm = uwa_cell_control.park_arm:main',
+                                      'handeye_hardware = uwa_cell_control.handeye_hardware:main',
                                       'wrist_camera_gui = uwa_cell_control.wrist_camera_gui:main']})

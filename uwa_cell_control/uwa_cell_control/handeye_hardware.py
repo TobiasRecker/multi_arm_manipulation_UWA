@@ -1,0 +1,185 @@
+"""Explicit real first-view planning, stationary image capture and offline fitting.
+
+No automatic power/brake/program operations and no simulation backend remapping.
+"""
+import argparse
+from datetime import datetime,timezone
+import hashlib
+import json
+import os
+from pathlib import Path
+import time
+
+import cv2
+import numpy as np
+
+from match_ur_hardware.profiles import load_profiles
+from uwa_cell_gazebo.configuration import default_layout_path,load_layout,joint_names
+from uwa_cell_gazebo.charuco_views import Chain
+from uwa_cell_calibration.storage import atomic_json
+from .park_arm import JointObserver,node_for
+from .parking import complete_state,manual_states,make_model,save_plan
+from .hardware_charuco import first_view,observe,calibrate_intrinsics
+from .wrist_camera import WristCamera,save_snapshot
+
+
+def read_state(node,profiles,args):
+    readings=manual_states(args.manual_states)
+    observer=JointObserver(node,profiles,[r for r,p in profiles.items() if p['ip']],args.mode)
+    readings.update(observer.sample())
+    return observer,readings
+
+
+def plan_view(args):
+    import rclpy
+    profiles=load_profiles(args.inventory);layout=load_layout(args.layout)
+    directory=Path(args.output).expanduser().resolve();directory.mkdir(parents=True,exist_ok=True)
+    node=node_for(args.mode);observer=None
+    try:
+        observer,readings=read_state(node,profiles,args)
+        start,sources,missing=complete_state(layout,readings)
+        model,layout=make_model(layout,profiles,directory)
+        path=first_view(model,layout,args.arm,start)
+        path['layout_file']=str(Path(args.layout).resolve())
+        artifact=save_plan(directory,path,model,layout,profiles,sources,missing,args.mode)
+        atomic_json(directory/'states.json',{'mode':args.mode,'arms':readings})
+        print(json.dumps({'plan':str(directory/'plan.json'),'duration_s':artifact['duration'],
+            'target_deg':np.degrees(artifact['target']).tolist(),
+            'nominal_camera_world':np.array(artifact['nominal_camera_target_world'])[:3,3].tolist(),
+            'executable':artifact['executable'],'unobserved_arms':missing},indent=2))
+    finally:
+        if observer:observer.close()
+        node.destroy_node();rclpy.shutdown()
+
+
+def capture_observation(camera,node,observer,model,layout,rid,directory,sample_id,role):
+    """Conservative stationary interval plus changed decoded image payloads.
+
+    Exposure timestamp is unavailable. Record that limitation explicitly rather
+    than claiming hardware synchronization from HTTP receipt times.
+    """
+    import rclpy
+    directory=Path(directory);directory.mkdir(parents=True,exist_ok=True)
+    if not sample_id.replace('_','').isalnum():raise ValueError('Invalid sample id')
+    output=directory/(sample_id+'.json')
+    if output.exists():raise ValueError('Observation exists; refusing to overwrite')
+    expected=observer.sample(1.)
+    if rid not in expected:raise ValueError('Live robot state missing')
+    baseline=np.array(expected[rid]['positions']);names=joint_names(rid)
+    def stationary():
+        record=observer.received.get(rid)
+        if not record or time.monotonic()-record['received_monotonic']>.5:
+            raise ValueError('Joint telemetry stale while taking image')
+        if max(abs(np.array(record['positions'])-baseline))>.002:
+            raise ValueError('Robot moved during image capture; discard observation')
+    settings=camera.settings()
+    if settings['focusAuto']:raise ValueError('Set a fixed manual focus before intrinsic/hand-eye acquisition')
+    hashes=[];receipt=[];frame=None;jpeg=None
+    end=time.monotonic()+6.
+    while time.monotonic()<end:
+        observer.sample(.15);stationary()
+        jpeg=camera.image();receipt.append(datetime.now(timezone.utc).isoformat())
+        frame=cv2.imdecode(np.frombuffer(jpeg,np.uint8),cv2.IMREAD_COLOR)
+        if frame is None:raise ValueError('JPEG decode failed')
+        hashes.append(hashlib.sha256(frame.tobytes()).hexdigest())
+        observer.sample(.15);stationary()
+        if len(hashes)>=3 and len(set(hashes))>=2:break
+    if len(set(hashes))<2:raise ValueError('Image payload did not update; freshness is unverified, observation rejected')
+    after=camera.settings()
+    if after!=settings:raise ValueError('Camera settings changed during capture')
+    table=layout['robots'][rid]['table'];detection=observe(frame,layout['charuco'],table)
+    save_snapshot(directory,sample_id,jpeg,settings,dimensions=detection['image_size'])
+    # save_snapshot writes diagnostics; replace metadata with complete observation.
+    annotated=detection.pop('annotated');cv2.imwrite(str(directory/(sample_id+'_annotated.jpg')),annotated)
+    if detection['corners']<layout['charuco']['min_corners']:
+        atomic_json(output,{'accepted':False,'reason':'insufficient board corners',**detection,'camera_settings':settings})
+        raise ValueError(f"Board has only {detection['corners']} detected corners; image saved for inspection")
+    q=observer.received[rid]['positions'];positions=dict(zip(names,q))
+    tool=Chain(model.description,rid+'_base_link',rid+'_tool0').forward(positions)
+    record={'sample_id':sample_id,'robot_id':rid,'role':role,'accepted':True,
+        **detection,'joint_names':names,'positions':q,'T_base_tool0':tool.tolist(),
+        'camera_settings':settings,'pixel_sha256':hashes[-1],
+        'image':sample_id+'.jpg','receipt_utc':receipt[-1],
+        'freshness':{'decoded_payload_changes':len(set(hashes)),'http_samples':len(hashes),
+            'stationary_joint_tolerance_rad':.002,'sensor_exposure_timestamp_available':False,
+            'association':'HTTP frames received inside stationary interval; no hardware timestamp guarantee'}}
+    atomic_json(output,record)
+    return record
+
+
+def capture(args):
+    import rclpy
+    profiles=load_profiles(args.inventory);rid=args.arm
+    if args.mode!='hardware':raise ValueError('HTTP camera capture is explicitly hardware-only')
+    if not profiles[rid]['ip']:raise ValueError('No configured camera/robot IP')
+    node=node_for(args.mode);observer=None
+    directory=Path(args.session).resolve();directory.mkdir(parents=True,exist_ok=True)
+    try:
+        observer,readings=read_state(node,profiles,args)
+        model,layout=make_model(load_layout(args.layout),profiles,directory/'model')
+        if not (directory/'session.json').exists():
+            atomic_json(directory/'session.json',{'schema_version':1,'mode':'hardware','robot_id':rid,
+                'layout':layout,'description':model.description,'created_at':datetime.now(timezone.utc).isoformat(),
+                'kinematics_file':profiles[rid]['kinematics_file']})
+        record=capture_observation(WristCamera(profiles[rid]['ip']),node,observer,model,layout,rid,
+            directory/'records',args.sample_id,args.role)
+        print(json.dumps({k:record[k] for k in ('sample_id','corners','image_size','freshness')},indent=2))
+    finally:
+        if observer:observer.close()
+        node.destroy_node();rclpy.shutdown()
+
+
+def fit(args):
+    from uwa_cell_gazebo.charuco import detect_pose
+    from uwa_cell_calibration.solver import solve_session
+    directory=Path(args.session);metadata=json.loads((directory/'session.json').read_text())
+    records=[json.loads(p.read_text()) for p in sorted((directory/'records').glob('sample_*.json'))]
+    records=[r for r in records if r.get('accepted')]
+    if not records:raise ValueError('No accepted hardware observations')
+    rid=metadata['robot_id'];layout=metadata['layout']
+    intrinsics=calibrate_intrinsics(records,focus=records[0]['camera_settings']['focus'],image_size=records[0]['image_size'])
+    atomic_json(directory/'intrinsics.json',intrinsics)
+    if args.intrinsics_only:
+        print(json.dumps(intrinsics,indent=2));return
+    handeye=[]
+    for record in records:
+        image=cv2.imread(str(directory/'records'/record['image']))
+        pose=detect_pose(image,np.array(intrinsics['camera_matrix']),np.array(intrinsics['distortion']),
+                         layout['charuco'],layout['robots'][rid]['table'])
+        if pose is None:raise ValueError(record['sample_id']+': board pose failed with fitted intrinsics')
+        handeye.append(dict(record,T_camera_board=pose['T_camera_board'].tolist(),
+            object_points=pose['object_points'],image_points=pose['image_points'],
+            camera_matrix=intrinsics['camera_matrix'],distortion=intrinsics['distortion']))
+    result=solve_session({rid:handeye})
+    result.update(mode='hardware',session_dir=str(directory.resolve()),intrinsics_file='intrinsics.json',
+        timing_limitations='Stationary HTTP capture; sensor exposure timestamps unavailable',
+        activated=False)
+    atomic_json(directory/'handeye_result.json',result)
+    print(json.dumps({'passed':result['passed'],'result':str(directory/'handeye_result.json'),
+                      'activated':False},indent=2))
+
+
+def main():
+    ws=Path(os.environ.get('UWA_WS',str(Path.home()/'UWA_ws')))
+    parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='command',required=True)
+    for command in ('plan-view','capture'):
+        p=sub.add_parser(command)
+        p.add_argument('--inventory',default=str(ws/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml'))
+        p.add_argument('--layout',default=str(default_layout_path()))
+        p.add_argument('--arm',choices=['right_rear','right_front'],default='right_rear')
+        p.add_argument('--mode',choices=['hardware','mock'],default='hardware')
+        p.add_argument('--manual-states',default=str(ws/'setup/calibration/parking/left_home.json'))
+        if command=='plan-view':p.add_argument('--output',required=True)
+        else:
+            p.add_argument('--session',required=True);p.add_argument('--sample-id',required=True)
+            p.add_argument('--role',choices=['fit','validation'],required=True)
+    p=sub.add_parser('fit');p.add_argument('session');p.add_argument('--intrinsics-only',action='store_true')
+    args=parser.parse_args()
+    try:
+        {'plan-view':plan_view,'capture':capture,'fit':fit}[args.command](args);return 0
+    except KeyboardInterrupt:return 130
+    except Exception as error:
+        print(json.dumps({'success':False,'error':str(error)}));return 1
+
+
+if __name__=='__main__':raise SystemExit(main())

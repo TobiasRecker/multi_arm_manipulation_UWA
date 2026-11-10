@@ -74,7 +74,20 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   false-Wert. Nutzer um Stop→Play vorne rechts gebeten, Freigabe für denselben
   gespeicherten Weg gilt fort. Keine Toleranzgrenzen gelockert. Logs
   uwa-parking-hardware-execute.log, uwa-parking-hardware-motion.json und
-  uwa-parking-front-external-control.json. Ergebnis des Folgeversuchs offen.
+  uwa-parking-front-external-control.json.
+- **Folgeversuch erfolgreich:** Nutzer Stop→Play ausgeführt, alle drei53001/
+  53003/53004-Verbindungen bestätigt und natives Programmflagtrue. Gemeldeter
+  Displayfehler „Trajectory socket53003 connected:false“ war bei Prüfung nicht
+  mehr aktuell;53003 war verbunden. Genau derselbe freigegebene Plan ausgeführt,
+  native skalierte JTC-Action SUCCEEDED/0. Maximaler Endfehler0,0000356rad,
+  unabhängige spätere Lesung0,0000291rad. Hinterer rechter Arm maximal0,000101rad
+  Änderung im Beobachtungsfenster, linke nicht kommandiert/ohne Live-Telemetrie.
+  Ergebnis in setup/calibration/parking/right_front_hardware/execution_result.json;
+  Logs uwa-parking-hardware-attempt2.log und uwa-parking-hardware-motion2.json.
+  Abschließend Front-JTC hält Ziel, Rear-Bewegungscontroller inaktiv, Hardware-
+  GUI/Treiber erhalten; eigene RViz-Vorschau sauber beendet. Kein Rückweg oder
+  automatischer Hardware-Kalibrierlauf. Gelegentliche500Hz-Overruns und nicht
+  fatale Typesupport-/MoveIt-Loggingwarnungen bleiben als technische Folgefrage.
 
 ## Ethernet und manuelles Jogging, 2026-11-10
 
