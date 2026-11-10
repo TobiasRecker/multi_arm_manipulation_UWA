@@ -9,7 +9,7 @@ import signal
 import yaml
 from types import SimpleNamespace
 
-os.environ['ROS_DOMAIN_ID']='66'
+os.environ['ROS_DOMAIN_ID']='67'
 os.environ['ROS_AUTOMATIC_DISCOVERY_RANGE']='LOCALHOST'
 os.environ['QT_QPA_PLATFORM']='offscreen'
 

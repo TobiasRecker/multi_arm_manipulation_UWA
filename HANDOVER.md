@@ -254,6 +254,22 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   Admin-Kennwort nötig; SSH-Authentifizierungsart separat prüfen. Schlüsselimport
   als Alternative ohne Kennwortweitergabe genannt. Keine Kennwortänderung
   durchgeführt und kein neues Kennwort empfangen/gespeichert.
+- Neuester Befund2026-11-10: Nutzer kennt Admin-Kennwort derzeit nicht und stellt
+  UCC1.11.3-ZIP bereit. Lokale statische Analyse findet internen HTTP-Kameraclient:
+  GET`/getcamerasettings` und`/getcamerasettingsdetails` tatsächlich erfolgreich
+  am right_rear, ohne SSH. Server meldet u.a.`focusAuto:true`, Fokus-Suchbereich
+  150…1023; gemeldeter`focus:0` im Auto-Modus nicht als Linsenposition ausgeben.
+- Originalclient verwendet POST`/setcamerasettings`, JSON`cameraSettings` und
+  booleschen Queryparameter`setManualValuesIfModeChanged`; Fokus-Trigger ebenfalls
+  rekonstruiert. Pendant-Regler0…1023 mitAPI-Wert=`1023−Reglerwert`.
+  **Kein Schreibtest**, keine Kamera-/Roboter-/Installationsänderung. Nachweise
+  unter`setup/logs/wrist-urcap-2026-11-10/`, eigener
+  [Analysebericht](docs/wrist_urcap_analysis_2026-11-10.md). Früherer Befund
+  „kein Netzwerksetter gefunden“ ist durch diese Archivuntersuchung überholt.
+- Korrektur SSH-Empfehlung: regulärer Key-Import im geschützten Security-Menü
+  benötigt ebenfalls Admin-Kennwort, umgeht es nicht. Für die gefundene
+  Kamera-HTTP-Schnittstelle ist SSH momentan nicht nötig. Archivversion nicht
+  mit bestätigter installierter URCap-Version gleichsetzen; nichts installiert.
 
 ### Zellgeometrie
 

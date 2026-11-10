@@ -88,6 +88,13 @@ versprechen. Hochskalieren des640×480-Bildes liefert keine neuen Details.
 
 ### Fokus vom PC und Umrechnung aus Entfernung
 
+**Aktualisierung2026-11-10:** NutzerarchivUCC1.11.3 lieferte jetzt die konkrete
+interne HTTP-Schnittstelle. GET`/getcamerasettings` und`/getcamerasettingsdetails`
+auf right_rear erfolgreich; POST-Setter und Fokus-Trigger im Client nachgewiesen,
+noch nicht ausgeführt. Originalregler0…1023, API-Wert=`1023−Reglerwert`.
+Siehe[Archivbefund](wrist_urcap_analysis_2026-11-10.md). Die folgenden Aussagen
+über noch nicht gefundene Netzwerksetter beschreiben den vorherigen Recherchestand.
+
 Nutzerpräferenz vom2026-11-10: Fokus möglichst per Skript/PC-Schieberegler
 bedienen, nicht bei jedem Versuch am Pendant. Eine zwingende physische
 Pendantbedienung lässt sich aus der fehlenden öffentlichen API nicht ableiten.
@@ -157,6 +164,11 @@ reicht eine Kennwortänderung für den Login nicht. Ein Public-Key-Import über
 Manage Authorized Keys ist eine Alternative ohne geteiltes Kennwort. Keine
 Kennwort-/SSH-Änderung durch diesen Agenten ausgeführt. Quelle:
 [UR: Secure setup ab PolyScope5.10](https://www.universal-robots.com/articles/ur/cybersecurity/secure-setup-of-ur-cobots/).
+
+Der Schlüsselimport benötigt ebenfalls Admin-Entsperrung. Laut neuester
+Nutzerangabe ist das Admin-Kennwort unbekannt; daher ist dieser Weg aktuell keine
+unmittelbare Lösung. Die oben neu nachgewiesenen Kamera-HTTP-Abfragen benötigen
+keinen SSH-Login.
 
 ## 2. Bildgeometrie und reales Modell vorbereiten
 

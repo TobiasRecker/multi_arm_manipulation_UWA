@@ -8,7 +8,7 @@ from uwa_cell_control.jog_dialog import JogDialog
 
 
 class Transport:
-    def __init__(self,profile):self.messages=[];self.program_running=None;self.closed=False
+    def __init__(self,profile,domain=67):self.messages=[];self.program_running=None;self.closed=False;self.domain=domain
     def publish(self,values):self.messages.append(list(values))
     def spin(self):pass
     def subscribers(self):return 0
@@ -31,6 +31,7 @@ def test_jog_only_streams_while_held_release_mode_change_focus_and_close_stop(tm
     transport=dialog.transport
     try:
         assert not transport.messages
+        assert transport.domain==67
         for _ in range(3):dialog.tick()
         assert not transport.messages  # An idle window must not override another command source.
         dialog.axis_buttons['X+'].pressed.emit();dialog.tick()

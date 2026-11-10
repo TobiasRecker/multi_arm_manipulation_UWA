@@ -135,6 +135,9 @@ class Window(QtWidgets.QMainWindow):
     @property
     def mock(self):return self.mode.currentIndex()==0
 
+    @property
+    def ros_domain(self):return 67 if self.mock else 66
+
     def selected(self):return [rid for rid,box in self.checks.items() if box.isChecked() and box.isEnabled()]
 
     def note(self,text):
@@ -180,6 +183,7 @@ class Window(QtWidgets.QMainWindow):
         if self.manual_key=='save':self.feedback.show_state('RUNNING','Save logs','Creating a diagnostic archive in the background.')
         self.grab().save(str(self.session.directory/'gui.png'))
         metadata={'inventory_path':str(self.inventory),'mode':'mock' if self.mock else 'hardware',
+            'ros_domain':self.ros_domain,
             'action_feedback':{'phase':self.feedback.phase,'title':self.feedback.message,'detail':self.feedback.full_detail},
             'selected_arms':self.selected(),'status':self.state,
             'jog_dialogs':{rid:dialog.snapshot() for rid,dialog in self.jog_dialogs.items()},
@@ -206,6 +210,7 @@ class Window(QtWidgets.QMainWindow):
 
     def change_mode(self):
         for dialog in list(self.jog_dialogs.values()):dialog.close()
+        os.environ['ROS_DOMAIN_ID']=str(self.ros_domain)
         self.state.clear();self.tree.clear()
         for rid,box in self.checks.items():
             available=self.mock or bool(self.profiles[rid]['ip'])
@@ -232,6 +237,9 @@ class Window(QtWidgets.QMainWindow):
 
     def process(self,args,*,tag,finished=None):
         process=QtCore.QProcess(self)
+        environment=QtCore.QProcessEnvironment.systemEnvironment()
+        environment.insert('ROS_DOMAIN_ID',str(self.ros_domain))
+        process.setProcessEnvironment(environment)
         process.setProcessChannelMode(QtCore.QProcess.ProcessChannelMode.MergedChannels)
         process.setProperty('output','')
         output_file=self.session.process_log(tag,args)
@@ -318,7 +326,7 @@ class Window(QtWidgets.QMainWindow):
             parent.setExpanded(expanded.get(LABELS[rid],rid==ARM_IDS[0]))
         observed=max((s.get('observed_at','') for s in self.state.values()),default='')
         self.footer.setText(('Last selected-arm status query: '+observed if observed else 'No status data yet')+
-                            ' · ROS domain 66 · software stop does not replace an emergency stop')
+                            f' · ROS domain {self.ros_domain} · software stop does not replace an emergency stop')
         if self.manual_key=='start' and self.feedback.phase=='RUNNING' and self.start_ids and all(self.state.get(rid,{}).get('driver_available') for rid in self.start_ids):
             self.action_result('start',True,'Controller managers are responding: '+', '.join(LABELS[rid] for rid in self.start_ids))
 
@@ -416,7 +424,8 @@ def main():
     args=parser.parse_args()
     arms=args.arms.split(',')
     if not arms or not set(arms)<=set(ARM_IDS):parser.error('Unknown arm selection')
-    os.environ['ROS_DOMAIN_ID']='66';os.environ['ROS_AUTOMATIC_DISCOVERY_RANGE']='LOCALHOST'
+    os.environ['ROS_DOMAIN_ID']='67' if args.mode=='mock' else '66'
+    os.environ['ROS_AUTOMATIC_DISCOVERY_RANGE']='LOCALHOST'
     app=QtWidgets.QApplication([sys.argv[0]])
     app.setDesktopFileName('uwa-control')
     window=Window(args.inventory,arms=arms,mode=args.mode);window.show()

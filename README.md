@@ -69,6 +69,9 @@ camera image; the read-only attempt on 2026-11-10 could not reach the controller
 Later the same day, a repeat read succeeded: the HTTP JPEG was **640×480**, while
 the 2019 camera specification lists up to 2560×1920 at 2 fps. See the linked guide
 for focus controls and the distinction between sensor and HTTP image resolution.
+The subsequent [UCC1.11.3 archive analysis](docs/wrist_urcap_analysis_2026-11-10.md)
+identified internal HTTP focus controls and verified both read-only settings
+queries on right_rear without SSH; focus writes have not yet been tested.
 The automatic calibration backend below remains simulation-only.
 
 The workspace is expected at `~/UWA_ws`; set `UWA_WS` before sourcing the helper

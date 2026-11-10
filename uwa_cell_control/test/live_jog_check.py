@@ -6,7 +6,7 @@ import tempfile
 import time
 import yaml
 
-os.environ['ROS_DOMAIN_ID']='66';os.environ['ROS_AUTOMATIC_DISCOVERY_RANGE']='LOCALHOST'
+os.environ['ROS_DOMAIN_ID']='67';os.environ['ROS_AUTOMATIC_DISCOVERY_RANGE']='LOCALHOST'
 os.environ['QT_QPA_PLATFORM']='offscreen'
 
 from python_qt_binding import QtCore,QtWidgets

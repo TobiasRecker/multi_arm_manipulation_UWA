@@ -11,7 +11,7 @@ class JogDialog(QtWidgets.QDialog):
         super().__init__(main)
         self.main=main;self.rid=rid;self.profile=main.profiles[rid]
         self.active=[0.]*6;self.zero_ticks=0;self.closed=False
-        self.transport=(transport_factory or JogTransport)(self.profile)
+        self.transport=(transport_factory or JogTransport)(self.profile,domain=main.ros_domain)
         self.setWindowTitle('UWA Cartesian jog · '+rid);self.resize(660,480)
         layout=QtWidgets.QVBoxLayout(self)
         mode='MOCK' if main.mock else 'HARDWARE'
