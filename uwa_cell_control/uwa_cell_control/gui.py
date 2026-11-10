@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import signal
 import sys
+import subprocess
 
 from python_qt_binding import QtCore,QtGui,QtWidgets
 from match_ur_hardware.processes import stop_owned_process
@@ -43,7 +44,8 @@ class Window(QtWidgets.QMainWindow):
         self.table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Stretch)
         self.table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.setMaximumHeight(200);layout.addWidget(self.table)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setMaximumHeight(175);layout.addWidget(self.table)
         for row,rid in enumerate(ARM_IDS):
             for col,text in enumerate([LABELS[rid],self.profiles[rid]['ip'] or 'nicht konfiguriert','—','—','—','—','—']):
                 self.table.setItem(row,col,QtWidgets.QTableWidgetItem(text))
@@ -67,7 +69,10 @@ class Window(QtWidgets.QMainWindow):
             b=QtWidgets.QPushButton(text);b.clicked.connect(callback);edit.addWidget(b)
         form.addLayout(edit);self.tabs.addTab(prep,'Vorbereitung')
         controllers=QtWidgets.QWidget();ctl=QtWidgets.QVBoxLayout(controllers)
-        self.tree=QtWidgets.QTreeWidget();self.tree.setHeaderLabels(['Arm / Controller','Zustand']);ctl.addWidget(self.tree)
+        self.tree=QtWidgets.QTreeWidget();self.tree.setHeaderLabels(['Arm / Controller','Zustand'])
+        self.tree.header().setSectionResizeMode(0,QtWidgets.QHeaderView.ResizeMode.Stretch)
+        self.tree.header().setSectionResizeMode(1,QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        ctl.addWidget(self.tree)
         self.controller_note=QtWidgets.QLabel('Wiederverwendet: mur_control · J-PARSE · integrierte Admittanz.\n'
             'Der vorhandene Kollisionscontroller berücksichtigt einen Gegenarm. Ein vollständiges Vierarm-/Tisch-/Werkzeugmodell fehlt hier noch.\n'
             'Hardware-Bewegungsaktivierung bleibt deshalb in dieser ersten Oberfläche gesperrt; Mock-Tests sind verfügbar.')
@@ -85,6 +90,7 @@ class Window(QtWidgets.QMainWindow):
         self.footer=QtWidgets.QLabel('Nur lokale Prozesse · getrennt von Gazebo · Status noch nicht geprüft');layout.addWidget(self.footer)
         self.log_path=self.workspace/'setup/logs/uwa-control/gui.log';self.log_path.parent.mkdir(parents=True,exist_ok=True)
         self.timer=QtCore.QTimer(self);self.timer.timeout.connect(self.refresh);self.timer.start(4000)
+        for box in self.checks.values():box.toggled.connect(self.update_buttons)
         self.change_mode();QtCore.QTimer.singleShot(200,self.refresh)
 
     @property
@@ -106,15 +112,20 @@ class Window(QtWidgets.QMainWindow):
         self.banner.setText('MOCK: alle Tests bleiben auf diesem PC; keine Verbindung zu echten URs.' if self.mock else
             'HARDWARE: PC aktuell über WLAN. Treiberstart schaltet nichts ein. Bereitstellen löst nach explizitem Klick die Bremsen. '
             'External-Control-Programm und Werkskinematik je Arm im Inventar konfigurieren.')
+        self.banner.setStyleSheet('padding:10px;border-radius:4px;background:#e6eff9;color:#173d62;font-weight:bold' if self.mock else
+                                  'padding:10px;border-radius:4px;background:#fff0d5;color:#724800;font-weight:bold')
         self.update_buttons()
+        self.render_status()
 
     def update_buttons(self):
         busy=any(key!='status' for key in self.jobs)
+        available=bool(self.selected()) and all(rid in self.drivers for rid in self.selected())
         self.mode.setEnabled(not self.drivers and not busy)
         for key,button in self.buttons.items():
             allowed=not busy
-            if key in ('cartesian','trajectory','rqt'):allowed=allowed and self.mock
-            if key in ('prepare','play'):allowed=allowed and not self.mock
+            if key in ('cartesian','trajectory','rqt'):allowed=allowed and self.mock and available
+            if key in ('prepare','play'):allowed=allowed and not self.mock and available
+            if key=='inactive':allowed=allowed and available
             button.setEnabled(allowed)
 
     def process(self,args,*,tag,finished=None):
@@ -147,7 +158,9 @@ class Window(QtWidgets.QMainWindow):
                 try:
                     line=next(line for line in reversed(output.splitlines()) if line.startswith('{'))
                     data=json.loads(line)
-                    self.state.update(data.get('arms',{}));self.render_status()
+                    if mode==('mock' if self.mock else 'hardware'):
+                        for state in data.get('arms',{}).values():state['observed_at']=datetime.now().strftime('%H:%M:%S')
+                        self.state.update(data.get('arms',{}));self.render_status()
                 except Exception as e:self.note(f'Status konnte nicht gelesen werden: {e}')
             else:
                 self.note(f'{kind}: '+('abgeschlossen' if code==0 else 'fehlgeschlagen; Details im Protokoll'))
@@ -155,22 +168,27 @@ class Window(QtWidgets.QMainWindow):
         self.jobs[kind]=self.process(args,tag=kind,finished=done);self.update_buttons()
 
     def render_status(self):
+        expanded={self.tree.topLevelItem(i).text(0):self.tree.topLevelItem(i).isExpanded()
+                  for i in range(self.tree.topLevelItemCount())}
         self.tree.clear()
         for row,rid in enumerate(ARM_IDS):
             state=self.state.get(rid,{})
             answers={q['command']:q['answer'] for q in state.get('dashboard',{}).get('queries',[])}
-            values=['ROS verfügbar' if state.get('driver_available') else 'nicht gestartet',
-                    'Mock' if self.mock else answers.get('robotmode','—'),
-                    'Mock' if self.mock else answers.get('safetystatus','—'),
+            values=['ROS verfügbar' if state.get('driver_available') else 'Startet / keine Antwort' if rid in self.drivers else 'nicht gestartet',
+                    'Mock' if self.mock else answers.get('robotmode','—').removeprefix('Robotmode: ').strip(),
+                    'Mock' if self.mock else answers.get('safetystatus','—').removeprefix('Safetystatus: ').strip(),
                     'Mock' if self.mock else answers.get('programState','—'),
-                    '—' if self.mock else str(state.get('dashboard',{}).get('remote_control','—'))]
+                    '—' if self.mock else {True:'Ja',False:'Nein'}.get(state.get('dashboard',{}).get('remote_control'),'unbekannt')]
             for col,value in enumerate(values,2):self.table.item(row,col).setText(value)
+            for col in range(7):self.table.item(row,col).setToolTip('Letzte Abfrage: '+state.get('observed_at','noch keine'))
             if state.get('dashboard',{}).get('error'):self.table.item(row,2).setText('nicht erreichbar')
             parent=QtWidgets.QTreeWidgetItem([LABELS[rid],''])
             self.tree.addTopLevelItem(parent)
             for c in state.get('controllers',[]):parent.addChild(QtWidgets.QTreeWidgetItem([c['name'],c['state']]))
-            parent.setExpanded(True)
-        self.footer.setText('Letzte Statusabfrage: '+datetime.now().strftime('%H:%M:%S')+' · ROS-Domain 66 · Softwarestopp ersetzt keinen Not-Halt')
+            parent.setExpanded(expanded.get(LABELS[rid],rid==ARM_IDS[0]))
+        observed=max((s.get('observed_at','') for s in self.state.values()),default='')
+        self.footer.setText(('Letzte Statusabfrage der Auswahl: '+observed if observed else 'Noch keine Statusdaten')+
+                            ' · ROS-Domain 66 · Softwarestopp ersetzt keinen Not-Halt')
 
     def refresh(self):
         if not self.closing and not self.jobs:self.operation('status')
@@ -194,13 +212,16 @@ class Window(QtWidgets.QMainWindow):
             return
         if key=='rqt':
             self.auxiliary.append(self.process(['ros2','run','rqt_joint_trajectory_controller','rqt_joint_trajectory_controller'],tag='Gelenksteuerung'));return
+        if not all(rid in self.drivers for rid in ids):
+            self.note('Diese Aktion benötigt eigene, über diese GUI gestartete Treiber für die Armauswahl.');return
         self.operation(key)
 
     def stop_all(self):
-        ids=list(self.drivers) or self.selected()
+        ids=list(self.drivers)
+        if not ids:self.note('Keine über diese GUI gestarteten Arme zu stoppen.');return
         for key,process in list(self.jobs.items()):
-            if key!='status':stop_owned_process(process)
-        self.jobs={k:v for k,v in self.jobs.items() if k=='status'}
+            stop_owned_process(process)
+        self.jobs={}
         self.operation('stop',ids)
 
     def edit_inventory(self):QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(str(self.inventory)))
@@ -216,7 +237,17 @@ class Window(QtWidgets.QMainWindow):
 
     def closeEvent(self,event):
         self.closing=True;self.timer.stop()
-        for p in list(self.jobs.values())+list(self.drivers.values())+self.auxiliary:stop_owned_process(p)
+        for p in list(self.jobs.values()):stop_owned_process(p)
+        if self.drivers and not self.mock:
+            # Explicitly stop programs/controllers before removing owned drivers.
+            # Only this GUI's arm set is affected. No automatic power-off.
+            try:
+                answer=subprocess.run(['ros2','run','match_ur_hardware','ur_operation',
+                    '--inventory',str(self.inventory),'--arms',','.join(self.drivers),
+                    '--mode','hardware','stop'],capture_output=True,text=True,timeout=25)
+                self.note('Schließen: '+answer.stdout[-2000:])
+            except Exception as error:self.note(f'Stopp beim Schließen nicht bestätigt: {error}')
+        for p in list(self.drivers.values())+self.auxiliary:stop_owned_process(p)
         event.accept()
 
 

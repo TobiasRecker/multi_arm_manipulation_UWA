@@ -2,7 +2,6 @@
 """Install the local UWA preparation GUI, reusing the existing cell artwork."""
 import os
 from pathlib import Path
-import shlex
 import subprocess
 
 
@@ -16,7 +15,7 @@ def main():
     entry.write_text('[Desktop Entry]\nType=Application\nName=UWA Arme\n'
         'Comment=Lokale Vorbereitung und Controllerstatus der vier UWA-Arme\n'
         f'Exec=/usr/bin/bash "{script}"\nIcon={repo}/assets/uwa-cell.png\n'
-        'Terminal=false\nCategories=Education;Science;Robotics;\nStartupNotify=true\n')
+        'Terminal=false\nCategories=Education;\nStartupNotify=true\nStartupWMClass=uwa_control_gui\n')
     print(entry)
     try:subprocess.run(['update-desktop-database',str(target)],check=False,capture_output=True)
     except FileNotFoundError:pass

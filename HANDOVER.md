@@ -1,6 +1,6 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
-Stand der Zusammenfassung: **2026-11-09**, Zeitzone Australia/Perth.
+Stand der Zusammenfassung: **2026-11-10**, Zeitzone Australia/Perth.
 Diese Datei fasst die bisherigen Gespräche und die überprüfte Implementierung
 zusammen. Sie soll bei weiterer Arbeit mitgepflegt werden, nicht als unveränderlicher
 Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [README.md](README.md).
@@ -28,6 +28,42 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 
 ## Aufbau der realen Zelle und Modellannahmen
 
+### Lokale UR-Vorbereitung und eigene UWA-GUI, 2026-11-10
+
+- Nutzerwunsch: gemeinsame Start-/Bereitstellungs-/Admittanz-/Kollisionsbausteine
+  im MATCH-Repo belassen, aus UWA referenzieren; einfache eigene Oberfläche
+  mit vier Armauswahlen oben links, ohne SSH/rsync/mobile Infrastruktur.
+- Neues Paket `match_ur_hardware` im MATCH-Repo: lokaler UR-only-Launch,
+  eindeutige Präfixe/Ports/Manager, bestehender Admittanz-/J-PARSE-Controller
+  geladen inaktiv. Vorhandene Algorithmen und MuR-Defaults nicht verändert.
+  Wiederverwendung von `ur_startup_enable.py` und Qt-unabhängigen MuR-GUI-Helfern.
+- Neues UWA-Paket `uwa_cell_control`, App **UWA Arme**, Terminalstart
+  `bash src/multi_arm_manipulation_UWA/scripts/control.sh`. Standard Mock,
+  eigene Domain 66/lokale Discovery, unabhängig von Gazebo 64/OAK 65.
+  Physische Zuordnung und eindeutige Reverse-Ports in `hardware_inventory.yaml`.
+- Status, eigener Treiberstart/-stopp, explizite Bereitstellung (Power/Brake),
+  separat geprüfter External-Control-Programmstart, Controlleransicht und
+  Mock-Controllerwahl/rqt. Keine automatischen Einschalt-/Programmaktionen
+  beim Launch, keine automatische Sicherheitsquittierung. Programm-Pfad und
+  Werkskinematik noch nicht eingetragen; links fehlen weiterhin reale IPs.
+- Vorhandene Kollision unterstützt **einen Gegenarm**, keine komplette
+  Vierarm-/Tisch-/Werkzeugszene. Hardware-Bewegungsaktivierung daher im neuen
+  Adapter gesperrt. Gemeinsame Hardware-TFs/Kalibrierung, Kraft-/Kollisions-
+  Validierung und tatsächliche Hardware-Bereitstellung bleiben offen.
+- Zwei Pakete erfolgreich gebaut, **zehn Offline-Tests bestanden**. Live-GUI-
+  Mock-Prüfung: vier Manager, 24 eindeutige endliche Gelenkzustände, initial
+  alle Bewegungscontroller inaktiv, vier Admittanz-Plugins aktiviert, GUI-Stopp
+  deaktiviert alle, eigene Treiber sauber beendet. JSON/Screenshot unter
+  `setup/logs/uwa-control/`, Buildlog `setup/logs/uwa-control-build.log`.
+  Keine realen Treiber/Power-/Brake-/Play-/Bewegungsbefehle ausgeführt.
+- Eigene Prozessgruppen statt pauschaler ROS-Kills; Softwarestopp ist kein
+  Hardware-Not-Halt. Mehrarm-CLI derzeit seriell, keine garantierte Stoppzeit.
+- Anleitung und offene Inbetriebnahmeschritte: [UWA Arme](docs/ur_control_gui.md).
+- Startmenü-Eintrag installiert/validiert und über `gtk-launch uwa-control`
+  gestartet, X11-Fensterregistrierung bestätigt. GUI im Mock-Modus geöffnet,
+  alle Testtreiber beendet. Starter entfernt geerbte VS-Code-Snap-GTK-Pfade,
+  die sonst mit der Host-Qt/GLib-Version kollidieren.
+
 ### Reale Netzwerkverbindung, 2026-11-10
 
 - **Verbindliche Nutzerzuordnung:** hinten rechts=`right_rear`=192.168.8.170,
@@ -52,6 +88,26 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   `setup/logs/hardware-wifi-2026-11-10/`. WLAN-Bildprofile zunächst klein halten,
   Kalibrieraufnahmen bei Stillstand; spätere Rückverbindungen benötigen die
   aktuelle PC-IP. Keine URCap-/Netzwerk-/Firmwareänderung ausgeführt.
+
+### Erster realer Wrist-/Hand-Auge-Test, 2026-11-10
+
+- Neuer Nutzerwunsch: zunächst ausschließlich hinten rechts (`right_rear`,
+  192.168.8.170) reale Tests vorbereiten, insbesondere Kamerabildzugriff klären.
+- [Konkretes Vorgehen](docs/right_rear_hardware_first_test.md): Robotiq dokumentiert
+  HTTP4242`/current.jpg?type=color` am UR-Controller für das letzte Kamerabild.
+  Bildfrische, tatsächlichen Bildmodus/Intrinsics und Fokus separat prüfen.
+- Lesender Versuch: HTTP`No route to host`, Dashboard29999Timeout. PC weiterhin
+  192.168.8.209 aufWLANwlp88s0f0, Route vorhanden. Kein Bild/Zustand bestätigt,
+  Ursache offen. Lokaler Bericht`setup/logs/right-rear-wrist-2026-11-10/report.json`.
+  Keine Treiberstarts, Bewegung oder Power-/Brake-/Programm-/Kameraänderungen.
+- Empfehlung, noch keine Umsetzung: zunächst am Pendant manuell angefahrene
+  Stellungen, hardwareseitiger Bild-/Pose-Recorder mit gesicherter Bildfrische,
+  reale Intrinsics/Werkskinematik und unabhängige Prüfstellungen. Automatischer
+  Backend/Stopp derzeit weiterhin Simulation, nicht für echte Arme freigegeben.
+- right_rear allein liefert Hand-Auge und Basis-zu-Board; relativer Abstand zum
+  right_front erst mit dessen Messreihe am gleichen unbewegten Board. Vorhandene
+  parallele Hardware-GUI-Arbeit bleibt erhalten und wurde nicht als fertige
+  Kalibrier-Hardwareanbindung ausgegeben.
 
 ### Zellgeometrie
 

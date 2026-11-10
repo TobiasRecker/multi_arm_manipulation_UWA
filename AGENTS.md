@@ -70,6 +70,10 @@
   PC vorübergehend per WLAN wegen defektem LAN-Kabel, Geräte weiterhin verkabelt.
   Kleine Kameraprofile und Latenz/Jitter beachten; Ethernet-Messwerte gelten
   dafür nicht. Lesende Erreichbarkeitsdiagnose ist keine Bewegungsfreigabe.
+  Nutzerziel vom 2026-11-10: reale Hand-Auge-Erprobung zuerst ausschließlich
+  `right_rear`; Bildzugriff und manuell aufgenommene Messreihe vor automatischen
+  Hardwarefahrten prüfen. Bestehender Kalibrierbackend bleibt Simulation-only;
+  HTTP-Bildempfang ist kein Nachweis eines frischen Belichtungszeitpunkts.
   Seit 2026-11-09 ist MoveIt-Kollisionsprüfung für die automatische Kalibrierung
   umgesetzt. Allgemeine kooperative Planung und Hardware-Anbindung bleiben Folgearbeit.
 - Automatische Hand-Auge-Kalibrierung: unbekannte Kameraextrinsics aus mehreren
@@ -91,6 +95,17 @@
 
 ## Verbindliche Bedienerwartungen
 
+- Nutzerauftrag vom 2026-11-10: lokale Vierarm-Vorbereitung und vereinfachte
+  eigene UWA-GUI mit Armauswahl oben links, ohne SSH/rsync/mobile Infrastruktur.
+  Gemeinsamer UR-Start und Controller bleiben im MATCH-Repo (`match_ur_hardware`,
+  `mur_control`, `mur_launch_hardware`); `uwa_cell_control` referenziert sie.
+  Physische Konfiguration ausschließlich aus `config/hardware_inventory.yaml`.
+  App **UWA Arme**: Mock als Standard, Domain 66/lokale Discovery; kein
+  automatisches Power/Brake/Play beim Treiberstart. Vorhandene Ein-Gegenarm-
+  Kollision nicht als vollständigen Vierarm-Kollisionsschutz darstellen.
+  Echte Bewegungsaktivierung bleibt bis zur vollständigen Integration gesperrt.
+  Programmstart verlangt exakt konfigurierten geladenen Programmpfad; keine
+  automatische Sicherheitsquittierung. Bedienung: `docs/ur_control_gui.md`.
 - Die App **UWA Cell Simulation** soll mit normalem Klick Gazebo, rqt, RViz
   **und den Scan-Publisher** starten. Auch ihre Aktion **RViz öffnen** lädt den Scan.
   Den früheren App-Standard ohne Scan nicht wieder einführen.

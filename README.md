@@ -2,13 +2,31 @@
 
 ROS 2 **Lyrical**, Ubuntu 26.04 and **Gazebo Jetty**. This repository models
 two tables carrying one UR5, one UR7e and two UR5e robots. It starts simulated
-hardware only. The layout is provisional, not a calibrated digital twin.
+hardware by default. The layout is provisional, not a calibrated digital twin.
+Separate, explicit local hardware preparation is available in the UWA Arms app.
 
 Project context is maintained in [HANDOVER.md](HANDOVER.md): user goals,
 requirements, preferences, decisions, verified results and open work.
 [AGENTS.md](AGENTS.md) defines the ongoing working and documentation rules.
 [ACTIVE_WORK.md](ACTIVE_WORK.md) explains task-specific status files under `work/`
 for agents sharing this checkout; read active entries before editing or restarting services.
+
+## UWA Arme: local multi-UR preparation
+
+Open **UWA Arme** from the application menu, or run:
+
+```bash
+bash src/multi_arm_manipulation_UWA/scripts/control.sh
+```
+
+It starts in Mock mode. Select arms at the top left, start drivers, and inspect
+or test the shared MATCH controllers in the Controller tab. No SSH/rsync or
+mobile-platform setup. UR bringup and the existing admittance/J-PARSE algorithms
+stay in the MATCH repository; this repository supplies inventory and the small UI.
+Hardware readiness and program start require separate explicit actions.
+Real motion activation is currently disabled pending full four-arm collision
+integration. Domain 66 is separate from Gazebo 64 and OAK 65.
+See [operation, architecture and current limits](docs/ur_control_gui.md).
 
 ## Build
 
@@ -19,6 +37,12 @@ and [read-only network report](docs/hardware_network_2026-11-10.md) record the
 mapping and measured latency. They do not enable hardware drivers or motion;
 the Gazebo launch remains isolated. Previous wired-camera throughput results
 do not describe the current Wi-Fi path.
+
+For the first real hand-eye test, start with **right_rear only**. See the
+[camera access and staged hardware procedure](docs/right_rear_hardware_first_test.md).
+Robotiq documents `http://192.168.8.170:4242/current.jpg?type=color` for the latest
+camera image; the read-only attempt on 2026-11-10 could not reach the controller.
+The automatic calibration backend below remains simulation-only.
 
 The workspace is expected at `~/UWA_ws`; set `UWA_WS` before sourcing the helper
 if it lives elsewhere. Dependencies are declared in the package manifests.
