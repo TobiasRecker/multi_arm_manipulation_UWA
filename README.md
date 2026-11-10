@@ -24,9 +24,10 @@ or test the shared MATCH controllers in the Controller tab. No SSH/rsync or
 mobile-platform setup. UR bringup and the existing admittance/J-PARSE algorithms
 stay in the MATCH repository; this repository supplies inventory and the small UI.
 Hardware readiness and program start require separate explicit actions.
-Real motion activation supports **one or two arms**; three/four remain disabled.
-The default selection is **right_rear only**. This does not supply complete
-cell collision protection. Domain 66 is separate from Gazebo 64 and OAK 65.
+Manual controller operations now go directly to the driver without additional
+UWA arm-count, Dashboard-state or loaded-program-path gates. Existing drivers
+can be controlled from a new window. The default selection is **right_rear only**.
+The app supplies no complete cell collision protection. Domain 66 is separate from Gazebo 64 and OAK 65.
 See [operation, architecture and current limits](docs/ur_control_gui.md).
 
 ## Build

@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import time
 import tempfile
+import tarfile
 import yaml
 from types import SimpleNamespace
 
@@ -16,6 +17,7 @@ from python_qt_binding import QtWidgets
 import rclpy
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import JointState
+from controller_manager_msgs.srv import UnloadController
 from match_ur_hardware.operations import controller_list
 import match_ur_hardware.operations as operations
 from match_ur_hardware.profiles import CARTESIAN,MOTION
@@ -85,6 +87,14 @@ def main():
         samples=operations.read_joints(node,profiles,ARM_IDS)
         assert all(len(s['positions'])==6 for s in samples.values())
         report['joint_reader_without_program_preflight']=True
+        request=UnloadController.Request();request.name='forward_velocity_controller'
+        assert operations.call(node,UnloadController,profiles['right_rear']['namespace']+
+            '/controller_manager/unload_controller',request).ok
+        operations.load_controllers(node,profiles['right_rear'],mock=True)
+        assert any(c.name=='forward_velocity_controller' and c.state=='inactive'
+                   for c in controller_list(node,profiles['right_rear']))
+        operations.load_controllers(node,profiles['right_rear'],mock=True)
+        report['controller_reload_idempotent']=True
         window.buttons['cartesian'].click()
         wait(lambda:'cartesian' not in window.jobs,30,'mock Cartesian activation')
         activated=controllers()
@@ -93,6 +103,16 @@ def main():
         window.operation('status');wait(lambda:not window.jobs,15,'GUI status')
         window.tabs.setCurrentIndex(1);pump(.5)
         window.grab().save(str(out/'mock-controller-gui.png'))
+        window.save_logs_button.click()
+        wait(lambda:window.export_worker is None,25,'log archive export during active mock controllers')
+        archive_path=Path((out/'latest-export.txt').read_text().strip())
+        with tarfile.open(archive_path) as archive:
+            manifest=json.load(archive.extractfile('manifest.json'))
+            assert len(manifest['snapshot']['driver_pids'])==4
+            assert manifest['snapshot']['mode']=='mock'
+            assert any(name.startswith('ros/') for name in archive.getnames())
+            assert any(name.startswith('session/processes/') for name in archive.getnames())
+        report['log_export']=str(archive_path)
         window.stop_button.click();wait(lambda:'stop' not in window.jobs,30,'software stop')
         stopped=controllers()
         assert not any(c.name in MOTION and c.state=='active' for cs in stopped.values() for c in cs)

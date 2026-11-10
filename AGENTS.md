@@ -95,22 +95,32 @@
 
 ## Verbindliche Bedienerwartungen
 
+- Nutzerwunsch vom 2026-11-10: UR-GUI vollständig **Englisch**, einschließlich
+  Beschriftungen, Tooltips, eigener Meldungen und Startmenüeintrag **UWA Arms**.
+  Gesprächssprache bleibt Deutsch. **Save logs** muss während laufender
+  Operationen erreichbar bleiben und aktuelle Sitzung/Prozessausgaben/zugehörige
+  ROS-Logs lokal mit Status-Snapshot exportieren. Eindeutige Sitzungsordner,
+  keine bloß gekürzte Bildschirm-Logkopie; älteren übernommenen Treiberkontext
+  kennzeichnen. Exporte unter `setup/logs/uwa-control/exports/`, neuester Pfad
+  in `setup/logs/uwa-control/latest-export.txt`. Keine Roboterbefehle beim Export.
 - Nutzerauftrag vom 2026-11-10: lokale Vierarm-Vorbereitung und vereinfachte
   eigene UWA-GUI mit Armauswahl oben links, ohne SSH/rsync/mobile Infrastruktur.
   Gemeinsamer UR-Start und Controller bleiben im MATCH-Repo (`match_ur_hardware`,
   `mur_control`, `mur_launch_hardware`); `uwa_cell_control` referenziert sie.
   Physische Konfiguration ausschließlich aus `config/hardware_inventory.yaml`.
-  App **UWA Arme**: Mock als Standard, Domain 66/lokale Discovery; kein
+  App **UWA Arms**: Mock als Standard, Domain 66/lokale Discovery; kein
   automatisches Power/Brake/Play beim Treiberstart. Vorhandene Ein-Gegenarm-
   Kollision nicht als vollständigen Vierarm-Kollisionsschutz darstellen.
-  Nutzerpräzisierung vom 2026-11-10: Bewegungsaktivierung für **einen oder zwei
-  Arme** erlauben; zunächst ausschließlich **hinten rechts (`right_rear`)**.
-  Auswahl standardmäßig nur dieser Arm. Drei/vier Hardwarearme bleiben gesperrt;
-  bereits aktive bekannte Arme mitzählen. Kein vollständiger Zellenkollisionsschutz
-  auch bei nur einem bewegten Arm. Tests des Agenten bleiben Mock/offline;
-  keine unbeauftragten realen Ziele beim Öffnen der GUI.
-  Programmstart verlangt exakt konfigurierten geladenen Programmpfad; keine
-  automatische Sicherheitsquittierung. Bedienung: `docs/ur_control_gui.md`.
+  Neueste Nutzerkorrektur vom 2026-11-10: zusätzliche UWA-Sicherheitsgates
+  entfernen. Keine Armzahl-, Dashboard-NORMAL/Remote/RUNNING/PLAYING-, exakte
+  Programmpfad- oder GUI-Treiberbesitz-Sperre vor manuellen Operationen.
+  WLAN zulassen, keine eigene LAN-/Latenz-Sperre einführen. Native UR-/Treiber-
+  Ablehnungen und vorhandene Kollisionsalgorithmen erhalten. Insbesondere keine
+  UR-Sicherheitsfunktionen umgehen oder Stopps automatisch quittieren.
+  Standardauswahl bleibt hinten rechts (`right_rear`). Tests des Agenten senden
+  keine realen Power/Brake/Play/Ziele; laufende Hardwaretreiber erhalten.
+  Technische Profil-/Portprüfung, Schutz gegen doppelte Treiberinstanzen und
+  Aufräumen eigener Prozesse erhalten. Bedienung: `docs/ur_control_gui.md`.
 - Die App **UWA Cell Simulation** soll mit normalem Klick Gazebo, rqt, RViz
   **und den Scan-Publisher** starten. Auch ihre Aktion **RViz öffnen** lädt den Scan.
   Den früheren App-Standard ohne Scan nicht wieder einführen.

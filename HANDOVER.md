@@ -28,60 +28,48 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 
 ## Aufbau der realen Zelle und Modellannahmen
 
-### Lokale UR-Vorbereitung und eigene UWA-GUI, 2026-11-10
+### Lokale UR-Vorbereitung und direkte UWA-GUI, 2026-11-10
 
 - Nutzerwunsch: gemeinsame Start-/Bereitstellungs-/Admittanz-/Kollisionsbausteine
-  im MATCH-Repo belassen, aus UWA referenzieren; einfache eigene Oberfläche
-  mit vier Armauswahlen oben links, ohne SSH/rsync/mobile Infrastruktur.
-- Neues Paket `match_ur_hardware` im MATCH-Repo: lokaler UR-only-Launch,
-  eindeutige Präfixe/Ports/Manager, bestehender Admittanz-/J-PARSE-Controller
-  geladen inaktiv. Vorhandene Algorithmen und MuR-Defaults nicht verändert.
-  Wiederverwendung von `ur_startup_enable.py` und Qt-unabhängigen MuR-GUI-Helfern.
-- Neues UWA-Paket `uwa_cell_control`, App **UWA Arme**, Terminalstart
-  `bash src/multi_arm_manipulation_UWA/scripts/control.sh`. Standard Mock,
-  eigene Domain 66/lokale Discovery, unabhängig von Gazebo 64/OAK 65.
-  Physische Zuordnung und eindeutige Reverse-Ports in `hardware_inventory.yaml`.
-- Status, eigener Treiberstart/-stopp, explizite Bereitstellung (Power/Brake),
-  separat geprüfter External-Control-Programmstart, Controlleransicht und
-  Mock-Controllerwahl/rqt. Keine automatischen Einschalt-/Programmaktionen
-  beim Launch, keine automatische Sicherheitsquittierung. Programm-Pfad und
-  Werkskinematik noch nicht eingetragen; links fehlen weiterhin reale IPs.
-- Vorhandene Kollision unterstützt **einen Gegenarm**, keine komplette
-  Vierarm-/Tisch-/Werkzeugszene. Die anfängliche pauschale Hardware-Sperre wurde
-  auf expliziten Folgeauftrag am 2026-11-10 für **ein/zwei Arme** aufgehoben;
-  zunächst nur `right_rear`, auch als Standardauswahl. Drei/vier bleiben gesperrt.
-  Bekannte bereits aktive Arme werden mitgezählt; Adapter-Aktivierungen gegen
-  parallele Aufrufe verriegelt. Kein systemweiter Schutz gegen direkte ROS-/rqt-
-  Aufrufe außerhalb des Adapters. Kollisionsvermeidung in den Profilen bleibt
-  deaktiviert, auch für einen Arm. Gemeinsame Hardware-TFs/Kalibrierung, Kraft-/Kollisions-
-  Validierung und tatsächliche Hardware-Bereitstellung bleiben offen.
-- Zwei Pakete erfolgreich gebaut, **zehn Offline-Tests bestanden**. Live-GUI-
-  Mock-Prüfung: vier Manager, 24 eindeutige endliche Gelenkzustände, initial
-  alle Bewegungscontroller inaktiv, vier Admittanz-Plugins aktiviert, GUI-Stopp
-  deaktiviert alle, eigene Treiber sauber beendet. JSON/Screenshot unter
-  `setup/logs/uwa-control/`, Buildlog `setup/logs/uwa-control-build.log`.
-  Keine realen Treiber/Power-/Brake-/Play-/Bewegungsbefehle ausgeführt.
-- Eigene Prozessgruppen statt pauschaler ROS-Kills; Softwarestopp ist kein
-  Hardware-Not-Halt. Mehrarm-CLI derzeit seriell, keine garantierte Stoppzeit.
-- Anleitung und offene Inbetriebnahmeschritte: [UWA Arme](docs/ur_control_gui.md).
-- Startmenü-Eintrag installiert/validiert und über `gtk-launch uwa-control`
-  gestartet, X11-Fensterregistrierung bestätigt. GUI im Mock-Modus geöffnet,
-  alle Testtreiber beendet. Starter entfernt geerbte VS-Code-Snap-GTK-Pfade,
-  die sonst mit der Host-Qt/GLib-Version kollidieren.
-- Folgeprüfung Ein-/Zweiarm-Aktivierung: **16 Offline-Tests bestanden**, beide
-  Pakete gebaut. Hardware-Aktivierungspfad gegen lokale Mock-Komponenten mit
-  ersetztem Dashboard: ein Arm, zwei Arme, Drittarm abgelehnt; danach auch
-  Vierarm-Mock-Admittanz und GUI-Stopp/Prozessabbau bestanden. Kein physischer
-  Treiber oder Bewegungsbefehl. Logs `setup/logs/uwa-control-small-system-*`,
-  Bericht `setup/logs/uwa-control/mock-gui-validation.json`.
-- Hardware-Aktivierung verlangt NORMAL/Remote/RUNNING und den exakten
-  konfigurierten geladenen Programmpfad im Zustand PLAYING. Kein impliziter
-  Programmstart. Native reale Trajektorien verwenden den skalierten UR-Controller;
-  rqt wird erst danach freigeschaltet. Startmenü-Aktion **Hardware · hinten rechts**
-  ergänzt; CLI `control.sh --mode hardware --arms right_rear` startet nur die GUI.
-- Aktualisierte Desktop-Aktion validiert und ausgeführt; GUI im Hardwaremodus
-  mit ausschließlich hinten rechts ausgewählt geöffnet (X11/Prozessargumente
-  geprüft). Keine echten Treiber automatisch gestartet.
+  in MATCH belassen; einfache UWA-Oberfläche mit vier Armauswahlen oben links,
+  ohne SSH/rsync/mobile Infrastruktur. Adapter `match_ur_hardware`, Client
+  `uwa_cell_control`; bestehende MuR-Algorithmen und Launch-Defaults erhalten.
+- **Neueste Nutzerkorrektur:** zusätzliche UWA-Sicherheitsgates entfernen, um
+  Bremsenlösen, Gelenkwinkel und Controllerwechsel auch per WLAN direkt zu testen.
+  Damit sind frühere pauschale bzw. Ein-/Zweiarm-Sperren ausdrücklich überholt.
+  Entfernt: Armzahl-/Aktivarmzählung/-lock, Dashboard-NORMAL/Remote/RUNNING/
+  PLAYING-Vorprüfungen, exakter Programmpfadvergleich, Inaktivpflicht vor
+  Bereitstellung, GUI-Treiberbesitzpflicht und rqt-Statusfreigabe.
+- Native UR-Sicherheitsfunktionen, Treiber-Controller-Stopper, bestehende
+  Kollisionsalgorithmen/Reglergrenzen nicht verändert. Technische Profil-/Port-
+  Validierung und doppelte-Treiber-Schutz bleiben. WLAN wird nicht gesperrt.
+  Dashboard-/Treiberablehnungen werden angezeigt; keine automatischen
+  Schutzstoppquittierungen, kein automatisches Power/Brake/Play beim Launch.
+- Standard nur `right_rear`; App UWA Arme, neues Fenster **UWA · Direkter UR-Test**.
+  Domain66/localhost; Gazebo64/OAK65 unverändert. Hardwareinventar separat,
+  links weiterhin keine IPs. Eigene Werkskinematik noch nicht hinterlegt.
+- Prepare verwendet vorhandenen UR-SetMode-Helfer, ohne Programmstart. Separates
+  Play startet aktuell geladenes UR-Programm; `external_control_program` nur
+  noch informativ. Native reale Trajektorien mit skaliertem UR-Controller.
+- **Gelenkwinkel lesen** empfängt JointState ohne Programm-/Dashboardprüfung,
+  Anzeige rad/Grad. **Broadcaster / Controller laden** holt fehlgeschlagene
+  Spawner nach, Broadcaster aktiv/Motion inaktiv. Beim Schließen kein zusätzlicher
+  Dashboard-Stopp mehr; eigene Prozesse werden beendet. Neues Fenster kann
+  fremd gestartete Treiber bedienen, beendet deren Prozesse aber nicht.
+- Hardwarediagnose: Log zeigt beide Spawner13:48/13:49 fehlgeschlagen, später
+  Verbindungsabbrüche/Reconnects30001/30004. Lesender8-s-Test ohne JointState;
+  echte Winkelübertragung noch nicht nachgewiesen. Native UR-read()-Logik liest
+  RTDE actual_q unabhängig vom laufenden External-Control-Programm.
+- 14 Offline-Tests und Zwei-Paket-Build bestanden, Live-Mock-Test getrennt unter
+  /uwa_mock_validation: direkte Ein-/Zwei-/Vierarm-Aktivierung ohne Dashboard,
+  JointState-Leser, vier Admittanzcontroller und GUI-Stopp/Prozessabbau bestanden.
+  Logs setup/logs/uwa-direct-{tests,build,live}.log und finaler JSON-Bericht unter
+  setup/logs/uwa-control/. Frühere gate-spezifische Tests sind historisch.
+- Neues direktes Hardware-GUI-Fenster neben altem Besitzerfenster geöffnet,
+  dessen laufende reale Treiber nicht gestoppt/neugestartet. Agent hat keine
+  realen Power-/Brake-/Play-/Bewegungsbefehle gesendet. Softwarestopp ist kein
+  Hardware-Not-Halt. Kollisionsoption in UWA-Profilen bleibt deaktiviert;
+  kein vollständiger Zellenschutz. Anleitung [UWA Arme](docs/ur_control_gui.md).
 
 ### Reale Netzwerkverbindung, 2026-11-10
 
