@@ -19,7 +19,7 @@ LABELS={'left_front':'Links vorne','left_rear':'Links hinten',
 
 
 class Window(QtWidgets.QMainWindow):
-    def __init__(self,inventory):
+    def __init__(self,inventory,*,arms=None,mode='mock'):
         super().__init__()
         self.inventory=Path(inventory).resolve();self.profiles=load_profiles(self.inventory)
         if set(self.profiles)!=set(ARM_IDS):raise ValueError('UWA inventory must define the four cell arms')
@@ -32,7 +32,7 @@ class Window(QtWidgets.QMainWindow):
         top=QtWidgets.QHBoxLayout();self.checks={}
         selection=QtWidgets.QGroupBox('Arme auswählen');boxes=QtWidgets.QHBoxLayout(selection)
         for rid in ARM_IDS:
-            box=QtWidgets.QCheckBox(LABELS[rid]);box.setChecked(True)
+            box=QtWidgets.QCheckBox(LABELS[rid]);box.setChecked(rid in (arms if arms is not None else ('right_rear',)))
             boxes.addWidget(box);self.checks[rid]=box
         top.addWidget(selection,1)
         self.mode=QtWidgets.QComboBox();self.mode.addItems(['Mock · ohne echte Roboter','Hardware · lokale URs'])
@@ -75,10 +75,10 @@ class Window(QtWidgets.QMainWindow):
         ctl.addWidget(self.tree)
         self.controller_note=QtWidgets.QLabel('Wiederverwendet: mur_control · J-PARSE · integrierte Admittanz.\n'
             'Der vorhandene Kollisionscontroller berücksichtigt einen Gegenarm. Ein vollständiges Vierarm-/Tisch-/Werkzeugmodell fehlt hier noch.\n'
-            'Hardware-Bewegungsaktivierung bleibt deshalb in dieser ersten Oberfläche gesperrt; Mock-Tests sind verfügbar.')
+            'Hardware: höchstens zwei Arme aktivieren. Kein vollständiger Zellenkollisionsschutz; auch stillstehende Nachbararme beachten.')
         self.controller_note.setWordWrap(True);ctl.addWidget(self.controller_note)
         row=QtWidgets.QHBoxLayout()
-        for key,text in [('trajectory','Trajektoriencontroller testen · Mock'),('cartesian','Admittanz testen · Mock'),('inactive','Bewegungscontroller deaktivieren'),('rqt','Gelenksteuerung · Mock')]:
+        for key,text in [('trajectory','Trajektoriencontroller aktivieren'),('cartesian','Admittanz aktivieren'),('inactive','Bewegungscontroller deaktivieren'),('rqt','Gelenksteuerung · rqt')]:
             b=QtWidgets.QPushButton(text);b.clicked.connect(lambda checked=False,k=key:self.action(k));row.addWidget(b);self.buttons[key]=b
         ctl.addLayout(row);self.tabs.addTab(controllers,'Controller')
         self.log=QtWidgets.QPlainTextEdit();self.log.setReadOnly(True);self.log.setMaximumBlockCount(1600)
@@ -91,6 +91,7 @@ class Window(QtWidgets.QMainWindow):
         self.log_path=self.workspace/'setup/logs/uwa-control/gui.log';self.log_path.parent.mkdir(parents=True,exist_ok=True)
         self.timer=QtCore.QTimer(self);self.timer.timeout.connect(self.refresh);self.timer.start(4000)
         for box in self.checks.values():box.toggled.connect(self.update_buttons)
+        self.mode.setCurrentIndex(0 if mode=='mock' else 1)
         self.change_mode();QtCore.QTimer.singleShot(200,self.refresh)
 
     @property
@@ -123,7 +124,12 @@ class Window(QtWidgets.QMainWindow):
         self.mode.setEnabled(not self.drivers and not busy)
         for key,button in self.buttons.items():
             allowed=not busy
-            if key in ('cartesian','trajectory','rqt'):allowed=allowed and self.mock and available
+            if key in ('cartesian','trajectory'):allowed=allowed and available and (self.mock or len(self.selected())<=2)
+            if key=='rqt':
+                native='joint_trajectory_controller' if self.mock else 'scaled_joint_trajectory_controller'
+                ready=all(any(c['name']==native and c['state']=='active'
+                              for c in self.state.get(rid,{}).get('controllers',[])) for rid in self.selected())
+                allowed=allowed and available and (self.mock or len(self.selected())<=2 and ready)
             if key in ('prepare','play'):allowed=allowed and not self.mock and available
             if key=='inactive':allowed=allowed and available
             button.setEnabled(allowed)
@@ -255,11 +261,15 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     ws=Path(os.environ.get('UWA_WS',str(Path.home()/'UWA_ws')))
     parser.add_argument('--inventory',default=str(ws/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml'))
+    parser.add_argument('--arms',default='right_rear',help='Comma-separated initial arm selection')
+    parser.add_argument('--mode',choices=['mock','hardware'],default='mock')
     args=parser.parse_args()
+    arms=args.arms.split(',')
+    if not arms or not set(arms)<=set(ARM_IDS):parser.error('Unknown arm selection')
     os.environ['ROS_DOMAIN_ID']='66';os.environ['ROS_AUTOMATIC_DISCOVERY_RANGE']='LOCALHOST'
     app=QtWidgets.QApplication([sys.argv[0]])
     app.setDesktopFileName('uwa-control')
-    window=Window(args.inventory);window.show()
+    window=Window(args.inventory,arms=arms,mode=args.mode);window.show()
     signal.signal(signal.SIGINT,lambda *unused:window.close())
     timer=QtCore.QTimer();timer.timeout.connect(lambda:None);timer.start(250)
     return app.exec()

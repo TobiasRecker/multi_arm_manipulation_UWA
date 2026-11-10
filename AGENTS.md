@@ -103,7 +103,12 @@
   App **UWA Arme**: Mock als Standard, Domain 66/lokale Discovery; kein
   automatisches Power/Brake/Play beim Treiberstart. Vorhandene Ein-Gegenarm-
   Kollision nicht als vollständigen Vierarm-Kollisionsschutz darstellen.
-  Echte Bewegungsaktivierung bleibt bis zur vollständigen Integration gesperrt.
+  Nutzerpräzisierung vom 2026-11-10: Bewegungsaktivierung für **einen oder zwei
+  Arme** erlauben; zunächst ausschließlich **hinten rechts (`right_rear`)**.
+  Auswahl standardmäßig nur dieser Arm. Drei/vier Hardwarearme bleiben gesperrt;
+  bereits aktive bekannte Arme mitzählen. Kein vollständiger Zellenkollisionsschutz
+  auch bei nur einem bewegten Arm. Tests des Agenten bleiben Mock/offline;
+  keine unbeauftragten realen Ziele beim Öffnen der GUI.
   Programmstart verlangt exakt konfigurierten geladenen Programmpfad; keine
   automatische Sicherheitsquittierung. Bedienung: `docs/ur_control_gui.md`.
 - Die App **UWA Cell Simulation** soll mit normalem Klick Gazebo, rqt, RViz

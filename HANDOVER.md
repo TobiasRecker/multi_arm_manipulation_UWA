@@ -47,8 +47,13 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   beim Launch, keine automatische Sicherheitsquittierung. Programm-Pfad und
   Werkskinematik noch nicht eingetragen; links fehlen weiterhin reale IPs.
 - Vorhandene Kollision unterstützt **einen Gegenarm**, keine komplette
-  Vierarm-/Tisch-/Werkzeugszene. Hardware-Bewegungsaktivierung daher im neuen
-  Adapter gesperrt. Gemeinsame Hardware-TFs/Kalibrierung, Kraft-/Kollisions-
+  Vierarm-/Tisch-/Werkzeugszene. Die anfängliche pauschale Hardware-Sperre wurde
+  auf expliziten Folgeauftrag am 2026-11-10 für **ein/zwei Arme** aufgehoben;
+  zunächst nur `right_rear`, auch als Standardauswahl. Drei/vier bleiben gesperrt.
+  Bekannte bereits aktive Arme werden mitgezählt; Adapter-Aktivierungen gegen
+  parallele Aufrufe verriegelt. Kein systemweiter Schutz gegen direkte ROS-/rqt-
+  Aufrufe außerhalb des Adapters. Kollisionsvermeidung in den Profilen bleibt
+  deaktiviert, auch für einen Arm. Gemeinsame Hardware-TFs/Kalibrierung, Kraft-/Kollisions-
   Validierung und tatsächliche Hardware-Bereitstellung bleiben offen.
 - Zwei Pakete erfolgreich gebaut, **zehn Offline-Tests bestanden**. Live-GUI-
   Mock-Prüfung: vier Manager, 24 eindeutige endliche Gelenkzustände, initial
@@ -63,6 +68,20 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   gestartet, X11-Fensterregistrierung bestätigt. GUI im Mock-Modus geöffnet,
   alle Testtreiber beendet. Starter entfernt geerbte VS-Code-Snap-GTK-Pfade,
   die sonst mit der Host-Qt/GLib-Version kollidieren.
+- Folgeprüfung Ein-/Zweiarm-Aktivierung: **16 Offline-Tests bestanden**, beide
+  Pakete gebaut. Hardware-Aktivierungspfad gegen lokale Mock-Komponenten mit
+  ersetztem Dashboard: ein Arm, zwei Arme, Drittarm abgelehnt; danach auch
+  Vierarm-Mock-Admittanz und GUI-Stopp/Prozessabbau bestanden. Kein physischer
+  Treiber oder Bewegungsbefehl. Logs `setup/logs/uwa-control-small-system-*`,
+  Bericht `setup/logs/uwa-control/mock-gui-validation.json`.
+- Hardware-Aktivierung verlangt NORMAL/Remote/RUNNING und den exakten
+  konfigurierten geladenen Programmpfad im Zustand PLAYING. Kein impliziter
+  Programmstart. Native reale Trajektorien verwenden den skalierten UR-Controller;
+  rqt wird erst danach freigeschaltet. Startmenü-Aktion **Hardware · hinten rechts**
+  ergänzt; CLI `control.sh --mode hardware --arms right_rear` startet nur die GUI.
+- Aktualisierte Desktop-Aktion validiert und ausgeführt; GUI im Hardwaremodus
+  mit ausschließlich hinten rechts ausgewählt geöffnet (X11/Prozessargumente
+  geprüft). Keine echten Treiber automatisch gestartet.
 
 ### Reale Netzwerkverbindung, 2026-11-10
 

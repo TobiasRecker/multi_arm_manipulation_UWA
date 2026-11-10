@@ -15,7 +15,10 @@ def main():
     entry.write_text('[Desktop Entry]\nType=Application\nName=UWA Arme\n'
         'Comment=Lokale Vorbereitung und Controllerstatus der vier UWA-Arme\n'
         f'Exec=/usr/bin/bash "{script}"\nIcon={repo}/assets/uwa-cell.png\n'
-        'Terminal=false\nCategories=Education;\nStartupNotify=true\nStartupWMClass=uwa_control_gui\n')
+        'Terminal=false\nCategories=Education;\nStartupNotify=true\nStartupWMClass=uwa_control_gui\n'
+        'Actions=RightRearHardware;\n\n[Desktop Action RightRearHardware]\n'
+        'Name=Hardware · hinten rechts\n'
+        f'Exec=/usr/bin/bash "{script}" --mode hardware --arms right_rear\n')
     print(entry)
     try:subprocess.run(['update-desktop-database',str(target)],check=False,capture_output=True)
     except FileNotFoundError:pass

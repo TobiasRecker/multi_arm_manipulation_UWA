@@ -1,8 +1,10 @@
 """Real ROS/mock-components integration of the UWA GUI, never real UR hardware."""
 import json
+from copy import deepcopy
 import os
 from pathlib import Path
 import time
+from types import SimpleNamespace
 
 os.environ['ROS_DOMAIN_ID']='66'
 os.environ['ROS_AUTOMATIC_DISCOVERY_RANGE']='LOCALHOST'
@@ -14,6 +16,7 @@ import rclpy
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import JointState
 from match_ur_hardware.operations import controller_list
+import match_ur_hardware.operations as operations
 from match_ur_hardware.profiles import CARTESIAN,MOTION
 from uwa_cell_control.gui import Window,ARM_IDS
 
@@ -22,7 +25,7 @@ def main():
     ws=Path(os.environ.get('UWA_WS',str(Path.home()/'UWA_ws')))
     out=ws/'setup/logs/uwa-control';out.mkdir(parents=True,exist_ok=True)
     app=QtWidgets.QApplication([])
-    window=Window(ws/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml')
+    window=Window(ws/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml',arms=ARM_IDS)
     window.timer.stop();window.show()
     rclpy.init();node=rclpy.create_node('uwa_gui_mock_validation')
     report={'mode':'mock','hardware_started':False,'success':False}
@@ -57,6 +60,30 @@ def main():
             names.extend(msg.name)
         assert len(set(names))==24
         report['unique_joint_names']=len(set(names))
+        # Exercise the hardware activation branch against these mock managers.
+        # Dashboard is replaced locally; no physical camera/robot connection.
+        profiles=deepcopy(window.profiles)
+        for arm in profiles.values():
+            arm['ip']='127.0.0.1';arm['external_control_program']='/mock/external.urp'
+        original_dashboard=operations.dashboard
+        operations.dashboard=lambda arm:{'reachable':True,'blocked':False,'remote_control':True,
+            'queries':[{'command':cmd,'answer':answer} for cmd,answer in [
+                ('safetystatus','Safetystatus: NORMAL'),('robotmode','Robotmode: RUNNING'),
+                ('programState','PLAYING'),('get loaded program','Loaded program: /mock/external.urp')]]}
+        try:
+            for ids in [['right_rear'],['right_rear','right_front']]:
+                args=SimpleNamespace(arms=ids,operation='trajectory',mode='hardware')
+                assert operations._run_arms(args,profiles,node,{},False)==0
+                assert all(any(c.name=='scaled_joint_trajectory_controller' and c.state=='active'
+                               for c in controller_list(node,profiles[rid])) for rid in ids)
+            try:
+                operations._run_arms(SimpleNamespace(arms=['left_front'],operation='trajectory',mode='hardware'),
+                                     profiles,node,{},False)
+            except RuntimeError:report['third_arm_refused']=True
+            else:raise AssertionError('Third arm was allowed')
+            report['one_two_arm_hardware_branch_on_mock']=True
+            for rid in ['right_rear','right_front']:operations.switch(node,profiles[rid])
+        finally:operations.dashboard=original_dashboard
         window.buttons['cartesian'].click()
         wait(lambda:'cartesian' not in window.jobs,30,'mock Cartesian activation')
         activated=controllers()

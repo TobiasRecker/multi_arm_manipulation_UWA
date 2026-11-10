@@ -5,13 +5,13 @@ from python_qt_binding import QtCore,QtWidgets
 from uwa_cell_control.gui import Window
 
 
-def test_four_arm_selection_hardware_unknown_ips_and_mock_only_controls():
+def test_rear_default_and_one_two_arm_hardware_controls():
     app=QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
     path=Path(__file__).resolve().parents[2]/'config/hardware_inventory.yaml'
     window=Window(path)
     window.timer.stop()
     try:
-        assert window.mock and len(window.selected())==4
+        assert window.mock and window.selected()==['right_rear']
         assert not window.buttons['prepare'].isEnabled()
         assert not window.buttons['cartesian'].isEnabled()  # start a driver first
         window.drivers['left_front']=QtCore.QProcess(window)
@@ -26,7 +26,11 @@ def test_four_arm_selection_hardware_unknown_ips_and_mock_only_controls():
         assert not window.mock
         assert set(window.selected())=={'right_front','right_rear'}
         assert not window.checks['left_front'].isEnabled()
-        assert not window.buttons['cartesian'].isEnabled()
-        assert not window.buttons['trajectory'].isEnabled()
         assert not window.buttons['prepare'].isEnabled()  # no driver available
+        for rid in ('right_front','right_rear'):window.drivers[rid]=QtCore.QProcess(window)
+        window.update_buttons()
+        assert window.buttons['cartesian'].isEnabled()
+        assert window.buttons['trajectory'].isEnabled()
+        assert not window.buttons['rqt'].isEnabled()  # activate native controller first
+        window.drivers.clear()
     finally:window.close()

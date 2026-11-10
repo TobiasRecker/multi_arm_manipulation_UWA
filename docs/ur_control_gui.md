@@ -8,10 +8,12 @@ Im Startmenü **UWA Arme** öffnen oder im Workspace:
 bash src/multi_arm_manipulation_UWA/scripts/control.sh
 ```
 
-Die App startet im **Mock-Modus**, zunächst ohne Treiber. Oben links die vier
-Arme auswählen, dann **Treiber starten**. Der Controller-Tab zeigt die geladenen
-Controller. Dort lassen sich Admittanz oder Trajektoriencontroller für Mock
-aktivieren; die rqt-Gelenksteuerung bietet manuelle Mock-Ziele. Admittanz-Test
+Die App startet im **Mock-Modus**, zunächst ohne Treiber und nur **hinten rechts**
+ausgewählt. Oben links die gewünschten Arme auswählen, dann **Treiber starten**.
+Der Controller-Tab zeigt die geladenen Controller. Dort lassen sich Admittanz
+oder Trajektoriencontroller aktivieren; die rqt-Gelenksteuerung bietet manuelle
+Gelenkziele. Im Hardwaremodus ist rqt erst nach Aktivierung des nativen
+Trajektoriencontrollers verfügbar. Admittanz-Test
 bedeutet hier Aktivierung/Deaktivierung des Plugins, keinen nachgewiesenen
 Kraftregelungs- oder Kollisionsversuch. **STOPP** deaktiviert Bewegungscontroller
 aller von diesem Fenster gestarteten Arme, unabhängig von der aktuellen Auswahl.
@@ -47,6 +49,12 @@ doppelte Adapter-Instanzen pro Arm/Domain. Gazebo wird durch diese App nicht ges
 ## Hardware-Vorbereitung: getrennte, explizite Schritte
 
 Zunächst eigene Mock-Treiber beenden, dann oben rechts **Hardware** wählen.
+Alternativ Rechtsklick auf **UWA Arme → Hardware · hinten rechts** oder:
+
+```bash
+bash src/multi_arm_manipulation_UWA/scripts/control.sh --mode hardware --arms right_rear
+```
+
 Links sind ohne bekannte IP deaktiviert. Aktuelle Zuordnung:
 
 | Arm | Modell | IP | Reverse | Script sender | Trajectory | Script command |
@@ -82,10 +90,24 @@ getrennt. Der bestehende automatische Hand-Auge-Backend bleibt Simulation-only.
 
 **Noch nicht umgesetzt:** Die vorhandene Admittanz-Kollision berücksichtigt
 einen Gegenarm und feste Sperrboxen, keine vollständige UWA-Szene mit vier
-Armen, beiden Tischen, Greifern und Kameras. Deshalb verweigert dieser Adapter
-zunächst sämtliche Hardware-Bewegungsaktivierung, einschließlich Trajektorien.
-Die Plugins sind vorbereitet, aber diese Integration ist vor realer Nutzung
-noch zu erstellen und zu validieren. Mock-Erfolg bestätigt Softwareabläufe,
+Armen, beiden Tischen, Greifern und Kameras. Auf ausdrücklichen Nutzerwunsch
+vom 2026-11-10 ist Hardware-Bewegungsaktivierung nun für **ein/zwei Arme** erlaubt;
+zunächst soll ausschließlich `right_rear` genutzt werden. Drei/vier ausgewählte
+Arme oder insgesamt mehr als zwei aktive bekannte Arme werden abgelehnt.
+Adapter-Aktivierungen sind gegeneinander gesperrt; vorhandene Controller werden
+vorher abgefragt. Das ist keine systemweite Verriegelung gegen direkte ROS-/rqt-
+Aufrufe außerhalb des Adapters. Keine zusätzlichen Arme dort manuell aktivieren.
+
+Vor Aktivierung müssen die ausgewählten URs NORMAL, Remote und RUNNING melden
+und das exakt konfigurierte External-Control-Programm muss bereits PLAYING sein.
+Aktivieren startet kein Programm und sendet kein Bewegungsziel. Hardware nutzt
+`scaled_joint_trajectory_controller`, Mock den normalen JointTrajectoryController.
+Beim rqt-Test den Controller von `/uwa_hardware/right_rear` auswählen.
+
+Die Kollisionsvermeidung bleibt in den aktuellen Profilen **deaktiviert**, auch
+bei einem Arm. Weder stillstehende Nachbararme noch Tische/Werkzeuge sind damit
+abgedeckt. Ein-/Zweiarm-Freigabe ist keine Kollisionsschutz-Zusage. Die vollständige
+Szene/Registrierung bleibt Folgearbeit; Mock-Erfolg bestätigt Softwareabläufe,
 keine reale Kollisions- oder Kraftregelungssicherheit.
 
 Der rote Knopf ist ein **Softwarestopp**, kein Hardware-Not-Halt. Er bricht
@@ -136,6 +158,12 @@ python3 src/multi_arm_manipulation_UWA/scripts/install_control_desktop.py
   `gtk-launch uwa-control` gestartet; X11-Fenster registriert. Starter bereinigt
   inkompatible GTK-Pfade aus dem VS-Code-Snap für die Host-Qt-Installation.
 - Keine realen Arme eingeschaltet, Bremsen gelöst oder bewegt.
+- Folgeauftrag Ein-/Zweiarm-Freigabe: **16 Offline-Tests bestanden**, beide
+  Pakete erneut gebaut. Aktivierungspfad für echte Hardware ausschließlich
+  gegen Mock-Komponenten mit lokal ersetztem Dashboard geprüft: ein Arm,
+  zwei Arme, dritter abgelehnt. Danach Vierarm-Mock-Controller/Stopp/Abbau
+  erneut bestanden. `setup/logs/uwa-control-small-system-{tests,build,live}.log`
+  und derselbe abschließende JSON-Bericht. Keine realen Bewegungsziele gesendet.
 
 Laufende GUI-Meldungen liegen unter `setup/logs/uwa-control/gui.log`, ROS-Logs
 unter `setup/logs/uwa-control/ros/`. Die Logs enthalten auch die behobenen
