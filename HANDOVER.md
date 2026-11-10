@@ -426,6 +426,18 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   beeinflussen; echter Nachweis fehlt. Nächster Schritt einzelner exklusiver
   Kameratest mit Backup/Statuschecks/Pixeldimensionen/Restore, keine Installation.
   Wegen parallel aktiver ersterHardware-Hand-Auge-Arbeit hier nur lokal analysiert.
+- Nutzer gibt danach Kamerazeitfenster frei (anderer Agent plant Bahn). Reale
+  HD-Modultests20:16–20:18AWST: beginbarcode/create akzeptiert, process liefert
+  49156/barcode process failed. Lizenzstatus true. Präzisierte Nachprüfung liest
+  Modulbild/Mapping640×480; kein bestätigterHD-Puffer und kein erneuter nativer
+  Export. Das beweist nicht grundsätzlich fehlendeHD-Fähigkeit; Ursache offen.
+- Originalwerte in beiden Läufen vollständig gesichert, kritische Rücklesewerte
+  ohne Abweichungen:404/Manual,60000µs/Manual,Gain16,LEDManual53. Kein Dienstausfall
+  diesmal, keine Roboter-/Treiber-/Bahnplanungsänderung. Eigenes Kamerafenster
+  gezielt pausiert und wieder mit Livebild geöffnet. Experimenteller Pythonhelper
+  mit finally-Restore/Report/Dateisperre, drei lokale Fehlertests bestanden.
+  [Prüfbericht](docs/wrist_hd_probe_2026-11-10.md), Sitzungen
+  setup/calibration/wrist_hd/20261110_201622 bzw.201815. Native Auflösung offen.
 
 ### Zellgeometrie
 

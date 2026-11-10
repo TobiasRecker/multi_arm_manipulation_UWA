@@ -52,6 +52,26 @@ def plan_view(args):
         node.destroy_node();rclpy.shutdown()
 
 
+def plan_series(args):
+    import rclpy
+    from .hardware_sequence import acquisition_plan
+    profiles=load_profiles(args.inventory);node=node_for(args.mode);observer=None
+    if args.mode!='hardware':raise ValueError('Reviewed image acquisition uses real hardware mode')
+    directory=Path(args.output).resolve();directory.mkdir(parents=True,exist_ok=True)
+    try:
+        observer,readings=read_state(node,profiles,args)
+        start,sources,missing=complete_state(load_layout(args.layout),readings)
+        model,layout=make_model(load_layout(args.layout),profiles,directory)
+        plan=acquisition_plan(model,layout,profiles,args.arm,start,sources,missing,args.count,directory,args.layout,
+            lambda p:print(json.dumps({'phase':'PLANNING',**p}),flush=True))
+        print(json.dumps({'batch':str(directory/'batch.json'),'preview':str(directory/'plan.json'),
+                          'new_observations':len(plan['segments']),'motion_seconds':plan['duration_motion_s'],
+                          'no_return_after_run':True},indent=2))
+    finally:
+        if observer:observer.close()
+        node.destroy_node();rclpy.shutdown()
+
+
 def capture_observation(camera,node,observer,model,layout,rid,directory,sample_id,role,*,freshness_timeout=6.):
     """Conservative stationary interval plus changed decoded image payloads.
 
@@ -166,26 +186,38 @@ def fit(args):
     atomic_json(directory/'handeye_result.json',result)
     print(json.dumps({'passed':result['passed'],'result':str(directory/'handeye_result.json'),
                       'activated':False},indent=2))
+    if not result['passed']:raise ValueError('Independent hand-eye validation failed; result not activated')
 
 
 def main():
     ws=Path(os.environ.get('UWA_WS',str(Path.home()/'UWA_ws')))
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='command',required=True)
-    for command in ('plan-view','capture'):
+    for command in ('plan-view','plan-series','capture'):
         p=sub.add_parser(command)
         p.add_argument('--inventory',default=str(ws/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml'))
         p.add_argument('--layout',default=str(default_layout_path()))
         p.add_argument('--arm',choices=['right_rear','right_front'],default='right_rear')
         p.add_argument('--mode',choices=['hardware','mock'],default='hardware')
         p.add_argument('--manual-states',default=str(ws/'setup/calibration/parking/left_home.json'))
-        if command=='plan-view':p.add_argument('--output',required=True)
+        if command in ('plan-view','plan-series'):
+            p.add_argument('--output',required=True)
+            if command=='plan-series':p.add_argument('--count',type=int,default=40)
         else:
             p.add_argument('--session',required=True);p.add_argument('--sample-id',required=True)
             p.add_argument('--role',choices=['fit','validation'],required=True)
     p=sub.add_parser('fit');p.add_argument('session');p.add_argument('--intrinsics-only',action='store_true')
+    p=sub.add_parser('run-series');p.add_argument('batch');p.add_argument('--session',required=True)
+    p.add_argument('--inventory',default=str(ws/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml'))
+    p.add_argument('--check-only',action='store_true',help='Recheck the full sequence without motion or controller changes')
     args=parser.parse_args()
     try:
-        {'plan-view':plan_view,'capture':capture,'fit':fit}[args.command](args);return 0
+        if args.command=='run-series':
+            from .hardware_sequence import acquire
+            acquire(args)
+            if not args.check_only:
+                args.intrinsics_only=False;fit(args)
+        else:{'plan-view':plan_view,'plan-series':plan_series,'capture':capture,'fit':fit}[args.command](args)
+        return 0
     except KeyboardInterrupt:return 130
     except Exception as error:
         print(json.dumps({'success':False,'error':str(error)}));return 1

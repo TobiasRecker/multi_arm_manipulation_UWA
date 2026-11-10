@@ -115,6 +115,19 @@
 
 ## Verbindliche Bedienerwartungen
 
+- Folgeauftrag2026-11-10: erste reale Bildpose und Intrinsics-/Hand-Auge-Test
+  ausschließlich right_rear. Nutzer bestätigt rechtes A3-Board1:1 und100mm
+  Kontrollstreifen, keine bekannte passende Wrist-Intrinsics-Kalibrierung.
+  Separate Hardware-Aufnahme auf Domain66, Simulationsbackend nicht umbiegen.
+  Reale Intrinsics aus tatsächlich verwendetem Bildmodus/festem Fokus fitten;
+  nominelles K/optische Montage nur zur Planung. Vorab markierte Validierungs-
+  bilder aus Intrinsics- und Hand-Auge-Fit ausschließen. Echte JPEGs, erkannte
+  Punkte, Kamerazustand und gemessene Werkskinematik-Flanschpose speichern.
+  HTTP-Empfang/wechselnde Payloads sind keine garantierten Belichtungszeitstempel.
+  Nutzer hat nach Vorschau eine40-Ansichten-Hardwarefolge ausdrücklich freigegeben;
+  diese Einzel-Erprobung nicht als generelle Bewegungsfreigabe verallgemeinern.
+  Ergebnisse separat versionieren und nicht ungefragt als aktive TF übernehmen.
+
 - Nutzerauftrag2026-11-10: vor Hardware-Kamerakalibrierung andere Arme seriell
   parken, zunächst nur right_front per generischem Skript testen. Linke Arme
   laut Nutzer bereits aufrecht in Default Home: nominell [0,-90,0,-90,0,0]°,

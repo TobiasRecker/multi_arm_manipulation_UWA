@@ -7,6 +7,11 @@ Enthält`Robotiq_Wrist_Camera-4.1.0.164735.urcap`. **Nicht installiert**, kein
 enthaltener Installer/Daemon ausgeführt; bestehende Kameraeinstellungen und
 geöffnetes Bedienfenster erhalten.
 
+**Folgetest am selben Tag:** Nutzer hat danach ein Kamerazeitfenster freigegeben;
+der[praktische HD-Modultest](wrist_hd_probe_2026-11-10.md) wurde ausgeführt.
+Modulerzeugung akzeptiert, Verarbeitung mit49156 abgewiesen; kein nativesHD-Foto,
+Einstellungen wiederhergestellt. DasUCC4-Archiv wurde weiterhin nicht installiert.
+
 ## Antwort auf die Nutzerfrage
 
 **Interne HD-Aufnahmefunktionen vorhanden, aber kein neuer einfacher,

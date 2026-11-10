@@ -77,7 +77,7 @@ def acquire(args):
     plan=json.loads(Path(args.batch).read_text());profiles=load_profiles(args.inventory);rid=plan['arm']
     directory=Path(args.session).resolve();metadata=json.loads((directory/'session.json').read_text())
     if metadata['robot_id']!=rid or metadata['mode']!='hardware':raise ValueError('Wrong image session')
-    node=node_for('hardware');completed=False
+    node=node_for('hardware');completed=False;motion_started=False
     observer=JointObserver(node,profiles,[r for r,s in plan['state_sources'].items() if s=='live_joint_states'],'hardware')
     try:
         model,layout=make_model(load_layout(plan['layout_file']),profiles,directory/'acquisition_model')
@@ -98,6 +98,16 @@ def acquire(args):
         for segment in plan['segments']:
             if (directory/'records'/(segment['sample_id']+'.json')).exists():
                 raise ValueError('Existing observation; create a new reviewed acquisition instead of overwriting')
+        if getattr(args,'check_only',False):
+            state=dict(plan['start'])
+            for r,record in observer.received.items():state.update(zip(joint_names(r),record['positions']))
+            for segment in plan['segments']:
+                for point in segment['points']:
+                    state.update(zip(joint_names(rid),point['positions']))
+                    if not model.check(state)[0]:raise ValueError('Current acquisition path collision check failed')
+            print(json.dumps({'success':True,'check_only':True,'segments':len(plan['segments']),
+                              'fingerprint':plan['fingerprint']}),flush=True)
+            completed=True;return
         for segment in plan['segments']:
             observer.sample(.2);guard()
             live=dict(plan['start'])
@@ -110,6 +120,7 @@ def acquire(args):
                 if not model.check(q)[0]:raise ValueError('Current full-cell segment collision check failed')
             observer.sample(.2);guard()
             print(json.dumps({'phase':'MOVING','sample_id':segment['sample_id'],'role':segment['role']}),flush=True)
+            motion_started=True
             execute_trajectory(node,profiles[rid],segment['points'],mock=False,guard=guard)
             observer.sample(.4);guard()
             if max(abs(np.array(observer.received[rid]['positions'])-segment['target']))>.03:
@@ -122,7 +133,7 @@ def acquire(args):
         completed=True
         print(json.dumps({'phase':'ACQUISITION_COMPLETE','new_observations':len(plan['segments'])}),flush=True)
     finally:
-        if not completed:
+        if not completed and motion_started:
             try:switch(node,profiles[rid])
             except Exception as error:print('Could not confirm controller deactivation: '+str(error),flush=True)
         observer.close();node.destroy_node();rclpy.shutdown()
