@@ -48,7 +48,7 @@ class JointObserver:
     def guard(self,plan):
         moving=plan['arm'];now=time.monotonic()
         for rid in self.profiles:
-            if plan['state_sources'][rid]=='manual_pendant':continue
+            if plan['state_sources'][rid] in ('manual_pendant','user_nominal_home'):continue
             record=self.received.get(rid)
             if not record or now-record['received_monotonic']>.5:
                 raise RuntimeError(rid+': joint telemetry stale or unavailable')
@@ -106,13 +106,14 @@ def execute(args):
     rid=artifact['arm'];profile=profiles[rid]
     if not profile['ip']:raise ValueError('No configured target arm IP')
     node=node_for(artifact['mode'])
-    ids=[r for r,s in artifact['state_sources'].items() if s!='manual_pendant']
+    ids=[r for r,s in artifact['state_sources'].items() if s not in ('manual_pendant','user_nominal_home')]
     observer=JointObserver(node,profiles,ids,artifact['mode'])
     try:
         readings=observer.sample()
         # Original manually recorded arms remain explicit fixed obstacles.
         for r,s in artifact['state_sources'].items():
-            if s=='manual_pendant':readings[r]={'positions':[artifact['start'][j] for j in joint_names(r)],'source':s}
+            if s in ('manual_pendant','user_nominal_home'):
+                readings[r]={'positions':[artifact['start'][j] for j in joint_names(r)],'source':s}
         start,sources,missing=complete_state(artifact['layout'],readings)
         if missing:raise ValueError('Current joint states missing: '+', '.join(missing))
         for r in ROBOT_IDS:
@@ -130,12 +131,19 @@ def execute(args):
         if max(abs(np.array(latest['positions'])-[artifact['start'][j] for j in joint_names(rid)]))>.01:
             raise ValueError('Target moved during path recheck; regenerate plan')
         observer.guard(artifact)
+        if args.check_only:
+            print(json.dumps({'success':True,'check_only':True,'arm':rid,
+                              'mode':artifact['mode'],'fingerprint':artifact['fingerprint']}))
+            return
         result=execute_trajectory(node,profile,artifact['points'],mock=artifact['mode']=='mock',
                                   guard=lambda:observer.guard(artifact))
         observer.sample(.4)
         error=max(abs(np.array(observer.received[rid]['positions'])-artifact['target']))
         result.update(arm=rid,mode=artifact['mode'],final_error_rad=float(error))
-        if error>.03:raise RuntimeError(f'Final position error {error:.4f} rad')
+        if error>.03:
+            from match_ur_hardware.operations import switch
+            switch(node,profile)
+            raise RuntimeError(f'Final position error {error:.4f} rad')
         print(json.dumps(result,indent=2))
     finally:observer.close();node.destroy_node();rclpy.shutdown()
 
@@ -155,6 +163,7 @@ def main():
     p.add_argument('--output',default=str(ws/'setup/calibration/parking'/datetime.now().strftime('%Y%m%d_%H%M%S')))
     p=sub.add_parser('execute',help='Execute exactly one checked plan on its recorded mode/domain')
     p.add_argument('plan');p.add_argument('--inventory',default=str(ws/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml'))
+    p.add_argument('--check-only',action='store_true',help='Recheck current state and full path without controller or action commands')
     p=sub.add_parser('preview',help='Animate a plan in isolated RViz domain68; no hardware clients')
     p.add_argument('plan')
     args=parser.parse_args()

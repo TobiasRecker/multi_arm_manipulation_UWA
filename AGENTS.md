@@ -90,6 +90,10 @@
   Seit demselben Tag Kamera-Schreibtest/Qt-Fokusfenster für right_rear genehmigt
   und umgesetzt: Kameraeinstellungen sichern, ausschließlich Fokus ändern,
   Bildwirkung/Readback prüfen; keine Robotermotion daraus ableiten.
+  Folgeauftrag erlaubt zusätzlich Belichtungs-/Gain-/LED-Regler und begrenzte
+  native Foto-Versuche. Helligkeitsänderungen dürfen den Benutzerfokus nicht
+  überschreiben. Kameramoduswechsel können Fokus zurücksetzen; sichern und
+  ausdrücklich wiederherstellen. Hochskalierung nie als native Auflösung ausgeben.
   Seit 2026-11-09 ist MoveIt-Kollisionsprüfung für die automatische Kalibrierung
   umgesetzt. Allgemeine kooperative Planung und Hardware-Anbindung bleiben Folgearbeit.
 - Automatische Hand-Auge-Kalibrierung: unbekannte Kameraextrinsics aus mehreren
@@ -110,6 +114,17 @@
   Sitzungen/Rohbilder unter `$UWA_WS/setup/calibration/` nicht einchecken.
 
 ## Verbindliche Bedienerwartungen
+
+- Nutzerauftrag2026-11-10: vor Hardware-Kamerakalibrierung andere Arme seriell
+  parken, zunächst nur right_front per generischem Skript testen. Linke Arme
+  laut Nutzer bereits aufrecht in Default Home: nominell [0,-90,0,-90,0,0]°,
+  als Nutzerangabe kennzeichnen, keine Encodermessung behaupten. Parkwerkzeug
+  plan/preview/execute trennt konkrete Wegprüfung von Realfahrt; MoveIt-Szene
+  und tatsächliche rechte JointStates verwenden. Fehlende Hinderniszustände
+  niemals still aus Simulationsposen zu realen Messungen machen. Nur einen Arm
+  bewegen, keine automatische Heim-/Rückfahrt nach Abbruch. Vorschau Domain68,
+  keinerlei Kommandobrücke zu Hardware66/Mock67/Gazebo64. Kalibrierbackend
+  selbst bleibt Simulation-only, bis separat beauftragt/integriert.
 
 - Nutzerauftrag2026-11-10: MuR-artiges manuelles Jogging, zunächst right_rear,
   mit demselben IntegratedCartesianAdmittanceController/J-PARSE. Nachgiebigkeit
@@ -146,8 +161,11 @@
   Keine eigene Netzwerk-/Latenz-Sperre einführen. Native UR-/Treiber-
   Ablehnungen und vorhandene Kollisionsalgorithmen erhalten. Insbesondere keine
   UR-Sicherheitsfunktionen umgehen oder Stopps automatisch quittieren.
-  Standardauswahl bleibt hinten rechts (`right_rear`). Tests des Agenten senden
-  keine realen Power/Brake/Play/Ziele; laufende Hardwaretreiber erhalten.
+  Standardauswahl bleibt hinten rechts (`right_rear`). Automatische Regressionen
+  verwenden Mock und senden keine realen Power/Brake/Play/Ziele. Davon getrennt
+  hat der Nutzer am selben Tag den konkret in RViz geprüften Hardware-Parkweg
+  für right_front ausdrücklich freigegeben; diese Einzel-Erprobung dokumentieren.
+  Laufende andere Hardwaretreiber erhalten.
   Technische Profil-/Portprüfung, Schutz gegen doppelte Treiberinstanzen und
   Aufräumen eigener Prozesse erhalten. Bedienung: `docs/ur_control_gui.md`.
 - Die App **UWA Cell Simulation** soll mit normalem Klick Gazebo, rqt, RViz

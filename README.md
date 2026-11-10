@@ -50,6 +50,11 @@ MATCH admittance/J-PARSE controller as the MuR GUI, with compliance **OFF** by
 default. Hold an axis button to move; releasing it stops the jog command.
 See [jogging, External Control setup and test evidence](docs/ur_jogging.md).
 
+To prepare camera calibration, `ros2 run uwa_cell_control park_arm` can **plan**,
+**preview** and separately **execute** a single-arm parking path. It reuses the
+full MoveIt collision model and current joint readings; its RViz preview is
+isolated on domain68. Start with [hardware parking and its current limits](docs/hardware_parking.md).
+
 The interface, tooltips and application-menu entry are in English. Click
 feedback uses a persistent high-contrast RECEIVED/RUNNING/DONE/FAILED panel,
 elapsed time and detailed errors; background polling does not hide failures.
@@ -85,6 +90,13 @@ Open the [camera preview/focus window](docs/wrist_camera_focus.md) with
 `ros2 run uwa_cell_control wrist_camera_gui`. It provides manual focus,
 autofocus, JPEG+settings saving and restoration of the opening focus mode;
 it sends no robot-motion commands. HTTP images remain640×480.
+The same window now provides exposure time in microseconds, gain, Auto exposure
+with EV correction and LED controls. The [native-resolution attempt and verified
+brightness tests](docs/wrist_resolution_exposure_2026-11-10.md) record the limits:
+no full-resolution photo obtained yet; the user's manual focus was restored.
+The [subsequent UCC4.1.0 archive comparison](docs/wrist_ucc4_analysis_2026-11-10.md)
+confirms an internal HD capture path, but no verified simple full-resolution
+download or reason to upgrade yet. The supplied archive was not installed.
 The automatic calibration backend below remains simulation-only.
 
 The workspace is expected at `~/UWA_ws`; set `UWA_WS` before sourcing the helper

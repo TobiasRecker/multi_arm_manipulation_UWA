@@ -26,6 +26,56 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 - **Explizit seit 2026-11-09:** Wichtige Ziele, Anforderungen, Entscheidungen und
   Vorlieben parallel in AGENTS-/Handover-Dateien festhalten.
 
+## Hardware-Wartepose vor Kamerakalibrierung, 2026-11-10
+
+- Nutzer bestätigt erfolgreiches reales Jogging hinten rechts. Neuer Auftrag:
+  allgemeines Parkskript, zunächst vorne rechts real testen. Linke Arme laut
+  Nutzer bereits aufrecht in Default Home; nominell [0,-90,0,-90,0,0]° als
+  user_nominal_home dokumentiert, keine gemessenen Encoderstände behaupten.
+- Neues park_arm plan/preview/execute in uwa_cell_control. Zentraler Zelllayout-
+  und Hardwareinventarbezug, bestehende vollständige MoveIt-Kollisionsszene,
+  lokale quintische Wege mit maximal0,005rad Sampleabstand; keine OMPL-Umweg-
+  Planung. Fehlende Zustände machen einen Plan zur nicht ausführbaren Vorschau.
+  Vorschau getrennt in Domain68, echte Hardware66/Mock67/Gazebo64 unverändert.
+  [Bedienung](docs/hardware_parking.md).
+- Ausführung als generische MATCH-Funktion trajectory.execute_trajectory über
+  nativen skalierten Hardware-JTC bzw. Mock-JTC. Genau ein Arm, keine Power/
+  Brake/Play-/SSH-Kommandos oder automatische Rückfahrt. Aktuelle Startstände,
+  Modell/Inventar und vollständigen Pfad vor Fahrt erneut prüfen. Andere rechte
+  Live-Arme auf Poseänderung überwachen; Telemetrieverlust cancelt/deaktiviert.
+- Vorne rechts alte ROS-Instanz41381 zeigte sechs Nullwinkel trotz RUNNING und
+  aufgebauter Reverse-Verbindung. Unabhängiger Ausgabe-only-RTDE-Client lieferte
+  plausible actual_q. Nur alten Front-Launch41338 nach Prüfung inaktiver Bewegung
+  ersetzt; beide rechten Treiber in neuer GUI inaktiv gestartet. ROS-Winkel
+  danach mit RTDE konsistent;53002/54002 lauschen, Programme zuletzt PLAYING.
+  Keine Power-/Brake-/Play-Befehle durch den Agenten. Diagnose im Workspace
+  setup/logs/uwa-parking-{front,rear}-rtde.json und uwa-parking-ready-*.json.
+- Zwei Pakete gebaut und23 gezielte Offline-/MoveIt-/GUI-/Adaptertests bestanden.
+  Vollständiger Mock-Parkweg etwa38,35s, Endfehler1,1e−16rad, andere simulierte
+  Zustände unverändert. Ausfall einer stationären Mock-Zustandsquelle während
+  tatsächlicher Fahrt cancelt/deaktiviert; Nachdrift0rad. Logs
+  setup/logs/uwa-parking-{build,tests,live}.*. Bestehende Kalibrierung unverändert
+  Simulation-only; keine zusätzliche automatische Hardwarekalibrierung aktiviert.
+- Konkreter echter Front-Plan: setup/calibration/parking/right_front_hardware/
+  plan.json; Fingerprint7044e86ce9029d3805047324fc87fceefd4d06e13ecd180e318e6b437d323bc6.
+  tool0 Ziel ungefähr [0,8504,-0,6741,1,5500]m,620 geprüfte Zwischenstände,
+  Dauer61,81s, Limits0,05rad/s und0,10rad/s². Rechte Startwerte live gemessen,
+  linke nominell Home. Abschließender --check-only erfolgreich. PNG geprüft;
+  eigene RViz-Animation auf Domain68 geöffnet. Fremdes Fenster-Screenshot ergab
+  schwarz; deshalb keine erfolgreiche vollständige Screenshot-Sichtprüfung
+  behaupten. Nutzer hat die konkrete Vorschau selbst geprüft und **„Vorschau
+  passt, Fahrbereich frei – Parkversuch starten“** freigegeben; Freigabe mit
+  Fingerprint lokal in operator_approval.json. Erster Realversuch nach16,5s mit
+  nativer Pfadtoleranzverletzung0,200rad abgebrochen, Controller wieder inaktiv.
+  Beobachtete Frontänderung nur0,000125rad, hinten0,000101rad (Messrauschen).
+  Diagnose: DashboardPLAYING ist kein Nachweis einer Reverse-Verbindung;
+  aktuell kein53001/53003/53004-Socket und kein robot_program_running-Sample.
+  GPIO publiziert nur Zustandsänderungen; fehlendes Sample ist kein gemessener
+  false-Wert. Nutzer um Stop→Play vorne rechts gebeten, Freigabe für denselben
+  gespeicherten Weg gilt fort. Keine Toleranzgrenzen gelockert. Logs
+  uwa-parking-hardware-execute.log, uwa-parking-hardware-motion.json und
+  uwa-parking-front-external-control.json. Ergebnis des Folgeversuchs offen.
+
 ## Ethernet und manuelles Jogging, 2026-11-10
 
 - Nutzer hat Kabel ersetzt; Roboterrouten geprüft über enp87s0, PC192.168.8.209.
@@ -319,6 +369,36 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   Screenshots/Fotos daneben; GUI zur Bedienung geöffnet. Anleitung
   [Wrist-Fokusfenster](docs/wrist_camera_focus.md). Daten unterWorkspace-setup,
   keine Rohbilder eingecheckt. Sensorbelichtungszeit weiterhin nicht verfügbar.
+- Nutzer bestätigt Fokusfunktion und bittet um native Auflösung/Helligkeit.
+  Server meldet tatsächlichUCC1.11.1.10337/FirmwareCQ0-1.3.5; `/restapi` enthält
+  live API-Beschreibung. Begrenzter Vollauflösungsversuch über Kamera-OperationMode
+  und captureimage quittiert, lastCapture-Export ohne Bild/kurzer Dienstausfall,
+  automatische Erholung nachNormal. Alternative Aufnahme mit Wartezeit/Quellmap
+  bleibt640×480. Keine native höhere Auflösung behauptet; kein Failing-HD-Knopf.
+- Kameramoduswechsel setzt Fokus zurück; ursprünglichen Benutzerwert404/Manual
+  ausdrücklich wiederhergestellt. Keine Roboterbefehle, keine Treiber-/Simulations-
+  oder Firmware-/URCap-Neustarts/Updates. Eigenes altes Kamerafenster zur Erweiterung
+  gezielt ersetzt, aktuelle Nutzerwerte erhalten bzw. nach Versuch zurückgestellt.
+- Kamerafenster jetzt mit1…66604µs, Gain1…63, EV−7…+7 und LEDAuto/Off/Manual0…100%.
+  Belichtungs-/LED-Writes partiell ohne Fokusfelder; Originalwerte sichern/Restore.
+  Hardwarewirkung20→40ms/Gain2 nach Einlauf: mittlerer Grauwert39,87→72,93,
+  Fokus404/Manual unverändert. LED30% und echte Qt-Knöpfe/Speichern/Restore geprüft.
+  Sechs lokale HTTP-Tests und Build bestanden, neues Fenster geöffnet.
+  [Details/Bedienung](docs/wrist_resolution_exposure_2026-11-10.md), Nachweise unter
+  setup/calibration/wrist_resolution_exposure/20261110 und
+  setup/logs/uwa-wrist-appearance-window/. Vollauflösung bleibt offen.
+- Nutzer bestätigt Beleuchtung und liefertUCC4.1.0 plusDoF-Thema2227. Archiv nur
+  statisch analysiert, nichts installiert oder an Kamera/Robotern geändert.
+  NativeHD-Funktionen vorhanden, aber geprüfter captureimage-Client/Handler
+  weiterhin ohne frei wählbare HD-/Auflösungsparameter, separater HD-Modulpfad.
+  lastCapture liefert nur vorher erzeugten normalen/HD-Puffer. Kein Erfolg oder
+  Upgrade-Nutzen für5MP behauptet. [Befund](docs/wrist_ucc4_analysis_2026-11-10.md).
+- Verlinkter Workaround: Barcode-Knoten erzeugt5MP, SaveImage speichert, dannFTP.
+  Nutzer findet diesen Weg unattraktiv. Alternative als nächster Untersuchungsweg:
+  temporärenHD-Modulpfad direkt vomPC/HTTP auslösen und Bild aus Speicher abrufen,
+  ohne PolyScope-Programm/SaveImage/FTP; weiterhin modulabhängig, noch ungetestet.
+  Andere Optionen Controller-Konfigurationsprüfung mit legitimemSSH oderUSBdirekt;
+  vorhandene gut funktionierende LED-/Fokussteuerung dabei berücksichtigen.
 
 ### Zellgeometrie
 

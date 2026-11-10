@@ -5,6 +5,11 @@ Eigenes Qt-Fenster, unabhängig von ROS-Controllern/Robotermotion. Keine
 SSH-Anmeldung erforderlich. Verwendet die intern in UCC1.11.3 nachgewiesene
 HTTP-Schnittstelle, deren Schreibfunktion jetzt am eigenen Gerät geprüft ist.
 
+Zusätzlich verfügbar: **manuelle Belichtungszeit/Gain, Auto-Belichtung mit EV und
+LED-Regler**. [Bedienung und Vollauflösungsversuch](wrist_resolution_exposure_2026-11-10.md).
+Die Wiederherstellungs-Checkbox betrifft inzwischen alle im Fenster geänderten
+Fokus-/Helligkeitsregler. Der separate Restore-Fokusknopf ändert weiter nur Fokus.
+
 ## Öffnen
 
 ```bash

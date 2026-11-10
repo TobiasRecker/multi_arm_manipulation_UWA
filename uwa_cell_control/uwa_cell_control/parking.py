@@ -8,7 +8,9 @@ from datetime import datetime, timezone
 import hashlib
 from itertools import product
 import json
+import os
 from pathlib import Path
+import tempfile
 
 import numpy as np
 from scipy.optimize import least_squares
@@ -42,7 +44,10 @@ def manual_states(path):
         q = six(record['positions'])
         if record['unit'] == 'deg':
             q = np.radians(q).tolist()
-        result[rid] = {'positions': q, 'source': 'manual_pendant',
+        source = record.get('source', 'manual_pendant')
+        if source not in ('manual_pendant', 'user_nominal_home'):
+            raise ValueError('Manual records must be pendant readings or user-declared nominal home')
+        result[rid] = {'positions': q, 'source': source,
                        'recorded_at': record.get('recorded_at', 'not supplied')}
     return result
 
@@ -57,7 +62,7 @@ def complete_state(layout, readings):
         if record:
             values = six(record['positions'])
             source = record['source']
-            if source not in ('live_joint_states', 'manual_pendant', 'mock_joint_states'):
+            if source not in ('live_joint_states', 'manual_pendant', 'user_nominal_home', 'mock_joint_states'):
                 raise ValueError(f'{rid}: unsupported state provenance {source}')
         else:
             values = six(layout['robots'][rid]['initial_positions'])
@@ -143,7 +148,8 @@ def save_plan(directory, plan, model, layout, profiles, sources, missing, mode):
                 description=model.description,
                 limitations=['Table/base/tool geometry is provisional, not a calibrated real-cell map.',
                              'No people, loose objects or unmodelled fixtures are perceived.',
-                             'Manual pendant readings require the corresponding arms to remain stationary.'])
+                             'Manual/home declarations require the corresponding arms to remain stationary.',
+                             'User-declared home is nominal, not an encoder measurement.'])
     # Hash ties the trajectory to its state/model/provenance, not just its target.
     plan['fingerprint'] = digest(plan)
     (directory/'plan.json').write_text(json.dumps(plan, indent=2, allow_nan=False)+'\n')
@@ -168,12 +174,15 @@ def validate_artifact(plan, profiles):
     rid = plan['arm']
     if plan['joint_names'] != joint_names(rid):
         raise ValueError('Plan joint identity mismatch')
+    if plan['state_sources'][rid] not in ('live_joint_states','mock_joint_states'):
+        raise ValueError('Moving arm needs live telemetry; a manual/home declaration is only a fixed obstacle')
     # Mock provenance can never be used as a measured hardware obstacle state.
     if plan['mode']=='hardware' and any(s=='mock_joint_states' for s in plan['state_sources'].values()):
         raise ValueError('Mock states cannot authorize a hardware path')
 
 
 def write_preview(plan, path):
+    os.environ.setdefault('MPLCONFIGDIR',str(Path(tempfile.gettempdir())/'uwa-parking-matplotlib'))
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -195,9 +204,10 @@ def write_preview(plan, path):
         for rid, links in chain.items():
             points = np.array([c.forward(plan['start'])[:3, 3] for c in links])
             unknown = rid in plan['unobserved_arms']
-            ax.plot(points[:, a], points[:, b], 'o--' if unknown else 'o-',
-                    color='#999999' if unknown else '#3c596b', alpha=.6,
-                    label=rid+(' UNOBSERVED' if unknown else ' start'))
+            home = plan['state_sources'][rid]=='user_nominal_home'
+            ax.plot(points[:, a], points[:, b], 'o--' if unknown or home else 'o-',
+                    color='#999999' if unknown or home else '#3c596b', alpha=.6,
+                    label=rid+(' UNOBSERVED' if unknown else ' home (user)' if home else ' start'))
             if rid==plan['arm']:
                 points = np.array([c.forward(end)[:3, 3] for c in links])
                 ax.plot(points[:, a], points[:, b], 'o-', color='#bb3a00', label=rid+' target')

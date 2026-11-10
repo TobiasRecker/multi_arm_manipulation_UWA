@@ -75,6 +75,8 @@ def preview(path):
                 label.text=f"PREVIEW ONLY · {plan['mode'].upper()} · {plan['arm']} · playback 4x · domain68\n"
                 label.text+=('UNOBSERVED: '+', '.join(plan['unobserved_arms']) if plan['unobserved_arms']
                              else 'Checked model path · real geometry remains provisional')
+                home=[r for r,s in plan['state_sources'].items() if s=='user_nominal_home']
+                if home:label.text+='\nUser-declared nominal Home (not measured): '+', '.join(home)
                 markers.publish(MarkerArray(markers=[line,label]))
                 rclpy.spin_once(node,timeout_sec=.05)
             failed=[p.returncode for p in processes if p.poll() not in (None,0)]
