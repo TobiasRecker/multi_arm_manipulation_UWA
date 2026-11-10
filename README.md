@@ -11,9 +11,9 @@ requirements, preferences, decisions, verified results and open work.
 [ACTIVE_WORK.md](ACTIVE_WORK.md) explains task-specific status files under `work/`
 for agents sharing this checkout; read active entries before editing or restarting services.
 
-## UWA Arme: local multi-UR preparation
+## UWA Arms: local multi-UR preparation
 
-Open **UWA Arme** from the application menu, or run:
+Open **UWA Arms** from the application menu, or run:
 
 ```bash
 bash src/multi_arm_manipulation_UWA/scripts/control.sh
@@ -30,6 +30,17 @@ can be controlled from a new window. The default selection is **right_rear only*
 The app supplies no complete cell collision protection. Domain 66 is separate from Gazebo 64 and OAK 65.
 See [operation, architecture and current limits](docs/ur_control_gui.md).
 
+The interface, tooltips and application-menu entry are in English. Click
+feedback uses a persistent high-contrast RECEIVED/RUNNING/DONE/FAILED panel,
+elapsed time and detailed errors; background polling does not hide failures.
+Buttons visibly highlight for 1.2 seconds after a click. Click
+**Save logs** at any time to write a local diagnostic archive to
+`~/UWA_ws/setup/logs/uwa-control/exports/`. The saved path appears in the GUI;
+`setup/logs/uwa-control/latest-export.txt` points to the latest completed archive.
+It includes this window's full log, subprocess output, related ROS logs,
+controller/status context and a screenshot. Export runs in the background and
+sends no robot commands. Session files persist under `setup/logs/uwa-control/sessions/`.
+
 ## Build
 
 Physical devices were reached over the PC's temporary Wi-Fi connection on
@@ -44,6 +55,9 @@ For the first real hand-eye test, start with **right_rear only**. See the
 [camera access and staged hardware procedure](docs/right_rear_hardware_first_test.md).
 Robotiq documents `http://192.168.8.170:4242/current.jpg?type=color` for the latest
 camera image; the read-only attempt on 2026-11-10 could not reach the controller.
+Later the same day, a repeat read succeeded: the HTTP JPEG was **640×480**, while
+the 2019 camera specification lists up to 2560×1920 at 2 fps. See the linked guide
+for focus controls and the distinction between sensor and HTTP image resolution.
 The automatic calibration backend below remains simulation-only.
 
 The workspace is expected at `~/UWA_ws`; set `UWA_WS` before sourcing the helper

@@ -48,6 +48,42 @@ Eine alternative direkte USB-Verbindung zum PC wird von Robotiq als Webcam-/
 Belichtung und LEDs lassen sich darüber laut Hersteller nicht entsprechend
 steuern. Für den ersten Test daher den vorhandenen Controller-Anschluss nutzen.
 
+### Bildqualität: Sensor und HTTP-Bild unterscheiden
+
+**Nachprüfung am 2026-11-10 erfolgreich:** derselbe HTTP-Endpunkt lieferte
+HTTP200, ein decodierbares JPEG mit **640×480Pixeln**, 83379Bytes. Frühere
+Erreichbarkeitsfehler sind damit historische Beobachtungen, kein aktueller
+Nachweis eines dauerhaften Defekts. Bericht/Bild unter
+`setup/logs/right-rear-wrist-2026-11-10/quality_check.{json,jpg}`.
+Keine Einstellungen oder Roboterdaten verändert. Bildfrische dabei nicht
+nachgewiesen; das empfangene Bild zeigt Pendant/Tisch/Arm, kein ChArUco-Board.
+Das Display ist stark überbelichtet; eine konkrete Fokusursache ist daraus
+nicht zuverlässig ableitbar.
+
+Laut **2019-Robotiq-Handbuch** unterstützt die Kamera maximal2560×1920Pixel
+(etwa5MP) bei2fps, alternativ640×480 bei maximal30fps, und eine Flüssiglinse
+mit Fokusbereich70mm bis unendlich. FullHD1920×1080 ist damit weder die
+maximale Sensorauflösung noch der hier beobachtete HTTP-Modus. Ob ein bestimmter
+FullHD-Modus verfügbar ist, muss am tatsächlichen Aufnahmepfad geprüft werden.
+Der HTTP-Endpunkt darf nicht als5MP-Rohbildschnittstelle behandelt werden.
+Robotiqs älteres Supportarchiv nennt keine API zum Ändern der HTTP-Auflösung;
+keine erfundenen `width`-/`height`-/`focus`-URL-Parameter verwenden.
+
+Fokus am Pendant im Robotiq-Dialog für **Teach Object / Select Model** bzw.
+**Configure Model / Cam Locate** prüfen (Bezeichnungen versionsabhängig).
+Die2019-Anleitung beschreibt Kamera-/Zahnradsymbol unten links im Kamerabild,
+Fokus, Auto/Manual sowie **Retake** zum erneuten Fokussieren. Einstellungen im
+Configure-Model-Schritt können die vorherigen Einstellungen überschreiben.
+Ein JPEG-GET ist kein dokumentierter Autofokus-Trigger.
+
+Zum Prüfen kontrastreiches Board in der gewünschten Messebene verwenden,
+Fokus/Belichtung dort einstellen und danach für Intrinsics und Hand-Auge-Reihe
+konstant halten. Bei veränderlichen Entfernungen geeigneten Schärfebereich
+wählen; bei Fokusänderung die Gültigkeit der Intrinsics erneut prüfen.
+Höhere echte Auflösung separat über unterstützte Kameramodi bzw. einen
+untersuchten USB-Aufnahmepfad prüfen;5MP über HTTP oder USB nicht ungeprüft
+versprechen. Hochskalieren des640×480-Bildes liefert keine neuen Details.
+
 ## 2. Bildgeometrie und reales Modell vorbereiten
 
 - Rechtes ChArUco-Board aus der vorhandenen PDF maßhaltig drucken: 40mm Quadrate,
@@ -93,6 +129,10 @@ auf echte Hardware keine Wirkung. Erste automatische Fahrt nur right_rear;
 die übrigen Roboter werden dafür nicht automatisch geparkt.
 
 ## Quellen
+
+- [Robotiq-Handbuch2019: technische Daten und Fokus](https://assets.robotiq.com/website-assets/support_documents/document/UserManual_Camera_20191106.pdf).
+- [Robotiq2019: Kameraeinstellungen und Fokusbedienung](https://assets.robotiq.com/website-assets/support_documents/document/online/Vision_System_e-Series_HTML5_20190313.zip/Vision_System_e-Series_HTML5/Content/Vision_System-Instructions-Manual-06-2017/5.%20Object_Teaching.htm).
+- [Robotiq-Supportarchiv: HTTP-Auflösung/API-Grenzen](https://dof.robotiq.com/discussion/275/wrist-camera-live-image).
 
 - [Robotiq: Bilder über den UR-Controller abrufen](https://robotiq.zendesk.com/hc/en-us/articles/4403928641427-Retrieving-Robotiq-Wrist-Camera-pictures-on-a-computer).
 - [Robotiq: Webcam-/ROS-Anbindung und Grenzen](https://robotiq.zendesk.com/hc/en-us/articles/1500000318602-Can-we-use-the-Robotiq-Wrist-Camera-on-ROS).

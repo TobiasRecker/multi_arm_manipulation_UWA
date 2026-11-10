@@ -12,6 +12,7 @@ from python_qt_binding import QtCore,QtGui,QtWidgets
 from match_ur_hardware.processes import stop_owned_process
 from match_ur_hardware.profiles import load_profiles
 from .session_logs import SessionLogs
+from .feedback import ActionFeedback
 
 ARM_IDS=('left_front','left_rear','right_front','right_rear')
 
@@ -37,7 +38,8 @@ class Window(QtWidgets.QMainWindow):
         self.inventory=Path(inventory).resolve();self.profiles=load_profiles(self.inventory)
         if set(self.profiles)!=set(ARM_IDS):raise ValueError('UWA inventory must define the four cell arms')
         self.drivers={};self.jobs={};self.auxiliary=[];self.state={};self.closing=False
-        self.setWindowTitle('UWA · Direct UR Test');self.resize(1180,800)
+        self.setWindowTitle('UWA · Direct UR Test');self.resize(1180,900)
+        self.manual_key=None;self.manual_title='';self.start_ids=[];self.manual_pending=False;self.click_sequence=0
         self.workspace=Path(os.environ.get('UWA_WS',str(Path.home()/'UWA_ws')))
         self.session=SessionLogs(self.workspace,namespace=next(iter(self.profiles.values()))['namespace_root'])
         self.export_worker=None;self.close_after_export=False
@@ -54,6 +56,7 @@ class Window(QtWidgets.QMainWindow):
         self.mode.currentIndexChanged.connect(self.change_mode);top.addWidget(self.mode)
         layout.addLayout(top)
         self.banner=QtWidgets.QLabel();self.banner.setWordWrap(True);layout.addWidget(self.banner)
+        self.feedback=ActionFeedback();layout.addWidget(self.feedback)
         self.table=QtWidgets.QTableWidget(4,7)
         self.table.setHorizontalHeaderLabels(['Arm','IP','Driver','Robot mode','Safety','Program','Remote'])
         self.table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Stretch)
@@ -85,6 +88,7 @@ class Window(QtWidgets.QMainWindow):
         edit=QtWidgets.QHBoxLayout()
         for text,callback in [('Open inventory',self.edit_inventory),('Reload inventory',self.reload_inventory)]:
             b=QtWidgets.QPushButton(text);b.clicked.connect(callback);edit.addWidget(b)
+            b.pressed.connect(lambda b=b:self.acknowledge(b.text(),b.text(),b))
         form.addLayout(edit);self.tabs.addTab(prep,'Preparation')
         controllers=QtWidgets.QWidget();ctl=QtWidgets.QVBoxLayout(controllers)
         self.tree=QtWidgets.QTreeWidget();self.tree.setHeaderLabels(['Arm / controller','State'])
@@ -105,7 +109,7 @@ class Window(QtWidgets.QMainWindow):
         self.log=QtWidgets.QPlainTextEdit();self.log.setReadOnly(True);self.log.setMaximumBlockCount(1600)
         self.tabs.addTab(self.log,'Log')
         self.stop_button=QtWidgets.QPushButton('STOP · selected and owned arms')
-        self.stop_button.setMinimumHeight(58);self.stop_button.setStyleSheet('background:#b83333;color:white;font-size:18px;font-weight:bold')
+        self.stop_button.setMinimumHeight(58);self.stop_button.setStyleSheet('background:#8a0909;color:white;border:3px solid #280000;font-size:18px;font-weight:bold')
         self.stop_button.setToolTip('Software stop: deactivate controllers and stop the UR program. Not a hardware emergency stop.')
         self.stop_button.clicked.connect(self.stop_all);layout.addWidget(self.stop_button)
         exports=QtWidgets.QHBoxLayout()
@@ -117,6 +121,8 @@ class Window(QtWidgets.QMainWindow):
         exports.addWidget(self.export_label,1);layout.addLayout(exports)
         self.footer=QtWidgets.QLabel('Local processes only · separate from Gazebo · status not checked yet');layout.addWidget(self.footer)
         self.log_path=self.session.gui_log
+        for key,button in [*self.buttons.items(),('stop',self.stop_button),('save',self.save_logs_button)]:
+            button.pressed.connect(lambda key=key,button=button:self.acknowledge(key,button.text(),button))
         self.timer=QtCore.QTimer(self);self.timer.timeout.connect(self.refresh);self.timer.start(4000)
         for box in self.checks.values():box.toggled.connect(self.update_buttons)
         self.mode.setCurrentIndex(0 if mode=='mock' else 1)
@@ -133,11 +139,45 @@ class Window(QtWidgets.QMainWindow):
         self.log.appendPlainText(line)
         self.session.note(line)
 
+    def acknowledge(self,key,title,button):
+        self.manual_key=key;self.manual_title=title;self.manual_pending=True
+        self.feedback.show_state('RECEIVED',title,'Click received · '+datetime.now().strftime('%H:%M:%S'))
+        self.note('Button pressed: '+title)
+        if button.property('feedback_base') is None:button.setProperty('feedback_base',button.styleSheet())
+        original=button.property('feedback_base');self.click_sequence+=1;sequence=self.click_sequence
+        button.setProperty('feedback_sequence',sequence)
+        colour='#560000' if key=='stop' else '#123f85'
+        button.setStyleSheet(f'QPushButton {{background:{colour};color:white;border:4px solid black;font-weight:bold;}}')
+        button.repaint()
+        def restore():
+            try:
+                if button.property('feedback_sequence')==sequence:button.setStyleSheet(original)
+            except RuntimeError:pass  # Window may already have closed.
+        QtCore.QTimer.singleShot(1200,restore)
+
+    def action_result(self,key,ok,detail=''):
+        if self.manual_key==key:
+            self.manual_pending=False
+            self.feedback.show_state('DONE' if ok else 'FAILED',self.manual_title,detail)
+            self.note(f'Action {"completed" if ok else "failed"}: {self.manual_title} · {detail}')
+
+    @staticmethod
+    def error_detail(output):
+        try:
+            data=json.loads(next(line for line in reversed(output.splitlines()) if line.startswith('{')))
+            return data.get('error') or '; '.join(f'{rid}: {arm["error"]}' for rid,arm in data.get('arms',{}).items() if arm.get('error'))
+        except (ValueError,StopIteration):
+            if 'already managed in this domain' in output:
+                return 'An older launch still owns this arm. Its controller manager may have exited; stop that failed launch before retrying.'
+            return next((line for line in reversed(output.splitlines()) if '[ERROR]' in line),output[-600:])
+
     def save_logs(self):
         if self.export_worker is not None:return
         self.note('Saving session logs…')
+        if self.manual_key=='save':self.feedback.show_state('RUNNING','Save logs','Creating a diagnostic archive in the background.')
         self.grab().save(str(self.session.directory/'gui.png'))
         metadata={'inventory_path':str(self.inventory),'mode':'mock' if self.mock else 'hardware',
+            'action_feedback':{'phase':self.feedback.phase,'title':self.feedback.message,'detail':self.feedback.full_detail},
             'selected_arms':self.selected(),'status':self.state,
             'driver_pids':{rid:int(p.processId()) for rid,p in self.drivers.items()},
             'operation_pids':{key:int(p.processId()) for key,p in self.jobs.items()},
@@ -150,8 +190,10 @@ class Window(QtWidgets.QMainWindow):
         def saved(path):
             self.export_label.setText('Saved: '+path);self.export_label.setToolTip(path)
             self.note('Logs saved: '+path)
+            self.action_result('save',True,path)
         def failed(error):
             self.export_label.setText('Could not save logs: '+error);self.note('Log export failed: '+error)
+            self.action_result('save',False,error)
         def finished():
             self.export_worker=None;self.save_logs_button.setEnabled(True);worker.deleteLater()
             if self.close_after_export:self.close()
@@ -209,10 +251,15 @@ class Window(QtWidgets.QMainWindow):
         if not ids:return
         if kind in self.jobs:return
         mode='mock' if self.mock else 'hardware'
+        report_feedback=self.manual_key==kind and self.manual_pending
+        if report_feedback:
+            self.manual_pending=False
+            self.feedback.show_state('RUNNING',self.manual_title,'Selected arms: '+', '.join(LABELS[rid] for rid in ids))
         args=['ros2','run','match_ur_hardware','ur_operation','--inventory',str(self.inventory),
               '--arms',','.join(ids),'--mode',mode,kind]
         def done(code,output):
             self.jobs.pop(kind,None)
+            ok=code==0;detail=self.error_detail(output) if code else 'Command completed. See the status or Log tab for details.'
             if kind=='status':
                 try:
                     line=next(line for line in reversed(output.splitlines()) if line.startswith('{'))
@@ -220,7 +267,10 @@ class Window(QtWidgets.QMainWindow):
                     if mode==('mock' if self.mock else 'hardware'):
                         for state in data.get('arms',{}).values():state['observed_at']=datetime.now().strftime('%H:%M:%S')
                         self.state.update(data.get('arms',{}));self.render_status()
-                except Exception as e:self.note(f'Could not read status: {e}')
+                    detail='; '.join(f'{LABELS[rid]}: controller manager '+('responding' if state.get('driver_available') else 'NOT responding')
+                                    for rid,state in data.get('arms',{}).items())
+                except Exception as e:
+                    ok=False;detail=f'Could not read status: {e}';self.note(detail)
             elif kind=='joints':
                 try:
                     data=json.loads(next(line for line in reversed(output.splitlines()) if line.startswith('{')))
@@ -231,10 +281,12 @@ class Window(QtWidgets.QMainWindow):
                         lines.extend(f'{name}: {value:.5f} rad  ({math.degrees(value):.2f}°)'
                                      for name,value in zip(state.get('names',[]),state.get('positions',[])))
                     self.joints.setPlainText('\n'.join(lines));self.tabs.setCurrentWidget(self.joints)
-                except Exception as e:self.note(f'Could not read joint angles: {e}')
+                except Exception as e:
+                    ok=False;detail=f'Could not read joint angles: {e}';self.note(detail)
             else:
                 self.note(f'{kind}: '+('completed' if code==0 else 'failed; see the log for details'))
             self.update_buttons()
+            if report_feedback:self.action_result(kind,ok,detail)
         self.jobs[kind]=self.process(args,tag=kind,finished=done);self.update_buttons()
 
     def render_status(self):
@@ -259,31 +311,44 @@ class Window(QtWidgets.QMainWindow):
         observed=max((s.get('observed_at','') for s in self.state.values()),default='')
         self.footer.setText(('Last selected-arm status query: '+observed if observed else 'No status data yet')+
                             ' · ROS domain 66 · software stop does not replace an emergency stop')
+        if self.manual_key=='start' and self.feedback.phase=='RUNNING' and self.start_ids and all(self.state.get(rid,{}).get('driver_available') for rid in self.start_ids):
+            self.action_result('start',True,'Controller managers are responding: '+', '.join(LABELS[rid] for rid in self.start_ids))
 
     def refresh(self):
         if not self.closing and not self.jobs:self.operation('status')
 
     def action(self,key):
         ids=self.selected()
-        if not ids:self.note('Select at least one configured arm first.');return
+        if not ids:
+            self.note('Select at least one configured arm first.')
+            self.action_result(key,False,'Select at least one configured arm first.');return
         if key=='status':self.operation('status');return
         if key=='start':
+            self.start_ids=list(ids)
+            self.feedback.show_state('RUNNING','Start drivers','Waiting for the selected controller managers to respond.')
             for rid in ids:
                 if rid in self.drivers:continue
                 if self.state.get(rid,{}).get('driver_available'):
                     self.note(f'{LABELS[rid]}: using the existing driver.');continue
                 def done(code,output,rid=rid):
-                    self.drivers.pop(rid,None);self.note(f'{LABELS[rid]}: Driver stopped ({code})');self.update_buttons()
+                    self.drivers.pop(rid,None);self.state.pop(rid,None)
+                    self.note(f'{LABELS[rid]}: Driver stopped ({code})');self.update_buttons();self.render_status()
+                    failed=code!=0 or 'controller manager exited' in output
+                    self.action_result('start',not failed,self.error_detail(output) if failed else f'{LABELS[rid]}: driver stopped.')
                 args=['ros2','launch','uwa_cell_control','arms.launch.py','inventory:='+str(self.inventory),
                       'arms:='+rid,'mode:='+('mock' if self.mock else 'hardware')]
                 self.drivers[rid]=self.process(args,tag=rid,finished=done)
-            self.update_buttons();return
+            self.update_buttons();self.render_status();return
         if key=='drivers_stop':
             for rid in ids:
                 if rid in self.drivers:stop_owned_process(self.drivers[rid])
+            self.action_result(key,True,'Owned driver processes stopped; external drivers were left running.')
             return
         if key=='rqt':
-            self.auxiliary.append(self.process(['ros2','run','rqt_joint_trajectory_controller','rqt_joint_trajectory_controller'],tag='Joint control'));return
+            p=self.process(['ros2','run','rqt_joint_trajectory_controller','rqt_joint_trajectory_controller'],tag='Joint control',
+                           finished=lambda code,output:self.action_result('rqt',code==0,self.error_detail(output) if code else 'Joint control closed.'))
+            p.started.connect(lambda:self.action_result('rqt',True,'Joint control process started.'))
+            self.auxiliary.append(p);return
         self.operation(key)
 
     def stop_all(self):
@@ -294,16 +359,21 @@ class Window(QtWidgets.QMainWindow):
         self.jobs={}
         self.operation('stop',ids)
 
-    def edit_inventory(self):QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(str(self.inventory)))
+    def edit_inventory(self):
+        ok=QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(str(self.inventory)))
+        self.action_result('Open inventory',ok,str(self.inventory))
 
     def reload_inventory(self):
         if self.drivers or self.jobs:
-            self.note('Stop owned drivers and operations before reloading the inventory.');return
+            self.note('Stop owned drivers and operations before reloading the inventory.')
+            self.action_result('Reload inventory',False,'Stop owned drivers and operations before reloading the inventory.');return
         try:
             self.profiles=load_profiles(self.inventory)
             for row,rid in enumerate(ARM_IDS):self.table.item(row,1).setText(self.profiles[rid]['ip'] or 'not configured')
             self.change_mode();self.note('Inventory reloaded.')
-        except Exception as e:self.note(str(e))
+            self.action_result('Reload inventory',True,'Inventory reloaded.')
+        except Exception as e:
+            self.note(str(e));self.action_result('Reload inventory',False,str(e))
 
     def closeEvent(self,event):
         if self.export_worker is not None:

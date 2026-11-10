@@ -5,6 +5,7 @@ from pathlib import Path
 import time
 import tempfile
 import tarfile
+import signal
 import yaml
 from types import SimpleNamespace
 
@@ -52,7 +53,7 @@ def main():
         return {rid:controller_list(node,window.profiles[rid],optional=True) for rid in ARM_IDS}
     try:
         assert window.mock
-        wait(lambda:not window.jobs,8,'initial status')
+        wait(lambda:not window.jobs,20,'initial status')
         window.buttons['start'].click()
         wait(lambda:all(cs and any(c.name==CARTESIAN and c.state=='inactive' for c in cs)
                         for cs in controllers().values()),110,'four mock drivers/controllers')
@@ -117,6 +118,36 @@ def main():
         stopped=controllers()
         assert not any(c.name in MOTION and c.state=='active' for cs in stopped.values() for c in cs)
         report['stop_all_motion_inactive']=True
+        # A manager failure must release that launch/lock, without touching other arms.
+        root_pid=int(window.drivers['left_front'].processId())
+        processes={}
+        for directory in Path('/proc').iterdir():
+            if not directory.name.isdigit():continue
+            try:
+                stat=(directory/'stat').read_text()
+                parent=int(stat[stat.rfind(')')+2:].split()[1])
+                command=(directory/'cmdline').read_bytes().replace(b'\0',b' ').decode(errors='replace')
+                processes[int(directory.name)]=(parent,command)
+            except (OSError,ValueError):continue
+        descendants={root_pid}
+        while True:
+            children={pid for pid,(parent,_) in processes.items() if parent in descendants}
+            if children<=descendants:break
+            descendants|=children
+        candidates=[pid for pid in descendants if pid in processes and
+                    'controller_manager/ros2_control_node' in processes[pid][1] and
+                    '/uwa_mock_validation/left_front' in processes[pid][1]]
+        assert len(candidates)==1
+        os.kill(candidates[0],signal.SIGTERM)
+        wait(lambda:'left_front' not in window.drivers,25,'failed-manager launch cleanup')
+        assert len(window.drivers)==3
+        for rid,box in window.checks.items():box.setChecked(rid=='left_front')
+        window.buttons['start'].click()
+        wait(lambda:any(c.name==CARTESIAN and c.state=='inactive' for c in
+                        (controller_list(node,window.profiles['left_front'],optional=True) or [])),45,
+             'restart after manager exit releases arm lock')
+        report['manager_exit_cleanup_and_restart']=True
+        for box in window.checks.values():box.setChecked(True)
         window.buttons['drivers_stop'].click()
         wait(lambda:not window.drivers,20,'owned process teardown')
         report['owned_drivers_stopped']=True

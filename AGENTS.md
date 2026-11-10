@@ -95,6 +95,11 @@
 
 ## Verbindliche Bedienerwartungen
 
+- Nutzerhinweis vom 2026-11-10: Monitor mit schwachem Kontrast. Klickannahme
+  deutlich hervorheben, nicht nur durch subtile Standard-Buttonzustände.
+  Dauerhafte Rückmeldung mit großen Textlabels RECEIVED/RUNNING/DONE/FAILED,
+  Aktionsname, Verlauf/Fehlerdetail und Laufzeitanzeige. Automatische Statuspolls
+  dürfen ein manuelles Fehlerergebnis nicht überschreiben. Bedienung auf Englisch.
 - Nutzerwunsch vom 2026-11-10: UR-GUI vollständig **Englisch**, einschließlich
   Beschriftungen, Tooltips, eigener Meldungen und Startmenüeintrag **UWA Arms**.
   Gesprächssprache bleibt Deutsch. **Save logs** muss während laufender

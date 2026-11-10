@@ -26,6 +26,55 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 - **Explizit seit 2026-11-09:** Wichtige Ziele, Anforderungen, Entscheidungen und
   Vorlieben parallel in AGENTS-/Handover-Dateien festhalten.
 
+## Englische UR-GUI und Sitzungsdiagnose, 2026-11-10
+
+- Neuer Nutzerhinweis: schwacher Monitorkontrast; Klickannahme deutlich
+  rückmelden. GUI mit kontrastreichem Button-Highlight (1,2s), großer dauerhafter
+  RECEIVED/RUNNING/DONE/FAILED-Anzeige, Aktionsname/Detail und Laufzeit umgesetzt.
+  Hintergrund-Statuspolls überschreiben manuelle Fehler nicht; Klicks/Ergebnisse
+  zusätzlich im Sitzungslog und aktueller Feedbackzustand im Exportmanifest.
+- Nutzerexport14:35:45 ausgewertet: Dashboard erreichbar/NORMAL/Remote, aber
+  Manager hinten rechts seit13:59:00 mit−11 abgestürzt; State-Helper ebenfalls−11.
+  Verwaister Launch41339 blockierte neue Starts. Nur diesen Rest beendet;
+  künftige Manager-Exits räumen zugehörigen Launch samt Sperre automatisch auf.
+  Nativer Segfault selbst noch ungeklärt, keine bewiesene WLAN-Ursache.
+  [Diagnose](docs/ur_log_diagnosis_2026-11-10.md).
+- Abschluss:17 Offline-Tests, Zwei-Paket-Build und isolierter Live-Mock-Test
+  inklusive gezieltem Manager-Exit, Bereinigung nur dieser Instanz und anschließendem
+  erfolgreichem Armneustart bestanden. Fehlerhafter alter GUI-Status nach
+  Treiberexit wird verworfen. Logs setup/logs/uwa-feedback-{tests,build,live}.log.
+  Kontrastreiche Darstellung anhand zweier Screenshots geprüft; aktuelle GUI
+  über Desktop-Aktion geöffnet, ohne lebende Hardwaretreiber zu unterbrechen.
+- Nutzerauftrag: aktuelle UR-GUI ins Englische übersetzen und Save logs für
+  die aktuelle Sitzung ergänzen. Eigene Beschriftungen/Tooltips/Meldungen,
+  eigene MATCH-Adapterantworten und Startmenü UWA Arms übersetzt. Native oder
+  alte gespeicherte Logs werden unverändert erhalten.
+- Eindeutige Sitzungsverzeichnisse unter setup/logs/uwa-control/sessions/.
+  Vollständiges GUI-Log und gesonderte Prozessdateien inklusive Statusausgaben,
+  Exitcodes; sichtbarer Logpuffer darf weiterhin gekürzt sein.
+- Save logs als dauerhaft erreichbarer Button; Export im Hintergrund als
+  tar.gz nach setup/logs/uwa-control/exports/. Neuester erfolgreicher Pfad in
+  latest-export.txt daneben. Manifest: Zeitpunkte, Modus, Auswahl, letzte
+  Statusdaten, PIDs, whitelisted Profilwerte, Dateiliste/Warnungen und Screenshot.
+  Kein automatischer Roboterbefehl/Upload, kein vollständiger Environment-Dump.
+- Passende seit Sitzungsbeginn geschriebene ROS-Dateien und ältere, noch von
+  angehängten Treiberprozessen verwendete ROS-Logs erfassen. Altes gemeinsames
+  gui.log explizit als inherited_context, damit Diagnose früherer Treiberstarts
+  möglich bleibt. Wiederholte Exporte überschreiben keine vorherigen Archive.
+- Offline-Prüfung:16 Tests bestanden, darunter archivierte Fehlerausgaben,
+  getrennte Sitzungen, ROS-Auswahl, keine externen Symlink-Dateien und echter
+  GUI-Button-Export während einer als laufend markierten Operation.
+  Logs setup/logs/uwa-english-log-{tests,build,live}.log; Details Bedienungsdatei.
+- Beide Pakete gebaut, isolierter Live-Mock-Test inklusive Save logs bei vier
+  aktiven Mock-Controllern bestanden. Archiv enthält Prozessdateien, ROS-Dateien,
+  Status-Snapshot und vier Treiber-PIDs; anschließend Controllerstopp und
+  sauberer Abbau bestätigt. Beispielarchiv im JSON-Bericht
+  setup/logs/uwa-control/mock-gui-validation.json verzeichnet.
+- Englischen Desktop-Eintrag installiert/validiert und dessen Hardware-Aktion
+  geöffnet. Nur treiberloses Vorgängerfenster ersetzt; Besitzerfenster und beide
+  Hardware-Launch-Prozesse41338/41339 erhalten. Neue GUI UWA · Direct UR Test,
+  Hardwaremodus/rear right; keine realen Power-/Brake-/Play-/Bewegungsbefehle.
+
 ## Aufbau der realen Zelle und Modellannahmen
 
 ### Lokale UR-Vorbereitung und direkte UWA-GUI, 2026-11-10
@@ -115,6 +164,17 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   right_front erst mit dessen Messreihe am gleichen unbewegten Board. Vorhandene
   parallele Hardware-GUI-Arbeit bleibt erhalten und wurde nicht als fertige
   Kalibrier-Hardwareanbindung ausgegeben.
+- Folgefrage Bildqualität am selben Tag: Nutzer meldet falschen Fokus und
+  geringe Auflösung. Erneuter lesender HTTP-Abruf jetzt erfolgreich: **640×480**,
+  83379Bytes, HTTP200. Frühere Nichterreichbarkeit damit historisch; keine
+  Netz-/Kameraänderung durch diesen Agenten. Bild/Report`quality_check.jpg/json`
+  unter`setup/logs/right-rear-wrist-2026-11-10/`. Sichtprüfung: Pendant überbelichtet,
+  kein Board; genaue Fokusursache/Bildfrische noch nicht nachgewiesen.
+- Herstellerdaten2019:2560×1920 bei2fps,640×480 bei bis30fps, Flüssiglinse70mm–∞.
+  Sensorfähigkeit von tatsächlich gelieferten HTTP-Pixeln unterscheiden. Fokus
+  über Robotiq-Teach-/Configure-Model-Kameraeinstellungen/Retake prüfen;
+  HTTP-GET ist kein belegter Autofokus-Trigger. Höhere Auflösung noch nicht
+  praktisch erschlossen; Bedienhinweise/Quellen in obiger Anleitung ergänzt.
 
 ### Zellgeometrie
 
