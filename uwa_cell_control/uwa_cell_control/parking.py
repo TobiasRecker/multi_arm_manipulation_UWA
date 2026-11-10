@@ -74,6 +74,8 @@ def complete_state(layout, readings):
 
 
 def make_model(layout, profiles, directory):
+    directory=Path(directory).expanduser().resolve()
+    directory.mkdir(parents=True,exist_ok=True)
     layout = deepcopy(layout)
     for rid, profile in profiles.items():
         layout['robots'][rid]['type'] = profile['ur_type']

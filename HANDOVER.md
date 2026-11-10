@@ -412,6 +412,20 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   ohne PolyScope-Programm/SaveImage/FTP; weiterhin modulabhängig, noch ungetestet.
   Andere Optionen Controller-Konfigurationsprüfung mit legitimemSSH oderUSBdirekt;
   vorhandene gut funktionierende LED-/Fokussteuerung dabei berücksichtigen.
+- Konkretisierung auf Frage „wie würde ich das machen?“: Kamera-Wizard-Endpunkte
+  beginbarcode/create/process sind aus gesicherter API/Client bekannt. Nativer
+  Export aus diesem Zustand noch ungeklärt; lastCapture ist nurOperationMode,
+  nichtBarcode registriert. Daher keine scheinbar fertige curl-/Python-Sequenz
+  ausgeben. Vorschlag bleibt ein zu entwickelndes Testtool mit vollständiger
+  Zustandssicherung/-wiederherstellung, kein nachgewiesener5MP-Abruf. Keine
+  neuen Hardwareaufrufe; parallele hardware-handeye-first-view-Arbeit erhalten.
+- Weiterer statischer HD-Befund: untersuchte rejectmodule-/Normal-clearModules-
+  Funktionen löschen Module/Kalibrierungen, keine explizite HD-Pufferlöschung
+  erkannt. Kandidat: Barcode-HD→rejectmodule→Normal→OperationMode→lastCapture,
+  ohne weitereVGA-Aufnahme. Strategiewechsel können dennoch Zustand/Bilder
+  beeinflussen; echter Nachweis fehlt. Nächster Schritt einzelner exklusiver
+  Kameratest mit Backup/Statuschecks/Pixeldimensionen/Restore, keine Installation.
+  Wegen parallel aktiver ersterHardware-Hand-Auge-Arbeit hier nur lokal analysiert.
 
 ### Zellgeometrie
 

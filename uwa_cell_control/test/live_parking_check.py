@@ -33,7 +33,7 @@ def main():
         inventory=Path(temporary)/'inventory.yaml'
         data=yaml.safe_load((ws/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml').read_text())
         data['ros_namespace']='/uwa_parking_validation'
-        for i,arm in enumerate(data['robots'].values()):arm.update(ip=f'127.0.0.{i+1}',port_base=45000+i*1000)
+        for i,arm in enumerate(data['robots'].values()):arm.update(ip=f'127.0.0.{i+1}',port_base=45000+i*1000,kinematics_file=None)
         inventory.write_text(yaml.safe_dump(data));profiles=load_profiles(inventory)
         assert all(p['ip'].startswith('127.0.0.') for p in profiles.values())
         stream=(logs/'uwa-parking-mock-driver.log').open('w')
@@ -99,7 +99,23 @@ def main():
             stable=list(observer.received['right_front']['positions']);pump(.5)
             drift=max(abs(np.array(observer.received['right_front']['positions'])-stable))
             assert drift<.001,drift
-            report.update(telemetry_loss_cancels_and_deactivates=True,post_cancel_drift_rad=float(drift),success=True)
+            report.update(telemetry_loss_cancels_and_deactivates=True,post_cancel_drift_rad=float(drift))
+            # Real OS signal to the CLI, not a simulated Python exception.
+            enabled.add('right_rear');pump(.8);artifact(target=q1);pump(.3)
+            interrupt_log=(logs/'uwa-parking-mock-sigint.log').open('w')
+            child=subprocess.Popen(command,stdout=interrupt_log,stderr=subprocess.STDOUT,start_new_session=True)
+            parked=list(observer.received['right_front']['positions'])
+            wait(lambda:max(abs(np.array(observer.received['right_front']['positions'])-parked))>1e-4,
+                 20,'motion before SIGINT')
+            os.killpg(child.pid,signal.SIGINT)
+            wait(lambda:child.poll() is not None,8,'SIGINT cancellation cleanup')
+            assert child.returncode==130,child.returncode
+            interrupt_log.close();pump(.4)
+            assert not any(c.state=='active' and c.name=='joint_trajectory_controller' for c in controller_list(node,arm))
+            stable=list(observer.received['right_front']['positions']);pump(.5)
+            drift=max(abs(np.array(observer.received['right_front']['positions'])-stable))
+            assert drift<.001,drift
+            report.update(sigint_cancels_and_deactivates=True,sigint_post_stop_drift_rad=float(drift),success=True)
         except Exception as error:
             import traceback
             traceback.print_exc();report['error']=repr(error)

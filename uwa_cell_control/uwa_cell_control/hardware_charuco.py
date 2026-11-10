@@ -80,6 +80,9 @@ def calibrate_intrinsics(records,*,focus,image_size):
             raise ValueError('Focus changed; do not mix intrinsic profiles')
         if r['image_size']!=list(image_size) or r['corners']<12:
             raise ValueError('Image size changed or insufficient board corners')
+        objects=np.asarray(r['object_points']);pixels=np.asarray(r['image_points'])
+        if objects.shape!=(r['corners'],3) or pixels.shape!=(r['corners'],2) or not np.isfinite(objects).all() or not np.isfinite(pixels).all():
+            raise ValueError('Invalid corner correspondence data')
     objects=[np.asarray(r['object_points'],np.float32) for r in train]
     pixels=[np.asarray(r['image_points'],np.float32) for r in train]
     rms,k,d,rvecs,tvecs,std_intrinsics,_,per_view=cv2.calibrateCameraExtended(
@@ -91,7 +94,7 @@ def calibrate_intrinsics(records,*,focus,image_size):
             0<k[0,2]<width and 0<k[1,2]<height):
         raise ValueError('Intrinsic solution outside plausible sensor geometry')
     fx_std,fy_std=std_intrinsics.ravel()[:2]
-    if max(fx_std/k[0,0],fy_std/k[1,1])>.05:
+    if not np.isfinite(std_intrinsics).all() or max(fx_std/k[0,0],fy_std/k[1,1])>.05:
         raise ValueError('Weak intrinsic observability: focal uncertainty exceeds 5%; capture more diverse views')
     normals=np.array([cv2.Rodrigues(v)[0][:,2] for v in rvecs])
     if np.max(np.arccos(np.clip(normals@normals.T,-1,1)))<np.radians(20):

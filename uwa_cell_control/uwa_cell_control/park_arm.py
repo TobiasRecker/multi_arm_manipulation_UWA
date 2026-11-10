@@ -3,6 +3,7 @@ import argparse
 from datetime import datetime, timezone
 import json
 import os
+import signal
 from pathlib import Path
 import tempfile
 import time
@@ -18,13 +19,20 @@ from .parking import (complete_state, digest, make_model, manual_states, plan_pa
 class JointObserver:
     def __init__(self,node,profiles,ids,mode):
         from sensor_msgs.msg import JointState
+        from std_msgs.msg import Bool
+        from rclpy.qos import QoSProfile,DurabilityPolicy,ReliabilityPolicy
         from rclpy.qos import qos_profile_sensor_data
         self.node,self.profiles,self.mode=node,profiles,mode
-        self.received={};self.subscriptions=[]
+        self.received={};self.program_running={};self.subscriptions=[]
         for rid in ids:
             self.subscriptions.append(node.create_subscription(JointState,
                 profiles[rid]['namespace']+'/joint_states',
                 lambda msg,rid=rid:self.receive(rid,msg),qos_profile_sensor_data))
+            if mode=='hardware':
+                qos=QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL,reliability=ReliabilityPolicy.RELIABLE)
+                self.subscriptions.append(node.create_subscription(Bool,
+                    profiles[rid]['namespace']+'/io_and_status_controller/robot_program_running',
+                    lambda msg,rid=rid:self.program_running.update({rid:msg.data}),qos))
 
     def receive(self,rid,msg):
         names=self.profiles[rid]['joint_names']
@@ -45,8 +53,10 @@ class JointObserver:
         return {r:dict(record) for r,record in self.received.items()
                 if time.monotonic()-record['received_monotonic']<.5}
 
-    def guard(self,plan):
+    def guard(self,plan,*,require_program_link=False):
         moving=plan['arm'];now=time.monotonic()
+        if require_program_link and self.mode=='hardware' and self.program_running.get(moving) is not True:
+            raise RuntimeError(moving+': native External Control link not confirmed; no calibration trajectory')
         for rid in self.profiles:
             if plan['state_sources'][rid] in ('manual_pendant','user_nominal_home'):continue
             record=self.received.get(rid)
@@ -63,9 +73,20 @@ class JointObserver:
 
 def node_for(mode):
     import rclpy
+    from rclpy.signals import SignalHandlerOptions
     os.environ['ROS_DOMAIN_ID']='67' if mode=='mock' else '66'
     os.environ['ROS_AUTOMATIC_DISCOVERY_RANGE']='LOCALHOST'
-    rclpy.init(args=[])
+    # Keep the context alive while Python unwinds Ctrl+C into trajectory cleanup.
+    # rclpy's default SIGINT handler shuts the context down before cancel/switch.
+    rclpy.init(args=[],signal_handler_options=SignalHandlerOptions.NO)
+    def interrupt_once(signum,frame):
+        # A terminal Ctrl+C also reaches ros2 run, which forwards SIGINT again.
+        # Ignore repeats while the trajectory's finally block cancels/deactivates.
+        signal.signal(signal.SIGINT,signal.SIG_IGN)
+        signal.signal(signal.SIGTERM,signal.SIG_IGN)
+        raise KeyboardInterrupt
+    signal.signal(signal.SIGINT,interrupt_once)
+    signal.signal(signal.SIGTERM,interrupt_once)
     return rclpy.create_node('uwa_parking_'+str(os.getpid()))
 
 

@@ -30,7 +30,7 @@ def main():
     inventory=Path(temporary.name)/'inventory.yaml'
     data=yaml.safe_load((workspace/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml').read_text())
     data['ros_namespace']='/uwa_jog_validation'
-    for index,arm in enumerate(data['robots'].values()):arm.update(ip=f'127.0.0.{index+1}',port_base=60000+index*1000)
+    for index,arm in enumerate(data['robots'].values()):arm.update(ip=f'127.0.0.{index+1}',port_base=60000+index*1000,kinematics_file=None)
     inventory.write_text(yaml.safe_dump(data))
     window=Window(inventory,arms=['right_rear']);window.timer.stop();window.show()
     arm=window.profiles['right_rear'];rclpy.init();node=rclpy.create_node('uwa_jog_validation')

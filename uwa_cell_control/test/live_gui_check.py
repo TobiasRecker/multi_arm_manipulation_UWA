@@ -33,7 +33,7 @@ def main():
     inventory=Path(temporary.name)/'inventory.yaml'
     data=yaml.safe_load((ws/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml').read_text())
     data['ros_namespace']='/uwa_mock_validation'
-    for i,arm in enumerate(data['robots'].values()):arm.update(ip='127.0.0.'+str(i+1),port_base=61000+i*1000)
+    for i,arm in enumerate(data['robots'].values()):arm.update(ip='127.0.0.'+str(i+1),port_base=61000+i*1000,kinematics_file=None)
     inventory.write_text(yaml.safe_dump(data))
     window=Window(inventory,arms=ARM_IDS)
     window.timer.stop();window.show()

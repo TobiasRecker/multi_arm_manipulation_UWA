@@ -77,6 +77,47 @@ Wird dieser Weg unzuverlässig, zwischen legitimem Controllerzugriff und USB
 entscheiden. Der Nutzer wünscht Erhalt der gut funktionierenden Beleuchtung;
 in dieser Analyse keine Bild-/Fokus-/LED-Werte verändert.
 
+### Konkretisierung auf Nutzerfrage: noch keine ausführbare Anleitung
+
+Die bereits lokal gesicherte API des laufenden1.11.1-Servers enthält
+`POST /beginbarcode`, im Barcodezustand`POST /create?barcodeType=<0…11>` und
+`/process`, außerdem`/streamoutmodule` und`/streaminmodule`. Der Java-Client
+bestätigt POST für Begin/Create. Ein Testtool könnte diesen Kamera-Wizard-
+Pfad ohne PolyScope-Programm bedienen. Barcodetyp und gültige Moduldaten sind
+aus dem Client/Schema passend zu wählen, nicht willkürlich mit Beispielwerten.
+
+**Noch ungeklärt ist der gültige native Bildexport nach dieser HD-Aufnahme.**
+`/lastCapture.jpg` ist laut gesicherter API imOperationMode registriert, im
+Barcodezustand nicht. Eine direkte Reihenfolge`beginbarcode → create → process
+→ lastCapture.jpg` darf daher nicht als funktionierende Anleitung ausgegeben
+werden. Notwendigen Zustands-/Puffererhalt bzw. nativen Bildzugriff zuerst
+nachweisen. Anfrageparameter allein ersetzen keine vollständigen Moduldaten.
+
+Geplanter Toolablauf: Kamera-Einstellungen/Modus sichern, temporärenHD-Modulpfad
+konfigurieren, verifizierte Aufnahme auslösen, Bildbytes nativ herunterladen
+und Pixelmaße prüfen, in`finally` Zustand/Fokus/Belichtung/LED wiederherstellen.
+Es ist weiterhin keine geprüfte5MP-Aufnahmesequenz vorhanden. Auf diese
+Erklärungsfrage keine neuen Kameraoperationen ausgeführt; parallel aktive
+Hardware-Hand-Auge-Arbeit bleibt unberührt.
+
+Weiterer statischer Befund auf die Frage nach dem nächsten Schritt: im alten
+Archiv ruft`processRejectModuleRestRequest` ModuleManager::clear und leaveState
+auf. Normal::clearModules verwirft Module/Modellsätze/Kalibrierungen. In diesen
+untersuchten Funktionen keine explizite HD-Bildpufferlöschung erkannt. Der
+Kandidat ist daher`Barcode-HD-Aufnahme → rejectmodule → Normal →
+beginoperationmode → lastCapture.jpg`, **ohne zusätzliche VGA-captureimage-
+Anforderung zwischen HD-Aufnahme und Export**. Zustandswechsel wählen auch
+AcquisitionStrategies und können Kameraeinstellungen ändern; allein dieser
+statische Befund beweist daher keinen erhaltenen gültigen HD-Puffer.
+
+Nächster praktische Nachweis: ein einzelner exklusiver Kameraversuch mit
+gesicherten Einstellungen, Statusprüfung je Schritt, verifizierter HD-Aufnahme,
+JPEG-Decodierung/Pixeldimensionen und Wiederherstellung in`finally`, auch nach
+automatischer Diensterholung. Ein größerer angeforderter Displaywert ist kein
+Erfolgsnachweis. Parallel aktive`hardware-handeye-first-view`-Arbeit muss für
+diesen kurzen Kamerazustandswechsel frei sein. Kein solcher Versuch in der
+vorliegenden statischen Analyse ausgeführt und kein fertiger HD-Client behauptet.
+
 ## Nachweise
 
 `$UWA_WS/setup/logs/wrist-ucc4-2026-11-10/`: Archivkopie, Manifest, verschachtelte

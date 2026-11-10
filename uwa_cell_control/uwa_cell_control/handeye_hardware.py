@@ -18,7 +18,7 @@ from uwa_cell_gazebo.configuration import default_layout_path,load_layout,joint_
 from uwa_cell_gazebo.charuco_views import Chain
 from uwa_cell_calibration.storage import atomic_json
 from .park_arm import JointObserver,node_for
-from .parking import complete_state,manual_states,make_model,save_plan
+from .parking import complete_state,digest,manual_states,make_model,save_plan
 from .hardware_charuco import first_view,observe,calibrate_intrinsics
 from .wrist_camera import WristCamera,save_snapshot
 
@@ -52,13 +52,12 @@ def plan_view(args):
         node.destroy_node();rclpy.shutdown()
 
 
-def capture_observation(camera,node,observer,model,layout,rid,directory,sample_id,role):
+def capture_observation(camera,node,observer,model,layout,rid,directory,sample_id,role,*,freshness_timeout=6.):
     """Conservative stationary interval plus changed decoded image payloads.
 
     Exposure timestamp is unavailable. Record that limitation explicitly rather
     than claiming hardware synchronization from HTTP receipt times.
     """
-    import rclpy
     directory=Path(directory);directory.mkdir(parents=True,exist_ok=True)
     if not sample_id.replace('_','').isalnum():raise ValueError('Invalid sample id')
     output=directory/(sample_id+'.json')
@@ -75,7 +74,7 @@ def capture_observation(camera,node,observer,model,layout,rid,directory,sample_i
     settings=camera.settings()
     if settings['focusAuto']:raise ValueError('Set a fixed manual focus before intrinsic/hand-eye acquisition')
     hashes=[];receipt=[];frame=None;jpeg=None
-    end=time.monotonic()+6.
+    end=time.monotonic()+freshness_timeout
     while time.monotonic()<end:
         observer.sample(.15);stationary()
         jpeg=camera.image();receipt.append(datetime.now(timezone.utc).isoformat())
@@ -86,7 +85,10 @@ def capture_observation(camera,node,observer,model,layout,rid,directory,sample_i
         if len(hashes)>=3 and len(set(hashes))>=2:break
     if len(set(hashes))<2:raise ValueError('Image payload did not update; freshness is unverified, observation rejected')
     after=camera.settings()
-    if after!=settings:raise ValueError('Camera settings changed during capture')
+    protected=['focus','focusAuto','pan','tilt','zoom','exposureAuto','lightingMode','lightingValue']
+    if not settings.get('exposureAuto'):protected+=['exposure','gain']
+    if any(after.get(k)!=settings.get(k) for k in protected):
+        raise ValueError('Focus, image geometry or manual capture settings changed during capture')
     table=layout['robots'][rid]['table'];detection=observe(frame,layout['charuco'],table)
     save_snapshot(directory,sample_id,jpeg,settings,dimensions=detection['image_size'])
     # save_snapshot writes diagnostics; replace metadata with complete observation.
@@ -98,7 +100,7 @@ def capture_observation(camera,node,observer,model,layout,rid,directory,sample_i
     tool=Chain(model.description,rid+'_base_link',rid+'_tool0').forward(positions)
     record={'sample_id':sample_id,'robot_id':rid,'role':role,'accepted':True,
         **detection,'joint_names':names,'positions':q,'T_base_tool0':tool.tolist(),
-        'camera_settings':settings,'pixel_sha256':hashes[-1],
+        'camera_settings':settings,'camera_settings_after':after,'pixel_sha256':hashes[-1],
         'image':sample_id+'.jpg','receipt_utc':receipt[-1],
         'freshness':{'decoded_payload_changes':len(set(hashes)),'http_samples':len(hashes),
             'stationary_joint_tolerance_rad':.002,'sensor_exposure_timestamp_available':False,
@@ -117,10 +119,17 @@ def capture(args):
     try:
         observer,readings=read_state(node,profiles,args)
         model,layout=make_model(load_layout(args.layout),profiles,directory/'model')
-        if not (directory/'session.json').exists():
-            atomic_json(directory/'session.json',{'schema_version':1,'mode':'hardware','robot_id':rid,
+        info={'schema_version':1,'mode':'hardware','robot_id':rid,
                 'layout':layout,'description':model.description,'created_at':datetime.now(timezone.utc).isoformat(),
-                'kinematics_file':profiles[rid]['kinematics_file']})
+                'camera_ip':profiles[rid]['ip'],'layout_fingerprint':digest(layout),
+                'kinematics_sha256':hashlib.sha256(Path(profiles[rid]['kinematics_file']).read_bytes()).hexdigest()
+                    if profiles[rid]['kinematics_file'] else None,
+                'kinematics_file':profiles[rid]['kinematics_file']}
+        if (directory/'session.json').exists():
+            old=json.loads((directory/'session.json').read_text())
+            if any(old.get(k)!=info[k] for k in ('robot_id','camera_ip','layout_fingerprint','kinematics_sha256')):
+                raise ValueError('Robot/camera/model changed; start a new acquisition session')
+        else:atomic_json(directory/'session.json',info)
         record=capture_observation(WristCamera(profiles[rid]['ip']),node,observer,model,layout,rid,
             directory/'records',args.sample_id,args.role)
         print(json.dumps({k:record[k] for k in ('sample_id','corners','image_size','freshness')},indent=2))
