@@ -38,6 +38,7 @@ class Window(QtWidgets.QMainWindow):
         self.inventory=Path(inventory).resolve();self.profiles=load_profiles(self.inventory)
         if set(self.profiles)!=set(ARM_IDS):raise ValueError('UWA inventory must define the four cell arms')
         self.drivers={};self.jobs={};self.auxiliary=[];self.state={};self.closing=False
+        self.jog_dialogs={}
         self.setWindowTitle('UWA · Direct UR Test');self.resize(1180,900)
         self.manual_key=None;self.manual_title='';self.start_ids=[];self.manual_pending=False;self.click_sequence=0
         self.workspace=Path(os.environ.get('UWA_WS',str(Path.home()/'UWA_ws')))
@@ -81,6 +82,8 @@ class Window(QtWidgets.QMainWindow):
             ('drivers_stop','Stop drivers','Stop only the drivers started by this window')]):
             button=QtWidgets.QPushButton(text);button.setMinimumHeight(40);button.setToolTip(tip)
             button.clicked.connect(lambda checked=False,k=key:self.action(k));actions.addWidget(button,index//2,index%2);self.buttons[key]=button
+        jog=QtWidgets.QPushButton('Cartesian jog…');jog.setMinimumHeight(40)
+        jog.clicked.connect(lambda:self.action('jog'));actions.addWidget(jog,3,1);self.buttons['jog']=jog
         info=QtWidgets.QLabel('Preparation, External Control and motion controllers are separate steps.\n'
             'Local mode or safety stop: check the UR pendant. The GUI does not automatically unlock it.\n'
             'No automatic reference moves, home targets or SSH/rsync.')
@@ -179,10 +182,11 @@ class Window(QtWidgets.QMainWindow):
         metadata={'inventory_path':str(self.inventory),'mode':'mock' if self.mock else 'hardware',
             'action_feedback':{'phase':self.feedback.phase,'title':self.feedback.message,'detail':self.feedback.full_detail},
             'selected_arms':self.selected(),'status':self.state,
+            'jog_dialogs':{rid:dialog.snapshot() for rid,dialog in self.jog_dialogs.items()},
             'driver_pids':{rid:int(p.processId()) for rid,p in self.drivers.items()},
             'operation_pids':{key:int(p.processId()) for key,p in self.jobs.items()},
             'profiles':{rid:{key:arm.get(key) for key in ['ip','ur_type','namespace','prefix','ports',
-                'joint_names','kinematics_file','external_control_program']} for rid,arm in self.profiles.items()}}
+                'joint_names','kinematics_file','external_control_program','compliance_enabled']} for rid,arm in self.profiles.items()}}
         # Detach mutable UI state before the worker starts. No Qt objects in the archive.
         metadata=json.loads(json.dumps(metadata))
         worker=LogExport(self.session,metadata,self);self.export_worker=worker
@@ -201,13 +205,14 @@ class Window(QtWidgets.QMainWindow):
         worker.start()
 
     def change_mode(self):
+        for dialog in list(self.jog_dialogs.values()):dialog.close()
         self.state.clear();self.tree.clear()
         for rid,box in self.checks.items():
             available=self.mock or bool(self.profiles[rid]['ip'])
             box.setEnabled(available)
             if not available:box.setChecked(False)
         self.banner.setText('MOCK: all tests stay on this PC; no connection to physical URs.' if self.mock else
-            'HARDWARE · direct test: Wi-Fi is allowed. Prepare, start programs and switch controllers with explicit clicks. '
+            'HARDWARE · direct test: Prepare, start programs and switch controllers with explicit clicks. '
             'Status displays do not gate commands; responses come from the UR/driver.')
         self.banner.setStyleSheet('padding:10px;border-radius:4px;background:#e6eff9;color:#173d62;font-weight:bold' if self.mock else
                                   'padding:10px;border-radius:4px;background:#fff0d5;color:#724800;font-weight:bold')
@@ -286,6 +291,9 @@ class Window(QtWidgets.QMainWindow):
             else:
                 self.note(f'{kind}: '+('completed' if code==0 else 'failed; see the log for details'))
             self.update_buttons()
+            if kind=='cartesian':
+                for rid in ids:
+                    if rid in self.jog_dialogs:self.jog_dialogs[rid].controller_result(ok,detail)
             if report_feedback:self.action_result(kind,ok,detail)
         self.jobs[kind]=self.process(args,tag=kind,finished=done);self.update_buttons()
 
@@ -323,6 +331,17 @@ class Window(QtWidgets.QMainWindow):
             self.note('Select at least one configured arm first.')
             self.action_result(key,False,'Select at least one configured arm first.');return
         if key=='status':self.operation('status');return
+        if key=='jog':
+            if len(ids)!=1:
+                self.action_result('jog',False,'Select one arm for a jog window.');return
+            rid=ids[0]
+            if rid not in self.jog_dialogs:
+                from .jog_dialog import JogDialog
+                self.jog_dialogs[rid]=JogDialog(self,rid)
+            self.jog_dialogs[rid].show();self.jog_dialogs[rid].raise_();self.jog_dialogs[rid].activateWindow()
+            self.action_result('jog',True,'Jog window opened for '+LABELS[rid]+'. Hold an axis to command motion.');return
+        if key in ('prepare','play','load','inactive','trajectory','cartesian','drivers_stop'):
+            for dialog in self.jog_dialogs.values():dialog.stop('controller operation')
         if key=='start':
             self.start_ids=list(ids)
             self.feedback.show_state('RUNNING','Start drivers','Waiting for the selected controller managers to respond.')
@@ -352,7 +371,8 @@ class Window(QtWidgets.QMainWindow):
         self.operation(key)
 
     def stop_all(self):
-        ids=sorted(set(self.drivers)|set(self.selected()))
+        ids=sorted(set(self.drivers)|set(self.selected())|set(self.jog_dialogs))
+        for dialog in self.jog_dialogs.values():dialog.stop('main STOP')
         if not ids:return
         for key,process in list(self.jobs.items()):
             stop_owned_process(process)
@@ -379,6 +399,7 @@ class Window(QtWidgets.QMainWindow):
         if self.export_worker is not None:
             self.close_after_export=True;event.ignore();return
         self.closing=True;self.timer.stop()
+        for dialog in list(self.jog_dialogs.values()):dialog.close()
         for p in list(self.jobs.values()):stop_owned_process(p)
         for p in list(self.drivers.values())+self.auxiliary:stop_owned_process(p)
         event.accept()
@@ -390,6 +411,8 @@ def main():
     parser.add_argument('--inventory',default=str(ws/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml'))
     parser.add_argument('--arms',default='right_rear',help='Comma-separated initial arm selection')
     parser.add_argument('--mode',choices=['mock','hardware'],default='mock')
+    parser.add_argument('--jog',action='store_true',help='Open the selected arm jog window without activating a controller')
+    parser.add_argument('--start-drivers',action='store_true',help='Start selected local drivers; no power, brake or program commands')
     args=parser.parse_args()
     arms=args.arms.split(',')
     if not arms or not set(arms)<=set(ARM_IDS):parser.error('Unknown arm selection')
@@ -397,6 +420,11 @@ def main():
     app=QtWidgets.QApplication([sys.argv[0]])
     app.setDesktopFileName('uwa-control')
     window=Window(args.inventory,arms=arms,mode=args.mode);window.show()
+    if args.start_drivers:
+        def start_drivers():
+            window.acknowledge('start','Start drivers',window.buttons['start']);window.action('start')
+        QtCore.QTimer.singleShot(300,start_drivers)
+    if args.jog:QtCore.QTimer.singleShot(500,lambda:window.action('jog'))
     signal.signal(signal.SIGINT,lambda *unused:window.close())
     timer=QtCore.QTimer();timer.timeout.connect(lambda:None);timer.start(250)
     return app.exec()

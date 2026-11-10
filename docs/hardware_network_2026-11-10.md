@@ -1,3 +1,7 @@
+> Historischer Bericht vor Kabeltausch. Aktuell (später am2026-11-10) sind
+> URs/OAK wieder über Ethernet enp87s0 erreichbar; PC192.168.8.209. Die damaligen
+> Messwerte bleiben unverändert und gelten nicht als heutige Ethernetmessung.
+
 # Reale Geräte über WLAN: Erreichbarkeitsprüfung
 
 Geprüft am **2026-11-10**, etwa12:45–12:49 Australia/Perth. Es wurden nur

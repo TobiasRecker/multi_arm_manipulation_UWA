@@ -121,6 +121,43 @@ Für die eigentliche Hand-Auge-Messreihe Fokus konstant halten. Änderungen kön
 Intrinsics/Verzeichnung ändern; automatisches Nachfokussieren pro Pose setzt ein
 passend erweitertes Kameramodell bzw. getrennt kalibrierte Fokusprofile voraus.
 
+### Woher kommt die `.script`-Datei? Zugriffsvoraussetzungen
+
+Ein grafisches PolyScope-Programm liegt als `.urp` vor. PolyScope erzeugt daraus
+URScript; eine bereits erzeugte Datei hat üblicherweise denselben Basisnamen
+mit Endung `.script`, z.B.`Kameratest.urp`/`Kameratest.script`, unter`/programs`
+oder in einem Unterordner. Ob diese Datei für ein bestimmtes Programm bereits
+vorliegt, muss geprüft werden. Zum Lesen einer vorhandenen Datei wird das
+Programm nicht ausgeführt. Ein fehlendes Kameraskript ist kein Anlass, ein
+unbekanntes Programm zu starten. USB-Export einer vorhandenen Datei ist ebenfalls
+möglich. Quelle: offizielle UR-URScript-/Dateitransfer-Anleitungen.
+
+**Zugriffsprüfung2026-11-10:** SSH auf192.168.8.170 antwortet. Anmeldung als
+`root` mit vorhandenen Standard-SSH-Schlüsseln abgewiesen; danach ein einzelner
+Versuch mit dem öffentlich dokumentierten Hersteller-Standardkennwort ebenfalls
+abgewiesen. Das beweist nicht eindeutig ein geändertes Passwort (auch eine
+Zugriffsrichtlinie wäre möglich). Keine Authentifizierung erfolgreich, kein
+Remote-Dateiverzeichnis gelesen, keine Programme oder Einstellungen verändert.
+Hostschlüssel nur in temporärer Datei`/tmp/uwa-wrist-controller-known-hosts`.
+Keine weiteren Passwortversuche.
+
+Für die weitere Untersuchung wird ein funktionierender SSH-/SFTP-Zugang oder
+eine lokal bereitgestellte Kopie des vorhandenen Kameraskripts und gegebenenfalls
+des installierten Robotiq-URCap benötigt. Passwörter/Schlüssel nicht in
+Projektdokumenten speichern; Zugang kann vom Nutzer lokal eingerichtet bzw.
+Dateien können mit lokal eingegebenem Passwort heruntergeladen werden.
+
+Für PolyScope5.10 und neuer beschreibt UR die Kennwortänderung am Pendant unter
+Hamburger-Menü → Settings → Password → Admin: aktuelles Kennwort, neues Kennwort,
+Bestätigung, Apply. Es geht um das Admin-/Linux-root-Kennwort, nicht das Safety-
+oder Betriebsmodus-Kennwort. Das aktuelle Admin-Kennwort wird benötigt;
+laut UR gibt es keine eingebaute Passwortwiederherstellung. Im Menü Security →
+Secure Shell die erlaubte Authentifizierung prüfen: bei reinem Schlüsselmodus
+reicht eine Kennwortänderung für den Login nicht. Ein Public-Key-Import über
+Manage Authorized Keys ist eine Alternative ohne geteiltes Kennwort. Keine
+Kennwort-/SSH-Änderung durch diesen Agenten ausgeführt. Quelle:
+[UR: Secure setup ab PolyScope5.10](https://www.universal-robots.com/articles/ur/cybersecurity/secure-setup-of-ur-cobots/).
+
 ## 2. Bildgeometrie und reales Modell vorbereiten
 
 - Rechtes ChArUco-Board aus der vorhandenen PDF maßhaltig drucken: 40mm Quadrate,
@@ -166,6 +203,10 @@ auf echte Hardware keine Wirkung. Erste automatische Fahrt nur right_rear;
 die übrigen Roboter werden dafür nicht automatisch geparkt.
 
 ## Quellen
+
+- [UR: URScript und aus PolyScope erzeugte `.script`-Dateien](https://www.universal-robots.com/br/developer/urscript/).
+- [UR: SSH-Dateizugriff](https://docs.universal-robots.com/tutorials/urscript-tutorials/ssh.html).
+- [UR: SFTP und Programme unter `/programs`](https://docs.universal-robots.com/tutorials/urscript-tutorials/ftp.html).
 
 - [Robotiq-Forum: Anwenderbericht zur OpenCV-Fokussteuerung über direktes USB](https://dof.robotiq.com/discussion/2434/how-does-one-control-led-lights-on-robotiq-wrist-camera-via-opencv-in-python-script).
 - [Linux-V4L2: Fokuscontrols, Einheit nicht definiert](https://www.kernel.org/doc/html/latest/userspace-api/media/v4l/ext-ctrls-camera.html).

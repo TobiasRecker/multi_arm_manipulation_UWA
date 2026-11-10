@@ -9,18 +9,21 @@ robots:
     port_base: 51000
     kinematics_file: null
     external_control_program: ''
+    compliance_enabled: false
   left_rear:
     ip: null
     ur_type: ur7e
     port_base: 52000
     kinematics_file: null
     external_control_program: ''
+    compliance_enabled: false
   right_rear:
     ip: 192.168.8.170
     ur_type: ur5e
     port_base: 54000
     kinematics_file: null
     external_control_program: ''
+    compliance_enabled: false
     dashboard_port: 29999
     serial_number: '20195501620'
     dashboard_model: UR5
@@ -31,6 +34,7 @@ robots:
     port_base: 53000
     kinematics_file: null
     external_control_program: ''
+    compliance_enabled: false
     dashboard_port: 29999
     serial_number: '20195501617'
     dashboard_model: UR5
@@ -42,6 +46,5 @@ cameras:
     device_id: '1479883285'
 network:
   device_connections: wired_to_router
-  pc_connection_current: wifi
-  reason: temporary_broken_pc_router_ethernet_cable
-  policy: low_bandwidth_camera_profiles_and_latency_checks
+  pc_connection_current: ethernet
+  policy: wired_robot_network

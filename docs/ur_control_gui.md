@@ -71,7 +71,7 @@ Aktivierungslock, Dashboard-NORMAL/Remote/RUNNING/PLAYING-Vorprüfungen, exakter
 Programmpfadvergleich, Forderung inaktiver Controller vor Bereitstellung,
 GUI-Besitzpflicht für Bedienung und rqt-Statussperre. Der Inventareintrag
 `external_control_program` ist nur noch eine optionale Notiz, kein Gate.
-WLAN wird nicht gesperrt. Fehlende ROS-Services, Ressourcen-/Interface-Konflikte
+Fehlende ROS-Services, Ressourcen-/Interface-Konflikte
 und Ablehnungen vom UR/Treiber werden weiterhin als Fehler angezeigt.
 
 Native UR-Sicherheitsmechanismen, der vorhandene UR-Controller-Stopper,
@@ -104,7 +104,7 @@ rohe TF-Topics. Domain 66/localhost, getrennt von Gazebo 64 und OAK 65.
 | vorne rechts | 192.168.8.103 | 53002 |
 | links vorne / hinten | unbekannt | 51002 / 52002 |
 
-External-Control-URCap benötigt die aktuelle PC-IP (zuletzt WLAN192.168.8.209)
+External-Control-URCap benötigt die aktuelle PC-IP (Ethernet192.168.8.209)
 und den passenden Script-sender-Port. Pro Arm folgen Reverse/Script/Trajectory/
 Command den Portbasen51000/52000/53000/54000 +1/+2/+3/+4. Eigene Werkskinematik
 unter `kinematics_file` hinterlegen; null bedeutet nominell und nicht kalibriert.

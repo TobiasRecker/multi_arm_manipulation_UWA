@@ -56,13 +56,11 @@ sends no robot commands. Session files persist under `setup/logs/uwa-control/ses
 
 ## Build
 
-Physical devices were reached over the PC's temporary Wi-Fi connection on
-2026-11-10: `right_rear`=192.168.8.170, `right_front`=192.168.8.103,
-OAK4=192.168.8.238. The separate [hardware inventory](config/hardware_inventory.yaml)
-and [read-only network report](docs/hardware_network_2026-11-10.md) record the
-mapping and measured latency. They do not enable hardware drivers or motion;
-the Gazebo launch remains isolated. Previous wired-camera throughput results
-do not describe the current Wi-Fi path.
+The robot network uses **Ethernet** after the cable replacement on2026-11-10:
+PC192.168.8.209 on enp87s0, right_rear192.168.8.170, right_front192.168.8.103,
+OAK4192.168.8.238. See the [hardware inventory](config/hardware_inventory.yaml).
+The initial [network report](docs/hardware_network_2026-11-10.md) is historical;
+its measurements do not certify current wired throughput or latency.
 
 For the first real hand-eye test, start with **right_rear only**. See the
 [camera access and staged hardware procedure](docs/right_rear_hardware_first_test.md).

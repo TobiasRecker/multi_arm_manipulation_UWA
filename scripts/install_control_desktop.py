@@ -16,9 +16,11 @@ def main():
         'Comment=Local preparation and controller status for the four UWA arms\n'
         f'Exec=/usr/bin/bash "{script}"\nIcon={repo}/assets/uwa-cell.png\n'
         'Terminal=false\nCategories=Education;\nStartupNotify=true\nStartupWMClass=uwa_control_gui\n'
-        'Actions=RightRearHardware;\n\n[Desktop Action RightRearHardware]\n'
+        'Actions=RightRearHardware;RightRearJog;\n\n[Desktop Action RightRearHardware]\n'
         'Name=Hardware · rear right\n'
-        f'Exec=/usr/bin/bash "{script}" --mode hardware --arms right_rear\n')
+        f'Exec=/usr/bin/bash "{script}" --mode hardware --arms right_rear\n'
+        '\n[Desktop Action RightRearJog]\nName=Cartesian jog · rear right\n'
+        f'Exec=/usr/bin/bash "{script}" --mode hardware --arms right_rear --jog\n')
     print(entry)
     try:subprocess.run(['update-desktop-database',str(target)],check=False,capture_output=True)
     except FileNotFoundError:pass

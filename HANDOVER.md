@@ -26,6 +26,24 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 - **Explizit seit 2026-11-09:** Wichtige Ziele, Anforderungen, Entscheidungen und
   Vorlieben parallel in AGENTS-/Handover-Dateien festhalten.
 
+## Ethernet und manuelles Jogging, 2026-11-10
+
+- Nutzer hat Kabel ersetzt; Roboterrouten geprüft über enp87s0, PC192.168.8.209.
+  Aktive Hinweise/Inventar zur temporären Funkverbindung entfernt. Historische
+  Messungen und deren Transportbezug bleiben als überholt gekennzeichnet.
+- Gewünscht: zuerst right_rear manuell mit dem MuR-Jogging und demselben
+  dezentralen IntegratedCartesianAdmittanceController/J-PARSE bewegen; zunächst
+  Nachgiebigkeit AUS. Keine automatischen Testfahrten durch Öffnen des Dialogs.
+- Gemeinsame Qt-unabhängige MuR-Richtungsberechnung, UWA-Dialog ohne Lift/SSH,
+  Base-Frame, Translation/Rotation, 20Hz while held, Loslassen/Space/Fokusverlust
+  stoppt. Idle-Fenster senden keinen dauernden Nullstrom an andere Befehlgeber.
+- Standard admittance/wrench_twist_gain sechs Nullen, use_ft_sensor=false und
+  require_wrench=false. Controller liest Gains in on_init: ausdrückliches
+  Aktivieren erstellt ihn zunächst inaktiv neu und lädt danach denselben Plugin-
+  Typ. Ein dynamischer Parameterwert allein wäre dafür nicht ausreichend.
+- Kollisionsalgorithmen und MuR-Standardprofil erhalten; UWA-Kollisionsoption
+  weiterhin nicht als vollständiger Zellenschutz konfiguriert.
+
 ## Englische UR-GUI und Sitzungsdiagnose, 2026-11-10
 
 - Neuer Nutzerhinweis: schwacher Monitorkontrast; Klickannahme deutlich
@@ -127,7 +145,7 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   Bereitstellung, GUI-Treiberbesitzpflicht und rqt-Statusfreigabe.
 - Native UR-Sicherheitsfunktionen, Treiber-Controller-Stopper, bestehende
   Kollisionsalgorithmen/Reglergrenzen nicht verändert. Technische Profil-/Port-
-  Validierung und doppelte-Treiber-Schutz bleiben. WLAN wird nicht gesperrt.
+  Validierung und doppelte-Treiber-Schutz bleiben. Keine transportspezifischen Sperren.
   Dashboard-/Treiberablehnungen werden angezeigt; keine automatischen
   Schutzstoppquittierungen, kein automatisches Power/Brake/Play beim Launch.
 - Standard nur `right_rear`; App UWA Arme, neues Fenster **UWA · Direkter UR-Test**.
@@ -156,7 +174,7 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   Hardware-Not-Halt. Kollisionsoption in UWA-Profilen bleibt deaktiviert;
   kein vollständiger Zellenschutz. Anleitung [UWA Arme](docs/ur_control_gui.md).
 
-### Reale Netzwerkverbindung, 2026-11-10
+### Historische Netzwerkmessung vor Kabeltausch, 2026-11-10
 
 - **Verbindliche Nutzerzuordnung:** hinten rechts=`right_rear`=192.168.8.170,
   vorne rechts=`right_front`=192.168.8.103. „Erster/zweiter“ sind zufällige
@@ -223,6 +241,19 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   Kein Fokussetter/Schieberegler implementiert, keine Kamera-/Roboteränderungen.
   Für Hand-Auge Fokus und passende Intrinsics konstant halten; Fokusprofile
   wären bei distanzabhängiger Verstellung zusätzlich zu kalibrieren.
+- Anschlussfrage zu Skriptdateien/Zugang2026-11-10: `.urp` ist das grafische
+  Programm, vorhandener erzeugter URScript-Code als gleichnamige`.script`
+  üblicherweise unter`/programs`/Unterordner. Zum Auslesen nicht ausführen.
+  SSH zu right_rear erreichbar; Standard-Key-Anmeldung und genau ein Versuch
+  mit dokumentiertem Hersteller-Standardkennwort abgewiesen. Keine Dateien
+  vom Controller gelesen, keine Programme ausgeführt oder Zustände geändert.
+  Für weitere URCap-/Fokusuntersuchung funktionierender SSH-/SFTP-Zugang oder
+  lokale Dateikopie nötig. Keine Zugangsdaten in Dokumentation übernommen.
+- Nutzer möchte anschließend temporäres Kennwort einrichten. Offiziellen Weg
+  abPolyScope5.10 überSettings→Password→Admin erklärt, gültiges bisheriges
+  Admin-Kennwort nötig; SSH-Authentifizierungsart separat prüfen. Schlüsselimport
+  als Alternative ohne Kennwortweitergabe genannt. Keine Kennwortänderung
+  durchgeführt und kein neues Kennwort empfangen/gespeichert.
 
 ### Zellgeometrie
 

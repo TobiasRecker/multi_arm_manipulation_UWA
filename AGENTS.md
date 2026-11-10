@@ -76,9 +76,9 @@
   Physisches Inventar getrennt in `config/hardware_inventory.yaml`:
   `right_rear`=192.168.8.170, `right_front`=192.168.8.103, OAK4=192.168.8.238.
   Nutzerzählung „erster/zweiter“ ist zufällig; nur stabile Arm-IDs verwenden.
-  PC vorübergehend per WLAN wegen defektem LAN-Kabel, Geräte weiterhin verkabelt.
-  Kleine Kameraprofile und Latenz/Jitter beachten; Ethernet-Messwerte gelten
-  dafür nicht. Lesende Erreichbarkeitsdiagnose ist keine Bewegungsfreigabe.
+  Kabel laut Nutzer am2026-11-10 ersetzt. Roboterrouten geprüft über Ethernet
+  enp87s0, PC192.168.8.209. Keine aktive Sonderbehandlung für die frühere
+  Funkanbindung, historische Messwerte nicht in Ethernetwerte umdeuten.
   Nutzerziel vom 2026-11-10: reale Hand-Auge-Erprobung zuerst ausschließlich
   `right_rear`; Bildzugriff und manuell aufgenommene Messreihe vor automatischen
   Hardwarefahrten prüfen. Bestehender Kalibrierbackend bleibt Simulation-only;
@@ -108,6 +108,13 @@
 
 ## Verbindliche Bedienerwartungen
 
+- Nutzerauftrag2026-11-10: MuR-artiges manuelles Jogging, zunächst right_rear,
+  mit demselben IntegratedCartesianAdmittanceController/J-PARSE. Nachgiebigkeit
+  standardmäßig AUS: admittance und wrench_twist_gain null, keine FT-Pflicht.
+  Gainänderungen des on_init-Plugins durch inaktives Neuladen anwenden, nicht
+  bloß als dynamische ROS-Parameter setzen. Hold-to-jog/Loslass-Stopp, Base-Frame,
+  keine automatische Fahrt durch Öffnen des Dialogs oder Aktivieren des Reglers.
+
 - Nutzerhinweis vom 2026-11-10: Monitor mit schwachem Kontrast. Klickannahme
   deutlich hervorheben, nicht nur durch subtile Standard-Buttonzustände.
   Dauerhafte Rückmeldung mit großen Textlabels RECEIVED/RUNNING/DONE/FAILED,
@@ -132,7 +139,7 @@
   Neueste Nutzerkorrektur vom 2026-11-10: zusätzliche UWA-Sicherheitsgates
   entfernen. Keine Armzahl-, Dashboard-NORMAL/Remote/RUNNING/PLAYING-, exakte
   Programmpfad- oder GUI-Treiberbesitz-Sperre vor manuellen Operationen.
-  WLAN zulassen, keine eigene LAN-/Latenz-Sperre einführen. Native UR-/Treiber-
+  Keine eigene Netzwerk-/Latenz-Sperre einführen. Native UR-/Treiber-
   Ablehnungen und vorhandene Kollisionsalgorithmen erhalten. Insbesondere keine
   UR-Sicherheitsfunktionen umgehen oder Stopps automatisch quittieren.
   Standardauswahl bleibt hinten rechts (`right_rear`). Tests des Agenten senden
