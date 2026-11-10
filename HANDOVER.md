@@ -175,6 +175,18 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   über Robotiq-Teach-/Configure-Model-Kameraeinstellungen/Retake prüfen;
   HTTP-GET ist kein belegter Autofokus-Trigger. Höhere Auflösung noch nicht
   praktisch erschlossen; Bedienhinweise/Quellen in obiger Anleitung ergänzt.
+- Fernfokus-Folgefrage2026-11-10: Nutzer möchte Skript/PC-Schieberegler und
+  distanzbasierte Einstellung. Frühere Formulierung „Fokus nur per URCap“ zu
+  pauschal: Primärbericht eines Anwenders im Robotiq-Forum beschreibt Fokus via
+  OpenCV bei direktem USB; Hersteller unterstützt diese Integration nicht
+  offiziell. Keine Prüfung am eigenen Gerät, Beispiel-Link inzwischenHTTP404.
+  Für den bestehenden Controllerpfad weiter kein dokumentierter Netzwerksetter
+  gefunden; installierten URCap-/Programmskriptpfad künftig lesend untersuchen.
+- Physikalischen Zielabstand von elektronischem Stellwert unterscheiden:
+  V4L2-Fokuseinheit nicht definiert; Kennlinie oder Board-ROI-Schärfesuche nötig.
+  Kein Fokussetter/Schieberegler implementiert, keine Kamera-/Roboteränderungen.
+  Für Hand-Auge Fokus und passende Intrinsics konstant halten; Fokusprofile
+  wären bei distanzabhängiger Verstellung zusätzlich zu kalibrieren.
 
 ### Zellgeometrie
 

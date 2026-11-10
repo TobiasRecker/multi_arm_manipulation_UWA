@@ -44,9 +44,11 @@ Keine Treiber gestartet, keine Power-/Brake-/Programm-/Remote-/Kameraeinstellung
 oder Bewegungen geändert.
 
 Eine alternative direkte USB-Verbindung zum PC wird von Robotiq als Webcam-/
-`usb_cam`-Ansatz beschrieben. Sie erfordert eine geänderte Verbindung; Fokus,
-Belichtung und LEDs lassen sich darüber laut Hersteller nicht entsprechend
-steuern. Für den ersten Test daher den vorhandenen Controller-Anschluss nutzen.
+`usb_cam`-Ansatz beschrieben. Sie erfordert eine geänderte Verbindung. Robotiq
+garantiert dafür keine umfassende Steuerung von Fokus/Belichtung/LEDs; ein
+Anwender im Herstellerforum berichtet jedoch ausdrücklich von erfolgreicher
+Fokussteuerung per OpenCV/USB. Das ist noch kein Nachweis für unser Gerät.
+Für den ersten Test daher den vorhandenen Controller-Anschluss nutzen.
 
 ### Bildqualität: Sensor und HTTP-Bild unterscheiden
 
@@ -83,6 +85,41 @@ wählen; bei Fokusänderung die Gültigkeit der Intrinsics erneut prüfen.
 Höhere echte Auflösung separat über unterstützte Kameramodi bzw. einen
 untersuchten USB-Aufnahmepfad prüfen;5MP über HTTP oder USB nicht ungeprüft
 versprechen. Hochskalieren des640×480-Bildes liefert keine neuen Details.
+
+### Fokus vom PC und Umrechnung aus Entfernung
+
+Nutzerpräferenz vom2026-11-10: Fokus möglichst per Skript/PC-Schieberegler
+bedienen, nicht bei jedem Versuch am Pendant. Eine zwingende physische
+Pendantbedienung lässt sich aus der fehlenden öffentlichen API nicht ableiten.
+
+- **Bestehende Controller-Verbindung:** HTTP-Bildabruf nachgewiesen, aber bisher
+  kein dokumentierter Netzwerk-Fokussetter gefunden. Ein nächster technischer
+  Schritt wäre die lesende Prüfung des zur installierten URCap-Version
+  gehörenden erzeugten `.script`/Kameraprogramms auf Fokus-/Kamerafunktionen.
+  Interne Funktionen sind versionsabhängig; ihre externe Nutzbarkeit erst prüfen.
+  In dieser Recherche keine Controllerdateien ausgelesen oder Skripte gesendet.
+- **Direktes USB am PC:** ein Anwender beschreibt Fokussteuerung per OpenCV im
+  Robotiq-Supportforum; Robotiq bezeichnet Direkt-USB-Steuerung als nicht offiziell
+  unterstützt. Tatsächliche Controls mit V4L2 abfragen und Bildwirkung prüfen,
+  bevor ein Schieberegler als funktionsfähig ausgegeben wird. Keine Wertebereiche
+  oder `CAP_PROP_FOCUS`-Unterstützung für unser Exemplar voraussetzen. Der damals
+  verlinkte Beispielcode war beim Abruf2026-11-10 nicht mehr verfügbar (HTTP404).
+- **Entfernung:** die gewünschte Schärfeebene kann durch einen Abstand beschrieben
+  werden, der elektronische Fokusstellwert ist aber nicht automatisch in Metern.
+  V4L2 definiert die Einheit von `FOCUS_ABSOLUTE` ausdrücklich nicht. Für eine
+  Flüssiglinse wird die optische Wirkung elektronisch geändert. Eine Zuordnung
+  `Stellwert = F(Abstand)` braucht Herstellerdaten oder eine gemessene Kennlinie;
+  keine lineare Umrechnung aus einem UI-Wert behaupten.
+- **Sinnvolle Umsetzung:** zuerst nachgewiesener Fokussetter, dann Livebild und
+  Schieberegler. Optional Schärfeoptimierung in einer festen Board-ROI mit frischen
+  Bildern und unveränderter Belichtung; nicht die gesamte Szene/den nahen Greifer
+  optimieren. Für eine Distanzkennlinie mehrere bekannte Boardentfernungen und
+  jeweils optimalen Stellwert messen. Danach kann ein bekannter geschätzter
+  Kamera-Board-Abstand als Startwert für die Regelung dienen.
+
+Für die eigentliche Hand-Auge-Messreihe Fokus konstant halten. Änderungen können
+Intrinsics/Verzeichnung ändern; automatisches Nachfokussieren pro Pose setzt ein
+passend erweitertes Kameramodell bzw. getrennt kalibrierte Fokusprofile voraus.
 
 ## 2. Bildgeometrie und reales Modell vorbereiten
 
@@ -129,6 +166,9 @@ auf echte Hardware keine Wirkung. Erste automatische Fahrt nur right_rear;
 die übrigen Roboter werden dafür nicht automatisch geparkt.
 
 ## Quellen
+
+- [Robotiq-Forum: Anwenderbericht zur OpenCV-Fokussteuerung über direktes USB](https://dof.robotiq.com/discussion/2434/how-does-one-control-led-lights-on-robotiq-wrist-camera-via-opencv-in-python-script).
+- [Linux-V4L2: Fokuscontrols, Einheit nicht definiert](https://www.kernel.org/doc/html/latest/userspace-api/media/v4l/ext-ctrls-camera.html).
 
 - [Robotiq-Handbuch2019: technische Daten und Fokus](https://assets.robotiq.com/website-assets/support_documents/document/UserManual_Camera_20191106.pdf).
 - [Robotiq2019: Kameraeinstellungen und Fokusbedienung](https://assets.robotiq.com/website-assets/support_documents/document/online/Vision_System_e-Series_HTML5_20190313.zip/Vision_System_e-Series_HTML5/Content/Vision_System-Instructions-Manual-06-2017/5.%20Object_Teaching.htm).

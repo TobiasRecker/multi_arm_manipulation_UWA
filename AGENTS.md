@@ -74,6 +74,10 @@
   `right_rear`; Bildzugriff und manuell aufgenommene Messreihe vor automatischen
   Hardwarefahrten prüfen. Bestehender Kalibrierbackend bleibt Simulation-only;
   HTTP-Bildempfang ist kein Nachweis eines frischen Belichtungszeitpunkts.
+  Nutzerpräferenz desselben Tages: Wrist-Fokus möglichst vom PC per Skript/
+  Schieberegler steuern. Fehlende öffentliche API nicht als grundsätzliche
+  Unmöglichkeit ausgeben; USB-Anwenderberichte von am Gerät geprüfter Funktion
+  unterscheiden. Fokusstellwerte nicht ohne Kennlinie als Meter interpretieren.
   Seit 2026-11-09 ist MoveIt-Kollisionsprüfung für die automatische Kalibrierung
   umgesetzt. Allgemeine kooperative Planung und Hardware-Anbindung bleiben Folgearbeit.
 - Automatische Hand-Auge-Kalibrierung: unbekannte Kameraextrinsics aus mehreren

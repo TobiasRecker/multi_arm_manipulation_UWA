@@ -18,6 +18,7 @@ case "$operation" in
       /usr/bin/bash "$script_dir/start_cell.sh" "$@"
     ;;
   rviz)
+    bash "$script_dir/cell.sh" twin
     if systemctl --user is-active --quiet uwa-cell-rviz; then
       echo 'UWA RViz is already running.'
       exit 0
@@ -29,6 +30,15 @@ case "$operation" in
       --setenv="XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" \
       /usr/bin/bash "$script_dir/start_rviz.sh"
     ;;
+  twin)
+    if systemctl --user is-active --quiet uwa-cell-hardware-overlay; then
+      echo 'UWA measured hardware overlay is already running.'
+      exit 0
+    fi
+    systemd-run --user --unit=uwa-cell-hardware-overlay --collect \
+      --property=TimeoutStopSec=15 --property=KillSignal=SIGINT --property=KillMode=mixed \
+      /usr/bin/bash "$script_dir/start_twin.sh" "$@"
+    ;;
   scan)
     if systemctl --user is-active --quiet uwa-cell-scan; then
       echo 'UWA scan reference is already running.'
@@ -39,6 +49,9 @@ case "$operation" in
       /usr/bin/bash "$script_dir/start_scan.sh" "$@"
     ;;
   stop)
+    if systemctl --user is-active --quiet uwa-cell-hardware-overlay; then
+      systemctl --user stop uwa-cell-hardware-overlay
+    fi
     if systemctl --user is-active --quiet uwa-cell-overview-view; then
       systemctl --user stop uwa-cell-overview-view
     fi
@@ -55,5 +68,5 @@ case "$operation" in
     ;;
   status) systemctl --user status uwa-cell-sim --no-pager ;;
   logs) journalctl --user -u uwa-cell-sim -f ;;
-  *) echo "Usage: bash $0 {start [launch arguments...]|rviz|scan [layout.yaml]|stop|status|logs}" >&2; exit 2 ;;
+  *) echo "Usage: bash $0 {start [launch arguments...]|rviz|twin [launch arguments...]|scan [layout.yaml]|stop|status|logs}" >&2; exit 2 ;;
 esac

@@ -6,12 +6,13 @@ import tempfile
 from ament_index_python.packages import get_package_prefix, get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
-    DeclareLaunchArgument, EmitEvent, ExecuteProcess, LogInfo, OpaqueFunction,
+    DeclareLaunchArgument, EmitEvent, ExecuteProcess, LogInfo, OpaqueFunction, IncludeLaunchDescription,
     RegisterEventHandler, SetEnvironmentVariable,
 )
 from launch.event_handlers import OnProcessExit, OnShutdown
 from launch.events import Shutdown
 from launch.substitutions import LaunchConfiguration
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 
 from uwa_cell_gazebo.configuration import (
@@ -83,6 +84,10 @@ def setup(context):
                                           '--gui-config', str(share / 'worlds/cell.gui.config')],
                                       name='uwa_gazebo_gui', output='screen'))
     if enabled(context, 'rviz'):
+        if enabled(context,'hardware_overlay'):
+            overlay=Path(get_package_share_directory('uwa_cell_visualization'))/'launch/hardware_overlay.launch.py'
+            actions.append(IncludeLaunchDescription(PythonLaunchDescriptionSource(str(overlay)),
+                launch_arguments={'layout':layout_path}.items()))
         actions.append(Node(package='rviz2', executable='rviz2',
                             arguments=['-d', str(share / 'rviz/cell.rviz')],
                             parameters=[{'use_sim_time': True}], output='screen'))
@@ -128,6 +133,7 @@ def generate_launch_description():
         DeclareLaunchArgument('gui', default_value='true'),
         DeclareLaunchArgument('controller_gui', default_value='true'),
         DeclareLaunchArgument('rviz', default_value='false'),
+        DeclareLaunchArgument('hardware_overlay',default_value='true'),
         DeclareLaunchArgument('scan', default_value='false'),
         SetEnvironmentVariable('ROS_DOMAIN_ID', '64'),
         SetEnvironmentVariable('ROS_AUTOMATIC_DISCOVERY_RANGE', 'LOCALHOST'),

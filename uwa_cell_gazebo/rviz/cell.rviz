@@ -19,7 +19,8 @@ Visualization Manager:
       Cell Size: 0.5
       Plane Cell Count: 20
     - Class: rviz_default_plugins/RobotModel
-      Name: Parametric UWA cell
+      Name: SIMULATION - UWA cell (transparent)
+      Alpha: 0.40
       Enabled: true
       Description Source: Topic
       Description Topic:
@@ -28,6 +29,36 @@ Visualization Manager:
         Durability Policy: Transient Local
       Visual Enabled: true
       Collision Enabled: false
+    - Class: rviz_default_plugins/RobotModel
+      Name: MEASURED - right front (gold)
+      Enabled: true
+      Description Source: Topic
+      Description Topic:
+        Value: /uwa_cell/real/right_front/robot_description
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+      Visual Enabled: true
+      Collision Enabled: false
+      Alpha: 1.0
+    - Class: rviz_default_plugins/RobotModel
+      Name: MEASURED - right rear (cyan)
+      Enabled: true
+      Description Source: Topic
+      Description Topic:
+        Value: /uwa_cell/real/right_rear/robot_description
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+      Visual Enabled: true
+      Collision Enabled: false
+      Alpha: 1.0
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Hardware data status - LIVE / WAITING / STALE
+      Enabled: true
+      Topic:
+        Value: /uwa_cell/real/status_markers
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+        Depth: 1
     - Class: rviz_default_plugins/TF
       Name: Mount and robot frames
       Enabled: false
