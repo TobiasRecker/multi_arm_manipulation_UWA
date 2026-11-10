@@ -83,16 +83,19 @@ class MeasuredOverlay:
             state='LIVE' if fresh else 'WAITING' if sample is None else 'STALE'
             status[rid]={'state':state,'age_seconds':age,'input_topic':profile['namespace']+'/joint_states',
                          'frame_prefix':'real_'+rid+'_','error':errors.get(rid,''),
+                         'freshness_basis':'ROS message receipt, not independent RTDE sensor freshness',
                          'mount_calibrated':False,'model_visible':fresh}
             mount=self.layout['robots'][rid];table=self.layout['tables'][mount['table']]
             marker=Marker();marker.header.frame_id='world';marker.header.stamp=stamp
             marker.ns='measured_data_status';marker.id=index;marker.type=Marker.TEXT_VIEW_FACING
-            marker.pose.orientation.w=1.;marker.pose.position.x=table['xyz'][0]+self.offset[0]+1.0
+            marker.pose.orientation.w=1.;marker.pose.position.x=table['xyz'][0]+self.offset[0]
             marker.pose.position.y=table['xyz'][1]+self.offset[1]+(-.6 if rid=='right_front' else .6)
             marker.pose.position.z=table['xyz'][2]+table['height']+self.offset[2]+1.25
-            marker.scale.z=.10;marker.color.a=1.
+            marker.scale.z=.08;marker.color.a=1.
             marker.color.r,marker.color.g,marker.color.b=COLOURS[rid] if fresh else (1.,.2,.1)
-            marker.text=f'MEASURED {rid}: {state}\nProvisional base pose · read only'
+            label='FRONT' if rid=='right_front' else 'REAR'
+            # Some RViz/Ogre font builds give spaces an excessive world width.
+            marker.text=f'{label}:{state}\nBASE:PROVISIONAL'
             markers.append(marker)
         if now-self.last_status>=.5:
             self.marker_pub.publish(MarkerArray(markers=markers))

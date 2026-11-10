@@ -20,7 +20,7 @@ Visualization Manager:
       Plane Cell Count: 20
     - Class: rviz_default_plugins/RobotModel
       Name: SIMULATION - UWA cell (transparent)
-      Alpha: 0.40
+      Alpha: 0.65
       Enabled: true
       Description Source: Topic
       Description Topic:
@@ -99,10 +99,10 @@ Visualization Manager:
       Target Frame: <Fixed Frame>
       Near Clip Distance: 0.01
       Value: Orbit (rviz)
-      Distance: 5.0
+      Distance: 6.0
       Focal Point: {X: 0.0, Y: 0.0, Z: 0.9}
       Pitch: 0.55
       Yaw: 4.2
 Window Geometry:
-  Width: 1100
-  Height: 800
+  Width: 1400
+  Height: 900

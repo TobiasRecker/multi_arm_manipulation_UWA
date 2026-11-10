@@ -17,6 +17,15 @@
 
 ## Fachliche Leitplanken
 
+- Nutzerziel vom 2026-11-10: Simulation und die beiden rechten gemessenen URs
+  gleichzeitig in RViz darstellen. `uwa_cell_visualization` überträgt nur die
+  beiden JointState-Eingänge von Domain66 nach64, niemals Kommandos/Services/
+  Actions. Reale Anzeigeframes/Gelenke ausschließlich mit `real_`-Präfix;
+  Simulations-Topics/TFs nicht überschreiben. Zielzeitstempel auf die Anzeige-
+  Simulationsuhr umsetzen, originale Hardware-Nachrichten unverändert lassen.
+  Fehlende/veraltete Daten zeigen, keine erfundenen Null-/Initialposen anzeigen.
+  Montageposen aus zentralem Zelllayout bleiben vorläufig, keine automatische
+  Kalibrierung behaupten. Anzeige darf Hardware nicht einschalten/bewegen.
 - Ziel ist der digitale Zwilling der echten UWA-Zelle mit vier UR-Armen auf
   zwei beweglich positionierbaren Tischen. Plattform: ROS 2 Lyrical / Gazebo Jetty.
 - Geometrie, Tischposen, Montageposen und Anfangsstellungen kommen zentral aus

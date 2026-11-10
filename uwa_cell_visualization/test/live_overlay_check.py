@@ -5,6 +5,7 @@ from pathlib import Path
 import signal
 import subprocess
 import time
+import traceback
 
 from rclpy.context import Context
 from rclpy.executors import SingleThreadedExecutor
@@ -67,10 +68,11 @@ def main():
         assert all(arm['state']=='WAITING' for arm in status['arms'].values())
         report['no_fabricated_initial_pose']=True
         sending=list(ARMS)
-        wait(lambda:len(received)==2 and all('real_right_' in model for model in models.values()),15,'two measured models')
+        wait(lambda:len(received)==2 and all('real_right_' in model for model in models.values()) and
+             all(msg.header.stamp.sec==50 for msg in received.values()),15,'two measured models')
         for rid,msg in received.items():
             assert msg.name==['real_'+rid+'_'+j for j in JOINTS]
-            assert msg.position==q and msg.header.stamp.sec==50
+            assert list(msg.position)==q and msg.header.stamp.sec==50
         wait(lambda:all(tf_buffer.can_transform('world','real_'+rid+'_tool0',Time()) for rid in ARMS),10,'live TF chains')
         for rid,y in [('right_front',-.675),('right_rear',.675)]:
             tf=tf_buffer.lookup_transform('world','real_'+rid+'_base_link',Time())
@@ -83,8 +85,14 @@ def main():
         target_pubs=target.get_publisher_names_and_types_by_node('uwa_measured_display','/uwa_cell/real')
         assert not any(topic=='/uwa_cell/joint_states' or 'trajectory' in topic or 'command' in topic for topic,_ in target_pubs)
         report['source_publishers']=pubs;report['no_command_or_sim_joint_publishers']=True
+        old_tool=tf_buffer.lookup_transform('world','real_right_front_tool0',Time()).transform.translation
         q=[.2,-1.0,.4,-1.1,.2,.1]
-        wait(lambda:all(msg.position==q for msg in received.values()),5,'changing measured angles')
+        wait(lambda:all(list(msg.position)==q for msg in received.values()),5,'changing measured angles')
+        def tool_changed():
+            position=tf_buffer.lookup_transform('world','real_right_front_tool0',Time()).transform.translation
+            return sum((a-b)**2 for a,b in zip([position.x,position.y,position.z],[old_tool.x,old_tool.y,old_tool.z]))>1e-5
+        wait(tool_changed,5,'TF follows hardware while simulation clock is paused')
+        report['tf_updates_while_sim_clock_paused']=True
         sending=[]
         wait(lambda:all(arm['state']=='STALE' for arm in status.get('arms',{}).values()) and
              all(model==EMPTY_MODEL for model in models.values()),6,'stale models hidden with paused simulation clock')
@@ -92,7 +100,8 @@ def main():
         sending=['right_front']
         wait(lambda:status['arms']['right_front']['state']=='LIVE' and status['arms']['right_rear']['state']=='STALE',5,'independent recovery')
         report['independent_arm_recovery']=True;report['success']=True
-    except Exception as error:report['error']=str(error)
+    except Exception as error:
+        report['error']=repr(error);traceback.print_exc()
     finally:
         if process.poll() is None:
             try:os.killpg(process.pid,signal.SIGINT)

@@ -77,6 +77,42 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 
 ## Aufbau der realen Zelle und Modellannahmen
 
+### Parallele Simulation und gemessene Modelle in RViz, 2026-11-10
+
+- Nutzerziel: beide echten rechten URs zusätzlich zu vier simulierten Armen
+  gleichzeitig darstellen. Paket `uwa_cell_visualization`, bestehende cell.rviz
+  erweitert: Simulation teilweise transparent, right_front gold, right_rear cyan.
+- Ausschließlich zwei JointState-Abos auf Domain66, separate real_-Gelenke/TFs
+  und RobotDescriptions auf Domain64. Keine Steuer-Topics/Services/Actions
+  überbrückt und keine simulierten Zustände verändert. Eigenständige ROS-Contexts,
+  Anzeigezeit an Simulationsuhr angepasst; Originalhardwaredaten unverändert.
+- Modelle erst bei sechs vollständigen endlichen Positionen zeigen; WAITING/
+  LIVE/STALE-Marker, nach2s ohne Daten Modell ausblenden. Walltime-Timeout gilt
+  auch bei pausierter Simulation. LIVE bezeichnet ROS-Empfang, keinen unabhängig
+  nachgewiesenen frischen RTDE-Sensorzeitpunkt.
+- Montage aus zentralem Zelllayout (base_link relativ Tisch) bleibt vorläufig.
+  Individuelle Werkskinematik aus Hardwareinventar optional, aktuell nominell.
+  Reale Anzeige hat sechs UR-Gelenke ohne erfundene Greifer-/Kamerazustände.
+  Offizielle STL-Schalen farbig dargestellt, keine neue Kollisionsprüfung.
+- `cell.sh rviz`/Desktop-App starten `uwa-cell-hardware-overlay` idempotent mit.
+  `cell.sh twin` separat; direktes cell.launch rviz:=true enthält optionales
+  Overlay. Zell-Stopp beendet nur Visualisierung/Simulation, keine Hardwaretreiber.
+- **Beide echten Datenströme LIVE** nachgewiesen. Vorne rechts war Controllerliste
+  leer; ausschließlich joint_state_broadcaster geladen/aktiviert. Keine Power-/
+  Brake-/Play-/Bewegungscontroller-/Zielbefehle. Hardwaretreiber weiterverwendet.
+- Tatsächliche Abnahme: je6 endliche echte Gelenkwinkel, parallel48 simulierte
+  Gelenke inkl. Tools, beide real_base_link-/tool0-TFs zur Welt vorhanden.
+  `setup/logs/uwa-twin-real-acceptance.json`, Status `uwa-twin-live-status.json`.
+- Vier Offline-Tests und isolierte Domain174/175-Prüfung: Modelle/TFs/Werte,
+  keine künstliche Initialpose, keine Kommandopublisher, TF-Änderung bei pausierter
+  Sim-Uhr, Stale-Ausblendung und unabhängige Wiederkehr beider Arme bestanden.
+  Logs `setup/logs/uwa-twin-*`, visueller Screenshot `uwa-twin-rviz.png`.
+  Anleitung [RViz-Vergleichsansicht](docs/rviz_digital_twin.md).
+- Gemeinsame Visualisierungs-/Gazebo-Suite:61 Tests bestanden. Abschließender
+  Dienststatus aktiv für Simulation/RViz/Scan/Overlay, beide Datenströme LIVE;
+  `setup/logs/uwa-twin-live-status-final.txt`. RViz-Fenster vergrößert und Marker
+  ohne überbreite Ogre-Leerzeichen für bessere Lesbarkeit gesetzt.
+
 ### Lokale UR-Vorbereitung und direkte UWA-GUI, 2026-11-10
 
 - Nutzerwunsch: gemeinsame Start-/Bereitstellungs-/Admittanz-/Kollisionsbausteine

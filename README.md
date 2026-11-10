@@ -11,6 +11,19 @@ requirements, preferences, decisions, verified results and open work.
 [ACTIVE_WORK.md](ACTIVE_WORK.md) explains task-specific status files under `work/`
 for agents sharing this checkout; read active entries before editing or restarting services.
 
+## RViz: simulation and measured hardware together
+
+The **UWA Cell Simulation** app now adds two measured arms to the existing
+RViz scene: **right front in gold**, **right rear in cyan**, alongside the four
+partly transparent simulated arms. Hardware JointState data are read from domain
+66 and displayed with separate `real_` frames in domain64; no commands are bridged.
+Missing/stale data are labelled and measured geometry is hidden until valid
+samples arrive. Mounting poses remain provisional.
+
+For an already running cell: `bash src/multi_arm_manipulation_UWA/scripts/cell.sh rviz`.
+The read-only overlay service is started/reused automatically. See
+[digital-twin view, timing and validation](docs/rviz_digital_twin.md).
+
 ## UWA Arms: local multi-UR preparation
 
 Open **UWA Arms** from the application menu, or run:
