@@ -12,6 +12,10 @@ Normaler App-Start bleibt Mock, Standardauswahl nur hinten rechts. Der neue
 Fenstertitel lautet **UWA · Direct UR Test**. Es werden keine Treiber, Bremsen,
 Programme oder Bewegungsziele automatisch gestartet.
 
+**Cartesian jog…** übernimmt die MuR-Bedienung für einen ausgewählten Arm,
+mit demselben Admittanz-/J-PARSE-Regler und Nachgiebigkeit standardmäßig AUS.
+[Anleitung und External-Control-Einstellungen](ur_jogging.md).
+
 ## Save logs
 
 Die Aktionsanzeige zeigt **RECEIVED**, **RUNNING** mit Laufzeit, **DONE** oder
@@ -96,7 +100,8 @@ Gazebo-Start und bestehende MuR-Defaults wurden nicht verändert.
 
 Inventar: `config/hardware_inventory.yaml`. Je Arm eigener Manager unter
 `/uwa_hardware/<arm>/controller_manager`, sechs präfixierte Gelenke und eigene
-rohe TF-Topics. Domain 66/localhost, getrennt von Gazebo 64 und OAK 65.
+rohe TF-Topics. Hardware Domain66, Mock Domain67, jeweils localhost und getrennt
+von Gazebo64 und OAK65. Mock kann dadurch keine realen Manager bedienen.
 
 | Arm | IP | Script-sender-Port |
 | --- | --- | --- |
@@ -113,10 +118,12 @@ Keine MuR-UR10-Kalibrierdateien übernehmen.
 JointState liest der native Treiber aus RTDE `actual_q`, unabhängig von einem
 laufenden External-Control-Programm. Dafür muss der Joint-State-Broadcaster
 aktiv sein und die RTDE-Verbindung Daten liefern. Im vorhandenen Hardwarelog
-sind fehlgeschlagene Spawner (13:48/13:49), Verbindungsfehler30001/30004 und
-spätere RTDE-Reconnects belegt. Der aktuelle lesende8-s-Test empfing keine
-Gelenkwinkel; funktionierender Hardwareempfang ist damit noch nicht nachgewiesen.
-Die neue Nachladefunktion vermeidet dafür einen kompletten Treiberneustart.
+sind historisch fehlgeschlagene Spawner (13:48/13:49), Verbindungsfehler30001/30004
+und spätere RTDE-Reconnects belegt. Der spätere Ethernet-Jogging-Test empfängt
+alle sechs echten Gelenkwinkel hinten rechts erfolgreich, auch bei STOPPED-
+Programm: `setup/logs/uwa-jog-hardware-joints.json`. Der frühere8-s-Test ohne
+Samples ist für diesen Arm überholt. Nachladen vermeidet bei fehlenden
+Broadcastern einen kompletten Treiberneustart.
 
 Build aus Workspace wie zuvor mit `--packages-select match_ur_hardware uwa_cell_control`
 und Lyrical-Build-/Install-/Log-Verzeichnissen. Desktop-Eintrag nach Umzug erneuern:

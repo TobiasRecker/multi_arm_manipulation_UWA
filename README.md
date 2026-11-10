@@ -40,8 +40,15 @@ Hardware readiness and program start require separate explicit actions.
 Manual controller operations now go directly to the driver without additional
 UWA arm-count, Dashboard-state or loaded-program-path gates. Existing drivers
 can be controlled from a new window. The default selection is **right_rear only**.
-The app supplies no complete cell collision protection. Domain 66 is separate from Gazebo 64 and OAK 65.
+The app supplies no complete cell collision protection. Hardware uses domain66,
+Mock uses domain67; both are separate from Gazebo64 and OAK65.
 See [operation, architecture and current limits](docs/ur_control_gui.md).
+
+For manual Cartesian motion, select one arm and open **Cartesian jog…**, or use
+the application-menu action **Cartesian jog · rear right**. It uses the same
+MATCH admittance/J-PARSE controller as the MuR GUI, with compliance **OFF** by
+default. Hold an axis button to move; releasing it stops the jog command.
+See [jogging, External Control setup and test evidence](docs/ur_jogging.md).
 
 The interface, tooltips and application-menu entry are in English. Click
 feedback uses a persistent high-contrast RECEIVED/RUNNING/DONE/FAILED panel,
@@ -71,7 +78,13 @@ the 2019 camera specification lists up to 2560×1920 at 2 fps. See the linked gu
 for focus controls and the distinction between sensor and HTTP image resolution.
 The subsequent [UCC1.11.3 archive analysis](docs/wrist_urcap_analysis_2026-11-10.md)
 identified internal HTTP focus controls and verified both read-only settings
-queries on right_rear without SSH; focus writes have not yet been tested.
+queries on right_rear without SSH. Focus writes and the real Qt window have
+since been tested on right_rear.
+Open the [camera preview/focus window](docs/wrist_camera_focus.md) with
+`source scripts/control_env.bash` (from this repository), then
+`ros2 run uwa_cell_control wrist_camera_gui`. It provides manual focus,
+autofocus, JPEG+settings saving and restoration of the opening focus mode;
+it sends no robot-motion commands. HTTP images remain640×480.
 The automatic calibration backend below remains simulation-only.
 
 The workspace is expected at `~/UWA_ws`; set `UWA_WS` before sourcing the helper

@@ -1,4 +1,5 @@
-# Local UWA hardware/mock preparation; separate from Gazebo domain64 and camera65.
+# Local UWA hardware tools use domain66; the GUI selects domain67 for Mock.
+# Separate from Gazebo domain64 and camera65. For direct mock CLI calls export67.
 _uwa_control_repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 export UWA_WS="${UWA_WS:-$(cd -- "$_uwa_control_repo/../.." && pwd)}"
 if [[ -n "${ROS_DISTRO:-}" && "$ROS_DISTRO" != lyrical ]]; then

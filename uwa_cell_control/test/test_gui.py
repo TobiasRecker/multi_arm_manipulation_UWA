@@ -10,8 +10,10 @@ def test_direct_hardware_controls_do_not_require_gui_ownership_or_playing_progra
     window.timer.stop()
     try:
         assert window.mock and window.selected()==['right_rear']
+        assert window.ros_domain==67
         assert not window.buttons['prepare'].isEnabled()
         window.mode.setCurrentIndex(1)
+        assert window.ros_domain==66
         assert window.buttons['prepare'].isEnabled()
         assert window.buttons['play'].isEnabled()
         for key in ['cartesian','trajectory','rqt','joints','load']:

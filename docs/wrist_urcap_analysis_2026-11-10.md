@@ -4,6 +4,10 @@ Datum:2026-11-10, Australia/Perth. Nutzer stellt die Datei
 `/home/rosmatch/Downloads/UCC-1.11.3_20210913.zip` zur Verfügung und bittet um
 Untersuchung der Kamera-Steuerung ohne unbekanntes Admin-Kennwort.
 
+**Nachfolgend umgesetzt und geprüft:**[Fokusfenster mit echten Schreib-/Bildtests](wrist_camera_focus.md).
+Dieser Bericht beschreibt den vorherigen statischen Analysezeitpunkt; die dort
+noch nicht ausgeführten Kameraaufrufe sind im Folgeauftrag überprüft worden.
+
 ## Ergebnis und Grenzen
 
 **Eine interne HTTP-Schnittstelle für Fokus-/Kameraeinstellungen ist im Archiv

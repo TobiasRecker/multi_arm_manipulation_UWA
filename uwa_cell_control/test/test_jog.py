@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from python_qt_binding import QtCore,QtWidgets
+from python_qt_binding import QtCore,QtGui,QtWidgets
 from match_mur_gui.jog_commands import cartesian_twist
 from uwa_cell_control.gui import Window
 from uwa_cell_control.jog_dialog import JogDialog
@@ -37,6 +37,14 @@ def test_jog_only_streams_while_held_release_mode_change_focus_and_close_stop(tm
         dialog.axis_buttons['X+'].pressed.emit();dialog.tick()
         assert transport.messages[-1]==[.01,0,0,0,0,0]
         dialog.axis_buttons['X+'].released.emit()
+        assert transport.messages[-1]==[0.]*6
+        dialog.show();app.processEvents()
+        assert app.focusWidget() is dialog
+        QtWidgets.QApplication.sendEvent(app.focusWidget(),QtGui.QKeyEvent(
+            QtCore.QEvent.Type.KeyPress,QtCore.Qt.Key.Key_Right,QtCore.Qt.KeyboardModifier.NoModifier))
+        assert transport.messages[-1]==[.01,0,0,0,0,0]
+        QtWidgets.QApplication.sendEvent(app.focusWidget(),QtGui.QKeyEvent(
+            QtCore.QEvent.Type.KeyRelease,QtCore.Qt.Key.Key_Right,QtCore.Qt.KeyboardModifier.NoModifier))
         assert transport.messages[-1]==[0.]*6
         for _ in range(4):dialog.tick()
         count=len(transport.messages);dialog.tick();assert len(transport.messages)==count

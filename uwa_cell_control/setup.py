@@ -8,4 +8,5 @@ setup(name='uwa_cell_control',version='0.1.0',packages=find_packages(),
       install_requires=['setuptools'],zip_safe=True,maintainer='rosmatch',
       maintainer_email='rosmatch@example.com',license='MIT',
       description='UWA local multi-arm preparation GUI',
-      entry_points={'console_scripts':['uwa_control_gui = uwa_cell_control.gui:main']})
+      entry_points={'console_scripts':['uwa_control_gui = uwa_cell_control.gui:main',
+                                      'wrist_camera_gui = uwa_cell_control.wrist_camera_gui:main']})

@@ -87,6 +87,9 @@
   Schieberegler steuern. Fehlende öffentliche API nicht als grundsätzliche
   Unmöglichkeit ausgeben; USB-Anwenderberichte von am Gerät geprüfter Funktion
   unterscheiden. Fokusstellwerte nicht ohne Kennlinie als Meter interpretieren.
+  Seit demselben Tag Kamera-Schreibtest/Qt-Fokusfenster für right_rear genehmigt
+  und umgesetzt: Kameraeinstellungen sichern, ausschließlich Fokus ändern,
+  Bildwirkung/Readback prüfen; keine Robotermotion daraus ableiten.
   Seit 2026-11-09 ist MoveIt-Kollisionsprüfung für die automatische Kalibrierung
   umgesetzt. Allgemeine kooperative Planung und Hardware-Anbindung bleiben Folgearbeit.
 - Automatische Hand-Auge-Kalibrierung: unbekannte Kameraextrinsics aus mehreren
@@ -133,7 +136,8 @@
   Gemeinsamer UR-Start und Controller bleiben im MATCH-Repo (`match_ur_hardware`,
   `mur_control`, `mur_launch_hardware`); `uwa_cell_control` referenziert sie.
   Physische Konfiguration ausschließlich aus `config/hardware_inventory.yaml`.
-  App **UWA Arms**: Mock als Standard, Domain 66/lokale Discovery; kein
+  App **UWA Arms**: Mock als Standard in Domain67, Hardware in Domain66,
+  jeweils lokale Discovery; Mock-Treiber/-Clients strikt von Hardware trennen; kein
   automatisches Power/Brake/Play beim Treiberstart. Vorhandene Ein-Gegenarm-
   Kollision nicht als vollständigen Vierarm-Kollisionsschutz darstellen.
   Neueste Nutzerkorrektur vom 2026-11-10: zusätzliche UWA-Sicherheitsgates

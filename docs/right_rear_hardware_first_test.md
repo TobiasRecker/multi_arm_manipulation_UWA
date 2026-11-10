@@ -95,6 +95,11 @@ noch nicht ausgeführt. Originalregler0…1023, API-Wert=`1023−Reglerwert`.
 Siehe[Archivbefund](wrist_urcap_analysis_2026-11-10.md). Die folgenden Aussagen
 über noch nicht gefundene Netzwerksetter beschreiben den vorherigen Recherchestand.
 
+**Umsetzung am selben Tag:** Fokus-Schreiben, Fokus-only-Trigger und eigenes
+Qt-Bildfenster inzwischen an right_rear geprüft. Bedienung:
+[Kamerafenster](wrist_camera_focus.md). Die vorherige Einschränkung „noch nicht
+ausgeführt“ ist für diese Kamera durch den dortigen Prüfnachweis ersetzt.
+
 Nutzerpräferenz vom2026-11-10: Fokus möglichst per Skript/PC-Schieberegler
 bedienen, nicht bei jedem Versuch am Pendant. Eine zwingende physische
 Pendantbedienung lässt sich aus der fehlenden öffentlichen API nicht ableiten.

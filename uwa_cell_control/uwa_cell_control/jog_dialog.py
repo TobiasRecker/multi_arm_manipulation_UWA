@@ -13,6 +13,7 @@ class JogDialog(QtWidgets.QDialog):
         self.active=[0.]*6;self.zero_ticks=0;self.closed=False
         self.transport=(transport_factory or JogTransport)(self.profile,domain=main.ros_domain)
         self.setWindowTitle('UWA Cartesian jog · '+rid);self.resize(660,480)
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
         layout=QtWidgets.QVBoxLayout(self)
         mode='MOCK' if main.mock else 'HARDWARE'
         compliance='ON' if self.profile['compliance_enabled'] else 'OFF'
@@ -21,28 +22,32 @@ class JogDialog(QtWidgets.QDialog):
         header.setStyleSheet('background:#172e4d;color:white;padding:12px;font-size:15px;font-weight:bold')
         layout.addWidget(header)
         speed=QtWidgets.QHBoxLayout();self.mode=QtWidgets.QComboBox()
-        self.mode.addItems(['Translation','Rotation']);self.mode.currentIndexChanged.connect(lambda unused:self.stop('mode changed'))
+        self.mode.addItems(['Translation','Rotation']);self.mode.currentIndexChanged.connect(self.mode_changed)
         speed.addWidget(self.mode)
         self.linear_speed=QtWidgets.QDoubleSpinBox();self.linear_speed.setRange(.001,.03)
         self.linear_speed.setDecimals(3);self.linear_speed.setSingleStep(.001);self.linear_speed.setValue(.01)
         self.angular_speed=QtWidgets.QDoubleSpinBox();self.angular_speed.setRange(.01,.1)
         self.angular_speed.setDecimals(3);self.angular_speed.setSingleStep(.01);self.angular_speed.setValue(.1)
+        for field in (self.linear_speed,self.angular_speed):field.editingFinished.connect(self.setFocus)
         speed.addWidget(QtWidgets.QLabel('m/s'));speed.addWidget(self.linear_speed)
         speed.addWidget(QtWidgets.QLabel('rad/s'));speed.addWidget(self.angular_speed);layout.addLayout(speed)
         grid=QtWidgets.QGridLayout();layout.addLayout(grid);self.axis_buttons={}
         for label,row,col,vector in [('Y+',0,1,[0,1,0]),('X-',1,0,[-1,0,0]),
                 ('X+',1,2,[1,0,0]),('Y-',2,1,[0,-1,0]),('Z+',0,3,[0,0,1]),('Z-',2,3,[0,0,-1])]:
             button=QtWidgets.QPushButton(label);button.setMinimumHeight(58)
+            button.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
             button.setStyleSheet('QPushButton {background:#ecf1f7;color:#111;border:2px solid #172e4d;font-size:17px;font-weight:bold;}'
                                 'QPushButton:pressed {background:#123f85;color:white;border:4px solid black;}')
             button.pressed.connect(partial(self.start,vector));button.released.connect(lambda:self.stop('released'))
             grid.addWidget(button,row,col);self.axis_buttons[label]=button
         self.stop_button=QtWidgets.QPushButton('STOP JOG');self.stop_button.setMinimumHeight(58)
+        self.stop_button.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         self.stop_button.setStyleSheet('background:#8a0909;color:white;border:3px solid #280000;font-weight:bold;font-size:17px')
         self.stop_button.clicked.connect(lambda:self.stop('STOP JOG'));grid.addWidget(self.stop_button,1,1)
         self.motion=QtWidgets.QLabel('IDLE · hold an axis button or key to jog')
         self.motion.setWordWrap(True);layout.addWidget(self.motion);self.show_motion(False,'IDLE · hold an axis button or key to jog')
         self.enable=QtWidgets.QPushButton('Enable jog controller')
+        self.enable.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         self.enable.setMinimumHeight(42)
         self.enable.setToolTip('Recreate the existing MATCH controller with the chosen compliance preset, then activate it. No power-on or program start.')
         self.enable.clicked.connect(self.enable_controller);layout.addWidget(self.enable)
@@ -52,6 +57,12 @@ class JogDialog(QtWidgets.QDialog):
             'Controller/program state is informational; the UR/driver decides which commands it accepts.')
         hint.setWordWrap(True);layout.addWidget(hint)
         self.timer=QtCore.QTimer(self);self.timer.timeout.connect(self.tick);self.timer.start(50)
+
+    def showEvent(self,event):
+        super().showEvent(event);self.setFocus()
+
+    def mode_changed(self,unused):
+        self.stop('mode changed');self.setFocus()
 
     def show_motion(self,moving,text):
         self.motion.setText(text)

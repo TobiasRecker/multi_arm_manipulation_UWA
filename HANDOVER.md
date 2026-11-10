@@ -43,6 +43,40 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   Typ. Ein dynamischer Parameterwert allein wäre dafür nicht ausreichend.
 - Kollisionsalgorithmen und MuR-Standardprofil erhalten; UWA-Kollisionsoption
   weiterhin nicht als vollständiger Zellenschutz konfiguriert.
+- Hardware bleibt Domain66, Mock jetzt strikt Domain67 in GUI, Kindprozessen,
+  Launch und Jog-Transport; dadurch keine echte Managerentdeckung im Mockmodus
+  und keine Fake-JointStates im lesenden RViz-Twin. Testnamespaces zusätzlich
+  separat. Bedienung: [Jogging](docs/ur_jogging.md).
+- Drei Pakete gebaut,19 gezielte Adapter-/UWA-Tests und acht MuR-Kartesiktests
+  bestanden. Live-Mock in Domain67: Öffnen ohne Twist; beim Halt maximal0,028rad
+  Gelenkänderung, nach Loslassen0,0rad weitere Drift im Messfenster. Rotation,
+  Fokusverlust-Stopp und effektive Null-Gains/FT aus bestätigt.
+  Logs setup/logs/uwa-jog-{build,unit,live,mur-cartesian}.*; Screenshot
+  uwa-jog-dialog.png. Breiterer MuR-Test enthält eine bereits im HEAD vorhandene
+  MiR-Fixture-Störung (QMainWindow ohne modules), kein Kartesik-Regressionsbefund.
+- Hinten rechts alten nicht antwortenden Manager gezielt ersetzt, nach
+  Dashboard STOPPED und fehlender Reverse-Verbindung; vorne rechts unverändert.
+  Reales Preset lesend bestätigt: sechs Null-Gains für beide Parameter,
+  use_ft_sensor/require_wrench=false. Broadcaster aktiv, Bewegung inaktiv,
+  UR RUNNING/NORMAL/Remote, geladenes ros.urp STOPPED. Belege
+  setup/logs/uwa-jog-hardware-{preset,after-restart}.json.
+- Nutzer meldet URCap-Port50002 bei korrekter PC-IP; benötigt wird54002 für
+  right_rear. Aktuelle native Prüfung: Route enp87s0/src192.168.8.209,
+  drei Pings ohne Verlust0,317–0,344ms, Dashboard erreichbar; Treiber lauscht
+  auf54002, kein Server auf50002. Ursache der genauen UR-Meldung nach
+  Portkorrektur erneut prüfen. Keine realen Power-/Brake-/Play-/Fahrbefehle
+  durch den Agenten; erster physischer Hold-to-jog-Versuch noch offen.
+- Abschließender realer JointState-Lesetest liefert alle sechs endlichen
+  right_rear-Gelenkwinkel, trotz STOPPED-Programm:
+  setup/logs/uwa-jog-hardware-joints.json. Die früheren fehlgeschlagenen
+  Empfangstests sind damit für diesen Arm überholt.
+- Vollständiger Vierarm-Mock-GUI-Regressionslauf in Domain67 bestanden:
+  24 eindeutige Gelenke, Ein-/Zwei-/Vierarm-Wechsel, Kartesik-Neuladen,
+  Save logs, STOP, gezielter Managerexit/Neustart und eigener Abbau.
+  setup/logs/uwa-jog-full-gui.log und uwa-control/mock-gui-validation.json.
+  Installierte Desktop-Aktion RightRearJog via Gio geöffnet und sichtbares
+  Haupt-/Jog-Fenster per X11-Fensterinventar bestätigt. Bestehende
+  Hardware-Besitzerfenster erhalten; keine reale Controlleraktivierung.
 
 ## Englische UR-GUI und Sitzungsdiagnose, 2026-11-10
 
@@ -270,6 +304,21 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   benötigt ebenfalls Admin-Kennwort, umgeht es nicht. Für die gefundene
   Kamera-HTTP-Schnittstelle ist SSH momentan nicht nötig. Archivversion nicht
   mit bestätigter installierter URCap-Version gleichsetzen; nichts installiert.
+- Folgeauftrag2026-11-10 ausgeführt: Kamera-only-Schreibtest und separates
+  englisches Qt-Fenster mit2Hz-HTTP-Vorschau, Regler/Readback, Autofokus, Foto+JSON,
+  Restore beim Knopf bzw. standardmäßig normalen Schließen nach eigener Änderung.
+  `ros2 run uwa_cell_control wrist_camera_gui`; IP ausHardwareinventar.
+- ManuellerAPI-Fokus512 nachgewiesen, sichtbare Schärfeänderung. Ursprünglicher
+  Auto-Modus wiederhergestellt und reiner Fokus-Trigger erfolgreich. Autofokus
+  wählt dabei neuen numerischen Wert408; kein Meterwert/kein Boardoptimum.
+  Erste Prüfbedingung verlangte fälschlich exakt alten Zahlenwert im Auto-Modus;
+  korrigiert. Verzögerte Bildpipeline berücksichtigt, späteres Bild wieder scharf.
+  Andere Kameraeinstellungen unverändert; keine Roboter-/Treiber-/Adminbefehle.
+- Vier lokale HTTP-Tests und Paketbuild bestanden, echte Qt-Knöpfe inkl.
+  Speichern/Restore geprüft. Bericht`setup/logs/uwa-wrist-focus-window/report.json`,
+  Screenshots/Fotos daneben; GUI zur Bedienung geöffnet. Anleitung
+  [Wrist-Fokusfenster](docs/wrist_camera_focus.md). Daten unterWorkspace-setup,
+  keine Rohbilder eingecheckt. Sensorbelichtungszeit weiterhin nicht verfügbar.
 
 ### Zellgeometrie
 
