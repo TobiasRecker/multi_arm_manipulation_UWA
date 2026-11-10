@@ -26,6 +26,62 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 - **Explizit seit 2026-11-09:** Wichtige Ziele, Anforderungen, Entscheidungen und
   Vorlieben parallel in AGENTS-/Handover-Dateien festhalten.
 
+## Pausenstand: reale Hand-Auge-Reihe, 2026-11-10
+
+- **Auf ausdrücklichen Nutzerwunsch pausiert.** Bestätigte Ursache des Stopps:
+  eine konfigurierte Sicherheitsebene in der UR-Steuerung. Nutzer kann sie
+  aktuell nicht deaktivieren und möchte sie morgen,2026-11-11, verschieben.
+  Heute keine weiteren Hardwarefahrten/automatischen Wiederanläufe. Keine
+  Sicherheitsparameter durch den Agenten geändert oder Stopps quittiert.
+- Reale erste Aufnahmesicht hinten rechts erreicht und anhand echter Bilder
+  bestätigt: nach freiem Sichtfeld24/24 ChArUco-Ecken. Nicht als exakt angefahrene
+  Nominalpose ausgeben: erste Annäherung wurde bei0,0331rad Restabweichung beendet.
+  Aufnahmen verwenden die tatsächliche gemessene Stellung und Werkskinematik.
+- Nutzer bestätigt rechtes A3-Board1:1 und100mm Kontrollstreifen, Position etwa
+  wie Modell. Keine bekannte Wrist-Intrinsics-Kalibrierung. Eigene ChArUco-
+  Intrinsics vor Hand-Auge vorbereitet; URCap-Full-Calibration erklärt, nicht
+  gestartet. Nominelles K/optische Montage nur für Planung, nicht für den Fit.
+- Individuelle Werkskinematiken beider rechter URs rein lesend extrahiert und
+  im Hardwareinventar referenziert: setup/calibration/hardware_first_view/
+  ur_kinematics/{right_front,right_rear}.yaml. Kein Treiberneustart dafür.
+- Nach gesonderter RViz-/Fahrraumfreigabe40 weitere Ansichten geplant und
+  begonnen (native skalierte JTC,0,05rad/s,0,10rad/s²). Bei Bewegung zum Bild
+  **sample_009** nativer PROTECTIVE_STOP/C400A0; Verbindungsverlust sofort
+  erkannt, Action gecancelt, Rear-Bewegungscontroller deaktiviert. UR ordnet
+  [C400 der Ellbogennähe zu Sicherheitsebenen zu](https://www.universal-robots.com/manuals/EN/HTML/SW10_8/Content/prod-err-codes/topics/CODE_400.html).
+  Die konfigurierte Ebene war nicht Teil der bisherigen FCL-Kollisionsszene.
+- **Datensatz:** setup/calibration/hardware_handeye/right_rear_20261110/.
+  records/sample_000.json bis sample_008.json samt Roh-/annotiertenJPEGs:
+  **9 akzeptierte Aufnahmen**, alle24 Ecken;8 Fit,1 Validierung. Kamerafokus404
+  manuell,640×480, Belichtung60000µs manuell, Gain16, LED53Manual. Wechselnde
+  Payloads bei Stillstand belegt, kein Sensor-Belichtungszeitstempel vorhanden.
+  Keine ausreichende Datenzahl für validierte Intrinsics/Hand-Auge; nichts
+  als kalibriertes Hardware-/TF-Profil aktiviert.
+- Batch samt Betreiberfreigabe unter batch_plan/, Fingerprint
+  80efa418b687052cf63d3010c608c3b4a91b16cdf5f07e630b30d60b8b3f8773.
+  Aktueller Pausenzustand in paused_state.json; Diagnose
+  setup/logs/uwa-handeye-hardware-{run.log,interruption-status.json}.
+  Im zuletzt gelesenen Zustand UR NORMAL, ProgrammSTOPPED, Local stattRemote;
+  nicht selbst wieder auf Remote/Play setzen. Front-Parkpose erhalten, linke
+  Arme weiterhin nur nominell Nutzer-Home, keine Befehle an andere Arme.
+- Software: handeye_hardware plan-view/capture/plan-series/run-series/fit;
+  getrennt vom unveränderten Simulationsbackend.31 gezielte Tests bestanden,
+  tatsächlicher ros2-run-Prozessgruppen-SIGINT im Mock prüft Cancel/Deaktivieren
+  mit0rad Nachdrift. Erststart-Shell- und rclpy-Signalfehler wurden korrigiert.
+  [Bedienung/Prüfpfade](docs/hardware_handeye.md).
+
+**Nächster Einstieg nach neuer Nutzeranweisung:** aktuelle echte rechte
+Stellungen und Kamera-/Boardzustand lesen, native Sicherheitsebene mit neuer
+Position berücksichtigen, verbleibende Wege neu prüfen/visualisieren. Keine
+alten Startstellungen oder alte Freigabe als blind gültig übernehmen. Bestehende
+Bilder nicht überschreiben. Der aktuelle Batch-Runner verweigert absichtlich
+einen Neustart bei bestehenden sample_001…-Dateien; für Fortsetzung neue Sitzung
+oder eine explizit geprüfte Wiederaufnahme ergänzen. Alte Bilder lassen sich
+für Hand-Auge nur bei unveränderter Board-/Tisch- und Kameramontage zusammenführen;
+für Intrinsics muss zumindest das Optik-/Bildmodusprofil identisch bleiben.
+Danach genügend Fit-/Validierungsansichten aufnehmen, Intrinsics und erst dann
+Hand-Auge auswerten. Kein automatischer Profilwechsel oder Rückweg.
+
 ## Hardware-Wartepose vor Kamerakalibrierung, 2026-11-10
 
 - Nutzer bestätigt erfolgreiches reales Jogging hinten rechts. Neuer Auftrag:

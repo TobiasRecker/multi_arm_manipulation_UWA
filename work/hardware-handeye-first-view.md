@@ -1,6 +1,7 @@
 # Reale erste Aufnahmepose und Hand-Auge-Messreihe
 
-- Status: **aktiv**.
+- Status: **pausiert auf ausdrücklichen Nutzerwunsch** (2026-11-10;
+  Fortsetzung voraussichtlich2026-11-11 nach seiner Sicherheitsebenen-Anpassung).
 - Datum: 2026-11-10, Australia/Perth.
 - Nutzer möchte nach erfolgreichem Front-Parken right_rear in erste Bildpose
   bewegen und anschließend die entwickelte Hand-Auge-Routine real erproben.
@@ -30,3 +31,15 @@
   native Verbindungs-/Telemetrie-/Kollisions-/Bild-/Fokusprüfungen je Schritt.
   Datensatz unter setup/calibration/hardware_handeye/right_rear_20261110/;
   Logs uwa-handeye-hardware-run.log. Ergebnisse/Handover nach Lauf ergänzen.
+- Lauf unterbrochen bei Bewegung zu sample_009 durch nativen SchutzstoppC400A0.
+  sample_000 bis sample_008 erhalten:9 akzeptierte Bilder, alle24/24 Ecken,
+  davon8 Fit/1 Validierung. Kein fertiges Intrinsics-/Hand-Auge-Ergebnis.
+  Native Action wurde gecancelt und Rear-Bewegungscontroller deaktiviert;
+  kein automatisches Quittieren, kein Rückweg, keine Sicherheitsparameter geändert.
+- Nutzer bestätigt Ursache: konfigurierte Sicherheitsebene im UR, die er
+  aktuell nicht deaktivieren kann; er will sie morgen verschieben. Ausdrücklich
+  heute nicht weiterfahren. Stand unter paused_state.json im Datensatz sichern.
+- Morgen nach neuer Nutzeranweisung aktuelle Zustände/Fokus/Boardlage und
+  native Ebenenkonfiguration prüfen, Restwege neu planen. Alten Batch nicht
+  direkt erneut starten: bestehende Bilder würden absichtlich abgewiesen;
+  Fortsetzung mit frischer Sitzung oder explizit geprüfter Wiederaufnahme.

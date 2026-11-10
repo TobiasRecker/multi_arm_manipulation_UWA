@@ -17,6 +17,13 @@
 
 ## Fachliche Leitplanken
 
+- UR-konfigurierte Sicherheitsebenen zusätzlich zur MoveIt-Kollisionsgeometrie
+  berücksichtigen. C400-Stopp der ersten realen Reihe wurde vom Nutzer als
+  solche Ebene bestätigt. Keine Ebene/Schutzfunktion zum Durchfahren ändern
+  oder Stopps automatisch quittieren. Aktueller ausdrücklich gewünschter
+  Pausen-/Fortsetzungsstand steht in HANDOVER.md; neue Planung erst nach
+  erneuter Nutzeranweisung und aktueller Zustandsprüfung.
+
 - Nutzerziel vom 2026-11-10: Simulation und die beiden rechten gemessenen URs
   gleichzeitig in RViz darstellen. `uwa_cell_visualization` überträgt nur die
   beiden JointState-Eingänge von Domain66 nach64, niemals Kommandos/Services/

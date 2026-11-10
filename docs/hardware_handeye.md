@@ -96,7 +96,7 @@ ros2 run uwa_cell_control handeye_hardware fit \
   setup/calibration/hardware_handeye/right_rear_20261110
 ```
 
-`intrinsics.json` und `handeye_result.json` sind lokale Ergebnisse, ohne
+Erst nach erfolgreichem Fit entstehen `intrinsics.json` und `handeye_result.json`, ohne
 automatische Aktivierung in TF/Hardware/Simulation. Einarmig werden
 `T_tool0_camera` und `T_base_link_board` geschätzt. Relative rechte Basis-/
 Tischpose erfordert später die zweite Kamera gegen dasselbe feste Board.
@@ -105,7 +105,7 @@ bleiben Grenzen der Kollisionsprüfung, keine Genauigkeitsgarantie.
 
 ## Nachweise und aktueller Stand
 
--31 gezielte Tests bestanden: `setup/logs/uwa-handeye-hardware-tests.log`.
+- 31 gezielte Tests bestanden: `setup/logs/uwa-handeye-hardware-tests.log`.
   Intrinsikfreie Erkennung, synthetische K-Wiedergewinnung, unabhängige
   Validierung, Datensatz-/Fokus-/Bildwiederholungs- und Wegprüfungen enthalten.
 - Erster Startaufruf setzte nach negativer Verbindungsprüfung fort; Shell-
@@ -127,4 +127,13 @@ bleiben Grenzen der Kollisionsprüfung, keine Genauigkeitsgarantie.
   RViz ausdrücklich freigegeben. Batch-Fingerprint
   `80efa418b687052cf63d3010c608c3b4a91b16cdf5f07e630b30d60b8b3f8773`,
   Gesamtprüfung `--check-only` erfolgreich. Reine Bewegungszeit366,1s;
-  Aufnahme/Auswertung laufen, Ergebnis wird ergänzt.
+  Lauf bei sample_009 wegen nativem SchutzstoppC400A0 abgebrochen.
+- **Pausiert auf Nutzerwunsch,2026-11-10.** Nutzer bestätigt eine konfigurierte
+  UR-Sicherheitsebene als Ursache und will diese morgen verschieben.9 gültige
+  Bilder (sample_000…008), alle24 Ecken,8 Fit/1 Validierung. Noch keine
+  validierten Intrinsics-/Hand-Auge-Ergebnisse. Keine automatische Quittierung,
+  Sicherheitsänderung oder Rückfahrt; Rear-Bewegungscontroller inaktiv.
+  Exakter Zustand in `paused_state.json`, Einstieg siehe HANDOVER.md.
+  Morgen aktuelle Posen/Ebene prüfen und neu planen, alte Bilder erhalten.
+  Aktueller Runner überschreibt vorhandene Samples absichtlich nicht und kann
+  den alten Batch deshalb nicht unverändert fortsetzen.
