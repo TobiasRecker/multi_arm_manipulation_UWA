@@ -12,6 +12,14 @@ for agents sharing this checkout; read active entries before editing or restarti
 
 ## Build
 
+Physical devices were reached over the PC's temporary Wi-Fi connection on
+2026-11-10: `right_rear`=192.168.8.170, `right_front`=192.168.8.103,
+OAK4=192.168.8.238. The separate [hardware inventory](config/hardware_inventory.yaml)
+and [read-only network report](docs/hardware_network_2026-11-10.md) record the
+mapping and measured latency. They do not enable hardware drivers or motion;
+the Gazebo launch remains isolated. Previous wired-camera throughput results
+do not describe the current Wi-Fi path.
+
 The workspace is expected at `~/UWA_ws`; set `UWA_WS` before sourcing the helper
 if it lives elsewhere. Dependencies are declared in the package manifests.
 On an existing ROS desktop installation, install the control panel and calibration dependencies:

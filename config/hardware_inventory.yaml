@@ -1,0 +1,47 @@
+# Physical inventory, user assignment confirmed 2026-11-10 (Australia/Perth).
+# This file does not launch drivers, enable robot power or grant motion authority.
+# Simulation remains in its own domain/partition; never infer IDs from "first/second".
+ros_namespace: /uwa_hardware
+robots:
+  left_front:
+    ip: null
+    ur_type: ur5
+    port_base: 51000
+    kinematics_file: null
+    external_control_program: ''
+  left_rear:
+    ip: null
+    ur_type: ur7e
+    port_base: 52000
+    kinematics_file: null
+    external_control_program: ''
+  right_rear:
+    ip: 192.168.8.170
+    ur_type: ur5e
+    port_base: 54000
+    kinematics_file: null
+    external_control_program: ''
+    dashboard_port: 29999
+    serial_number: '20195501620'
+    dashboard_model: UR5
+    polyscope_version: 5.10.1.106310
+  right_front:
+    ip: 192.168.8.103
+    ur_type: ur5e
+    port_base: 53000
+    kinematics_file: null
+    external_control_program: ''
+    dashboard_port: 29999
+    serial_number: '20195501617'
+    dashboard_model: UR5
+    polyscope_version: 5.10.1.106310
+cameras:
+  oak4:
+    ip: 192.168.8.238
+    agent_model: OAK4-D R9
+    device_id: '1479883285'
+network:
+  device_connections: wired_to_router
+  pc_connection_current: wifi
+  reason: temporary_broken_pc_router_ethernet_cable
+  policy: low_bandwidth_camera_profiles_and_latency_checks

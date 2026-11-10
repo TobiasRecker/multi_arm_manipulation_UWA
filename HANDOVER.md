@@ -28,6 +28,33 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 
 ## Aufbau der realen Zelle und Modellannahmen
 
+### Reale Netzwerkverbindung, 2026-11-10
+
+- **Verbindliche Nutzerzuordnung:** hinten rechts=`right_rear`=192.168.8.170,
+  vorne rechts=`right_front`=192.168.8.103. „Erster/zweiter“ sind zufällige
+  Bezeichnungen, keine dauerhaften Arm-IDs. Separates Inventar in
+  `config/hardware_inventory.yaml`; keine Hardware-IP in den Simulationslaunch.
+- OAK4-D R9 weiterhin192.168.8.238, ID1479883285. PC wegen defektem langem
+  LAN-Kabel vorübergehend per WLAN, Geräte weiter kabelgebunden am Router.
+  Beobachtet PC192.168.8.209/24 aufwlp88s0f0, alle Zielrouten WLAN;
+  enp87s0 DOWN. Alte LAN-Leistungswerte nicht als WLAN-Werte verwenden.
+- **Alle drei Geräte erreicht.** UR-Dashboard-Leseabfragen erfolgreich:
+  ModellfamilieUR5, Software5.10.1.106310, Seriennummern hinten20195501620 /
+  vorne20195501617. Beide zum TestPOWER_OFF, StatusNORMAL, ProgrammSTOPPED,
+  RemoteControl=false; nichts davon verändert. Keine Robotertreiber/Bewegung.
+- Je40 Pings:0% Verlust; RTT-Mittel hinten6,87ms, vorne5,02ms, OAK6,52ms.
+  Maxima30,92 /45,82 /14,52ms: sichtbarer Jitter, keine Echtzeitgarantie.
+- OAK-Agentinfos erfolgreich; kurzer SDK-Stream640×480NV12@5fps lieferte
+  gemessen4,997fps über10,21s, etwa18,9Mbit/s Bildnutzdaten. Danach geschlossen.
+  Kein Maximalbandbreitentest, keine Wiederholung der LAN-Extremprofile.
+  Hardware-OAK- und Simulations-Livedienste waren vor Test bereits inaktiv.
+- [Prüfbericht](docs/hardware_network_2026-11-10.md); lokale Rohdaten unter
+  `setup/logs/hardware-wifi-2026-11-10/`. WLAN-Bildprofile zunächst klein halten,
+  Kalibrieraufnahmen bei Stillstand; spätere Rückverbindungen benötigen die
+  aktuelle PC-IP. Keine URCap-/Netzwerk-/Firmwareänderung ausgeführt.
+
+### Zellgeometrie
+
 Ursprung am Boden zwischen den Tischmitten. **X nach rechts, Y nach hinten,
 Z nach oben**; „vorne“ ist die dem Nutzer zugewandte Seite (−Y).
 

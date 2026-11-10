@@ -64,6 +64,12 @@
   zur Auswahl/Initialisierung der PnP-Lösung verwenden. Bekannte Hand-Auge-
   Transformation nicht als aus einer Einzelansicht neu kalibriert bezeichnen.
 - Simulation isoliert betreiben: Domain 64, lokale Discovery, Partition `uwa_cell_sim`.
+  Physisches Inventar getrennt in `config/hardware_inventory.yaml`:
+  `right_rear`=192.168.8.170, `right_front`=192.168.8.103, OAK4=192.168.8.238.
+  Nutzerzählung „erster/zweiter“ ist zufällig; nur stabile Arm-IDs verwenden.
+  PC vorübergehend per WLAN wegen defektem LAN-Kabel, Geräte weiterhin verkabelt.
+  Kleine Kameraprofile und Latenz/Jitter beachten; Ethernet-Messwerte gelten
+  dafür nicht. Lesende Erreichbarkeitsdiagnose ist keine Bewegungsfreigabe.
   Seit 2026-11-09 ist MoveIt-Kollisionsprüfung für die automatische Kalibrierung
   umgesetzt. Allgemeine kooperative Planung und Hardware-Anbindung bleiben Folgearbeit.
 - Automatische Hand-Auge-Kalibrierung: unbekannte Kameraextrinsics aus mehreren
