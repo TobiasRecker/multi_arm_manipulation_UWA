@@ -37,7 +37,8 @@ def main():
         assert window.count.minimum()==30 and window.count.maximum()==50
         assert window.stop_button.isEnabled() and 'bb1825' in window.stop_button.styleSheet()
         until(lambda:all(label.pixmap() is not None and not label.pixmap().isNull() for label in window.views.values()))
-        result={'four_live_images':True,'red_stop_enabled':True,'count_range':[30,50]}
+        result={'four_live_images':True,'red_stop_enabled':True,'count_range':[30,50],
+                'diagonal_default_enabled':window.diagonal.isChecked()}
         if node.state.get('summary'):
             count=len(node.state['summary'])+len(node.state.get('table_bases',{}))+len(node.state.get('relative_bases',{}))
             until(lambda:window.result_table.rowCount()==count)
@@ -46,6 +47,7 @@ def main():
             assert node.state['phase'] in ('IDLE','STOPPED','ERROR','READY','COMPLETE'), 'Another session is active'
             for rid,box in window.robots.items():box.setChecked(rid=='left_front')
             window.diagonal.setChecked(False)
+            until(lambda:window.prepare_button.isEnabled())
             window.prepare_button.click()
             if args.planning:
                 until(lambda:node.state.get('phase')=='PREPARING' and node.state.get('accepted',0)>0 and node.state.get('client_id')==node.client_id)

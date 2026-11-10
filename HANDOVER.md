@@ -408,6 +408,35 @@ aktiv; separate MuR-Simulation inaktiv. Vor weiterer Prozessarbeit neu prüfen.
 
 ## Statische OAK4-Übersichtskamera (2026-11-09)
 
+- **Wichtige Nutzerpräzisierung:** später einen Tisch absichtlich verschieben;
+  Tisch-zu-Tisch-Pose und tatsächliche Bewegung messen, Fehler kompensieren.
+  Beide Tischboards bleiben fest montiert. Option: kleine OAK auf rechtem Tisch
+  sieht nur das gegenüberliegende Board. Tischfeste Kameramontage und variable
+  Tischpose unbedingt getrennt behandeln, Bewegung nicht in Kalibrierung absorbieren.
+- Neuer [Kalibrier-/Messansatz](docs/table_tracking_calibration.md): OAK sieht
+  beide Boards -> relative Boardpose durch inv(T_C_BL)@T_C_BR, Weltpose der
+  Kamera fällt heraus. Tischmontagen der Boards für definierte Tischframes ergänzen.
+  Für OAK auf rechtem Tisch Montage X einmal separat bestimmen; danach bleibt X
+  bei Tischbewegung konstant. Unbekannte Montage plus unbekannte Tischrelation
+  sind aus einer einzigen gegenüberliegenden Boardansicht nicht getrennt schätzbar.
+- Nutzer schlägt bekannte stationäre Wrist-Kameras und ein zusätzliches mobiles
+  Kalibrierboard im gemeinsamen Sichtfeld vor. Als bevorzugter erster Ansatz
+  empfohlen: lokale Kamera-Kamera-Transformation über viele Halteposen, dann
+  bekannten FK-/Hand-Auge-/Tischbezug nutzen; weder Tischboards noch Kameras
+  müssen sich bewegen. Alternative: UR hält Board für automatisierte Eye-to-Hand-
+  Schätzung inklusive unbekannter Werkzeug-Board-Montage. Empfehlungen, noch
+  kein Implementierungs-/Messfahrtauftrag. Frühere Konzeptannahmen entsprechend
+  als eingeschränkt markiert; keine Dienste/Hardware/Simulationsposen verändert.
+
+- Beratungsfrage zur empfohlenen Kalibrierung statischer Kameras:
+  [Konzeptvorschlag](docs/static_camera_calibration_plan.md) festgehalten.
+  Factory-Intrinsics für Bildmodus/Fokus prüfen, feste Tischboards als Referenz
+  und zur Verbindung beider Tischgruppen, Zusatzkameras über gemeinsame/registrierte
+  Targets, anschließend räumlich vielfältige gemeinsame Schätzung und unabhängige
+  Validierung. Referenzbeziehung zum realen `world` definieren/vermessen, keine
+  angenommenen Gazebo-Posen als Hardware-Messwerte. Dies ist eine Empfehlung,
+  noch kein genehmigter Implementierungs-/Messfahrtauftrag oder Kalibrierergebnis.
+
 - Nutzerangabe: OAK4-D auf einem Stativ neben den Tischen, derzeit rechts,
   nach unten auf die Tischplatten; Montage noch offen. Gewünscht ist Überblick
   über die ganze Szene bei genügend ChArUco-Detail. Dafür Simulation zum
@@ -487,12 +516,30 @@ aktiv; separate MuR-Simulation inaktiv. Vor weiterer Prozessarbeit neu prüfen.
   geparkter Arme. Die gemessenen tatsächlichen Sitzungsstartstellungen werden
   erst nach Abschluss aller Gruppen wiederhergestellt; Stopp/Fehler halten
   sämtliche aktiven Ziele an der aktuellen Stelle und sperren folgende Fahrten.
-- Neue Nachweise bisher: Offline-Park-/Paarpläne erfolgreich, mindestens ca.
-  31 cm Abstand der nominalen Diagonal-Hüllräume im ersten Layouttest. Echte
-  parallele native Gelenkbewegung live beobachtet; Wartearme dabei stationär
-  (< 1,4e−11 rad Abweichung). Gemeinsames Pause/Fortsetzen und anschließender
-  Stopp beider Controller in 0,46 s bestätigt:
-  `setup/logs/uwa-diagonal-pause-stop.json`. Vollständiger neuer 40×4-Lauf läuft.
+- Neuer Paar-Nachweis: **79 aktuelle Offline-Tests bestanden**, vollständiger
+  40×4-Lauf `setup/calibration/20261109_133357_7e1130` bestanden; echte parallele
+  native Gelenkbewegung in beiden Diagonalpaaren beobachtet. Mindestens 0,307 m
+  bzw. 0,372 m Abstand der konservativen nominalen Hüllräume. Wartearme stationär
+  (< 1,4e−11 rad Abweichung); alle Rückkehrstellungen < 1,5e−11 rad Fehler.
+  [Paar-Prüfbericht](docs/handeye_diagonal_validation_2026-11-09.json).
+- Paarlauf: maximale Kameraextrinsics-Abweichung **0,078 mm / 0,030°**;
+  relative Basispose links **0,092 mm / 0,0231°**, rechts **0,085 mm / 0,0247°**.
+  Basisabstände links **1349,987 mm**, rechts **1349,987 mm**. Fit/Validierung
+  bleiben pro Arm 32/8 und relative Posen weiterhin pro linkem/rechtem Tisch.
+- Gemeinsames Pause/Fortsetzen und anschließender Stopp beider Controller in
+  **0,46 s** bestätigt: `setup/logs/uwa-diagonal-pause-stop.json`.
+  Paar-Profil aktiviert, rohe/kalibrierte TFs und Rückfall bei ungültiger Qualität
+  sowie kollidierendem Kandidaten geprüft: `uwa-diagonal-profile-check.json` im
+  gleichen Logverzeichnis. GUI-Lebenszeichenverlust während simultaner Fahrt
+  stoppt beide nach **2,33 s** einschließlich Timeout, paralleler Aufnahmestopp
+  bestätigt Stillstand nach **0,30 s**. Danach keine weitere Fahrt/Aufnahme.
+  `uwa-diagonal-{disconnect,capture}.json`; alter Einzelarmmodus mit echtem
+  GUI-Stopp ebenfalls bestanden (`uwa-diagonal-legacy-gui-stop.json`).
+- Vier Pakete gebaut; Zellprüfung bestätigt neun aktive Controller, zum Layout
+  passende ursprüngliche Basen und stabile physische Gazebo-Verankerung.
+  Das Paarprofil wird beim Start automatisch wiederhergestellt. **Diagonalpaare**
+  standardmäßig aktiviert; geänderte Auswahl/Messzahl/Modus nach Vorbereitung
+  sperren den Start bis zur passenden erneuten Vorbereitung.
 
 - Nutzerauftrag: genehmigten Plan vollständig in der Simulation umsetzen;
   eigene Qt-GUI, 30–50 verschiedene Stellungen pro Arm (Standard 40), links/rechts

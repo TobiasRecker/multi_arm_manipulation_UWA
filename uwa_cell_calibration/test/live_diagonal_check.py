@@ -47,6 +47,7 @@ def main():
     try:
         until(lambda:len(node.images)==4 and node.state.get('phase') in ('IDLE','COMPLETE','STOPPED','READY','ERROR'))
         assert window.diagonal.isChecked()
+        until(lambda:window.prepare_button.isEnabled())
         window.prepare_button.click()
         until(lambda:node.state.get('phase')=='READY' and node.state.get('client_id')==node.client_id)
         root=Path(os.environ['UWA_WS'])/'setup/calibration'

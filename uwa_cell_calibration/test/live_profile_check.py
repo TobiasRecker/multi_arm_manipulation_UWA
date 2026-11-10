@@ -75,6 +75,7 @@ def main():
         testdir=args.session/'profile_checks';testdir.mkdir(exist_ok=True)
         def apply(path):
             node.error=''
+            until(node.apply_client.service_is_ready)
             future=node.service(node.apply_client,ApplyCalibration.Request(result_path=str(path.resolve()),client_id=node.client_id))
             assert future is not None
             until(future.done)

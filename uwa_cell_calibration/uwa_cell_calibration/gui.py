@@ -27,7 +27,7 @@ class Window(QtWidgets.QMainWindow):
         for rid in ROBOT_IDS:
             box=QtWidgets.QCheckBox(NAMES[rid]);box.setChecked(True);self.robots[rid]=box;selection.addWidget(box)
         self.diagonal=QtWidgets.QCheckBox('Diagonalpaare');self.diagonal.setChecked(True)
-        self.diagonal.setToolTip('Links vorne + rechts hinten, danach links hinten + rechts vorne. Andere Arme werden vorher geparkt.')
+        self.diagonal.setToolTip('Links vorne + rechts hinten, danach links hinten + rechts vorne. Andere Arme werden vorher geparkt, auch wenn sie nicht zur Aufnahme ausgewählt sind.')
         selection.addWidget(self.diagonal);selection.addStretch();selection.addWidget(QtWidgets.QLabel('Stellungen je Arm:'))
         self.count=QtWidgets.QSpinBox();self.count.setRange(30,50);self.count.setValue(40);selection.addWidget(self.count);layout.addLayout(selection)
         buttons=QtWidgets.QHBoxLayout()
@@ -97,16 +97,16 @@ class Window(QtWidgets.QMainWindow):
         busy=phase in ('RESTORING','PREPARING','RUNNING','PARKING','POSITIONING','MOVING','SETTLING','CAPTURING','RETURNING','HALTING','PAUSED','SOLVING','APPLYING')
         if busy and owns and time.monotonic()-self.node.last_status>1.5 and not self.pause_pending:
             self.pause_pending=True;self.pause_world();self.node.error='Backend verloren; Gazebo-Pause angefordert'
-        self.prepare_button.setEnabled(online and not busy and bool(state))
+        self.prepare_button.setEnabled(online and not busy and bool(state) and self.node.prepare_client.service_is_ready())
         selected=[r for r,b in self.robots.items() if b.isChecked()]
         settings_match=(selected==list(state.get('counts',{})) and self.count.value()==state.get('target') and
                         state.get('mode')==('diagonal_pairs' if self.diagonal.isChecked() else 'sequential'))
-        self.start_button.setEnabled(online and phase=='READY' and owns and settings_match)
+        self.start_button.setEnabled(online and phase=='READY' and owns and settings_match and self.node.action.server_is_ready())
         self.pause_button.setEnabled(online and owns and phase in ('MOVING','PARKING','POSITIONING','RUNNING','SETTLING','CAPTURING','RETURNING','PAUSED'))
         self.pause_button.setText('Fortsetzen' if phase=='PAUSED' else 'Pause')
         fits=state.get('summary',{})
         passed=bool(fits) and all(f.get('passed',False) for f in fits.values())
-        self.apply_button.setEnabled(online and passed and phase=='COMPLETE' and bool(state.get('result_path')) and state.get('stopped',False))
+        self.apply_button.setEnabled(online and passed and phase=='COMPLETE' and bool(state.get('result_path')) and state.get('stopped',False) and self.node.apply_client.service_is_ready())
         for box in self.robots.values():box.setEnabled(not busy)
         self.count.setEnabled(not busy)
         self.diagonal.setEnabled(not busy)

@@ -311,8 +311,8 @@ python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_g
 python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_gui_check.py" --planning
 python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_gui_check.py" --capture
 python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_gui_check.py" --world-pause
-ros2 run uwa_cell_calibration calibration_cli --robots left_front --stop-after 1
-ros2 run uwa_cell_calibration calibration_cli --robots left_front --pause-after 3 --resume-after 2 --stop-after 12
+ros2 run uwa_cell_calibration calibration_cli --robots left_front --sequential --stop-after 1
+ros2 run uwa_cell_calibration calibration_cli --robots left_front --sequential --pause-after 3 --resume-after 2 --stop-after 12
 ```
 
 Vollständigen 40×4-Datensatz offline prüfen und bei unverändert zurückgekehrten
@@ -330,6 +330,29 @@ den bestandenen vollständigen Lauf: maximal 0,131 mm / 0,035° Kamerafehler und
 0,640 mm / 0,054° relativer Basisfehler gegen Ground Truth. Die synthetischen
 und Offlineprüfungen umfassen 57 bestandene Tests. Das sind Nachweise in der
 Simulation, keine Genauigkeitsfreigabe für die reale Zelle.
+
+Die Paarprüfungen bewegen außerdem die Wartearme beim Parken. Nur an einer
+freien Simulationszelle ohne andere Messfahrt ausführen:
+
+```bash
+python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_diagonal_check.py" \
+  --mode pause --output /tmp/diagonal-pause-stop.json
+python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_diagonal_check.py" \
+  --mode disconnect --output /tmp/diagonal-owner-loss.json
+python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_diagonal_check.py" \
+  --mode capture --output /tmp/diagonal-capture-stop.json
+python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_diagonal_check.py" \
+  --mode full --output /tmp/diagonal-full.json
+```
+
+Der [Paar-Prüfbericht vom 2026-11-09](handeye_diagonal_validation_2026-11-09.json)
+dokumentiert den bestandenen vollständigen 40×4-Paarlauf mit real beobachteten
+gleichzeitigen Gelenkgeschwindigkeiten in beiden Gruppen. Maximal 0,078 mm /
+0,030° Kamerafehler und 0,092 mm / 0,025° relativer Basisfehler gegen Ground Truth;
+79 aktuelle Offline-Tests bestanden. Gemeinsamer Fahrtstopp nach 0,46 s,
+Aufnahmestopp nach 0,30 s und GUI-Heartbeatverlust nach 2,33 s einschließlich
+Lease-Frist bestätigt; keine automatische Weiterfahrt. Das neue Profil und der
+Rückfall bei fehlerhaften Kandidaten wurden ebenfalls live geprüft.
 
 Den datierten Stand der tatsächlich ausgeführten Prüfungen und ihrer Grenzen
 enthält [HANDOVER.md](../HANDOVER.md). Referenzen:

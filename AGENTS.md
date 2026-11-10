@@ -49,6 +49,15 @@
   beweist weder fehlende Verdeckung noch kalibrierte Genauigkeit. Das bisher
   nur visuelle Stativ ist kein Hindernis in der MoveIt-PlanningScene.
 - ChArUco-Boards zentral je Tisch und Kameras initial darauf ausrichten.
+  Präzisiertes Nutzerziel (2026-11-09): einen Tisch absichtlich bewegen und
+  relative Tischpose/Bewegung messen und kompensieren. Boards bleiben starr
+  an ihren Tischen; ihre weltfesten Posen dürfen nicht vorausgesetzt werden.
+  Kameramontagen zu ihrem Träger getrennt von veränderlichen Tischposen schätzen.
+  Option: OAK auf rechtem Tisch schaut auf linkes Board. Montage ist relativ zum
+  rechten Tisch konstant, auch wenn dieser bewegt wird. Zur Einmessung ein
+  separates bewegliches Board verwenden, Tischboards dafür nicht versetzen.
+  Raumfeste Kamera, tischfeste Kamera und Tisch-zu-Tisch-Messung unterscheiden;
+  Simulation-Ground-Truth bleibt unabhängig von der bildbasierten Schätzung.
   Referenzen für diese Kalibrierung sind `left_table_top` / `right_table_top`.
   OpenCV-Musterframe: Ursprung an der Musterecke ohne Rand, Z in die Platte.
   Bildschätzung und Ground-Truth-Vergleich getrennt halten; keine Ground Truth

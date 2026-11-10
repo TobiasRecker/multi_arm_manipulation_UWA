@@ -573,8 +573,10 @@ class Backend(Node):
         return record
 
     def measure_cohort(self,ids,records):
+        parked=[r for r,target in self.plan.get('parking',{}).items() if r not in ids and
+                max(abs(self.positions[j]-q) for j,q in zip(joint_names(r),target))<=.02]
         self.status(cohort=list(ids),active_robots=list(ids),robot_id=ids[0],accepted=0,
-                    target=self.plan['samples_per_robot'])
+                    target=self.plan['samples_per_robot'],parked_robots=parked)
         spare={r:iter(self.plan['plans'][r]['reserve']) for r in ids}
         for index in range(self.plan['samples_per_robot']):
             pending={r:dict(self.plan['plans'][r]['poses'][index]) for r in ids}

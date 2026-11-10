@@ -196,6 +196,12 @@ MarkerArray display on `/uwa_cell/oak_overview/markers`.
 
 This camera is independent of the physical Ethernet OAK. The tripod is currently
 visual-only and is not an obstacle in the hand-eye MoveIt planning scene.
+The [static-camera calibration proposal](docs/static_camera_calibration_plan.md)
+describes reference boards, camera registration, joint refinement and validation;
+it is a proposed workflow, not an implemented hardware calibration.
+The clarified goal is to **measure and compensate intentional table movement**.
+See the [updated table tracking concept](docs/table_tracking_calibration.md):
+calibrate rigid camera mounts separately, then estimate changing table relations.
 
 ## Move the arms
 
