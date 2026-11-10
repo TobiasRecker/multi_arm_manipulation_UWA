@@ -1,11 +1,9 @@
 from pathlib import Path
-import os
-
-from python_qt_binding import QtCore,QtWidgets
+from python_qt_binding import QtWidgets
 from uwa_cell_control.gui import Window
 
 
-def test_rear_default_and_one_two_arm_hardware_controls():
+def test_direct_hardware_controls_do_not_require_gui_ownership_or_playing_program():
     app=QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
     path=Path(__file__).resolve().parents[2]/'config/hardware_inventory.yaml'
     window=Window(path)
@@ -13,24 +11,16 @@ def test_rear_default_and_one_two_arm_hardware_controls():
     try:
         assert window.mock and window.selected()==['right_rear']
         assert not window.buttons['prepare'].isEnabled()
-        assert not window.buttons['cartesian'].isEnabled()  # start a driver first
-        window.drivers['left_front']=QtCore.QProcess(window)
-        for rid,box in window.checks.items():box.setChecked(rid=='left_front')
-        assert window.buttons['cartesian'].isEnabled()
-        window.checks['right_rear'].setChecked(True)
-        assert not window.buttons['cartesian'].isEnabled()  # selected arm not owned
-        window.drivers.clear()
-        for box in window.checks.values():box.setChecked(True)
-        window.update_buttons()
         window.mode.setCurrentIndex(1)
-        assert not window.mock
-        assert set(window.selected())=={'right_front','right_rear'}
-        assert not window.checks['left_front'].isEnabled()
-        assert not window.buttons['prepare'].isEnabled()  # no driver available
-        for rid in ('right_front','right_rear'):window.drivers[rid]=QtCore.QProcess(window)
-        window.update_buttons()
+        assert window.buttons['prepare'].isEnabled()
+        assert window.buttons['play'].isEnabled()
+        for key in ['cartesian','trajectory','rqt','joints','load']:
+            assert window.buttons[key].isEnabled()
+        assert not window.drivers and not window.state
+        for rid in window.profiles:window.profiles[rid]['ip']='127.0.0.1'
+        window.change_mode()
+        for box in window.checks.values():box.setChecked(True)
+        assert len(window.selected())==4
         assert window.buttons['cartesian'].isEnabled()
         assert window.buttons['trajectory'].isEnabled()
-        assert not window.buttons['rqt'].isEnabled()  # activate native controller first
-        window.drivers.clear()
     finally:window.close()

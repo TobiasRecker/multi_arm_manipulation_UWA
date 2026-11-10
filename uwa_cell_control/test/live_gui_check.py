@@ -1,9 +1,10 @@
 """Real ROS/mock-components integration of the UWA GUI, never real UR hardware."""
 import json
-from copy import deepcopy
 import os
 from pathlib import Path
 import time
+import tempfile
+import yaml
 from types import SimpleNamespace
 
 os.environ['ROS_DOMAIN_ID']='66'
@@ -25,7 +26,13 @@ def main():
     ws=Path(os.environ.get('UWA_WS',str(Path.home()/'UWA_ws')))
     out=ws/'setup/logs/uwa-control';out.mkdir(parents=True,exist_ok=True)
     app=QtWidgets.QApplication([])
-    window=Window(ws/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml',arms=ARM_IDS)
+    temporary=tempfile.TemporaryDirectory(prefix='uwa-mock-validation-')
+    inventory=Path(temporary.name)/'inventory.yaml'
+    data=yaml.safe_load((ws/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml').read_text())
+    data['ros_namespace']='/uwa_mock_validation'
+    for i,arm in enumerate(data['robots'].values()):arm.update(ip='127.0.0.'+str(i+1),port_base=61000+i*1000)
+    inventory.write_text(yaml.safe_dump(data))
+    window=Window(inventory,arms=ARM_IDS)
     window.timer.stop();window.show()
     rclpy.init();node=rclpy.create_node('uwa_gui_mock_validation')
     report={'mode':'mock','hardware_started':False,'success':False}
@@ -62,28 +69,22 @@ def main():
         report['unique_joint_names']=len(set(names))
         # Exercise the hardware activation branch against these mock managers.
         # Dashboard is replaced locally; no physical camera/robot connection.
-        profiles=deepcopy(window.profiles)
-        for arm in profiles.values():
-            arm['ip']='127.0.0.1';arm['external_control_program']='/mock/external.urp'
+        profiles=window.profiles
         original_dashboard=operations.dashboard
-        operations.dashboard=lambda arm:{'reachable':True,'blocked':False,'remote_control':True,
-            'queries':[{'command':cmd,'answer':answer} for cmd,answer in [
-                ('safetystatus','Safetystatus: NORMAL'),('robotmode','Robotmode: RUNNING'),
-                ('programState','PLAYING'),('get loaded program','Loaded program: /mock/external.urp')]]}
+        def no_dashboard(arm):raise AssertionError('Controller switch must not query Dashboard')
+        operations.dashboard=no_dashboard
         try:
-            for ids in [['right_rear'],['right_rear','right_front']]:
+            for ids in [['right_rear'],['right_rear','right_front'],list(ARM_IDS)]:
                 args=SimpleNamespace(arms=ids,operation='trajectory',mode='hardware')
                 assert operations._run_arms(args,profiles,node,{},False)==0
                 assert all(any(c.name=='scaled_joint_trajectory_controller' and c.state=='active'
                                for c in controller_list(node,profiles[rid])) for rid in ids)
-            try:
-                operations._run_arms(SimpleNamespace(arms=['left_front'],operation='trajectory',mode='hardware'),
-                                     profiles,node,{},False)
-            except RuntimeError:report['third_arm_refused']=True
-            else:raise AssertionError('Third arm was allowed')
-            report['one_two_arm_hardware_branch_on_mock']=True
-            for rid in ['right_rear','right_front']:operations.switch(node,profiles[rid])
+            report['direct_one_two_four_arm_switch_on_mock']=True
+            for rid in ARM_IDS:operations.switch(node,profiles[rid])
         finally:operations.dashboard=original_dashboard
+        samples=operations.read_joints(node,profiles,ARM_IDS)
+        assert all(len(s['positions'])==6 for s in samples.values())
+        report['joint_reader_without_program_preflight']=True
         window.buttons['cartesian'].click()
         wait(lambda:'cartesian' not in window.jobs,30,'mock Cartesian activation')
         activated=controllers()
@@ -103,7 +104,7 @@ def main():
     except Exception as error:
         report['error']=str(error)
     finally:
-        window.close();app.processEvents();node.destroy_node();rclpy.shutdown()
+        window.close();app.processEvents();node.destroy_node();rclpy.shutdown();temporary.cleanup()
         (out/'mock-gui-validation.json').write_text(json.dumps(report,indent=2)+'\n')
         print(json.dumps(report,indent=2))
     return 0 if report['success'] else 1

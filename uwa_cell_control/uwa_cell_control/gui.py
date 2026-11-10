@@ -2,6 +2,7 @@
 import argparse
 from datetime import datetime
 import json
+import math
 import os
 from pathlib import Path
 import signal
@@ -24,7 +25,7 @@ class Window(QtWidgets.QMainWindow):
         self.inventory=Path(inventory).resolve();self.profiles=load_profiles(self.inventory)
         if set(self.profiles)!=set(ARM_IDS):raise ValueError('UWA inventory must define the four cell arms')
         self.drivers={};self.jobs={};self.auxiliary=[];self.state={};self.closing=False
-        self.setWindowTitle('UWA · Arme vorbereiten');self.resize(1180,800)
+        self.setWindowTitle('UWA · Direkter UR-Test');self.resize(1180,800)
         self.workspace=Path(os.environ.get('UWA_WS',str(Path.home()/'UWA_ws')))
         icon=self.workspace/'src/multi_arm_manipulation_UWA/assets/uwa-cell.png'
         if icon.is_file():self.setWindowIcon(QtGui.QIcon(str(icon)))
@@ -55,8 +56,10 @@ class Window(QtWidgets.QMainWindow):
         for key,text,tip in [
             ('status','Status prüfen','Lesende Abfragen für ausgewählte Arme'),
             ('start','Treiber starten','Lokale ROS-Treiber; kein automatisches Einschalten oder Programmstart'),
+            ('load','Broadcaster / Controller laden','Nachholen eines fehlgeschlagenen Starts; Bewegungscontroller werden inaktiv geladen'),
+            ('joints','Gelenkwinkel lesen','Nur JointState empfangen; kein External-Control-Programm erforderlich'),
             ('prepare','UR bereitstellen','Explizit Motoren einschalten und Bremsen lösen; startet kein Programm'),
-            ('play','External Control starten','Nur bei exakt im Inventar hinterlegtem, geladenem Programm'),
+            ('play','Geladenes UR-Programm starten','Dashboard/UR startet das aktuell geladene Programm'),
             ('drivers_stop','Treiber beenden','Nur die von diesem Fenster gestarteten Treiber beenden')]:
             button=QtWidgets.QPushButton(text);button.setMinimumHeight(40);button.setToolTip(tip)
             button.clicked.connect(lambda checked=False,k=key:self.action(k));form.addWidget(button);self.buttons[key]=button
@@ -75,15 +78,18 @@ class Window(QtWidgets.QMainWindow):
         ctl.addWidget(self.tree)
         self.controller_note=QtWidgets.QLabel('Wiederverwendet: mur_control · J-PARSE · integrierte Admittanz.\n'
             'Der vorhandene Kollisionscontroller berücksichtigt einen Gegenarm. Ein vollständiges Vierarm-/Tisch-/Werkzeugmodell fehlt hier noch.\n'
-            'Hardware: höchstens zwei Arme aktivieren. Kein vollständiger Zellenkollisionsschutz; auch stillstehende Nachbararme beachten.')
+            'Direkte Treiberbedienung: Controllerwechsel ohne zusätzliche Dashboard-, Programm- oder Armzahl-Sperren.')
         self.controller_note.setWordWrap(True);ctl.addWidget(self.controller_note)
         row=QtWidgets.QHBoxLayout()
         for key,text in [('trajectory','Trajektoriencontroller aktivieren'),('cartesian','Admittanz aktivieren'),('inactive','Bewegungscontroller deaktivieren'),('rqt','Gelenksteuerung · rqt')]:
             b=QtWidgets.QPushButton(text);b.clicked.connect(lambda checked=False,k=key:self.action(k));row.addWidget(b);self.buttons[key]=b
         ctl.addLayout(row);self.tabs.addTab(controllers,'Controller')
+        self.joints=QtWidgets.QPlainTextEdit();self.joints.setReadOnly(True)
+        self.joints.setPlainText('Gelenkwinkel lesen: JointState empfangen, unabhängig vom Dashboard-Programmstatus.')
+        self.tabs.addTab(self.joints,'Gelenkwinkel')
         self.log=QtWidgets.QPlainTextEdit();self.log.setReadOnly(True);self.log.setMaximumBlockCount(1600)
         self.tabs.addTab(self.log,'Protokoll')
-        self.stop_button=QtWidgets.QPushButton('STOPP · alle von dieser GUI gestarteten Arme')
+        self.stop_button=QtWidgets.QPushButton('STOPP · ausgewählte und eigene Arme')
         self.stop_button.setMinimumHeight(58);self.stop_button.setStyleSheet('background:#b83333;color:white;font-size:18px;font-weight:bold')
         self.stop_button.setToolTip('Softwarestopp: Controller deaktivieren und UR-Programm stoppen. Kein Hardware-Not-Halt.')
         self.stop_button.clicked.connect(self.stop_all);layout.addWidget(self.stop_button)
@@ -111,8 +117,8 @@ class Window(QtWidgets.QMainWindow):
             box.setEnabled(available)
             if not available:box.setChecked(False)
         self.banner.setText('MOCK: alle Tests bleiben auf diesem PC; keine Verbindung zu echten URs.' if self.mock else
-            'HARDWARE: PC aktuell über WLAN. Treiberstart schaltet nichts ein. Bereitstellen löst nach explizitem Klick die Bremsen. '
-            'External-Control-Programm und Werkskinematik je Arm im Inventar konfigurieren.')
+            'HARDWARE · direkter Test: WLAN ist zugelassen. Bereitstellen, Programmstart und Controllerwechsel auf expliziten Klick. '
+            'Statusanzeigen sperren keine Befehle; Antworten kommen vom UR/Treiber.')
         self.banner.setStyleSheet('padding:10px;border-radius:4px;background:#e6eff9;color:#173d62;font-weight:bold' if self.mock else
                                   'padding:10px;border-radius:4px;background:#fff0d5;color:#724800;font-weight:bold')
         self.update_buttons()
@@ -120,16 +126,11 @@ class Window(QtWidgets.QMainWindow):
 
     def update_buttons(self):
         busy=any(key!='status' for key in self.jobs)
-        available=bool(self.selected()) and all(rid in self.drivers for rid in self.selected())
+        available=bool(self.selected())
         self.mode.setEnabled(not self.drivers and not busy)
         for key,button in self.buttons.items():
             allowed=not busy
-            if key in ('cartesian','trajectory'):allowed=allowed and available and (self.mock or len(self.selected())<=2)
-            if key=='rqt':
-                native='joint_trajectory_controller' if self.mock else 'scaled_joint_trajectory_controller'
-                ready=all(any(c['name']==native and c['state']=='active'
-                              for c in self.state.get(rid,{}).get('controllers',[])) for rid in self.selected())
-                allowed=allowed and available and (self.mock or len(self.selected())<=2 and ready)
+            if key in ('cartesian','trajectory','rqt'):allowed=allowed and available
             if key in ('prepare','play'):allowed=allowed and not self.mock and available
             if key=='inactive':allowed=allowed and available
             button.setEnabled(allowed)
@@ -168,6 +169,17 @@ class Window(QtWidgets.QMainWindow):
                         for state in data.get('arms',{}).values():state['observed_at']=datetime.now().strftime('%H:%M:%S')
                         self.state.update(data.get('arms',{}));self.render_status()
                 except Exception as e:self.note(f'Status konnte nicht gelesen werden: {e}')
+            elif kind=='joints':
+                try:
+                    data=json.loads(next(line for line in reversed(output.splitlines()) if line.startswith('{')))
+                    lines=['Empfangen: '+datetime.now().strftime('%H:%M:%S')]
+                    for rid,state in data.get('arms',{}).items():
+                        lines.append('\n'+LABELS[rid])
+                        if state.get('error'):lines.append(state['error'])
+                        lines.extend(f'{name}: {value:.5f} rad  ({math.degrees(value):.2f}°)'
+                                     for name,value in zip(state.get('names',[]),state.get('positions',[])))
+                    self.joints.setPlainText('\n'.join(lines));self.tabs.setCurrentWidget(self.joints)
+                except Exception as e:self.note(f'Gelenkwinkel konnten nicht gelesen werden: {e}')
             else:
                 self.note(f'{kind}: '+('abgeschlossen' if code==0 else 'fehlgeschlagen; Details im Protokoll'))
             self.update_buttons()
@@ -206,6 +218,8 @@ class Window(QtWidgets.QMainWindow):
         if key=='start':
             for rid in ids:
                 if rid in self.drivers:continue
+                if self.state.get(rid,{}).get('driver_available'):
+                    self.note(f'{LABELS[rid]}: vorhandenen Treiber verwenden.');continue
                 def done(code,output,rid=rid):
                     self.drivers.pop(rid,None);self.note(f'{LABELS[rid]}: Treiber beendet ({code})');self.update_buttons()
                 args=['ros2','launch','uwa_cell_control','arms.launch.py','inventory:='+str(self.inventory),
@@ -218,13 +232,11 @@ class Window(QtWidgets.QMainWindow):
             return
         if key=='rqt':
             self.auxiliary.append(self.process(['ros2','run','rqt_joint_trajectory_controller','rqt_joint_trajectory_controller'],tag='Gelenksteuerung'));return
-        if not all(rid in self.drivers for rid in ids):
-            self.note('Diese Aktion benötigt eigene, über diese GUI gestartete Treiber für die Armauswahl.');return
         self.operation(key)
 
     def stop_all(self):
-        ids=list(self.drivers)
-        if not ids:self.note('Keine über diese GUI gestarteten Arme zu stoppen.');return
+        ids=sorted(set(self.drivers)|set(self.selected()))
+        if not ids:return
         for key,process in list(self.jobs.items()):
             stop_owned_process(process)
         self.jobs={}
@@ -244,15 +256,6 @@ class Window(QtWidgets.QMainWindow):
     def closeEvent(self,event):
         self.closing=True;self.timer.stop()
         for p in list(self.jobs.values()):stop_owned_process(p)
-        if self.drivers and not self.mock:
-            # Explicitly stop programs/controllers before removing owned drivers.
-            # Only this GUI's arm set is affected. No automatic power-off.
-            try:
-                answer=subprocess.run(['ros2','run','match_ur_hardware','ur_operation',
-                    '--inventory',str(self.inventory),'--arms',','.join(self.drivers),
-                    '--mode','hardware','stop'],capture_output=True,text=True,timeout=25)
-                self.note('Schließen: '+answer.stdout[-2000:])
-            except Exception as error:self.note(f'Stopp beim Schließen nicht bestätigt: {error}')
         for p in list(self.drivers.values())+self.auxiliary:stop_owned_process(p)
         event.accept()
 
