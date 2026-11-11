@@ -169,11 +169,18 @@ getestet; ein Kaltstart/echtes Bremsenlösen aus POWER_OFF ist damit nicht beleg
 Keine Fahrziele gesendet. Einzelne500Hz-Overrun-Warnungen sind im Log sichtbar;
 der erfolgreiche Verbindungstest ist keine Bewegungs-/Echtzeitfreigabe.
 
-Programmverbindung noch offen: letzter Lesestand Local/STOPPED ros.urp.
-Am linken Pendant External-Control-Host192.168.8.209 undPort52002 einstellen,
-Remote Control wählen. Danach **Start loaded UR program** und den tatsächlichen
-`robot_program_running`-Link prüfen. Remote-Umschaltung erfolgt am Pendant.
+Programmverbindung anschließend erfolgreich geprüft: Nutzer bestätigt am
+linken Pendant External-Control-Host192.168.8.209,Port52002 undRemote Control.
+Danach bereitsPLAYING ros.urp; deshalb vom PC kein Neustart gesendet.
+Der Treiber bestätigt Programmübertragung/Reverse-Verbindung und
+`robot_program_running=true`. Für diesen gelatchten Status reliable/transient_local
+verwenden. In sechs Sekunden2430 Gelenksamples/492,55Hz, gemeldete
+Geschwindigkeiten0rad/s, maximale Positionsstreuung0,000104rad. Alle Motion-
+Controller inaktiv. GUI zeigt ROS available / PLAYING ros.urp / Remote Yes.
+Dies bestätigt die Programm-/ROS-Verbindung; Fahrziele wurden nicht gesendet.
+Für spätere Starts aus STOPPED steht **Start loaded UR program** bereit;
+Remote-Umschaltung erfolgt am Pendant.
 
 Nachweise: `setup/logs/uwa-left-rear-driver/report.json`, `joint-angles.png`,
-`prepare.png`; GUI-/Treiberlogs in der dort genannten Sitzung. Werkskinematik-
+`prepare.png`, `external-control-result.json`, `gui-status-confirmed.json`; GUI-/Treiberlogs in der dort genannten Sitzung. Werkskinematik-
 Auslesen: `setup/logs/uwa-left-rear-factory-kinematics.log`.

@@ -26,6 +26,27 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 - **Explizit seit 2026-11-09:** Wichtige Ziele, Anforderungen, Entscheidungen und
   Vorlieben parallel in AGENTS-/Handover-Dateien festhalten.
 
+## Mobiles A4-ChArUco-Board für externe OAK,2026-11-11
+
+- Nutzer besitzt einen am UR montierbaren A4-Holzträger und möchte Papier flach
+  aufkleben; Muster soll die nutzbare A4-Fläche weitgehend ausfüllen.
+- Eigene einseitige Vektorvorlage `output/pdf/uwa_mobile_charuco_A4_1to1.pdf`:
+  A4 quer297×210mm, Muster266×190mm,7×5 Felder38mm, Marker28mm,
+  DICT_4X4_100 IDs75–91, weiße Ränder15,5mm seitlich/10mm oben und unten.
+  Kontrollstrecke100mm. Tischboards40mm/IDs0–16 und50–66 bleiben unverändert.
+- Definition `uwa_cell_description/config/mobile_charuco_a4.yaml`, Generator
+  `scripts/print_mobile_charuco.py`, Bedienung `docs/mobile_charuco_a4.md`.
+  Isolierte Druckumgebung `.venvs/charuco-print`, keine ROS-/Hardwareänderung.
+- Prüfung am tatsächlichen300-dpi-PDF-Render:17/17 Marker,24/24 Ecken,
+  maximale metrische Eckabweichung0,082mm. PDF-Geometrie38mm-Felder,
+  100mm-Strecke, A4/1Seite und Vektorinhalt geprüft, abschließende Sichtprüfung
+  bestanden. Report `docs/mobile_charuco_a4_print_validation_2026-11-11.json`.
+- Physischer Ausdruck noch nicht nachgemessen.100%/Tatsächliche Größe drucken,
+  Seitenanpassung aus;100mm-Strecke und38mm-Feld nachmessen. Mattes Papier
+  vollflächig faltenfrei kleben, weißen Rand erhalten, Halter außerhalb Muster.
+  Bewegliches Board noch nicht in Detektoren aktiviert; eigene Definition
+  explizit verwenden. Werkzeug-Board-Transformation unbekannt/nicht kalibriert.
+
 ## Left rear: GUI-/ROS-Treiberstart geprüft,2026-11-11
 
 - Nutzer beauftragt Aufnahme in GUI und echten Treiber-/Starttest. Individuelle
@@ -41,15 +62,25 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   maximale Positionsstreuung0,000102rad. Fünf Broadcaster aktiv, vier Motion-
   Controller inaktiv, keine Fahrziele. Prepare bei bereits RUNNING/NORMAL ist
   kein Nachweis eines Kaltstarts ausPOWER_OFF oder echten Bremsenlösens.
-- Link-/Programmstart noch offen: UR meldet Local/STOPPED ros.urp. Nutzer um
-  Pendantkonfiguration External-Control-Host192.168.8.209/Port52002 undRemote
-  gebeten. Nicht versucht, diese native Einstellung vom PC zu umgehen.
+- Nach Nutzerbestätigung Host192.168.8.209/Port52002 undRemote: UR bereits
+  PLAYING ros.urp/Remote=true vor PC-Prüfung. Kein Programmneustart gesendet.
+  Treiberlog bestätigt Programmanfrage/-übertragung und Reverse-Verbindung.
+  External-Control-Link18:23AWST per reliable/transient_local gelatchtem
+  robot_program_running=true bestätigt, nativer SafetyMode1/NORMAL.2430
+  Gelenksamples bei492,55Hz, alle gemeldeten Geschwindigkeiten0rad/s,
+  Positionsstreuung0,000104rad. Alle vier Bewegungscontroller weiter inaktiv.
+  Programm-/ROS-Verbindung damit geprüft, keine Bewegungserprobung behauptet.
+  Erster Diagnoseempfang mit volatile-Sensor-QoS lieferte keinen gelatchten
+  Linkwert; korrigierter Empfänger mit passender QoS liefert den Status.
 - Gelegentliche500Hz-Overrun-Warnungen beobachtet; kein Echtzeit-/Fahrnachweis
   aus bloßem Gelenkempfang. Report/Screenshots unter setup/logs/uwa-left-rear-driver/,
   Sitzung20261111_181624_259914_22b7a96c; Werkskinematiklog
   setup/logs/uwa-left-rear-factory-kinematics.log. [Bedienung](docs/ur_control_gui.md).
-- Arbeitsstatus work/left-rear-driver.md: GUI/Treiber bereit, Programmtest wartet
-  auf Pendantkonfiguration. Andere Front-Kalibrierung/Ergebnisse erhalten.
+- Arbeitsstatus work/left-rear-driver.md abgeschlossen: GUI/Treiber-/Prepare-/
+  External-Control-Verbindungstest erfolgreich. Nachweise external-control-result.json
+  undgui-status-confirmed.json unter setup/logs/uwa-left-rear-driver/.
+  Neues linkes Besitzerfenster/Treiber offen lassen; rechte Treiber unverändert.
+  Keine Trajektorien-/Jog-/Kalibrierfahrt ausgeführt. Andere Front-Ergebnisse erhalten.
 
 ## Hinterer linker UR erreichbar,2026-11-11
 

@@ -425,6 +425,14 @@ Mount the result flat on a rigid backing. The optional generator is
 `python3 scripts/print_charuco.py` after sourcing `scripts/env.bash`; it additionally
 requires `python3-reportlab` and reads the board settings directly from the layout.
 
+For the separate **robot-mounted A4 wooden board**, use the single-page
+[mobile A4 PDF](output/pdf/uwa_mobile_charuco_A4_1to1.pdf): landscape,
+266 ×190 mm pattern,7 ×5 squares of **38 mm**,28 mm markers, IDs75–91.
+This is a different target from the40 mm table boards. Print at100% / Actual
+Size and measure its100 mm reference bar before mounting. Its own
+[definition and printing guide](docs/mobile_charuco_a4.md) preserve the target
+geometry for the later external OAK calibration; mounting is not yet calibrated.
+
 ```bash
 source ~/UWA_ws/src/multi_arm_manipulation_UWA/scripts/env.bash
 ros2 run uwa_cell_gazebo charuco_check \

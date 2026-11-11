@@ -71,6 +71,11 @@
   beweist weder fehlende Verdeckung noch kalibrierte Genauigkeit. Das bisher
   nur visuelle Stativ ist kein Hindernis in der MoveIt-PlanningScene.
 - ChArUco-Boards zentral je Tisch und Kameras initial darauf ausrichten.
+  Separates mobiles UR-Board seit2026-11-11: A4-Holzträger mit plan aufgeklebtem
+  Papier, Definition `uwa_cell_description/config/mobile_charuco_a4.yaml`.
+  7×5 Felder38mm/Marker28mm, DICT_4X4_100 IDs75–91. Nicht mit den40mm-
+  Tischboards/IDs0–16 bzw.50–66 verwechseln; diese bleiben unverändert.
+  Werkzeug-zu-Board-Montage ist unbekannt, Druckvorlage ist keine Kalibrierung.
   Präzisiertes Nutzerziel (2026-11-09): einen Tisch absichtlich bewegen und
   relative Tischpose/Bewegung messen und kompensieren. Boards bleiben starr
   an ihren Tischen; ihre weltfesten Posen dürfen nicht vorausgesetzt werden.
