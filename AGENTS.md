@@ -107,6 +107,10 @@
   Stellungen schätzen, nominelle Montagen ausschließlich zum Planen verwenden.
   Validierungsbilder vor Aufnahme festlegen und nie zum Fit verwenden. Ground
   Truth erst nach dem Fit getrennt vergleichen. Linkes/rechtes Tischpaar getrennt.
+  Bildzahlvergleiche innerhalb derselben physischen Kamera bei konstantem
+  Optikprofil und gleichen, vom Fit ausgeschlossenen Prüfbildern durchführen.
+  Gleicher Kameratyp an verschiedenen Armen ist kein Nachweis gleicher
+  individueller Intrinsics oder Montage; Arm-/Kamera-/Bildzahleffekte trennen.
 - Genehmigte Bedienung: eigene Qt-GUI für die Kalibrierung mit Vorbereitung,
   Start, Pause/Fortsetzen, jederzeit erreichbarem Stopp und explizitem Übernehmen.
   rqt bleibt die manuelle Zellsteuerung. Seit dem Folgeauftrag vom 2026-11-09

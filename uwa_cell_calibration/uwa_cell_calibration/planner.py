@@ -43,7 +43,8 @@ def timed_path(model, rid, start, target, velocity=.10, acceleration=.20, durati
     return points
 
 
-def generate_plan(model, layout, start, matrices, ids, count, progress=lambda value: None):
+def generate_plan(model, layout, start, matrices, ids, count, progress=lambda value: None, *, view_design='standard'):
+    if view_design not in ('standard','wide'):raise ValueError('Unknown acquisition view design')
     if not model.check(start)[0]:
         model.check(start, True)
         raise ValueError('Current full-cell state is in collision; see MoveIt contact log')
@@ -68,28 +69,37 @@ def generate_plan(model, layout, start, matrices, ids, count, progress=lambda va
         bounds = np.array([model.bounds[j] for j in names]).T
         current = np.array([start[j] for j in names])
         accepted, rejected = [], 0
-        proposals = qmc.Halton(4, scramble=True, seed=64).random(count*20)
+        wide=view_design=='wide'
+        proposals = qmc.Halton(6 if wide else 4, scramble=True, seed=64).random(count*30 if wide else count*20)
         desired = count+max(8,int(np.ceil(count*.2)))
-        for index, (a,b,candidate_radius,roll) in enumerate(proposals):
-            polar, azimuth = np.radians(18)*np.sqrt(a), 2*np.pi*b
+        for index, proposal in enumerate(proposals):
+            a,b,candidate_radius,roll=proposal[:4]
+            polar, azimuth = np.radians(30 if wide else 18)*np.sqrt(a), 2*np.pi*b
             ray = np.cos(polar)*direction+np.sin(polar)*(np.cos(azimuth)*tangent+np.sin(azimuth)*second)
-            eye = centre[:3]+radius*(.9+.2*candidate_radius)*ray
+            eye = centre[:3]+radius*((.8+.4*candidate_radius) if wide else (.9+.2*candidate_radius))*ray
             z = centre[:3]-eye
             z /= np.linalg.norm(z)
             x = camera[:3,0]-z*np.dot(camera[:3,0],z)
             x /= np.linalg.norm(x)
             target = np.eye(4)
-            target[:3,:3] = np.column_stack([x,np.cross(z,x),z]) @ Rotation.from_euler('z', (roll-.5)*np.radians(40)).as_matrix()
+            target[:3,:3] = np.column_stack([x,np.cross(z,x),z]) @ Rotation.from_euler('z', (roll-.5)*np.radians(50 if wide else 40)).as_matrix()
             target[:3,3] = eye
+            k = np.asarray(matrices[rid]['k'])
+            width,height=matrices[rid]['width'],matrices[rid]['height']
+            if wide:
+                # Shift the projected board across the image instead of always
+                # looking exactly at its centre. K is a planning approximation.
+                dx=(2*proposal[4]-1)*.23*width/k[0,0]
+                dy=(2*proposal[5]-1)*.20*height/k[1,1]
+                tilt=Rotation.from_rotvec([dy,-dx,0.]).as_matrix()
+                target[:3,:3]=target[:3,:3]@tilt
             bw,bh,margin = layout['charuco']['squares_x']*layout['charuco']['square_length'], layout['charuco']['squares_y']*layout['charuco']['square_length'],layout['charuco']['margin']
             board_camera = np.linalg.inv(target) @ world_board
             corners = np.array([[-margin,-margin,0],[bw+margin,-margin,0],
                                 [bw+margin,bh+margin,0],[-margin,bh+margin,0]])
             points = corners @ board_camera[:3,:3].T+board_camera[:3,3]
-            k = np.asarray(matrices[rid]['k'])
             projection = points @ k.T
             pixels = projection[:,:2]/projection[:,2:]
-            width,height=matrices[rid]['width'],matrices[rid]['height']
             if np.any(points[:,2] <= .1) or not np.all((pixels > [12,12]) & (pixels < [width-12,height-12])):
                 rejected += 1
                 continue
@@ -108,6 +118,7 @@ def generate_plan(model, layout, start, matrices, ids, count, progress=lambda va
                 rejected += 1
                 continue
             accepted.append({'candidate':index,'joints':fit.x.tolist(),'T_world_camera_expected':target.tolist(),
+                             'projected_board_corner_bounds_px':{'min':pixels.min(axis=0).tolist(),'max':pixels.max(axis=0).tolist()},
                              'role':'validation' if len(accepted)%5==4 else 'fit', 'path':path})
             current=fit.x
             progress({'robot_id':rid,'accepted':len(accepted),'target':desired,'rejected':rejected})

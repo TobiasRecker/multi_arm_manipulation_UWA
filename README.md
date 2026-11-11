@@ -59,6 +59,9 @@ The separate `handeye_hardware` tool prepares real camera views, captures
 stationary ChArUco observations, and fits intrinsics before the existing
 hand-eye solver. See [hardware camera calibration](docs/hardware_handeye.md).
 Its results are not automatically activated; the Gazebo backend remains separate.
+The first real rear-right series completed on2026-11-11:41 views,33 fitting and8
+held out; intrinsics and hand-eye validation passed. Results and remaining
+accuracy limits are recorded in the linked hardware calibration guide.
 
 The interface, tooltips and application-menu entry are in English. Click
 feedback uses a persistent high-contrast RECEIVED/RUNNING/DONE/FAILED panel,
@@ -101,11 +104,17 @@ brightness tests](docs/wrist_resolution_exposure_2026-11-10.md) record the limit
 no full-resolution photo obtained yet; the user's manual focus was restored.
 The [subsequent UCC4.1.0 archive comparison](docs/wrist_ucc4_analysis_2026-11-10.md)
 confirms an internal HD capture path, but no verified simple full-resolution
-download or reason to upgrade yet. The supplied archive was not installed.
+download or reason to upgrade yet. The archive was not installed during that analysis on2026-11-10.
 The later [real HD-module probe](docs/wrist_hd_probe_2026-11-10.md) accepted module
 creation but rejected processing; no native HD image was obtained. User settings
 were restored and the camera window reopened. The experimental probe is not a
 working full-resolution capture command.
+On2026-11-11 the user reported a camera URCap update followed by “Vision system
+down”. The [USB backup and recovery notes](docs/wrist_usb_recovery_2026-11-11.md)
+record the verified original stick image and matching4.1.0/VSL2.0.0 files now
+written to the USB root. All303 package files passed SHA256 readback after
+remounting; the stick was safely unmounted. Pendant installation/start and
+camera operation still need verification.
 The automatic calibration backend below remains simulation-only.
 
 The workspace is expected at `~/UWA_ws`; set `UWA_WS` before sourcing the helper

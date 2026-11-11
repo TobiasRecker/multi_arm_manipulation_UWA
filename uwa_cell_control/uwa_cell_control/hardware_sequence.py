@@ -1,5 +1,6 @@
 """Reviewed single-arm real acquisition; simulation backend remains untouched."""
 from copy import deepcopy
+import hashlib
 import json
 from pathlib import Path
 import time
@@ -12,21 +13,30 @@ from uwa_cell_calibration.storage import atomic_json
 from .parking import digest,save_plan
 
 
-def acquisition_plan(model,layout,profiles,rid,start,sources,missing,count,directory,layout_file,progress=lambda p:None):
-    if not 30<=count<=40:raise ValueError('Hardware acquisition supports30–40 new poses')
+def acquisition_plan(model,layout,profiles,rid,start,sources,missing,count,directory,layout_file,progress=lambda p:None,*,view_design='standard'):
+    if not 30<=count<=79:raise ValueError('Hardware acquisition supports30–79 new poses (31–80 including initial view)')
     if missing:raise ValueError('Observe or explicitly declare all stationary arm poses before planning')
     camera=layout['robots'][rid]['tools'];width,height=camera['camera_width'],camera['camera_height']
     focal=width/(2*np.tan(camera['camera_horizontal_fov']/2))
     nominal={'k':[[focal,0,width/2],[0,focal,height/2],[0,0,1]],'width':width,'height':height}
     # This K bounds proposed views only. Real calibration fitting never receives it.
-    proposed=generate_plan(model,layout,start,{rid:nominal},[rid],count,progress)[rid]
+    proposed=generate_plan(model,layout,start,{rid:nominal},[rid],count,progress,view_design=view_design)[rid]
+    nominal['view_design']=view_design
+    poses=[dict(pose,sample_id=f'sample_{index+1:03d}') for index,pose in enumerate(proposed['poses'])]
+    return assemble_plan(model,layout,profiles,rid,start,sources,missing,poses,directory,layout_file,nominal)
+
+
+def assemble_plan(model,layout,profiles,rid,start,sources,missing,poses,directory,layout_file,nominal,*,resume=None):
+    if not poses:raise ValueError('No outstanding acquisition views')
     state=dict(start);segments=[];combined=[];tool_path=[];offset=0.
     from uwa_cell_gazebo.charuco_views import Chain
     tool=Chain(model.description,'world',rid+'_tool0')
-    for index,pose in enumerate(proposed['poses']):
+    for pose in poses:
         path=timed_path(model,rid,state,pose['joints'],velocity=.05,acceleration=.10)
-        segments.append({'sample_id':f'sample_{index+1:03d}','role':pose['role'],
+        segments.append({'sample_id':pose['sample_id'],'role':pose['role'],
                          'target':pose['joints'],'points':path})
+        if 'projected_board_corner_bounds_px' in pose:
+            segments[-1]['projected_board_corner_bounds_px']=pose['projected_board_corner_bounds_px']
         for point in path:
             absolute=dict(point,time=offset+point['time'])
             if combined and absolute['time']<=combined[-1]['time']:continue
@@ -40,7 +50,8 @@ def acquisition_plan(model,layout,profiles,rid,start,sources,missing,count,direc
           'segments':segments,'layout':layout,'layout_file':str(Path(layout_file).resolve()),
           'inventory_fingerprint':digest(profiles),'description':model.description,
           'planning_only_camera_model':dict(nominal,source='nominal FOV; never passed to intrinsic/hand-eye fit'),
-          'new_observations':count,'automatic_return':False,'duration_motion_s':sum(s['points'][-1]['time'] for s in segments)}
+          'new_observations':len(segments),'automatic_return':False,'duration_motion_s':sum(s['points'][-1]['time'] for s in segments)}
+    if resume is not None:plan['resume']=resume
     plan['fingerprint']=digest(plan)
     directory=Path(directory);atomic_json(directory/'batch.json',plan)
     preview={'purpose':'ChArUco acquisition sequence','arm':rid,'joint_names':joint_names(rid),
@@ -52,6 +63,51 @@ def acquisition_plan(model,layout,profiles,rid,start,sources,missing,count,direc
     preview['executable']=False;preview.pop('fingerprint');preview['fingerprint']=digest(preview)
     atomic_json(directory/'plan.json',preview)  # Only batch-aware execution may capture/run it.
     return plan
+
+
+def remaining_observations(plan,session):
+    """Reuse only a verified completed prefix; never skip a failed/holey record."""
+    session=Path(session).resolve();completed=[];remaining=[];hashes={};gap=False
+    for segment in plan['segments']:
+        path=session/'records'/(segment['sample_id']+'.json')
+        if not path.exists():
+            gap=True;remaining.append({'sample_id':segment['sample_id'],
+                'role':segment['role'],'joints':segment['target']});continue
+        if gap:raise ValueError('Non-contiguous observations; inspect the session before resuming')
+        record=json.loads(path.read_text())
+        if (record.get('accepted') is not True or record.get('robot_id')!=plan['arm'] or
+                record.get('sample_id')!=segment['sample_id'] or record.get('role')!=segment['role']):
+            raise ValueError('Existing observation is rejected or does not match the planned identity/role')
+        q=np.asarray(record.get('positions',[]),float)
+        if q.shape!=(6,) or not np.isfinite(q).all() or max(abs(q-segment['target']))>.03:
+            raise ValueError('Existing observation joint pose differs from the completed target')
+        image=Path(record['image'])
+        if image.name!=str(image):raise ValueError('Observation image must be local to records')
+        for item in (path,session/'records'/image):
+            hashes[str(item.relative_to(session))]=hashlib.sha256(item.read_bytes()).hexdigest()
+        completed.append(segment['sample_id'])
+    return remaining,{'session':str(session),'parent_fingerprint':plan['fingerprint'],
+                      'completed_samples':completed,'record_sha256':hashes,
+                      'replanned_from_live_state':True}
+
+
+def validate_session_model(metadata,rid,profile,layout):
+    kinematics=profile.get('kinematics_file')
+    actual=hashlib.sha256(Path(kinematics).read_bytes()).hexdigest() if kinematics else None
+    if (metadata.get('mode')!='hardware' or metadata.get('robot_id')!=rid or
+            metadata.get('camera_ip')!=profile['ip'] or metadata.get('layout_fingerprint')!=digest(layout) or
+            metadata.get('kinematics_sha256')!=actual):
+        raise ValueError('Session robot/camera/model or factory kinematics changed')
+
+
+def validate_resume_records(plan,session):
+    if 'resume' not in plan:return
+    session=Path(session).resolve();resume=plan['resume']
+    if str(session)!=resume['session']:raise ValueError('Resume session changed')
+    for relative,expected in resume['record_sha256'].items():
+        path=(session/relative).resolve()
+        if session not in path.parents or hashlib.sha256(path.read_bytes()).hexdigest()!=expected:
+            raise ValueError('Completed observation changed since resume planning')
 
 
 def validate_batch(plan,profiles,current_layout):
@@ -82,7 +138,8 @@ def acquire(args):
     try:
         model,layout=make_model(load_layout(plan['layout_file']),profiles,directory/'acquisition_model')
         validate_batch(plan,profiles,layout)
-        if metadata['layout_fingerprint']!=digest(layout):raise ValueError('Session model changed')
+        validate_resume_records(plan,directory)
+        validate_session_model(metadata,rid,profiles[rid],layout)
         current=observer.sample()
         for r,s in plan['state_sources'].items():
             if s=='live_joint_states':

@@ -1,45 +1,46 @@
 # Reale erste Aufnahmepose und Hand-Auge-Messreihe
 
-- Status: **pausiert auf ausdrücklichen Nutzerwunsch** (2026-11-10;
-  Fortsetzung voraussichtlich2026-11-11 nach seiner Sicherheitsebenen-Anpassung).
-- Datum: 2026-11-10, Australia/Perth.
-- Nutzer möchte nach erfolgreichem Front-Parken right_rear in erste Bildpose
-  bewegen und anschließend die entwickelte Hand-Auge-Routine real erproben.
-- Zunächst echte Zustände/Bild und vorhandene Intrinsics/Frische des HTTP-
-  Bildpfads prüfen. Rechte Front-Parkpose erhalten, linke Arme laut Nutzer
-  nominell Home, kein anderer Arm wird bewegt.
-- Bereiche: getrennte Hardware-Aufnahme/Planung in uwa_cell_control mit
-  Wiederverwendung von MoveIt-Modell, MATCH-Ausführung und bildbasiertem Solver.
-  Bestehenden Simulationsbackend nicht auf Domain66 umbiegen. Neue Profile/
-  echte Messdaten nicht als Simulationsergebnisse aktivieren.
-- Vorläufige optische Montagen nur für Design/Planung verwenden. Keine
-  nominellen Simulations-Intrinsics als reale Kalibrierung behandeln.
-- Dienste: zunächst keine Neustarts, kein Power/Brake/Play. Konkrete Pose/Weg
-  vorbereiten und prüfen; vorhandene Hardwaretreiber/GUIs erhalten.
-- Nutzer bestätigt A3/1:1/100mm, Board etwa wie Modell; keine bekannten Intrinsics.
-  URCap-Herstellerkalibrierung und eigene ChArUco-Route erklärt. UR-Werkskinematik
-  beider rechter Arme rein lesend geholt, Inventar darauf referenziert.
-- Erste Annäherung nach Freigabe unterbrochen: Shell lief nach negativer Link-
-  Prüfung weiter, standardmäßiger rclpy-SIGINT machte Cleanup-Kontext ungültig.
-  Rear ausdrücklich deaktiviert; spätere Zustände zeigen fast vollständigen
-  freigegebenen Weg. Ruhige Pose bei0,0331rad Restfehler übernommen, FCL-Check gut.
-  Signalfehler korrigiert und echtes ros2-run-Prozessgruppen-SIGINT im Mock
-  bestanden (Cancel/Deaktivieren/Nachdrift0). Kein Power/Brake/Play durch Agenten.
-- Erste echte Beobachtung gespeichert:24/24 Ecken, Fokus404/Manual erhalten,
-  drei aktualisierte Payloads, echte Gelenke/Flanschpose.31 gezielte Tests gut.
-- Nach separater RViz-Freigabe läuft nun40-Ansichten-Folge nur right_rear,
-  native Verbindungs-/Telemetrie-/Kollisions-/Bild-/Fokusprüfungen je Schritt.
-  Datensatz unter setup/calibration/hardware_handeye/right_rear_20261110/;
-  Logs uwa-handeye-hardware-run.log. Ergebnisse/Handover nach Lauf ergänzen.
-- Lauf unterbrochen bei Bewegung zu sample_009 durch nativen SchutzstoppC400A0.
-  sample_000 bis sample_008 erhalten:9 akzeptierte Bilder, alle24/24 Ecken,
-  davon8 Fit/1 Validierung. Kein fertiges Intrinsics-/Hand-Auge-Ergebnis.
-  Native Action wurde gecancelt und Rear-Bewegungscontroller deaktiviert;
-  kein automatisches Quittieren, kein Rückweg, keine Sicherheitsparameter geändert.
-- Nutzer bestätigt Ursache: konfigurierte Sicherheitsebene im UR, die er
-  aktuell nicht deaktivieren kann; er will sie morgen verschieben. Ausdrücklich
-  heute nicht weiterfahren. Stand unter paused_state.json im Datensatz sichern.
-- Morgen nach neuer Nutzeranweisung aktuelle Zustände/Fokus/Boardlage und
-  native Ebenenkonfiguration prüfen, Restwege neu planen. Alten Batch nicht
-  direkt erneut starten: bestehende Bilder würden absichtlich abgewiesen;
-  Fortsetzung mit frischer Sitzung oder explizit geprüfter Wiederaufnahme.
+- Status: **abgeschlossen – erste reale Reihe und Auswertung erfolgreich**.
+- Abschluss:2026-11-11,15:43 Australia/Perth. Agent: Hauptaufgabe.
+- Auftrag: nach erfolgreichem Front-Parken ausschließlich right_rear in erste
+  Bildpose und durch die zuvor entwickelte Kalibrierreihe führen. Nutzer hat
+  Erstpose und40 weitere Ansichten freigegeben; am11.11 Fortsetzung nach seiner
+  Sicherheitsebenen-Anpassung, unveränderten Aufbau und freien Fahrraum bestätigt.
+- Andere Arme nicht kommandiert. Front während der Aufnahme als reales festes
+  Hindernis eingelesen; linke Arme laut Nutzer nominell Default Home.
+- Erster Tag: Annäherung unterbrochen bei0,0331rad Restabweichung, erreichte
+  ruhige Pose anhand echter Bilder übernommen. Shell-Fehlerfortsetzung und
+  rclpy-Signalcleanup korrigiert; tatsächlicher Mock-Prozessgruppen-SIGINT
+  bestätigt Cancel/Deaktivieren/Nachdrift0. Danach9 gute Bilder; native
+  Sicherheitsebene/C400 bei Weg zu009, automatische Folge abgebrochen.
+- Zweiter Tag: Nutzer behebt Sicherheitsebene. Nach Neustart Kamera/GUI/Treiber
+  neu vorbereitet. Front zunächst Netzwerkproblem, später gleicheIP wieder da.
+  Beide rechten Werkskinematiken aus Inventar und aktuelle reale Winkel verwendet.
+- `resume-series` ergänzt: gültiges abgeschlossenes Präfix und Rollen erhalten,
+ 32 fehlende Originalziele aus aktuellen Zuständen neu planen/prüfen; vorhandene
+  Bilder nicht überschreiben und per Hash binden.13 gezielte Tests bestanden.
+- Resume-Fingerprint627571fd735af233510cdbc364a8d990fa46fdee6c874a3f5996af5889429f2b.
+  Originale Ziele unverändert, gesamte Neuprüfung gut. Alle32 Ansichten ohne
+  erneuten Sicherheitsstopp abgeschlossen, einschließlich bisheriger Stoppstelle009.
+- Gesamtergebnis:41 unterschiedliche akzeptierte Bilder mit je24 Ecken,
+ 33 Fit/8 vorab festgelegte Prüfbilder, keine Ausreißer. Fokus404Manual,
+ 640×480,60000µs/Gain16. Stationäre aktualisierte HTTP-Bilder, ohne
+  Sensor-Belichtungszeitstempel; nominelles K nur zur Planung, nicht zum Fit.
+- Intrinsics PASS (Fit0,244px, Median Prüfung0,222px). Hand-Auge PASS:
+  Median Prüf-Reprojektion0,466px, Boardpositions-RMS2,660mm, Rotation0,246°.
+  Interne Validierung/Wiederholbarkeit, keine absolute Genauigkeitszusage;
+  Bildränder außerhalb beobachteter Ecken noch nicht validiert.
+- Rohdaten: setup/calibration/hardware_handeye/right_rear_20261110/.
+  Versionierte Kopie samt Hashmanifest/Prüfgrafik:
+  setup/calibration/hardware_handeye/right_rear_20261111/result_v1/.
+  Ergebnisse aktiviert:false, keine TF-/Hardware-/Simulationsprofile geändert.
+- Endzustand: Rear-scaled-JTC aktiv hält letzte Aufnahmepose, Front-Bewegungs-
+  controller alle inaktiv. Zielabweichung Rear0,0000343rad; Front-Endvergleich
+  zum Start0,0000472rad. Keine Rückfahrt oder weiteren Ziele.
+- Eigene Domain68-Vorschau sauber geschlossen; UWA-Arms-GUI und beide rechten
+  Treiber bleiben offen. completion_state.json gespeichert.
+- Bereiche: uwa_cell_control Hardware-Aufnahme/Planung, MATCH-Ausführung,
+  bildbasierter Solver unverändert wiederverwendet, Dokumentation/README.
+  Simulationsbackend weiterhin getrennt. Logs setup/logs/uwa-handeye-resume-*.
+- Dauerhafte Ergebnisse, Grenzen und nächster Einstieg stehen in HANDOVER.md
+  sowie docs/hardware_handeye.md. Weitere Profilübernahme/Arme/OAK bleiben offen.

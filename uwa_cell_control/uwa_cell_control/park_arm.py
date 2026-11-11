@@ -23,16 +23,20 @@ class JointObserver:
         from rclpy.qos import QoSProfile,DurabilityPolicy,ReliabilityPolicy
         from rclpy.qos import qos_profile_sensor_data
         self.node,self.profiles,self.mode=node,profiles,mode
-        self.received={};self.program_running={};self.subscriptions=[]
+        self.received={};self.program_running={};self.safety_modes={};self.subscriptions=[]
         for rid in ids:
             self.subscriptions.append(node.create_subscription(JointState,
                 profiles[rid]['namespace']+'/joint_states',
                 lambda msg,rid=rid:self.receive(rid,msg),qos_profile_sensor_data))
             if mode=='hardware':
+                from ur_dashboard_msgs.msg import SafetyMode
                 qos=QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL,reliability=ReliabilityPolicy.RELIABLE)
                 self.subscriptions.append(node.create_subscription(Bool,
                     profiles[rid]['namespace']+'/io_and_status_controller/robot_program_running',
                     lambda msg,rid=rid:self.program_running.update({rid:msg.data}),qos))
+                self.subscriptions.append(node.create_subscription(SafetyMode,
+                    profiles[rid]['namespace']+'/io_and_status_controller/safety_mode',
+                    lambda msg,rid=rid:self.safety_modes.update({rid:msg.mode}),qos))
 
     def receive(self,rid,msg):
         names=self.profiles[rid]['joint_names']
@@ -55,6 +59,12 @@ class JointObserver:
 
     def guard(self,plan,*,require_program_link=False):
         moving=plan['arm'];now=time.monotonic()
+        # A native Protective Stop may leave robot_program_running=true while
+        # PolyScope pauses. Cancel our pending action instead of waiting for its
+        # duration timeout or allowing it to continue after operator recovery.
+        safety=getattr(self,'safety_modes',{}).get(moving)
+        if self.mode=='hardware' and safety is not None and safety not in (1,2):
+            raise RuntimeError(f'{moving}: native UR safety stop/mode {safety}; cancel trajectory')
         if require_program_link and self.mode=='hardware' and self.program_running.get(moving) is not True:
             raise RuntimeError(moving+': native External Control link not confirmed; no calibration trajectory')
         for rid in self.profiles:

@@ -1,6 +1,6 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
-Stand der Zusammenfassung: **2026-11-10**, Zeitzone Australia/Perth.
+Stand der Zusammenfassung: **2026-11-11**, Zeitzone Australia/Perth.
 Diese Datei fasst die bisherigen Gespräche und die überprüfte Implementierung
 zusammen. Sie soll bei weiterer Arbeit mitgepflegt werden, nicht als unveränderlicher
 Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [README.md](README.md).
@@ -26,9 +26,305 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 - **Explizit seit 2026-11-09:** Wichtige Ziele, Anforderungen, Entscheidungen und
   Vorlieben parallel in AGENTS-/Handover-Dateien festhalten.
 
-## Pausenstand: reale Hand-Auge-Reihe, 2026-11-10
+## Kamera-USB nach Nutzerupdate sichern,2026-11-11
 
-- **Auf ausdrücklichen Nutzerwunsch pausiert.** Bestätigte Ursache des Stopps:
+- Nutzer aktualisiert Kamera-URCap selbst, meldet anschließend „Vision system
+  down … files extracted correctly“ und stellt den Robotiq-Stick am PC bereit.
+  Neues Ziel: vollständiges Image plus Dateisicherung, danach passendes Paket
+  direkt ins USB-Wurzelverzeichnis. Nutzer bestätigt Zielversion **4.1.0**.
+- Kingston16GB,Seriennummer E0D55EA574E5F3A1E91F0FDB,FAT32/KINGSTON/289C-1ADC:
+  alter Stand UCC1.11.1.10337/VSL1.0.23. Vollständiger Gerätelesevorgang erfolgreich,
+ 15472047104Bytes; unabhängige SHA256-Gegenprüfung **identisch**, Hash6319d351…83ab746.
+  Zusätzlich310 Dateien/1263252963Bytes unter files/ gesichert und manifestiert.
+  USB-Dateiaustausch nach Zielversionsbestätigung4.1.0 erfolgreich: neuer
+  vision_system-Ordner/VSL2.0.0 und Camera-URCap4.1.0.164735 direkt im Root.
+  Alle303 Dateien nach Aushängen/RO-Neumount SHA256-identisch zum Paket, keine
+  alten Zusatzdateien im vision_system. Sieben übrige Originaldateien unverändert.
+  Um16:42AWST ausgehängt, bereit zum Abziehen. usb-update-report.json als Nachweis.
+  Vision-Server-/Kamerastart am Pendant bleibt anschließend vom Nutzer zu prüfen. Sicherung setup/backups/robotiq-usb/20261111-before-ucc-update/.
+- Separat geprüftes ZIP UCC4.1.0 enthält303 Dateien undVSL2.0.0; Startskript
+  verlangt diesen VSL-Stand. Versionsmischung ist plausible Fehlerursache,
+  aktuelle Controllerinstallation nicht selbst geprüft. Dateien nicht aus
+  verschiedenen Versionen mischen. Alte eingebettete SHA1-Tabelle passt schon
+  nicht vollständig zum neuen Originalpaket; maßgeblich ist der ZIP-Abgleich.
+- Arbeitsstatus work/wrist-usb-recovery.md; [Anleitung/Prüfbefund](docs/wrist_usb_recovery_2026-11-11.md).
+  Andere Front-/Bahnplanungsarbeiten erhalten; keine Roboterfahrt, ROS-/
+  Controllerneustarts, SSH-Anmeldung oder Hersteller-Installer am PC.
+
+## Akzeptierter Front-Vergleich wird vorbereitet,2026-11-11
+
+- **Letzte zwei Ziele erneut freigegebenen Umfangs gestartet:** Nach vom Nutzer
+  gelöster Kabelspannung Native NORMAL/PLAYING, Frontregler inaktiv. Tatsächliche
+  neue Gelenkstellung in after_cable_unwind_status.json.060/061 daraus neu
+  geprüft, gleiche Zielwinkel/Rollen wie Gesamtfreigabe;34,55s Bewegungszeit.
+  Beim Wiederanlauf Kamera auf424Auto zurückgesetzt, deshalb Preflight zunächst
+  korrekt abgelehnt. Vor Bewegung identisches435Manual-/Belichtungsprofil aus
+  sample_000 per Hardware-Readback dreimal wiederhergestellt, dann Check-only
+  erfolgreich. Batch60976347b1e55f2a552514e60b65ac247ef2d8630d6a4d3e4d23d11369a175e5,
+  resume_last_two/, Log uwa-front-last-two-run.log. Kein Schutzstopp durch
+  Agenten quittiert, keine Kamera-Autofokustrigger erneut gesendet.
+
+- **Native Unterbrechung bei060:** C153A5 am17:50:33Perth, Bahnabweichung an
+  Wrist3. Nutzer bestätigt gespanntes/aufgewickeltes Kabel als Ursache und
+  hat es wieder freigegeben.60 gültige Bilder=49 Fit/11 Prüfung (nicht12;
+  vorherige mündliche Zählung korrigiert),060/061 fehlen. Alte Action per
+  SIGINT abgebrochen, Frontregler explizit inaktiv bestätigt. Keine automatische
+  Quittierung. Danach Nutzerzustand wieder NORMAL/PLAYING/Linktrue, neue
+  tatsächliche Frontstellung gelesen (gegenüber Stoppstellung verändert),
+  beide letzten Originalziele werden daraus neu geprüft; keine ungesehenen
+  Ersatzziele. Auswertung60er-Stand in analysis_60_views/ aufbewahrt:
+  Intrinsics PASS, Hand-Auge FAIL nur wegen0,670° Rotations-RMS >0,5°;
+  Reprojektion0,734px/Translation1,889mm innerhalb Grenzen, aktiviert:false.
+- Behobene Ablauf-Lücke: Native Protective Stops können Programmflagtrue
+  behalten und nur PolyScope pausieren. JointObserver liest jetzt zusätzlich
+  natives SafetyMode; gemeldete Stop-Modi cancellen die eigene Action sofort,
+  NORMAL/REDUCED bleiben zulässig. Keine neuen Dashboard-/Remote-/GUI-Gates
+  oder Quittierbefehle.14 gezielte Offline-/Parktests bestanden; Abhängigkeit
+  ur_dashboard_msgs explizit deklariert. Aktuelle Frontregler inaktiv, Rear hält
+  weiter. Native Diagnose/Log unter uwa-front-protective-stop-*, Snapshot
+  protective_stop_060_state.json; Fehlerursache nicht als Sicherheitsebene ausgeben.
+
+- **Nach Kabelsicherung fortgesetzt:** Nutzer bestätigt Kabel gesichert und
+  Kamera/Board unverändert. Erste Bildantwort war noch gepuffert, danach fünf
+  frische Bilder24 Ecken. Abgelehnten Versuch043 mit allen drei Dateien plus
+  SHA256-Manifest unter rejected/sample_043_attempt_01/ archiviert.043 an exakt
+  derselben realen Pose neu aufgenommen,24 Ecken/3 Payloads/Fokus435. Keine
+  Gütegrenze gesenkt. Alle18 ursprünglichen Restziele44…61 und Rollen identisch
+  verifiziert, aus aktuellem Stand neu geprüft und gestartet. Resume-Fingerprint
+  b0308b61fc525fe78a451a01f28847106ef9d66ab20c48738fe3b3486a53bda6,
+  resume_after_cable/, Log uwa-front-calibration-resume.log. Kein neuer
+  Fahrbereich/keine neue Freigabe benötigt. Noch keine abgeschlossene Auswertung.
+
+- **Aktuell unterbrochen bei sample_043:**43 gültige Bilder sample_000…042
+  erhalten, bisher je18…24 Ecken. Bei043 nur9 Ecken, wegen dickem Kabel diagonal
+  vor Kamera/Board (Bild tatsächlich geprüft); keine zu lockeren Grenzwerte.
+  Runner stoppt, Front-Bewegungscontroller inaktiv, kein Rückweg; Rear hält
+  Parkpose. Native Front NORMAL/Linktrue, Ziel043 erreicht; Diagnosen
+  records/sample_043{,_annotated}.jpg, sample_043.json (accepted:false),
+  interrupted_043_state.json und uwa-front-calibration-run.log.
+  Nutzer um Kabelsicherung ohne Kamera-/Boardverschiebung/Armbewegung gebeten.
+  Danach gleiche Pose erneut erfassen, fehlerhaften Versuch vorher mit allen
+  Bildern/Metadaten separat archivieren statt überschreiben. Anschließend nur
+  freigegebene44…61-Ziele aus aktueller Pose rechecken/fortsetzen. Bereits
+  erteilte Gesamtfreigabe gilt für dieselben Ziele weiter; keine neue
+  generelle Freigabe verlangen. Bei verschobener Kameramontage/Board erst
+  Datensatz-Konsistenz klären, alte und neue Hand-Auge-Daten nicht blind mischen.
+
+- **Front-Reihe gestartet:** Kameradienst nach Autofokus-Reset wieder erreichbar.
+  Ohne weiteren Trigger den zuvor scharfen, tatsächlich gelesenen Fokus435
+  manuell fixiert; fünf Bilder samt ForceRefresh bestätigen435Manual und
+ 60000µsManual/Gain16, je24 Ecken. LED-Readback wie zuvor Modus1/53; keine
+  physische LED-Leistung behaupten. Original-/Diagnosezustände gesichert.
+  sample_000 akzeptiert,24 Ecken/3 unterschiedliche Payloads; keine garantierte
+  Belichtungszeit. Genau dieselben61 freigegebenen Ziele/Rollen aus aktueller
+  gemessener Pose neu gebunden und erneut komplett geprüft. Batch-Fingerprint
+ 840b1bfeb6d794120cef3c81c079f1ea0d7b0b689902b7a96bc9d3427aab82d0,
+  batch_plan/ im Front-Datensatz. run-series läuft nur Front, Log
+  setup/logs/uwa-front-calibration-run.log. Noch keine Ergebnisse behaupten.
+
+- **Front-Gesamtfreigabe erhalten und Erstpose erfolgreich erreicht.** Nutzer
+  bestätigt neue Vorschau/freien Fahrbereich sowie ganze62-Reihe nach positiver
+  Bild-/Fokusprüfung; Freigabe mit Approach-/Waypoint-Hash gespeichert.
+  Erste Front-Action SUCCEEDED/0, Endfehler0,0000318rad. Echtes Boardbild24/24
+  Ecken, Bilder first_view_before_*.jpg. Rear bleibt geparkt/unkommandiert.
+  Manuelle Belichtung60000µs/Gain16 und LED53 gesetzt. Beim anschließenden
+  Autofokus-Trigger unter Front-UCC4.1 HTTP-ConnectionReset; noch kein fester
+  Fokus bestätigt und **Messreihe deshalb noch nicht gestartet**. Rein lesende
+  Nachprüfung läuft; keine weiteren Fahrten/keine Stopps quittiert.
+
+- **Neuester Stand etwa17:02Perth:** freigegebene Rear-Parkfahrt abgeschlossen,
+  native skalierte JTC SUCCEEDED/0, Endfehler0,0000296rad. Rear hält Parkpose;
+  Front bisher keine Bewegung. execution_result.json unter parking/
+  right_rear_20261111/. Beide Native-Links nach Front-Vorbereitung bestätigt.
+- Neue Front-Erstansicht aus aktuellen rechten Stellungen geprüft,78,903s,
+  nominale Kamera Welt[0,45;-0,28;1,453]m. Erste-Pose-Fingerprint
+  ca3bf0fb4831f529b0a1642d9a5718e54d006c9cc4f29163f891e7f0b367cf77,
+  approach/plan.json und erneuter Check-only erfolgreich.
+- Erstansicht plus61 breite neue Ansichten als konkrete Gesamtvorschau geprüft
+  und auf Domain68 geöffnet. Nur reale Erstansicht ist aktuell ausführbar;
+  Folgereihe wartet auf Bild-/Fokusprüfung und gemessenen tatsächlichen Start.
+  Reviewed_waypoints-Hash f7f037f73aad94ecbdf97037d98852bca0f34b7b9f8e6f32144d74d69b5f73f0,
+  Poseziele/Fitrollen unter right_front_20261111/reviewed_sequence/batch.json,
+  Gesamtvorschau combined/plan.json. Bewegungszeit79+1216s, insgesamt etwa
+ 25–30Minuten mit Aufnahmen/Fokus. Nutzer um konkrete Front-Gesamtfreigabe
+  (alternativ nur Erstpose) gebeten, Antwort noch offen. Vor Fahrt Start erneut
+  prüfen; nach Erstpose echte Bildqualität/Fokus prüfen, keine neue globale
+  Planung mit anderen ungesehenen Zielen ohne passende Prüfung ausführen.
+
+- **16:58Perth:** Nutzer meldet Front bereit, beide rechten Encoder plausibel,
+  beide NORMAL/RUNNING/Remote/PLAYING und native Links true. Frontstart nach
+  Update innerhalb0,01rad zum geprüften Plan. Genau freigegebene Rear-Parkfahrt
+  gestartet, keine erneute Freigabe verlangt; Ausführunglog
+  setup/logs/uwa-front-rear-park-execute.log. Noch kein Erfolg behaupten.
+
+- **Neuester Stand16:46Perth:** Nutzer gibt konkret gezeigten57s-Rear-Parkweg
+  mit „passt alles“ frei. operator_approval.json samt Fingerprint gespeichert,
+  diese Freigabe gilt fort. Front-Kameradienst jetzt erreichbar,640×480,
+  individuelle Ausgangseinstellungen unter right_front_20261111/camera_original.json
+  gesichert (Fokus379Auto, BelichtungAuto; noch kein Kalibrierprofil).
+  Nach Kamera-URCap-/USB-Recovery und Neustart Front aber POWER_OFF, ros.urp
+  nicht geladen (`<unnamed>`), native Linkflagfalse und sechs ROS-Nullwerte.
+  Rear unverändert PLAYING/Linktrue. Front-Vorbereitung/ros.urp53002 vom Nutzer
+  angefragt; bis verlässliche Front-Gelenkdaten vorliegen noch keine Parkfahrt.
+  Vorher gespeicherte Parkfreigabe nicht erneut verlangen, nur Start/Pfad prüfen.
+  Parallele USB-Recovery-Dokumentation erhalten; ihr Stand ist abgeschlossen.
+  Ausgabe-only-RTDE bestätigt Front robot_mode3/POWER_OFF und ebenfalls sechs
+  Nullen; daher keine gültige gemessene Hindernisstellung. Derselbe Leser
+  meldet inzwischen tatsächliche URControl-Version **5.26.3.0** vorne rechts
+  (historisches Inventarfeld5.10.1 noch nicht geändert, damit geprüfter Plan-
+  Fingerprint nicht während dieser Parkfreigabe allein durch Metadaten kippt).
+  Bei Abschluss Inventarmetadaten nachführen/neue Pläne danach erzeugen.
+  Diagnose setup/logs/uwa-front-after-update-rtde.{json,log}.
+
+- Nutzer akzeptiert Vorschlag Rear-Parken + Front-Reihe mit50% mehr Ansichten.
+  Eigene Aufgabe work/front-hardware-calibration.md. Neue reale Wege erst
+  konkret prüfen/visualisieren; bisher **keine neue Fahrt** ausgeführt.
+- Rear-Parkplan aktuell geprüft:56,5068s,567 Kollisionszwischenstände,
+  Fingerprint49e218e0b86a4910826d23c5d1250a82366e32c5d0ef3892f4dc0944259869f3.
+  Zieltool0 ungefähr Welt[0,85;0,675;1,40]m; Gelenke Grad
+  [108,5884;-69,4133;-119,2412;-37,0152;92,6543;17,2833].
+  setup/calibration/parking/right_rear_20261111/ enthält Plan/PNG; erneuter
+  `execute --check-only` erfolgreich. RViz-Vorschau Domain68 offen, konkrete
+  neue Parkweg-/Fahrraumprüfung später vom Nutzer bestätigt (siehe oben).
+- Historischer Anlauf: beide rechten URs RUNNING/NORMAL/PLAYING, Front Local/Rear Remote. Front-
+  HTTP-Bilddienst192.168.8.103:4242 meldet Connection refused; auch kein anderer
+  üblicher HTTP-Kameraport offen. Nutzer prüft Installation/URCaps/Camera am
+  Pendant (Antwort: „Ich prüfe es gerade“). Noch kein Front-Kameraprofil und
+  keine gesicherte API-Sitzung/Front-Aufnahme; nichts dort verändert.
+- Software vorbereitet: Hardware30…79 Zusatzansichten, Ergebnisabnahme bis80
+  für mode=hardware, bisherige Gütegrenzen unverändert. Standard-/Simulations-
+  Weg und30…50-Simulationsgrenze erhalten. `--count61 --view-design wide`
+  ergibt mit erster Fit-Ansicht50 Fit/12 vorab reservierte Prüfbilder.
+- Optionale Wide-Planung variiert Neigung/Distanz/Roll plus Boardposition im
+  Bild. Hypothetische, **nicht ausführbare** Designreferenz mit geparktem Rear
+  und noch nicht erreichter Front-Erstansicht durchgerechnet:61+13 Reserve-
+  ansichten,12 Prüfung, erwartete Projektionsgrenzen etwa x18…623/y13…468.
+  Nur nominelle Planung, kein Nachweis realer Rand-Sichtbarkeit. Erstansicht-
+  Anfahrt in dieser Referenz79,1s; nach echtem Parken neu aus Live-Winkeln planen.
+  Dateien setup/calibration/hardware_handeye/right_front_20261111/design_preview/.
+-15 gezielte Hardware-/Aufnahme-/Intrinsics-/Anzahltests und3 gemeinsame
+  Vierarm-Planungs-/Fit-/Holdout-Regressionen bestanden. Logs
+  setup/logs/uwa-front-{calibration-tests,planner-regression,wide-design}.log.
+  Nächster Einstieg: Kamera-Pendantbefund und konkrete Parkfreigabe erhalten,
+  Starts neu lesen/prüfen, dann nur freigegebenen Rear-Parkweg ausführen.
+  Rechtes Tischboard bleibt unverändert; kein Profil automatisch aktivieren.
+
+## Erfolgreich abgeschlossen: reale Hand-Auge-Reihe, 2026-11-11
+
+- **Qualitätsnachfrage, gleicher Tag:** Nutzer erwägt Rear-Parken und Front-
+  Kalibrierung mit50% mehr Bildern. Offline-Test mit20/26/33 Fit-Bildern gegen
+  dieselben8 Prüfaufnahmen zeigt keinen klaren monotonen Bildzahlgewinn;
+  Intrinsics etwa0,22px, Hand-Auge etwa0,40–0,50px. Kein Beweis, dass mehr oder
+  räumlich vielfältigere Bilder nichts bringen. Post-hoc-Diagnose, keine
+  Änderung/Neuauswahl des gespeicherten Profils. Details und Vergleichsdesign
+  [Qualitätsbewertung](docs/calibration_quality_review_2026-11-11.md).
+  Empfehlung: Front separat ca62 Ansichten mit50 Fit/12 reservierter Prüfung,
+  bessere Bildabdeckung und Teilmengenvergleich innerhalb derselben Kamera.
+  Gleicher Kameratyp nicht als identische individuelle Intrinsics behandeln;
+  gemeinsames Board dient später relativer Basispose. Noch kein neuer realer
+  Park-/Frontweg aus diesem Vorschlag freigegeben oder ausgeführt. Dafür
+  bisherige Code-Anzahlgrenzen gezielt anpassen, keine Gütegrenzen absenken.
+
+- **Ergebnis15:43Perth:** alle32 Restaufnahmen ohne erneuten Schutzstopp
+  abgeschlossen. Insgesamt41 akzeptierte Ansichten mit je24 Ecken,33 Fit/8
+  vorab reservierte Prüfbilder, keine Ausreißer ausgeschlossen. Manuell404,
+ 640×480,60000µs/Gain16; alle41 decodierten Bildhashes unterschiedlich.
+- Intrinsics **PASS**: Fit-RMS0,24368px, Median der Prüf-RMS0,22200px;
+  fx659,800/fy664,507px, cx317,123/cy180,567px. Reale Daten, kein nominelles K.
+- Hand-Auge **PASS** samt vorhandener Profilvalidierung: unabhängige8
+  Prüfbilder Median-Reprojektion0,46553px, Boardpositions-RMS2,65977mm,
+  Rotations-RMS0,24623°. Bootstrap der Kameramontage ungefähr1mm je Achse und
+ 0,137°; Wiederholbarkeit/interne Konsistenz, **keine absolute Genauigkeitszusage**.
+  Geschätztes T_tool0_camera XYZ[0,808;50,141;22,583]mm; vollständige Matrix
+  und Verzeichnung in den Ergebnisdateien. Kein Layout-/Ground-Truth-Fit.
+- Ergebnis aktiviert **false**: keine TF-/Hardware-/Simulationsprofile geändert.
+  Versionierte Kopie unter setup/calibration/hardware_handeye/
+  right_rear_20261111/result_v1/{intrinsics.json,handeye_result.json,manifest.json,
+  validation.png}. Manifest enthält SHA256 der Ursprungsdateien; ursprüngliche
+ 9 Aufnahmen unverändert erhalten. Rohdatensatz bleibt right_rear_20261110/.
+- Abschlussprüfung: Rear-Zielabweichung0,0000343rad; Front-Abweichung gegenüber
+  neuem Start0,0000472rad (Endvergleich, kein Maximum über die gesamte Reihe).
+  Rear-scaled-JTC hält letzte Aufnahmepose aktiv, alle Front-Bewegungscontroller
+  inaktiv. Beide URs NORMAL/PLAYING, Front Local und Rear Remote. Keine Befehle
+  an andere Arme, keine Rückfahrt. Nur eigene Domain68-Vorschau sauber beendet;
+  UWA-Arms-GUI und rechte Treiber bleiben offen. completion_state.json gesichert.
+- Grenzen: stationäre HTTP-Bilder ohne Belichtungszeitstempel; Bildrand nicht
+  validiert (beobachtete Ecken etwa x140…431/y123…341). Ergebnis gilt für
+  den verwendeten Modus, Fokus und unveränderte Kameramontage. Noch keine
+  Einmessung der Frontkamera, Tisch-/Basisrelation oder statischen OAK.
+- Nächster fachlicher Schritt: Profil ausdrücklich/gezielt in ein separates
+  kalibriertes Anzeigemodell übernehmen und an zusätzlichen, unabhängigen
+  Prüfposen bzw. Messreferenzen prüfen; danach zweiter Arm gegen dasselbe
+  feste Board. Keine weiteren realen Ziele aus diesem Abschluss ableiten.
+
+### Historische Anlaufdiagnose der Wiederaufnahme
+
+- **Aktueller Stand15:35Perth:** Front unter derselben IP wieder erreichbar,
+  beide rechten echten Gelenkstände gelesen; Front-Parkpose annähernd erhalten.
+  Rear PLAYING/native External Control true, beide NORMAL, Bewegungscontroller
+  vor Aufnahme inaktiv. Alle32 ausstehenden Ziele unverändert zur freigegebenen
+  Originalfolge, Wege aus aktuellen Winkeln neu berechnet und vollständig
+  geprüft (`--check-only` erfolgreich). Nur erster Verbindungsweg geändert,
+  Dauer2,54s; Gesamtbewegungszeit256,8s. Neue Vorschau Domain68 geöffnet.
+  Resume-Fingerprint627571fd735af233510cdbc364a8d990fa46fdee6c874a3f5996af5889429f2b,
+  Artefakte right_rear_20261111/resume_plan/, Nutzerkontext operator_context.json.
+  Freigegebene Fortsetzung läuft ausschließlich Rear, Log
+  setup/logs/uwa-handeye-resume-run.log. Noch keine Ergebnisse behaupten;
+  ursprüngliche9 Bilder und Fit-/Prüfrollen erhalten. Keine anderen Armkommandos.
+
+- Nutzer hat die Sicherheitsebenen nach eigener Aussage angepasst und die
+  Fortsetzung beauftragt. Die gestrige Pause ist aufgehoben; die neue
+  Ebenenposition ist noch nicht unabhängig vermessen/importiert.
+- Aktuelle Erstprüfung: right_rear erreichbar, NORMAL/Remote, aber POWER_OFF
+  und ros.urp STOPPED. right_front Dashboard nicht erreichbar. Nach Neustart
+  keine bisherigen UWA-Prozesse vorhanden; UWA Arms gezielt mit beiden rechten
+  Treibern geöffnet, sämtliche gestarteten Rear-Bewegungscontroller inaktiv.
+  Rear liefert bei POWER_OFF sechs Nullwerte; diese ausdrücklich **nicht** als
+  gültige reale Startstellung verwenden. Front bisher ohne Live-Zustände.
+- Nutzer bestätigt Vorbereitung, unveränderte Board-/Kameramontage/linke
+  Home-Stellungen und freien Fahrraum. Reale Nachprüfung: GUI-Prepare hinten
+  rechts erfolgreich, echte plausible Encoderstände wieder verfügbar,
+  RUNNING/NORMAL/Remote; Programm zunächst weiterhin STOPPED/kein natives
+  Linkflag. Front-Prepare fehlgeschlagen: kein Ethernet-Nachbar, kein Ping/
+  Dashboard/RTDE unter192.168.8.103. Nutzer um Front-Einschalten/IP-Prüfung
+  (alternativ aktuelle Pendantwinkel) und Rear-Play gebeten. Keine eigenen
+  Power-/Brake-/Play-Aktionen oder Bewegung; kein neuer ausführbarer Restplan
+  ohne aktuelle Frontstellung. Diagnose uwa-handeye-resume-after-prepare.json.
+- Spätere Prüfung13:33Perth: Rear RUNNING/NORMAL/Remote, ros.urp PLAYING,
+  natives robot_program_running=true und54001/54003/54004 tatsächlich verbunden.
+  Stationäre Diagnoseaufnahme unter right_rear_20261111/readiness/:
+ 24 Ecken, drei unterschiedliche Bildpayloads, Fokus404/Manual erhalten.
+  Diese Aufnahme ist separat und zählt nicht als neue Haupt-Messansicht.
+  Front laut Nutzer eingeschaltet, meldet am Pendant wiederholt kein Netzwerk.
+  Rein lesende Dashboard-Suche im192.168.8.0/24 fand nur Rear; keine geänderte
+  Front-IP nachgewiesen. Nutzer um sechs aktuelle Front-Pendantwinkel in Grad
+  oder die aktuelle Pendant-IP gebeten. Danach Front als manuell gemessenes
+  festes Hindernis möglich; keine Bewegung/Power-/Programmaktion für Front nötig.
+  Diagnose uwa-handeye-network-dashboard-discovery.json, Aufnahmeprüfung
+  uwa-handeye-resume-readiness-capture.log.
+- Kamera wieder erreichbar640×480; nach Neustart zunächst Autofokus/Autoexposure.
+  Vorherige Einstellungen gesichert und Fokus404/Manual,60000µs/Manual,Gain16,
+  LED53 wieder gesetzt. ForceRefresh meldete zunächst LED-Modus1 statt
+  angefragtem2. Nach Rear-Vorbereitung Modus2/53 erneut gesetzt und über drei
+  HTTP-Bilder stabil zurückgelesen, Fokus404 unverändert; noch kein Nachweis
+  physischer LED-Leistung. Livebild24/24 Ecken. Daten unter
+  setup/calibration/hardware_handeye/right_rear_20261111/; Diagnose
+  setup/logs/uwa-handeye-resume-{status,live}.json.
+- `handeye_hardware resume-series` ergänzt: vorhandene akzeptierte Aufnahmen
+  als zusammenhängendes Präfix verifizieren, IDs und Fit-/Prüfrollen erhalten,
+  verbleibende Ziele mit neuen MoveIt-geprüften Wegen ab aktuellem Zustand
+  planen. Originalbatch/Rohbilder unverändert, Hashbindung vorhandener Bilder/
+  Records und Prüfung identischer Werkskinematik. Keine blinde Wiederholung
+  des unterbrochenen Segments. Noch kein realer Fortsetzungsplan erzeugt.
+-13 gezielte Offline-/MoveIt-/Aufnahme-/Intrinsics-Tests bestanden; Log
+  setup/logs/uwa-handeye-resume-tests.log. Fit prüft zusätzlich die vorhandenen
+  Profil-Gütegrenzen einschließlich Transformationsplausibilität;
+  keine automatische Aktivierung. Bisher9 Aufnahmen,32 fehlen (25 Fit/7 Prüfung),
+  kein fertiges Intrinsics-/Hand-Auge-Ergebnis.
+
+## Historischer Pausenstand: reale Hand-Auge-Reihe, 2026-11-10
+
+- **Damals auf Nutzerwunsch pausiert; am2026-11-11 aufgehoben.** Bestätigte Ursache des Stopps:
   eine konfigurierte Sicherheitsebene in der UR-Steuerung. Nutzer kann sie
   aktuell nicht deaktivieren und möchte sie morgen,2026-11-11, verschieben.
   Heute keine weiteren Hardwarefahrten/automatischen Wiederanläufe. Keine
@@ -70,7 +366,7 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   mit0rad Nachdrift. Erststart-Shell- und rclpy-Signalfehler wurden korrigiert.
   [Bedienung/Prüfpfade](docs/hardware_handeye.md).
 
-**Nächster Einstieg nach neuer Nutzeranweisung:** aktuelle echte rechte
+**Historische Vorbereitung vor der inzwischen abgeschlossenen Fortsetzung:** aktuelle echte rechte
 Stellungen und Kamera-/Boardzustand lesen, native Sicherheitsebene mit neuer
 Position berücksichtigen, verbleibende Wege neu prüfen/visualisieren. Keine
 alten Startstellungen oder alte Freigabe als blind gültig übernehmen. Bestehende

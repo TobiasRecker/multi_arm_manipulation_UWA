@@ -54,7 +54,7 @@ def plan_view(args):
 
 def plan_series(args):
     import rclpy
-    from .hardware_sequence import acquisition_plan
+    from .hardware_sequence import acquisition_plan,assemble_plan,remaining_observations,validate_batch,validate_session_model
     profiles=load_profiles(args.inventory);node=node_for(args.mode);observer=None
     if args.mode!='hardware':raise ValueError('Reviewed image acquisition uses real hardware mode')
     directory=Path(args.output).resolve();directory.mkdir(parents=True,exist_ok=True)
@@ -62,8 +62,18 @@ def plan_series(args):
         observer,readings=read_state(node,profiles,args)
         start,sources,missing=complete_state(load_layout(args.layout),readings)
         model,layout=make_model(load_layout(args.layout),profiles,directory)
-        plan=acquisition_plan(model,layout,profiles,args.arm,start,sources,missing,args.count,directory,args.layout,
-            lambda p:print(json.dumps({'phase':'PLANNING',**p}),flush=True))
+        if args.command=='resume-series':
+            old=json.loads(Path(args.batch).read_text());validate_batch(old,profiles,layout)
+            metadata=json.loads((Path(args.session)/'session.json').read_text())
+            if args.arm!=old['arm']:raise ValueError('Resume arm changed')
+            validate_session_model(metadata,args.arm,profiles[args.arm],layout)
+            if missing:raise ValueError('Missing stationary arm states')
+            poses,resume=remaining_observations(old,args.session)
+            plan=assemble_plan(model,layout,profiles,args.arm,start,sources,missing,poses,directory,args.layout,
+                               old['planning_only_camera_model'],resume=resume)
+        else:
+            plan=acquisition_plan(model,layout,profiles,args.arm,start,sources,missing,args.count,directory,args.layout,
+                lambda p:print(json.dumps({'phase':'PLANNING',**p}),flush=True),view_design=args.view_design)
         print(json.dumps({'batch':str(directory/'batch.json'),'preview':str(directory/'plan.json'),
                           'new_observations':len(plan['segments']),'motion_seconds':plan['duration_motion_s'],
                           'no_return_after_run':True},indent=2))
@@ -161,6 +171,7 @@ def capture(args):
 def fit(args):
     from uwa_cell_gazebo.charuco import detect_pose
     from uwa_cell_calibration.solver import solve_session
+    from uwa_cell_calibration.storage import validate_result
     directory=Path(args.session);metadata=json.loads((directory/'session.json').read_text())
     records=[json.loads(p.read_text()) for p in sorted((directory/'records').glob('sample_*.json'))]
     records=[r for r in records if r.get('accepted')]
@@ -183,6 +194,9 @@ def fit(args):
     result.update(mode='hardware',session_dir=str(directory.resolve()),intrinsics_file='intrinsics.json',
         timing_limitations='Stationary HTTP capture; sensor exposure timestamps unavailable',
         activated=False)
+    try:validate_result(result)
+    except ValueError as error:
+        result.update(passed=False,profile_validation_error=str(error))
     atomic_json(directory/'handeye_result.json',result)
     print(json.dumps({'passed':result['passed'],'result':str(directory/'handeye_result.json'),
                       'activated':False},indent=2))
@@ -192,16 +206,21 @@ def fit(args):
 def main():
     ws=Path(os.environ.get('UWA_WS',str(Path.home()/'UWA_ws')))
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='command',required=True)
-    for command in ('plan-view','plan-series','capture'):
+    for command in ('plan-view','plan-series','resume-series','capture'):
         p=sub.add_parser(command)
         p.add_argument('--inventory',default=str(ws/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml'))
         p.add_argument('--layout',default=str(default_layout_path()))
         p.add_argument('--arm',choices=['right_rear','right_front'],default='right_rear')
         p.add_argument('--mode',choices=['hardware','mock'],default='hardware')
         p.add_argument('--manual-states',default=str(ws/'setup/calibration/parking/left_home.json'))
-        if command in ('plan-view','plan-series'):
+        if command in ('plan-view','plan-series','resume-series'):
             p.add_argument('--output',required=True)
-            if command=='plan-series':p.add_argument('--count',type=int,default=40)
+            if command=='plan-series':
+                p.add_argument('--count',type=int,default=40,help='Additional views after sample_000;61 yields62 total')
+                p.add_argument('--view-design',choices=['standard','wide'],default='standard',
+                               help='Wide varies board image position, distance, inclination and roll')
+            if command=='resume-series':
+                p.add_argument('batch');p.add_argument('--session',required=True)
         else:
             p.add_argument('--session',required=True);p.add_argument('--sample-id',required=True)
             p.add_argument('--role',choices=['fit','validation'],required=True)
@@ -216,7 +235,7 @@ def main():
             acquire(args)
             if not args.check_only:
                 args.intrinsics_only=False;fit(args)
-        else:{'plan-view':plan_view,'plan-series':plan_series,'capture':capture,'fit':fit}[args.command](args)
+        else:{'plan-view':plan_view,'plan-series':plan_series,'resume-series':plan_series,'capture':capture,'fit':fit}[args.command](args)
         return 0
     except KeyboardInterrupt:return 130
     except Exception as error:

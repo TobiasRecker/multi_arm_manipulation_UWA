@@ -38,7 +38,7 @@ robots:
     dashboard_port: 29999
     serial_number: '20195501617'
     dashboard_model: UR5
-    polyscope_version: 5.10.1.106310
+    polyscope_version: 5.26.3.140631  # Dashboard readback2026-11-11 after user update
 cameras:
   oak4:
     ip: 192.168.8.238

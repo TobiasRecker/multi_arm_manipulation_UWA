@@ -32,7 +32,8 @@ def validate_result(result):
         if not fit['passed'] or fit['fit_count'] < 12 or fit['validation_count'] < 6:
             raise ValueError('Insufficient independent calibration/validation observations')
         total=fit['fit_count']+fit['validation_count']+len(fit.get('excluded_samples',[]))
-        if not 30<=total<=50:raise ValueError('Activating a profile requires 30-50 captured distinct poses per robot')
+        maximum=80 if result.get('mode')=='hardware' else 50
+        if not 30<=total<=maximum:raise ValueError(f'Activating a profile requires 30-{maximum} captured distinct poses per robot')
         quality=fit['validation']
         values=np.asarray([quality[k] for k in ('median_reprojection_rms_px','board_translation_rms_m','board_rotation_rms_deg')],float)
         if not np.isfinite(values).all() or np.any(values<0):raise ValueError('Invalid quality metrics')
