@@ -1,0 +1,49 @@
+{
+  "pdf": "/home/rosmatch/UWA_ws/src/multi_arm_manipulation_UWA/output/pdf/uwa_mobile_charuco_A4_1to1.pdf",
+  "page_count": 1,
+  "page_mm": [
+    297.0000127777778,
+    210.00000333333335
+  ],
+  "vector_black_squares": 18,
+  "square_mm": 38,
+  "pattern_bounds_mm": [
+    [
+      15.500000749999998,
+      10.000001166666667
+    ],
+    [
+      281.49998027777775,
+      199.99998805555555
+    ]
+  ],
+  "marker_ids": [
+    75,
+    76,
+    77,
+    78,
+    79,
+    80,
+    81,
+    82,
+    83,
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    90,
+    91
+  ],
+  "charuco_corners": 24,
+  "render_dpi": 300,
+  "marker_edge_mean_mm": 27.992687393637265,
+  "max_corner_metric_error_mm": 0.08115835949340122,
+  "print_scaling_none": true,
+  "vector_only": true,
+  "id_collision_with_table_boards": false,
+  "reference_bar_vector_length_mm": 100.00001166666667,
+  "visual_review_passed": true,
+  "final_pdf_sha256": "b136baa07a0fc9f29df1cadfd7abc0098ac73afb5bdf90d5cdc063be0eb0330c"
+}

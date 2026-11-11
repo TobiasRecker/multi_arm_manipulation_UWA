@@ -62,6 +62,10 @@ Its results are not automatically activated; the Gazebo backend remains separate
 The first real rear-right series completed on2026-11-11:41 views,33 fitting and8
 held out; intrinsics and hand-eye validation passed. Results and remaining
 accuracy limits are recorded in the linked hardware calibration guide.
+The subsequent [front62-view experiment](docs/front_calibration_2026-11-11.md)
+completed with50 fitting and12 held-out views: intrinsics passed, hand-eye
+rotation validation failed (0.652° versus0.5°), so the profile remains inactive.
+Its20/33/50-view comparison showed no clear large gain from image count alone.
 
 The interface, tooltips and application-menu entry are in English. Click
 feedback uses a persistent high-contrast RECEIVED/RUNNING/DONE/FAILED panel,
@@ -78,6 +82,7 @@ sends no robot commands. Session files persist under `setup/logs/uwa-control/ses
 
 The robot network uses **Ethernet** after the cable replacement on2026-11-10:
 PC192.168.8.209 on enp87s0, right_rear192.168.8.170, right_front192.168.8.103,
+left_rear192.168.8.169 (GUI/real driver and factory kinematics checked2026-11-11),
 OAK4192.168.8.238. See the [hardware inventory](config/hardware_inventory.yaml).
 The initial [network report](docs/hardware_network_2026-11-10.md) is historical;
 its measurements do not certify current wired throughput or latency.
@@ -113,8 +118,8 @@ On2026-11-11 the user reported a camera URCap update followed by “Vision syste
 down”. The [USB backup and recovery notes](docs/wrist_usb_recovery_2026-11-11.md)
 record the verified original stick image and matching4.1.0/VSL2.0.0 files now
 written to the USB root. All303 package files passed SHA256 readback after
-remounting; the stick was safely unmounted. Pendant installation/start and
-camera operation still need verification.
+remounting; the stick was safely unmounted. The user subsequently confirmed
+that the recovery worked.
 The automatic calibration backend below remains simulation-only.
 
 The workspace is expected at `~/UWA_ws`; set `UWA_WS` before sourcing the helper

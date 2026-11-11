@@ -1,6 +1,6 @@
 # UWA Arms: direkte UR-Treiberbedienung
 
-Stand: 2026-11-10, ROS 2 Lyrical / Ubuntu 26.04.
+Stand: 2026-11-11, ROS 2 Lyrical / Ubuntu 26.04.
 
 Startmenü **UWA Arms**, Aktion **Hardware · rear right**, oder:
 
@@ -107,7 +107,8 @@ von Gazebo64 und OAK65. Mock kann dadurch keine realen Manager bedienen.
 | --- | --- | --- |
 | hinten rechts | 192.168.8.170 | 54002 |
 | vorne rechts | 192.168.8.103 | 53002 |
-| links vorne / hinten | unbekannt | 51002 / 52002 |
+| links hinten | 192.168.8.169 | 52002 |
+| links vorne | unbekannt | 51002 |
 
 External-Control-URCap benötigt die aktuelle PC-IP (Ethernet192.168.8.209)
 und den passenden Script-sender-Port. Pro Arm folgen Reverse/Script/Trajectory/
@@ -140,3 +141,39 @@ und Lyrical-Build-/Install-/Log-Verzeichnissen. Desktop-Eintrag nach Umzug erneu
   `setup/logs/uwa-control/mock-gui-validation.json`.
 - Lesender Hardwareversuch: `setup/logs/uwa-direct-readonly-joints.json` (keine Daten).
 - Keine realen Power-/Brake-/Play-/Bewegungsbefehle durch den Agenten.
+
+## Left rear: realer Treiberstand2026-11-11
+
+`left_rear` ist im zentralen Inventar mit192.168.8.169 und eigener ausgelesener
+Werkskinematik hinterlegt (`setup/calibration/hardware_first_view/ur_kinematics/
+left_rear.yaml`). Es wird das konfigurierte UR7e-Modell verwendet; die native
+Dashboard-ModellantwortUR5 allein unterscheidet UR5e/UR7e nicht.
+
+Für ein neues Fenster nur dieses Arms:
+
+```bash
+bash src/multi_arm_manipulation_UWA/scripts/control.sh --mode hardware --arms left_rear
+```
+
+Ein bereits vorher geöffnetes Fenster hält sein Inventar im Speicher. Das
+vorhandene Besitzerfenster der rechten Treiber deshalb geöffnet lassen. Zum
+Test wurde ein zusätzliches UWA-Fenster **UWA · Direct UR Test · Left rear**
+geöffnet; es besitzt ausschließlich den neuen linken Treiber. Alle drei
+konfigurierten Arme sind in dessen Auswahl verfügbar. Schließen dieses neuen
+Fensters beendet nur den von ihm gestarteten linken Treiber.
+
+Geprüft über die echte Qt-GUI: Start drivers, Read joint angles, Prepare UR.
+Sechs echte Gelenke,2592 empfangene Samples,ca493,94Hz; fünf Broadcaster aktiv,
+vier Bewegungscontroller inaktiv. Prepare wurde bei bereits RUNNING/NORMAL
+getestet; ein Kaltstart/echtes Bremsenlösen aus POWER_OFF ist damit nicht belegt.
+Keine Fahrziele gesendet. Einzelne500Hz-Overrun-Warnungen sind im Log sichtbar;
+der erfolgreiche Verbindungstest ist keine Bewegungs-/Echtzeitfreigabe.
+
+Programmverbindung noch offen: letzter Lesestand Local/STOPPED ros.urp.
+Am linken Pendant External-Control-Host192.168.8.209 undPort52002 einstellen,
+Remote Control wählen. Danach **Start loaded UR program** und den tatsächlichen
+`robot_program_running`-Link prüfen. Remote-Umschaltung erfolgt am Pendant.
+
+Nachweise: `setup/logs/uwa-left-rear-driver/report.json`, `joint-angles.png`,
+`prepare.png`; GUI-/Treiberlogs in der dort genannten Sitzung. Werkskinematik-
+Auslesen: `setup/logs/uwa-left-rear-factory-kinematics.log`.

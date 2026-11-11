@@ -1,0 +1,25 @@
+schema_version: 1
+board_id: uwa_mobile_a4
+purpose: Robot-mounted target for external-camera calibration
+dictionary: DICT_4X4_100
+squares_x: 7
+squares_y: 5
+square_length: 0.038  # metres; measure the printed square edges
+marker_length: 0.028  # metres; includes the one-bit black marker border
+marker_border_bits: 1
+legacy_pattern: false
+marker_ids: [75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91]
+print:
+  paper: A4
+  orientation: landscape
+  page_mm: [297.0, 210.0]
+  pattern_mm: [266.0, 190.0]
+  # Measured from top-left paper corner to top-left pattern corner.
+  pattern_origin_on_paper_mm: [15.5, 10.0]
+  reference_length_mm: 100.0
+frame:
+  origin: Top-left corner of chessboard pattern, excluding white paper margin
+  x_axis: Right along the printed pattern
+  y_axis: Down along the printed pattern
+  z_axis: Into the printed board
+  tool_mount_transform: unknown_not_yet_calibrated

@@ -1,0 +1,43 @@
+{
+  "pdf": "/home/rosmatch/UWA_ws/src/multi_arm_manipulation_UWA/output/pdf/uwa_mobile_charuco_A4_1to1.pdf",
+  "config": "/home/rosmatch/UWA_ws/src/multi_arm_manipulation_UWA/uwa_cell_description/config/mobile_charuco_a4.yaml",
+  "page_mm": [
+    297.0,
+    210.0
+  ],
+  "pattern_mm": [
+    266.0,
+    190.0
+  ],
+  "pattern_origin_on_paper_mm": [
+    15.5,
+    10.0
+  ],
+  "square_mm": 38.0,
+  "marker_mm": 28.0,
+  "marker_ids": [
+    75,
+    76,
+    77,
+    78,
+    79,
+    80,
+    81,
+    82,
+    83,
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    90,
+    91
+  ],
+  "expected_charuco_corners": 24,
+  "reference_bar_mm": 100.0,
+  "vector_rectangle_count": 160,
+  "sha256": "b136baa07a0fc9f29df1cadfd7abc0098ac73afb5bdf90d5cdc063be0eb0330c",
+  "opencv_version": "4.10.0",
+  "mount_calibrated": false
+}

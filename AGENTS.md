@@ -23,6 +23,12 @@
   oder Stopps automatisch quittieren. Aktueller ausdrücklich gewünschter
   Pausen-/Fortsetzungsstand steht in HANDOVER.md; neue Planung erst nach
   erneuter Nutzeranweisung und aktueller Zustandsprüfung.
+  Native Protective/Safety Stops können `robot_program_running=true` behalten:
+  automatische Fahrabläufe müssen zusätzlich tatsächliches `safety_mode`
+  beobachten und wartende eigene Actions canceln/deaktivieren. Nicht auf einen
+  langen Action-Timeout warten und keine automatische Quittierung/Weiterfahrt.
+  NORMAL/REDUCED zulässig; manuelle GUI-Operationen bekommen dadurch keine
+  neuen Dashboard-/Remote-/Armzahl-/Besitz-Freigabegates.
 
 - Nutzerziel vom 2026-11-10: Simulation und die beiden rechten gemessenen URs
   gleichzeitig in RViz darstellen. `uwa_cell_visualization` überträgt nur die
@@ -81,7 +87,8 @@
   Transformation nicht als aus einer Einzelansicht neu kalibriert bezeichnen.
 - Simulation isoliert betreiben: Domain 64, lokale Discovery, Partition `uwa_cell_sim`.
   Physisches Inventar getrennt in `config/hardware_inventory.yaml`:
-  `right_rear`=192.168.8.170, `right_front`=192.168.8.103, OAK4=192.168.8.238.
+  `right_rear`=192.168.8.170, `right_front`=192.168.8.103,
+  `left_rear`=192.168.8.169 (Nutzerzuordnung/Lesetest2026-11-11), OAK4=192.168.8.238.
   Nutzerzählung „erster/zweiter“ ist zufällig; nur stabile Arm-IDs verwenden.
   Kabel laut Nutzer am2026-11-10 ersetzt. Roboterrouten geprüft über Ethernet
   enp87s0, PC192.168.8.209. Keine aktive Sonderbehandlung für die frühere

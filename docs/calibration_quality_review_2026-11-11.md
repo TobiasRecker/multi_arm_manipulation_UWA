@@ -64,7 +64,9 @@ Das gemeinsame feste Board erlaubt anschließend die relative Transformation
 der beiden rechten Roboterbasen aus ihren unabhängigen `T_base_board`-Schätzungen
 zu berechnen. Das allein ist keine unabhängige absolute Genauigkeitsreferenz.
 
-Dieser Front-Versuch ist hier ein Vorschlag, noch nicht geplant/ausgeführt.
-Vor62 Aufnahmen müssen die bisherigen Hardware-Anzahlgrenzen30–40 und die
-Profil-Abnahmegrenze30–50 passend erweitert und geprüft werden; Gütegrenzen
-und unabhängige Prüfansichten bleiben erhalten.
+Der Front-Versuch wurde anschließend vom Nutzer akzeptiert und vollständig
+durchgeführt. [Ergebnis mit62 Bildern und festem Prüfsatz](front_calibration_2026-11-11.md):
+Intrinsics bestanden, Hand-Auge-Rotationsgrenze weiterhin verfehlt; kein klarer
+großer Bildzahlgewinn im kontrollierten Vergleich. Hardware-Anzahlgrenzen
+wurden dafür gezielt erweitert, Gütegrenzen und unabhängige Prüfansichten
+blieben erhalten. Der obige Vorschlag beschreibt den vorab gewählten Versuchsplan.

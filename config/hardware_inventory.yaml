@@ -1,4 +1,4 @@
-# Physical inventory, user assignment confirmed 2026-11-10 (Australia/Perth).
+# Physical inventory, user assignments confirmed2026-11-10/11 (Australia/Perth).
 # This file does not launch drivers, enable robot power or grant motion authority.
 # Simulation remains in its own domain/partition; never infer IDs from "first/second".
 ros_namespace: /uwa_hardware
@@ -11,12 +11,16 @@ robots:
     external_control_program: ''
     compliance_enabled: false
   left_rear:
-    ip: null
+    ip: 192.168.8.169  # User assignment and read-only reachability verified2026-11-11
     ur_type: ur7e
     port_base: 52000
-    kinematics_file: null
+    kinematics_file: ../../../setup/calibration/hardware_first_view/ur_kinematics/left_rear.yaml
     external_control_program: ''
     compliance_enabled: false
+    dashboard_port: 29999
+    serial_number: '20265701623'
+    dashboard_model: UR5  # Native response; does not independently establish UR5e/UR7e variant
+    polyscope_version: 5.25.0.130258
   right_rear:
     ip: 192.168.8.170
     ur_type: ur5e

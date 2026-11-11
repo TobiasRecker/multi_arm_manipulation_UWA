@@ -45,7 +45,8 @@ geprüft. Keine zusätzlichen alten Dateien im neuen vision_system-Ordner.
 Sieben übrige ursprüngliche Dateien, einschließlich Gripper-URCap und altem
 PolyScope-Update, unverändert per SHA256 bestätigt. Leere/fremde Ordner erhalten.
 Um16:42AWST abschließend erfolgreich ausgehängt; Stick bereit zum Abziehen.
-Nachweis `usb-update-report.json`. Kamerastart am UR noch nicht geprüft.
+Nachweis `usb-update-report.json`. Nutzer bestätigt anschließend, dass es
+funktioniert hat. Kein zusätzlicher eigener Pendanttest behauptet.
 Rohimage und Herstellerdateien liegen außerhalb des Quell-Repositories.
 
 UCC4.1 wurde separat in `staged-UCC-4.1.0/` entpackt:303 Dateien,373018589Bytes.

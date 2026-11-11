@@ -142,13 +142,16 @@ Aufnahme), die Hardware-Ergebnisvalidierung bis80 insgesamt. Pixel-/Pose-
 Gütegrenzen und unabhängige Prüfung bleiben unverändert. Die Simulation hat
 weiterhin ihre bisherige30…50-Anzahlgrenze.
 
-Vorbereitungsstand2026-11-11,17:02Perth: Rear-Parkweg56,5s nach konkreter
+Abschlussstand2026-11-11: Rear-Parkweg56,5s nach konkreter
 Nutzerfreigabe erfolgreich gefahren, Endfehler0,0000296rad. Front-Kameradienst
 nach Benutzerupdate wieder erreichbar, reale Front-Gelenkstände/External Control
 bestätigt. Neue Front-Erstansicht79s plus ganze62-Bilder-Folge als kollisions-
 geprüfte Gesamtvorschau vom Nutzer freigegeben. Erstpose erfolgreich erreicht,
 24 Ecken und fester manueller Fokus435 über fünf Bilder/Hardware-Readbacks
-bestätigt; Messreihe läuft. Gesamtdauer etwa25–30Minuten, Ergebnisse offen.
+bestätigt. Nach Kabelunterbrechungen alle62 Bilder aufgenommen. Intrinsics
+bestanden, Hand-Auge wegen0,652° Rotations-RMS über0,5° nicht freigegeben.
+Der [vollständige Front-Befund und20/33/50-Vergleich](front_calibration_2026-11-11.md)
+dokumentiert Ergebnisse, Grenzen und Datenpfade; kein Profil aktiviert.
 Offline-Designreferenz
 unter right_front_20261111/design_preview/ ist ausdrücklich **nicht ausführbar**,
 da Rear-Park-/Front-Aufnahmezustand dort erst als mögliche Folge angenommen ist.
