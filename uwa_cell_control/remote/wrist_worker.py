@@ -101,11 +101,26 @@ def restore(service, original):
                {'lightingValue': original['lightingValue']}]
     for change in changes:
         responses.append(request('/setcamerasettings?setManualValuesIfModeChanged=true', {'cameraSettings': change}))
-    actual = settings()
-    differences = {k: [v, actual.get(k)] for k, v in original.items() if actual.get(k) != v}
-    if differences:
-        raise RuntimeError('Camera restoration readback mismatch: ' + str(differences))
-    return {'settings': actual, 'setter_responses': responses, 'all_original_fields_match': True}
+    # Older UCC versions acknowledge setters before the device/readback settles.
+    # Auto-controlled outputs are not fixed settings; their modes and all other
+    # fields must still match. In manual mode focus/exposure/gain remain exact.
+    automatic = set()
+    if original.get('focusAuto'):
+        automatic.add('focus')
+    if original.get('exposureAuto'):
+        automatic.update(('exposure', 'gain'))
+    for attempt in range(21):
+        actual = settings()
+        differences = {k: [v, actual.get(k)] for k, v in original.items()
+                       if k not in automatic and actual.get(k) != v}
+        if not differences:
+            return {'settings': actual, 'setter_responses': responses,
+                    'all_original_fields_match': actual == original,
+                    'all_configuration_fields_match': True,
+                    'automatic_output_fields': sorted(automatic)}
+        if attempt < 20:
+            time.sleep(.25)
+    raise RuntimeError('Camera restoration readback mismatch: ' + str(differences))
 
 
 def capture(directory):

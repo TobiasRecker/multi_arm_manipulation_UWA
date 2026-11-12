@@ -1,0 +1,359 @@
+{
+  "diagnostic_only": true,
+  "passed": false,
+  "reason": "Existing automatic intrinsic fit1px RMS limit exceeded",
+  "fit_count": 32,
+  "validation_count": 8,
+  "image_size": [
+    2592,
+    1944
+  ],
+  "camera_matrix": [
+    [
+      2658.058908008819,
+      0.0,
+      1324.3121763897502
+    ],
+    [
+      0.0,
+      2664.0159165443188,
+      785.6836223846248
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "distortion": [
+    0.08882803057152604,
+    -0.12465061700119384,
+    -0.021686422244469924,
+    0.012446872871723127,
+    -0.6125663292920678
+  ],
+  "fit_rms_px": 1.1984062412274838,
+  "training_per_view_rms_px": [
+    1.1237683558849747,
+    0.8542803175680167,
+    0.7959635678117862,
+    0.9176659207723162,
+    1.093179213990883,
+    1.1650672600331609,
+    1.4502479076951473,
+    1.6453397540657313,
+    1.3797659798807662,
+    1.2218213631875776,
+    1.329058777103359,
+    1.4430917269821315,
+    1.791178033158003,
+    1.5012671927379309,
+    1.6354607576679057,
+    1.0289553685126955,
+    1.1210389965489895,
+    1.6958977932450432,
+    1.0354801586423246,
+    1.2759811792461677,
+    0.7766546389369254,
+    0.5697446628843102,
+    1.4878520591307804,
+    1.1339640736626735,
+    1.3228737730701317,
+    0.8269586020872763,
+    1.2413692412687676,
+    0.8094674475885988,
+    1.2073037438791687,
+    0.7148860603867352,
+    0.7234983264876249,
+    0.7968837014276684
+  ],
+  "validation_median_rms_px": 1.0031315684318542,
+  "validation_max_rms_px": 1.7775468826293945,
+  "per_view": [
+    {
+      "sample_id": "sample_000",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 1.1237568855285645
+    },
+    {
+      "sample_id": "sample_001",
+      "role": "validation",
+      "corners": 24,
+      "reprojection_rms_px": 0.8971000909805298
+    },
+    {
+      "sample_id": "sample_002",
+      "role": "fit",
+      "corners": 22,
+      "reprojection_rms_px": 0.8542910814285278
+    },
+    {
+      "sample_id": "sample_003",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 0.7959643006324768
+    },
+    {
+      "sample_id": "sample_004",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 0.9176771640777588
+    },
+    {
+      "sample_id": "sample_005",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 1.0931873321533203
+    },
+    {
+      "sample_id": "sample_006",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 1.1650639772415161
+    },
+    {
+      "sample_id": "sample_007",
+      "role": "fit",
+      "corners": 20,
+      "reprojection_rms_px": 1.4502381086349487
+    },
+    {
+      "sample_id": "sample_008",
+      "role": "fit",
+      "corners": 20,
+      "reprojection_rms_px": 1.6453489065170288
+    },
+    {
+      "sample_id": "sample_009",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 1.3797576427459717
+    },
+    {
+      "sample_id": "sample_010",
+      "role": "validation",
+      "corners": 24,
+      "reprojection_rms_px": 1.3600891828536987
+    },
+    {
+      "sample_id": "sample_011",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 1.2218278646469116
+    },
+    {
+      "sample_id": "sample_012",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 1.3290613889694214
+    },
+    {
+      "sample_id": "sample_013",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 1.4430965185165405
+    },
+    {
+      "sample_id": "sample_014",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 1.7911769151687622
+    },
+    {
+      "sample_id": "sample_015",
+      "role": "validation",
+      "corners": 24,
+      "reprojection_rms_px": 1.7775468826293945
+    },
+    {
+      "sample_id": "sample_016",
+      "role": "fit",
+      "corners": 22,
+      "reprojection_rms_px": 1.5012702941894531
+    },
+    {
+      "sample_id": "sample_017",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 1.6354670524597168
+    },
+    {
+      "sample_id": "sample_018",
+      "role": "validation",
+      "corners": 24,
+      "reprojection_rms_px": 1.5374890565872192
+    },
+    {
+      "sample_id": "sample_019",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 1.0289572477340698
+    },
+    {
+      "sample_id": "sample_020",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 1.1210370063781738
+    },
+    {
+      "sample_id": "sample_021",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 1.6959091424942017
+    },
+    {
+      "sample_id": "sample_022",
+      "role": "validation",
+      "corners": 24,
+      "reprojection_rms_px": 0.7714749574661255
+    },
+    {
+      "sample_id": "sample_023",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 1.0354907512664795
+    },
+    {
+      "sample_id": "sample_024",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 1.27598237991333
+    },
+    {
+      "sample_id": "sample_025",
+      "role": "validation",
+      "corners": 24,
+      "reprojection_rms_px": 1.1091630458831787
+    },
+    {
+      "sample_id": "sample_026",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 0.7766496539115906
+    },
+    {
+      "sample_id": "sample_027",
+      "role": "validation",
+      "corners": 24,
+      "reprojection_rms_px": 0.8896050453186035
+    },
+    {
+      "sample_id": "sample_028",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 0.5697500705718994
+    },
+    {
+      "sample_id": "sample_029",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 1.4878499507904053
+    },
+    {
+      "sample_id": "sample_030",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 1.1339662075042725
+    },
+    {
+      "sample_id": "sample_031",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 1.3228797912597656
+    },
+    {
+      "sample_id": "sample_032",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 0.8269515633583069
+    },
+    {
+      "sample_id": "sample_033",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 1.2413685321807861
+    },
+    {
+      "sample_id": "sample_034",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 0.8094759583473206
+    },
+    {
+      "sample_id": "sample_035",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 1.2072960138320923
+    },
+    {
+      "sample_id": "sample_036",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 0.7148901224136353
+    },
+    {
+      "sample_id": "sample_037",
+      "role": "validation",
+      "corners": 24,
+      "reprojection_rms_px": 0.8508127331733704
+    },
+    {
+      "sample_id": "sample_038",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 0.7234967350959778
+    },
+    {
+      "sample_id": "sample_039",
+      "role": "fit",
+      "corners": 24,
+      "reprojection_rms_px": 0.7968769669532776
+    }
+  ],
+  "std_intrinsics": [
+    8.488437018681378,
+    7.3299634081069165,
+    6.917390679511471,
+    8.212999475099759,
+    0.015218051432002817,
+    0.1901103775431616,
+    0.000943489792094731,
+    0.0012982530336577089,
+    0.7043049852600898,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "focus": 435,
+  "focusAuto": false,
+  "validation_used_for_fit": false,
+  "activated": false,
+  "schema_version": 1,
+  "validation_rms_px": [
+    0.8971000909805298,
+    1.3600891828536987,
+    1.7775468826293945,
+    1.5374890565872192,
+    0.7714749574661255,
+    1.1091630458831787,
+    0.8896050453186035,
+    0.8508127331733704
+  ],
+  "source": "Native HD ChArUco training-only fit; explicit user adoption despite failed fixed-pixel validation; no nominal or ground-truth fit input",
+  "capture_source": {
+    "kind": "wrist_hd_service",
+    "image_size": [
+      2592,
+      1944
+    ],
+    "encoding": "native_mjpeg",
+    "color_pipeline": "native_unprocessed"
+  }
+}

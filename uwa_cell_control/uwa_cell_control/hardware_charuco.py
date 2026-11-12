@@ -44,7 +44,9 @@ def first_view(model,layout,rid,start,velocity=.05,acceleration=.10):
         except ValueError:continue
         path.update(purpose='first ChArUco view',nominal_camera_target_world=target.tolist(),
                     nominal_optics_used_for='motion design only; never an observation or fit input',
-                    camera_extrinsics_source=('validated hardware hand-eye' if
+                    camera_extrinsics_source=(
+                        layout['calibration']['robots'][rid].get('quality_status',{}).get('handeye','passed')
+                        + ' hardware hand-eye' if
                         'fit' in layout.get('calibration',{}).get('robots',{}).get(rid,{}) else 'nominal'),
                     camera_model_profile=layout.get('calibration',{}).get('profile_id','nominal'))
         candidates.append(path)

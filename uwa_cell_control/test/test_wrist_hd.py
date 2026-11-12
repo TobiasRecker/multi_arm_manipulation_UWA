@@ -84,6 +84,24 @@ def test_native_failure_still_restores_camera_and_reports_failure(tmp_path,monke
     assert restored==['/only/vision/service']
 
 
+def test_restore_waits_for_async_settings_and_keeps_auto_mode_configuration_strict(monkeypatch):
+    m=worker()
+    original={'focus':388,'focusAuto':True,'exposure':33333,'exposureAuto':True,
+              'gain':16,'lightingMode':0,'lightingValue':0,'focusWindowX1':165}
+    monkeypatch.setattr(m,'normal',lambda **k:None)
+    monkeypatch.setattr(m.subprocess,'check_call',lambda *a,**k:0)
+    monkeypatch.setattr(m,'request',lambda *a,**k:{'status':'succeeded'})
+    monkeypatch.setattr(m.time,'sleep',lambda _:None)
+    states=iter([dict(original,lightingMode=1),dict(original,focus=700,exposure=10000,gain=32)])
+    monkeypatch.setattr(m,'settings',lambda:next(states))
+    result=m.restore('/only/camera/service',original)
+    assert result['all_configuration_fields_match'] and not result['all_original_fields_match']
+    assert result['automatic_output_fields']==['exposure','focus','gain']
+    monkeypatch.setattr(m,'settings',lambda:dict(original,focusWindowX1=158))
+    with pytest.raises(RuntimeError,match='focusWindowX1'):
+        m.restore('/only/camera/service',original)
+
+
 class BurstCamera:
     capture_source=SOURCE
     last_burst={'transport':'native_v4l2_mjpeg'}

@@ -32,6 +32,20 @@ def read_artifact(directory, reference):
     return path
 
 
+def operator_acceptance(directory, arm, part):
+    """Explicit per-artifact acceptance preserves the failed quality result."""
+    decision = arm.get('operator_acceptance', {}).get(part)
+    if decision is None:
+        return False
+    if (decision.get('decision') != 'accept_below_threshold' or
+            decision.get('authorized_by') != 'user' or
+            not decision.get('authorization') or not decision.get('date') or
+            decision.get('source_sha256') != arm[part]['sha256']):
+        raise ValueError('Operator acceptance must identify the exact artifact and user decision')
+    read_artifact(directory, decision['quality_report'])
+    return True
+
+
 def load_profile(path):
     path = Path(path).expanduser().resolve()
     profile = json.loads(path.read_text())
@@ -56,10 +70,11 @@ def load_profile(path):
             arm['kinematics_file'] = str(read_artifact(path.parent, arm['kinematics']))
         if 'intrinsics' in arm:
             camera = json.loads(read_artifact(path.parent, arm['intrinsics']).read_text())
+            accepted = operator_acceptance(path.parent, arm, 'intrinsics')
             k, d = np.asarray(camera['camera_matrix'], float), np.asarray(camera['distortion'], float)
             size = camera['image_size']
             errors = np.asarray(camera['validation_rms_px'], float)
-            if (camera.get('passed') is not True or camera.get('schema_version') != 1 or
+            if (camera.get('schema_version') != 1 or
                     camera.get('focusAuto') is not False or camera['fit_count'] < 20 or
                     camera['validation_count'] < 6 or errors.size != camera['validation_count'] or
                     k.shape != (3, 3) or d.shape != (5,) or len(size) != 2 or
@@ -67,22 +82,31 @@ def load_profile(path):
                     not np.isfinite(errors).all() or np.any(errors < 0) or
                     not np.allclose(k[2], [0, 0, 1]) or k[0, 0] <= 0 or k[1, 1] <= 0 or
                     not 0 < k[0, 2] < size[0] or not 0 < k[1, 2] < size[1] or
-                    not 0 < camera['fit_rms_px'] <= 1 or
-                    np.median(errors) > 1 or max(errors) > 1.5):
+                    not np.isfinite(camera['fit_rms_px']) or camera['fit_rms_px'] <= 0 or
+                    any(type(v) is not int or not 1 <= v <= 4096 for v in size)):
                 raise ValueError(f'{rid}: invalid independent intrinsic calibration')
+            passed = (camera.get('passed') is True and camera['fit_rms_px'] <= 1 and
+                      np.median(errors) <= 1 and max(errors) <= 1.5)
+            if not passed and not accepted:
+                raise ValueError(f'{rid}: invalid independent intrinsic calibration')
+            arm.setdefault('quality_status', {})['intrinsics'] = (
+                'passed' if passed else 'operator_accepted_below_threshold')
             arm['camera'] = camera
         if 'handeye' in arm:
             result = json.loads(read_artifact(path.parent, arm['handeye']).read_text())
+            accepted = operator_acceptance(path.parent, arm, 'handeye')
             fit = result['robots'][rid]
             q = fit['validation']
             metrics = np.asarray([q['median_reprojection_rms_px'],
                                   q['board_translation_rms_m'], q['board_rotation_rms_deg']])
-            if (result.get('passed') is not True or result.get('mode') != 'hardware' or
-                    fit.get('passed') is not True or fit['fit_count'] < 12 or
+            if (result.get('mode') != 'hardware' or fit['fit_count'] < 12 or
                     fit['validation_count'] < 6 or
                     not 30 <= fit['fit_count'] + fit['validation_count'] <= 80 or
-                    not np.isfinite(metrics).all() or np.any(metrics < 0) or
-                    np.any(metrics > [1., .005, .5])):
+                    not np.isfinite(metrics).all() or np.any(metrics < 0)):
+                raise ValueError(f'{rid}: hand-eye calibration failed independent validation')
+            passed = (result.get('passed') is True and fit.get('passed') is True and
+                      np.all(metrics <= [1., .005, .5]))
+            if not passed and not accepted:
                 raise ValueError(f'{rid}: hand-eye calibration failed independent validation')
             matrix = rigid(fit['T_tool0_camera'])
             rigid(fit['T_base_board'])
@@ -92,6 +116,8 @@ def load_profile(path):
                 raise ValueError('Hand-eye requires its matching intrinsic profile')
             if any(arm['camera'][key] != fit[key] for key in ('fit_count', 'validation_count')):
                 raise ValueError('Hand-eye and intrinsic observation sets do not match')
+            arm.setdefault('quality_status', {})['handeye'] = (
+                'passed' if passed else 'operator_accepted_below_threshold')
             arm['fit'] = fit
         if 'rejected_handeye' in arm:
             read_artifact(path.parent, arm['rejected_handeye'])
@@ -111,6 +137,8 @@ def apply_layout(layout, profile):
         if 'kinematics_file' in arm:
             robot['kinematics_file'] = arm['kinematics_file']
         if 'camera' in arm and robot['tools']['camera_enabled']:
+            if arm.get('image_size_from_intrinsics') is True:
+                robot['tools']['camera_width'], robot['tools']['camera_height'] = arm['camera']['image_size']
             if [robot['tools']['camera_width'], robot['tools']['camera_height']] != arm['camera']['image_size']:
                 raise ValueError(f'{rid}: calibrated image mode differs from configured camera size')
     layout['calibration'] = profile

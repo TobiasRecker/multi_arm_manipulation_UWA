@@ -18,9 +18,11 @@ def planning_camera(layout,rid):
     camera=layout['robots'][rid]['tools'];width,height=camera['camera_width'],camera['camera_height']
     measured=layout.get('calibration',{}).get('robots',{}).get(rid,{}).get('camera')
     if measured:
+        status=layout['calibration']['robots'][rid].get('quality_status',{}).get('intrinsics','passed')
         return {'k':measured['camera_matrix'],'d':measured['distortion'],'width':width,'height':height,
                 'required_focus':measured['focus'],'focusAuto':False,
-                'source':'validated hardware intrinsics; planning only, not an input to the new fit',
+                'source':status+' hardware intrinsics; planning only, not an input to the new fit',
+                'quality_status':status,
                 'profile_id':layout['calibration']['profile_id']}
     focal=width/(2*np.tan(camera['camera_horizontal_fov']/2))
     return {'k':[[focal,0,width/2],[0,focal,height/2],[0,0,1]],'d':[0.]*5,'width':width,'height':height,

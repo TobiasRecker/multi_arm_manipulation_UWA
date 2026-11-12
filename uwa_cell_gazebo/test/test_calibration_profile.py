@@ -28,16 +28,15 @@ def test_measured_model_preserves_world_anchors_and_housing(tmp_path):
         for suffix in ('wrist_camera_link', 'robotiq_85_base_link'):
             np.testing.assert_allclose(Chain(raw, rid+'_tool0', rid+'_'+suffix).forward({}),
                                        Chain(calibrated, rid+'_tool0', rid+'_'+suffix).forward({}))
-    for rid in ('left_rear', 'right_rear'):
+    for rid in ('left_rear', 'right_rear', 'right_front'):
         arm = measured['calibration']['robots'][rid]
         np.testing.assert_allclose(Chain(calibrated, rid+'_tool0',
             rid+'_wrist_camera_optical_frame').forward({}), arm['fit']['T_tool0_camera'], atol=1e-12)
         np.testing.assert_allclose(Chain(calibrated, rid+'_base_link',
             rid+'_measured_board_frame').forward({}), arm['fit']['T_base_board'], atol=1e-12)
-    assert 'fit' not in measured['calibration']['robots']['right_front']
-    np.testing.assert_allclose(Chain(calibrated, 'right_front_tool0',
-        'right_front_wrist_camera_optical_frame').forward({}), Chain(raw, 'right_front_tool0',
-        'right_front_wrist_camera_optical_frame').forward({}))
+    front = measured['calibration']['robots']['right_front']
+    assert front['quality_status']['handeye'] == 'operator_accepted_below_threshold'
+    assert front['fit']['passed'] is False
 
 
 def test_intrinsics_and_sensor_frame_match_measured_optical_frame(tmp_path):
@@ -69,6 +68,7 @@ def test_corruption_and_failed_front_handeye_cannot_be_activated(tmp_path):
     shutil.copytree(source, tmp_path/'profile')
     path = tmp_path/'profile/profile.json'
     data = json.loads(path.read_text())
+    data['robots']['right_front']['operator_acceptance'].pop('handeye')
     data['robots']['right_front']['handeye'] = data['robots']['right_front']['rejected_handeye']
     path.write_text(json.dumps(data))
     with pytest.raises(ValueError, match='failed independent validation'):
