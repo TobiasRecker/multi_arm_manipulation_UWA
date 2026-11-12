@@ -133,3 +133,44 @@ def test_adjusting_closed_viewer_keeps_lights_off_and_open_viewer_updates_profil
         assert calls[-1]['lightingValue'] == 35
     assert calls[-1]['lightingValue'] == 0
     assert json.loads((folder / 'profile.json').read_text())['active']['lightingValue'] == 35
+
+
+def test_deferred_rollout_waits_for_owner_completion_and_free_native_lock(tmp_path, monkeypatch):
+    work = tmp_path / 'work.md'
+    job = tmp_path / 'pending.json'
+    original = dict(ip=IP, phase='WAITING', work_file=str(work), old_service='old-camera', new_service='new-camera')
+    job.write_text(json.dumps(original))
+    work.write_text('- Status: **in Arbeit**\n')
+    monkeypatch.setattr(activity, 'remote', lambda *a: pytest.fail('Must not touch active camera'))
+    monkeypatch.setattr(activity.subprocess, 'run', lambda *a, **k: pytest.fail('Must not stop active camera'))
+    activity.pending_enrollment(job)
+    work.write_text('- Status: **abgeschlossen**, test\n')
+    def busy(*a): raise RuntimeError('Native lock busy')
+    monkeypatch.setattr(activity, 'remote', busy)
+    with pytest.raises(RuntimeError, match='lock busy'):
+        activity.pending_enrollment(job)
+    assert json.loads(job.read_text())['phase'] == 'WAITING'
+
+
+def test_deferred_rollout_stops_only_old_camera_then_starts_new_and_enrolls_once(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    work = tmp_path / 'work.md'
+    work.write_text('- Status: **abgeschlossen**\n')
+    job = tmp_path / 'pending.json'
+    job.write_text(json.dumps(dict(ip=IP, phase='WAITING', work_file=str(work),
+        old_service='old-camera', new_service='new-camera')))
+    calls = []
+    monkeypatch.setattr(activity, 'remote', lambda *a: {'verified': True})
+    def run(args, **kwargs):
+        calls.append(args)
+        return SimpleNamespace(stdout='inactive\n')
+    monkeypatch.setattr(activity.subprocess, 'run', run)
+    monkeypatch.setattr(activity, 'enroll', lambda ip: calls.append(['enroll', ip]))
+    activity.pending_enrollment(job)
+    assert calls[0] == ['systemctl', '--user', 'stop', 'old-camera']
+    assert calls[-2] == ['systemctl', '--user', 'start', 'new-camera']
+    assert calls[-1] == ['enroll', IP]
+    assert json.loads(job.read_text())['phase'] == 'COMPLETE'
+    count = len(calls)
+    activity.pending_enrollment(job)
+    assert len(calls) == count

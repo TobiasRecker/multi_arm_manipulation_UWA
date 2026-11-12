@@ -81,7 +81,20 @@ def preview(path,domain=68):
                 if home:label.text+='\nUser-declared nominal Home (not measured): '+', '.join(home)
                 if plan.get('independent_diagonal_arm'):
                     label.text+='\nIndependent diagonal arm: '+plan['independent_diagonal_arm']+' (snapshot shown)'
-                markers.publish(MarkerArray(markers=[line,label]))
+                collection=[line,label]
+                if plan.get('object_scan'):
+                    from scipy.spatial.transform import Rotation
+                    target=plan['object_scan'];T=np.asarray(target['T_world_object'])
+                    box=Marker();box.header.frame_id='world';box.ns='parking_path';box.id=2
+                    box.type=Marker.CUBE;box.action=Marker.ADD
+                    box.pose.position.x,box.pose.position.y,box.pose.position.z=T[:3,3].tolist()
+                    q=Rotation.from_matrix(T[:3,:3]).as_quat()
+                    box.pose.orientation.x,box.pose.orientation.y,box.pose.orientation.z,box.pose.orientation.w=q.tolist()
+                    box.scale.x,box.scale.y,box.scale.z=target['size_m']
+                    box.color.r,box.color.g,box.color.b,box.color.a=1.,.55,.1,.55
+                    collection.append(box)
+                    label.text+='\nOrange: coarse object envelope, not a final measured surface'
+                markers.publish(MarkerArray(markers=collection))
                 rclpy.spin_once(node,timeout_sec=.05)
             failed=[p.returncode for p in processes if p.poll() not in (None,0)]
             if failed:raise RuntimeError(f'Preview process failed: {failed}')

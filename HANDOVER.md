@@ -1,5 +1,36 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Schnellere HD-Fotos und nutzungsabhängige LEDs,2026-11-12
+
+- Nutzerauftrag: HD-Aufnahme beschleunigen ohne wesentliche Qualitätseinbußen,
+  Wrist-LEDs aller vier Arme nur während Foto-/Videonutzung. Andere Agenten
+  parallel erhalten; keine Armfahrt oder Profiländerung aus dieser Arbeit.
+- Doppelte nativeVGA-Rückschaltung entfernt, tatsächliches Originalformat/
+  Pixelformat/Bildintervall nach Visionneustart unabhängig geprüft. Strenger
+  expliziter Rückfall; vollständige Settings-/Sensor-/Watchdog-Prüfungen erhalten.
+  Originalworker/-helfer für fremde eingefrorene Reihen unverändert.
+- Bei identischem LED30%-Ablauf RF18,221→15,271s(−16,19%), CB3LF16,522→13,714s
+  (−17,00%). RF je24Ecken, praktisch gleiche Schärfe/Clipping, mittlere Ecken
+  RMS0,064px auseinander; Nutzer bestätigt statische Szene. Kein Genauigkeits-
+  nachweis. RR-TestPASS,24,36s wegen vorhandener strenger Legacy-ROI-Korrektur.
+- LED-Nutzung über gemeinsame Prozesssperren. Erster Nutzer an, letzter aus;
+  Guardian `uwa-wrist-led-policy.service` installiert/aktiviert, Absturzbereinigung
+  mit zwei echten Viewern geprüft: erster Crash bleibt an, letzter Crash aus,
+  alle übrigen Settings identisch. CLI/GUI/HD/Kalibrierung/Drei-/Fünfkamera erfasst.
+- Aktive Intensität standard30%, im Wrist-Fenster manuell änderbar, Leerlauf0.
+  Manueller Setter2/Gettermode1 auf getestetenFirmwares: Bestätigung+Intensität
+  statt falschem Enumvergleich. Gesonderter Managed-Restore-Shim. Keine Fokus- /
+  Belichtungsänderung durch LED-Befehl. Fremde Pendant-/HTTP-Viewer melden keine
+  Nutzung; für eigene Streams activity()-Kontext verwenden.
+- AktivRF/RR/LF nach Abschluss ihrer Messreihen; nur ihre Kameradienste neu geladen.
+  LR-Rollout bewusst nach eigener laufender Reihe: Job
+  setup/wrist_lighting/pending/left_rear.json. Guardian wartet Abschlussstatus
+  und freien Kameralock, ersetzt dann ausschließlich altenLR-Kameradienst durch
+  uwa-wrist-hd-left-rear-managed.service und bestätigt LED0. Keine UR-/Motionaktion.
+- [Bedienung/Prüfgrenzen](docs/wrist_speed_led_2026-11-12.md), Rohdaten
+  setup/calibration/wrist_speed_led_20261112/, Test-/Buildlogs
+  setup/logs/uwa-wrist-speed-led-*.log. Frühe verworfene LED-/Restoreversuche erhalten.
+
 Stand der Zusammenfassung: **2026-11-12**, Zeitzone Australia/Perth.
 Diese Datei fasst die bisherigen Gespräche und die überprüfte Implementierung
 zusammen. Sie soll bei weiterer Arbeit mitgepflegt werden, nicht als unveränderlicher
@@ -30,7 +61,7 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 - LF-Abschluss41/41/Controllerinaktiv18:24:46bestätigt; neuerLive-BatchPASS,
   Fingerprintd0cb381a24345ef6327bb260417a8941d143893c3040e41c69dee06a154630ee,
   genehmigteZielereihenfolgebestätigt. ros.urp perROS-Playgestartet.
-- LÄUFT18:29:Exec69707/PID85601,startticks791683,ersteBewegung001.
+- LÄUFT18:29:Exec69707/PID85601,startticks791683,zuletzt20/41gültigeBilder.
   Startup-DiscoveryabbruchvorerstemFahrziel archiviert; begrenztes16sWarten
   aufgleichzeitigfrischeDaten,keineStale-Lockerung,13TestsPASS. Wrapperdeaktiviert
   LR-Motion in finally. EigenesPreviewaus,KameradienstidlezwischenAufnahmen.
@@ -596,6 +627,41 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 - Bericht [Objektdigitalisierung](docs/object_digitization.md), Vorschau
   output/images/carton_digitization_preview.png. Rohdaten/Hashmanifest/Overlays
   undKameraprofile untersetup/digitization/carton_20261112/, Logs uwa-carton-*.
+
+## OAK zuerst und Fünfkamera-Softwarestufe, 2026-11-12
+
+- Nutzer beauftragt Umsetzung; korrigierter Aufbau: neuer größerer Karton in der
+  Mitte zwischen beiden Tischen, Unterseite auf Tischhöhe. Grobe Nutzerangabe
+  40×30×20cm. Gewünschter Ablauf zuerst OAK-Foto/Größenschätzung, dann UR-Planung.
+- Ein natives OAK-Standardfoto18:20AWST beiFokus116, keine Arm-/Wrist-Aufnahme.
+  Automatische rechte Board-PnP24Ecken/1,33px. Assistierter Sechspunktfit schätzt
+  43,9×34,6×15,8cm; kein finales CAD/Genauigkeitsnachweis. Overlay durchgesehen.
+  Planungsreserve max(Bild,Nutzer)×1,15+4cm ergibt54,5×43,7×27cm.
+- Neue CLI object_scan_bootstrap (Foto/assistierte Schätzung), object_scan_plan
+  (nur Lesen/Modellprüfung/RViz-Vorschau Domain73) und scripts/object_capture.sh
+  (vier Wrist+OAK, Kamera-only). Dreikamera-Standard erhalten. Keine Bewegungs-
+  Clients im neuen Planer; alle Ergebniswege bleiben executable:false.
+- Neue gemeinsame Modellansichten mit beiden Referenzboards; enger Suchbereich
+  wegen Bildausschnitten verworfen, weiter Bereich fand5Grund-/15Zusatzansichten.
+  Volle MoveIt-Wege mit gepolstertem Objekt, andere Arme nicht ausgenommen;
+  reine Planung, keine reale Ausführung. Alte rechte-Tisch-Kartonpläne überholt.
+- Fünfkamera-Telemetrieaudit vor/während Fotos, Roh-JointStates mit Stempeln und
+  Geschwindigkeiten. Bewegung/Stale verweigern statische Bestätigung. Echte reine
+  Leseprobe alle4frisch/ruhig, maximale beobachtete Gelenkänderung0,000071rad.
+  Keine Bilder während dieses Audits. Fotos bei Fehler bleiben diagnostisch.
+- Gespeicherte fünf Kameras in digitize_box vorbereitet; fehlende native K/D
+  explizit ausgeschlossen. Linkes/rechtes Board nur mittels beider PnP-Posen aus
+  demselben OAK-Foto verbinden, Transformationsrichtung synthetisch geprüft.
+- Build PASS,35gezielte Tests inklusive Parkregressionen PASS, englische Fünfkamera-GUI mit synthetischen
+  Snapshots offline geprüft. Keine laufenden Messreihen/Dienste unterbrochen;
+  neue Pfade/Szenen nur offline. Noch kein realer Fünfersatz, kein neuronales Mesh.
+- Frische reine Zustandslesung18:35:48AWST und neue Planung bestätigt:20Ansichten,
+  19Wege/1963Punkte,139sGrundpositionierung+55sZusatzwege. Aktuellster Entwurf
+  new_carton_plan_current/, frühere Entwürfe separat. Statische Vorschau geprüft;
+  alle Artefakte weiterhin nicht ausführbar, kein echter Fünfkamera-Scan.
+- Anleitung docs/object_scan.md, Daten setup/digitization/five_camera_design_20261112/.
+  Welt-/Montageanker teils vorläufig; reale Wege brauchen frische Prüfung und
+  konkrete Durchsicht, passende Kalibrierprofile sind teilweise noch separat.
 
 ## Vier Wrist-Kameras plus OAK: Scan-Konzept, 2026-11-12
 

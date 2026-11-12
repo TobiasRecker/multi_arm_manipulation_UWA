@@ -7,6 +7,8 @@ import json
 import os
 from pathlib import Path
 import shlex
+import re
+import subprocess
 import time
 
 
@@ -162,6 +164,34 @@ def reconcile(ip):
             return set_active(ip, False)
 
 
+def pending_enrollment(path):
+    """Finish a queued camera-only rollout after its measurement owner is done."""
+    job = json.loads(path.read_text())
+    if job.get('phase') == 'COMPLETE':
+        return
+    status = Path(job['work_file']).read_text()
+    if not re.search(r'^- Status:\s*\*\*abgeschlossen\b', status, re.I | re.M):
+        return
+    if job.get('phase', 'WAITING') == 'WAITING':
+        # Also prove that the controller's native transaction lock is free.
+        remote(job['ip'], None)
+        job['phase'] = 'STOPPING_OLD_CAMERA_SERVICE'
+        write_json(path, job)
+        try:
+            subprocess.run(['systemctl', '--user', 'stop', job['old_service']], check=True, timeout=5)
+        except subprocess.TimeoutExpired:
+            return
+    state = subprocess.run(['systemctl', '--user', 'show', job['old_service'],
+        '-p', 'ActiveState', '--value'], capture_output=True, text=True, timeout=5).stdout.strip()
+    if state not in ('inactive', 'failed', ''):
+        return
+    subprocess.run(['systemctl', '--user', 'start', job['new_service']], check=True, timeout=10)
+    enroll(job['ip'])
+    job.update(phase='COMPLETE', completed_utc=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()))
+    write_json(path, job)
+    print('DEFERRED LED POLICY ENABLED · ' + job['ip'], flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--enroll', nargs='+', help='Enroll idle cameras and save their active lighting profile')
@@ -179,7 +209,12 @@ def main():
     with ThreadPoolExecutor(max_workers=4) as pool:
         while True:
             if root().exists():
-                list(pool.map(check, [p for p in root().iterdir() if p.is_dir()]))
+                list(pool.map(check, [p for p in root().iterdir() if p.is_dir() and p.name != 'pending']))
+                for path in (root() / 'pending').glob('*.json'):
+                    try:
+                        pending_enrollment(path)
+                    except Exception as error:
+                        print('DEFERRED LED POLICY WAITING · ' + str(error), flush=True)
             time.sleep(1)
 
 

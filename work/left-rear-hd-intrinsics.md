@@ -43,7 +43,7 @@
   frischeZustände (keineUnionalterSamples);13SequenztestsPASS.
 - LÄUFT seit18:29:18AWST: Exec69707,PID85601/startticks791683,Runtime unter
   preparation/runtime.json. Log setup/logs/uwa-left-rear-hd-acquisition.log.
-  Aktuell MOVINGsample_001. KeineanderenArme kommandieren, keineWorkeränderung.
+  Zuletzt20/41akzeptiert,je24Ecken; MOVINGsample_020. KeineanderenArme kommandieren, keineWorkeränderung.
 - Eigenes preparation/run_approved_series.py deaktiviert in finally nurLR-
   Bewegungscontroller überMATCH;Cleanupresultatprüfen. BeiAbbruch nurverifizierten
   PID mitSIGINT,keineautomatischeRückfahrt/Quittierung. NachkompletterReihe

@@ -19,6 +19,19 @@
 - HD-Beschleunigung mit gemessenen Zeitanteilen und Bildvergleich begründen;
   native Auflösung, fokusgebundene Profile, Frische-/Kontrollnachweise und
   bestätigte Wiederherstellung erhalten. Qualitätsgleichheit nicht vermuten.
+- Umsetzung: `WristCamera.activity()` um ganze Videonutzung legen; einzelne
+  HTTP-Bilder, HD-Fotos und Kalibrier-Capture sind erfasst. Shared-Lock-Nutzung
+  erhalten, fremde Viewer nicht beim Schließen eines Fensters ausschalten.
+  Guardian `uwa-wrist-led-policy.service`, Profile unter setup/wrist_lighting/.
+  Manueller Nutzungswert standard30%, idle0. Getter-/Setter-LED-Modi sind auf
+  diesen UCC-Versionen verschieden; erfolgreiche manuelle Setterantwort und
+  tatsächliche Intensität prüfen, Getter1 nicht als Setter1 zurückspielen.
+- Während LR-HD-Reihe bleibt deren Originalpfad eingefroren. Hinterlegter
+  Rollout in setup/wrist_lighting/pending/left_rear.json darf ausschließlich
+  nach abgeschlossenem work/left-rear-hd-intrinsics.md und freiem Kameralock
+  den Kameradienst ersetzen; keine Arm-/Treiber-/Programm-/Bewegungsaktion.
+  Details docs/wrist_speed_led_2026-11-12.md. Fremde direkte HTTP-/Pendant-
+  Clients sind ohne Nutzungsmeldung nicht durch diesen PC erfassbar.
 
 ## Ausdrücklich übernommene vorläufige OAK-Registrierung (2026-11-12)
 
@@ -102,6 +115,18 @@
   Kamerazugriff beachten, keine fremden Live-/ROS-Dienste automatisch stoppen.
 
 ## Bildbasierte Objektdigitalisierung (2026-11-12)
+
+- Nutzer präzisiert den Ablauf: zuerst OAK-Foto, grobe Objektlage/-maße daraus,
+  dann UR-Ansichten planen. Aktueller neuer Karton steht **zwischen beiden
+  Tischen**, Unterseite auf Tischhöhe; alte rechte-Tisch-Kartonpläne sind dafür
+  überholt. Nutzermaße40×30×20cm sind grobe Angaben, keine Messfreigabe.
+- Erste Umsetzung docs/object_scan.md: OAK-Bootstrap noch mit explizit geprüften
+  Objektecken; keine vollautomatische Segmentierung behaupten. Planungsreserve
+  getrennt von Endmaßen/Unsicherheit behandeln. Planer erzeugt keine Armkommandos.
+- Fünfkamera-Aufruf scripts/object_capture.sh nutzt beide40mm-Boardidentitäten und
+  kontinuierlichen Stillstandsaudit. Unterschiedliche Boardframes nur über eine
+  beobachtete OAK-Brücke verbinden, nicht über nominelle Tischabstände. Bilder ohne
+  passende native K/D nicht metrisch verwenden. Bestehenden Dreikamera-Aufruf erhalten.
 
 - Nutzerwunsch vom 2026-11-12: vier Wrist-Kameras plus OAK auf einen gemeinsamen
   Objektbereich ausrichten, fünf Fotos pro Schritt und optional kleine zusätzliche

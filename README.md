@@ -1,5 +1,11 @@
 # UWA four-arm laboratory cell
 
+Native Wrist photographs now avoid a redundant format switch, with actual
+V4L2 format/interval verification and fallback. With the same LED workflow:
+right front18.2→15.3s, left front16.5→13.7s. LEDs follow shared photo/video use;
+left-rear activation waits for its ongoing calibration to finish.
+See [timings, lighting controls and rollout](docs/wrist_speed_led_2026-11-12.md).
+
 **UWA Camera Capture** shows mobile-A4-board visibility from both right wrist
 cameras and OAK4, with a single button for native photographs. Open it from the
 application menu or run `bash src/multi_arm_manipulation_UWA/scripts/camera_capture.sh`.
@@ -64,7 +70,10 @@ or robot motion. The first estimate is approximately 524×102×100 mm; wall
 thickness is assumed. This is a geometric approximation, not validated metrology.
 
 A [four-wrist plus OAK scan design and literature comparison](docs/five_camera_reconstruction.md)
-now describes the next extension; it contains no executable robot poses.
+describes the methods and limits. The first [OAK-first scan workflow](docs/object_scan.md)
+now estimates coarse box geometry, prepares checked view proposals and provides a
+five-camera viewer via `bash src/multi_arm_manipulation_UWA/scripts/object_capture.sh`.
+Corner selection is assisted; no real scan motion has been executed.
 
 ## OAK camera CAD and tripod
 

@@ -153,3 +153,21 @@ def test_velocity_violation_cannot_be_hidden_by_matching_endpoint_positions():
     audit.arm(1.)
     audit.receive('a', np.zeros(6), [.1, 0, 0, 0, 0, 0], 1.05)
     assert not audit.summary()['stationarity_confirmed']
+
+
+def test_camera_failure_before_directory_creation_preserves_set_and_releases_busy(tmp_path):
+    r, calls = rig(tmp_path)
+    r.cameras, r.wrist_cameras, r.audit_stationarity = FIVE_CAMERAS, FIVE_CAMERAS[:-1], True
+    original = r.capture_one
+    def early_failure(name, directory, native):
+        if name == 'left_rear':
+            raise RuntimeError('Camera activity lock unavailable')
+        return original(name, directory, native)
+    r.capture_one = early_failure
+    r.capture_monitor = lambda directory: SimpleNamespace(wait_still=lambda: None,
+        finish=lambda: dict(stationarity_confirmed=True,
+            reference_positions={name: [0.] * 6 for name in FIVE_CAMERAS[:-1]}))
+    result = r.capture_all()
+    assert not result['all_captured'] and not r.busy.locked()
+    assert Path(result['directory'], 'left_rear/record.json').exists()
+    assert result['cameras']['right_front']['success']

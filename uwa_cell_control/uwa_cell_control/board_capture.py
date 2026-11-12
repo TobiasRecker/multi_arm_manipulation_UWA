@@ -365,6 +365,12 @@ class CaptureRig:
     def capture_all(self, native=True, resume_preview=False):
         if not self.busy.acquire(blocking=False):
             raise RuntimeError('Capture already running')
+        try:
+            return self._capture_all(native=native, resume_preview=resume_preview)
+        finally:
+            self.busy.release()
+
+    def _capture_all(self, native=True, resume_preview=False):
         directory = self.session / ('set_' + datetime.now().strftime('%H%M%S_%f'))
         directory.mkdir()
         report = dict(schema=1, started_at=utc(), cameras={}, selected_cameras=list(self.cameras), board=self.board_config,
@@ -404,11 +410,14 @@ class CaptureRig:
                     report['stationarity'] = dict(stationarity_confirmed=False, error=str(error))
             if self.audit_stationarity:
                 report['stationary_set_confirmed'] = report.get('stationarity', {}).get('stationarity_confirmed', False)
+                write_json(directory / 'stationarity.json', report.get('stationarity', dict(
+                    stationarity_confirmed=False, error='Stationarity audit was not started')))
                 for name, record in report['cameras'].items():
                     record['stationarity_audit'] = '../stationarity.json'
                     if report['stationary_set_confirmed'] and name in self.wrist_cameras:
                         record['static_window_joint_positions'] = report['stationarity']['reference_positions'][name]
                         record['pose_timestamp_kind'] = 'constant within audited acquisition drift bound; not exposure-synchronized'
+                    (directory / name).mkdir(exist_ok=True)
                     write_json(directory / name / 'record.json', record)
             report.update(finished_at=utc(), directory=str(directory),
                 all_captured=set(report['cameras']) == set(self.cameras) and
@@ -418,7 +427,6 @@ class CaptureRig:
             report['all_full'] = report['all_captured'] and all(
                 r['observation']['full'] for r in report['cameras'].values())
             write_json(directory / 'manifest.json', report)
-            self.busy.release()
             if resume_preview:
                 self.preview.start()
         return report

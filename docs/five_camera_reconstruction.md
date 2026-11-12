@@ -2,7 +2,8 @@
 
 Stand: 12.11.2026. Nutzerziel: ein Objekt in einem gemeinsamen Tischbereich mit
 vier Wrist-Kameras und OAK fotografieren, optional mit zusätzlichen Ansichten
-nach kleinen Kamerabewegungen. **Recherche und Konzept, kein ausführbarer Fahrplan.**
+nach kleinen Kamerabewegungen. Konzept und Literaturbewertung. Die erste Implementierung ist inzwischen unter
+[OAK zuerst und Fünfkamera-Aufnahme](object_scan.md) dokumentiert; noch keine reale Scan-Fahrt.
 
 ## Nutzen und gemeinsame Sicht
 
@@ -83,25 +84,26 @@ prüfen Geometrie und Skalierung. Für einfache Objekte bleibt eine Ebenen-/Quad
 oder andere parametrische Anpassung sinnvoll. Ein Mesh wird nicht automatisch
 zu bearbeitbaren CAD-Flächen.
 
-## Lokaler Stand
+## Lokaler Stand nach Beginn der Umsetzung
 
-- Alle vier Wrist-Kameras haben inzwischen einen nachgewiesenen nativen
-  HD-Aufnahmepfad. Der bestehende CaptureRig-Code verwaltet noch zwei rechte
-  Wrist-Kameras plus OAK; fünf Kameras sind dort noch nicht implementiert.
-- HD-Kalibrierungen rechts hinten und links vorne laufen beziehungsweise warten
-  auf Fortsetzung. Passende K/D und Fokus nicht als bereits aktiviert voraussetzen.
-  Laufende Serien werden für dieses Konzept nicht unterbrochen.
-- Lokal ist Intel-Arrow-Lake-Grafik erkannt, kein NVIDIA/CUDA-Gerät. COLMAPs
-  Sparse-Schritte können auf CPU laufen, seine eigene dichte Rekonstruktion
-  benötigt CUDA. Schwere Lernverfahren zunächst begrenzt testen oder auf einem
-  geeigneten GPU-Rechner ausführen.
+Der Nutzer hat den Beginn beauftragt und den Aufbau korrigiert: neuer größerer
+Karton **zwischen beiden Tischen**, Unterseite auf Tischhöhe, grob40×30×20cm.
+Die erste [Softwarestufe](object_scan.md) verbindet OAK-Foto, assistierte grobe
+Geometrie, reserviertes Planungsvolumen, gemeinsame Ansichten und Fünfkamera-GUI.
+Neue Wege sind reine Prüfartefakte ohne Hardware-Ausführung.
+
+- OAK-Einzelbild real aufgenommen; grobe Maße ca.44×35×16cm, nicht abschließend
+  validiert. Planungsvolumen etwa55×44×27cm. Weitere Geometrie aus mehreren Fotos.
+- CaptureRig unterstützt explizite Kameralisten; Dreikamera-Standard erhalten.
+  Für fünf Kameras kontinuierlicher Stillstandsaudit, beide Tischboard-Identitäten.
+- Einige passende native-HD-Kalibrierungen sind separat beziehungsweise noch in
+  Arbeit. Aufnahmen ohne passende K/D bleiben für metrische Fits ausgeschlossen.
+- Der Planer fand im erweiterten Suchbereich gemeinsame Modellansichten und
+  geprüfte Wege; noch kein realer Fünfkamera-Datensatz. Neue reale Wege brauchen
+  frischen Zustand und Durchsicht. Laufende Kalibrierreihen erhalten.
+- Lokal Intel-Grafik, kein erkanntes CUDA-Gerät. COLMAP Sparse auf CPU möglich,
+  dessen eigene dichte Rekonstruktion benötigt CUDA. Noch keine Lernmodelle
+  installiert oder ausgeführt.
   [COLMAP ohne CUDA](https://colmap.github.io/faq.html#available-functionality-without-gpu-cuda).
-- `config/digitization/five_camera_scan_design.yaml` ist ein nicht ausführbares
-  Designprofil ohne Consumer. YAML und Ansichtszähler wurden geprüft.
-- Noch keine gemeinsamen Zielposen oder Verbindungswege berechnet/geprüft,
-  keine neue Kameraaufnahme oder Armbewegung, keine Modellinstallation und
-  keine dichte oder gelernte Rekonstruktion für diese Recherche ausgeführt.
-
-Nächster Umsetzungsschritt: gemeinsamen Scanbereich festlegen, passende Kamera-
-profile und aktuellen Vierarmzustand einlesen, dann Grund- und Zusatzposen mit
-vollständigen Verbindungswegen prüfen und in RViz zur Durchsicht darstellen.
+- `five_camera_scan_design.yaml` bleibt das ursprüngliche nicht ausführbare
+  Konzept. Der implementierte Planer verwendet separat erzeugte `scan_geometry.yaml`.

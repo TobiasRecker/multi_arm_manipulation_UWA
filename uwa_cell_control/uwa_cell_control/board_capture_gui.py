@@ -148,9 +148,11 @@ class Window(QtWidgets.QMainWindow):
         self.setCentralWidget(root)
         layout = QtWidgets.QVBoxLayout(root)
         board = rig.board_config
-        title = QtWidgets.QLabel(f"{board['board_id']} · IDs {min(board['marker_ids'])}–{max(board['marker_ids'])} · "
-            f"{board['square_length'] * 1000:g} mm squares · "
-            + ('Both table references · ' if board.get('alternate_boards') else '') + 'Camera controls only')
+        references = [board] + board.get('alternate_boards', [])
+        identity = ' / '.join(item['board_id'] for item in references)
+        ids = ' / '.join(f"{min(item['marker_ids'])}–{max(item['marker_ids'])}" for item in references)
+        title = QtWidgets.QLabel(f"{identity} · IDs {ids} · "
+            f"{board['square_length'] * 1000:g} mm squares · Camera controls only")
         title.setStyleSheet('font-size:21px;font-weight:bold;')
         layout.addWidget(title)
         self.overall = QtWidgets.QLabel('WAITING FOR ' + self.count_label + ' CAMERAS')
@@ -281,7 +283,8 @@ class Window(QtWidgets.QMainWindow):
                 obs = meta['observation']
                 stale_payload = time.time() - self.changes.get(name, 0) > 15
                 fresh = age < 8 and not self.pause.isChecked() and not self.busy and not self.errors.get(name)
-                fresh = fresh and not stale_payload and meta['kind'] != 'SAVED SNAPSHOT'
+                snapshot = meta['kind'].startswith('SAVED SNAPSHOT')
+                fresh = fresh and not stale_payload and not snapshot
                 if fresh:
                     text = obs['status'] + ' · ' + str(obs['corners']) + '/24'
                     color = '#8effa2' if obs['full'] else '#ffe066' if obs['corners'] else '#ffb4b4'
@@ -291,11 +294,11 @@ class Window(QtWidgets.QMainWindow):
                     current.append(obs['corners'] >= 4)
                 else:
                     text, color = ('PAUSED / SNAPSHOT' if self.pause.isChecked() or self.busy or
-                                   meta['kind'] == 'SAVED SNAPSHOT' else 'STALE / NO CURRENT IMAGE'), '#ffe066'
+                                   snapshot else 'STALE / NO CURRENT IMAGE'), '#ffe066'
                     current.append(False)
                 size = obs['image_size']
                 detail = f"{meta['kind']} · {size[0]}×{size[1]} · received {age:.1f} s ago\n"
-                detail += self.errors.get(name, f"Mobile markers: {len(obs['marker_ids'])}/17 · corners: {obs['corners']}/24")
+                detail += self.errors.get(name, f"Reference markers: {len(obs['marker_ids'])}/17 · corners: {obs['corners']}/24")
                 if stale_payload:
                     detail += '\nUnchanged payload >15 s; freshness unconfirmed.'
                 pixmap = self.pixmaps[name]

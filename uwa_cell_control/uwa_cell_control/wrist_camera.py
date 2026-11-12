@@ -141,6 +141,12 @@ class WristCamera:
         before = self.settings()
         desired = copy.deepcopy(before)
         desired.update(focus=focus, focusAuto=auto)
+        from .wrist_activity import directory
+        ip = self.base.split('//')[1].split(':')[0]
+        if (directory(ip) / 'enabled').exists():
+            # A full focus write contains getter LED mode1. Its setter enum
+            # is manual2; preserve the current intensity rather than turning off.
+            desired['lightingMode'] = 2
         self.request('/setcamerasettings?setManualValuesIfModeChanged=true',
                      body={'cameraSettings': desired})
         after = self.settings()

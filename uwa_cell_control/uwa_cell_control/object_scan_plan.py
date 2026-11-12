@@ -415,6 +415,7 @@ def main():
         preview = dict(step, description=model.description, layout=layout, joint_names=joint_names(step['arm']),
                        duration=step['points'][-1]['time'], state_sources=sources, unobserved_arms=[],
                        executable=False, mode=snapshot['mode'], purpose='OBJECT SCAN REVIEW ONLY',
+                       object_scan=dict(T_world_object=result['T_world_object'], size_m=config['size_m']),
                        tool_path_world=[chain.forward(dict(step['start'], **dict(zip(joint_names(step['arm']), p['positions']))))[:3, 3].tolist()
                                         for p in step['points']])
         (args.output / f'review_step_{index:03d}.json').write_text(json.dumps(preview, allow_nan=False) + '\n')
