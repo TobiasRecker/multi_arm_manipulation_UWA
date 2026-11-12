@@ -12,6 +12,17 @@ from uwa_cell_control.hardware_charuco import first_view,observe,calibrate_intri
 from uwa_cell_control.parking import make_model
 
 
+@pytest.mark.parametrize('rid',ROBOT_IDS)
+def test_hardware_cli_accepts_each_cell_arm_without_invoking_hardware(monkeypatch,tmp_path,rid):
+    import sys
+    import uwa_cell_control.handeye_hardware as command
+    received=[]
+    monkeypatch.setattr(command,'plan_view',lambda args:received.append(args.arm))
+    monkeypatch.setattr(sys,'argv',['handeye_hardware','plan-view','--arm',rid,'--output',str(tmp_path)])
+    assert command.main()==0
+    assert received==[rid]
+
+
 def test_board_corners_are_detected_without_nominal_intrinsics_and_wrong_board_is_not_accepted():
     config=load_layout()['charuco']
     picture=cv2.cvtColor(board_image(config,'right'),cv2.COLOR_GRAY2BGR)
@@ -63,17 +74,18 @@ def test_changed_focus_duplicate_frames_and_bad_validation_do_not_produce_intrin
     with pytest.raises(ValueError,match='validation'):calibrate_intrinsics(changed,focus=404,image_size=[640,480])
 
 
-def test_first_view_ik_and_full_moveit_sweep_keep_other_arms_fixed(tmp_path):
+@pytest.mark.parametrize('rid',['right_rear','left_rear'])
+def test_first_view_ik_and_full_moveit_sweep_keep_other_arms_fixed(tmp_path,rid):
     layout=load_layout();profiles={r:{'ur_type':a['type'],'kinematics_file':None} for r,a in layout['robots'].items()}
     model,layout=make_model(layout,profiles,tmp_path)
     start={j:q for rid,r in layout['robots'].items() for j,q in zip(joint_names(rid),r['initial_positions'])}
     # Starting nearby but different gives a real motion path, not only a no-op.
-    start['right_rear_shoulder_pan_joint']-=.15
-    plan=first_view(model,layout,'right_rear',start)
+    start[rid+'_shoulder_pan_joint']-=.15
+    plan=first_view(model,layout,rid,start)
     q=dict(start,**dict(zip(plan['joint_names'],plan['target'])))
-    actual=Chain(model.description,'world','right_rear_wrist_camera_optical_frame').forward(q)
+    actual=Chain(model.description,'world',rid+'_wrist_camera_optical_frame').forward(q)
     np.testing.assert_allclose(actual,plan['nominal_camera_target_world'],atol=1e-5)
     for point in plan['points']:
         state=dict(start,**dict(zip(plan['joint_names'],point['positions'])))
         assert model.check(state)[0]
-        assert all(state[j]==start[j] for r in ROBOT_IDS if r!='right_rear' for j in joint_names(r))
+        assert all(state[j]==start[j] for r in ROBOT_IDS if r!=rid for j in joint_names(r))

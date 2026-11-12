@@ -14,7 +14,7 @@ import cv2
 import numpy as np
 
 from match_ur_hardware.profiles import load_profiles
-from uwa_cell_gazebo.configuration import default_layout_path,load_layout,joint_names
+from uwa_cell_gazebo.configuration import ROBOT_IDS,default_layout_path,load_layout,joint_names
 from uwa_cell_gazebo.charuco_views import Chain
 from uwa_cell_calibration.storage import atomic_json
 from .park_arm import JointObserver,node_for
@@ -210,7 +210,7 @@ def main():
         p=sub.add_parser(command)
         p.add_argument('--inventory',default=str(ws/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml'))
         p.add_argument('--layout',default=str(default_layout_path()))
-        p.add_argument('--arm',choices=['right_rear','right_front'],default='right_rear')
+        p.add_argument('--arm',choices=ROBOT_IDS,default='right_rear')
         p.add_argument('--mode',choices=['hardware','mock'],default='hardware')
         p.add_argument('--manual-states',default=str(ws/'setup/calibration/parking/left_home.json'))
         if command in ('plan-view','plan-series','resume-series'):

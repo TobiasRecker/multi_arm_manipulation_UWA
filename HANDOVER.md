@@ -26,6 +26,63 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 - **Explizit seit 2026-11-09:** Wichtige Ziele, Anforderungen, Entscheidungen und
   Vorlieben parallel in AGENTS-/Handover-Dateien festhalten.
 
+## Vollauflösung Front-Wrist nach Update erneut prüfen,2026-11-12
+
+- Nutzer beauftragt erneuten nativen Vollauflösungstest an right_front192.168.8.103
+  und bietet legitimen temporären SSH-Zugang. Keine Zugangsdaten dokumentieren.
+- Erste lesende Abfrage bestätigt tatsächlich UCC4.1.0.164735/CQ0-1.4.0,
+  uniqueCamId01D10E1900090912,Normal. HTTP-Vorschau weiterhin640×480.
+  Fokus435/Manual,60000µs/Manual,Gain16; Auto-LED/0. Vollständige Originalwerte
+  und Vorher-JPEG in setup/calibration/wrist_hd/right_front_20261112/ gesichert.
+- SSH-Port22 antwortetConnection refused; keine Kennwortprüfung oder Anmeldung
+  möglich. Nutzer um Aktivierung unter Settings/Security/Secure Shell gebeten.
+  Neue Kamera-API/GetCameraList/GetCameraSettingsDetails nur lesend gesichert.
+  Bislang keine Kamera-/Roboterparameter oder Dienste verändert, kein HD-Nachweis.
+- Eigene Aufgabe work/front-wrist-hd-ssh.md; parallele aktive left-rear-
+  Kalibrierungsvorbereitung erhalten. Nächster Schritt nach SSH-Aktivierung:
+  UVC-Modi/Tools/Kamerakonfiguration gezielt lesen und native Aufnahme prüfen,
+  bei Änderungen vorher/nachher Einstellungen vergleichen und wiederherstellen.
+
+## Kalibrierung links hinten vorbereitet,2026-11-12
+
+- Auftrag: left_rear erreichen und Kalibrierung vorbereiten. Nutzer bestätigt
+  linkes A3-Tischboard40mm ungefähr an Modellposition und links vorne weiter
+  aufrecht Home. Eigenes mobiles38mm-A4-Board hierfür nicht verwenden.
+- left_rear192.168.8.169 erreichbar, gleiche Seriennummer20265701623 und
+  Software5.25.0.130258. Nutzer beauftragt ausdrücklich Remote-Einschalten,
+  Bremsenlösen und Programmstart über vorhandenen MATCH-Treiber. MATCH-Prepare
+  erreicht RUNNING/NORMAL; keine Fahrziele und keine Schutzquittierung.
+- ros.urp nativ geladen/PLAYING, aktive tobias.installation. External Control
+  noch **false**, keine eingehende Verbindung an52001–52004, alle Listener
+  vorhanden. PC weiterhin209/enp87s0. Nutzer um Prüfung der aktiven Installation
+  Host209/Port52002 und tatsächlich ausgeführten External-Control-Knoten gebeten.
+  Spätester Lesestand während der Pendantprüfung: links hinten RUNNING/Local/
+  STOPPED ros.urp, beide rechten POWER_OFF/Local; keine neuen Startversuche
+  während dieser Konfigurationsprüfung. final-readiness.json ist maßgeblich.
+- Kamera4242 erreichbar,640×480, drei unterschiedliche Bildpayloads; Fokus439Auto,
+  Belichtung33333µsAuto/Gain16 gelesen, nichts an Kamera geschrieben. Aktuelle
+  Sicht erkennt0 linke Ecken; erste Boardansicht/Fokus noch zu prüfen.
+- Hardware-CLI jetzt alle vier Arm-IDs, linkes Board automatisch je Tisch.
+  Individuelle gespeicherte Werkskinematik verwendet. Entwurf erster Weg34,1s
+  mit tatsächlichem linken Start und historischem rechten Entwurf; ausdrücklich
+  **nicht ausführbar**, beide rechten Hinderniszustände noch unbestätigt.
+  Hinten rechts Local/POWER_OFF/Nullwinkel: Nutzer um Remote/Einschalten zum
+  Lesen gebeten. Linke Home-Angabe weiterhin Nutzerangabe, kein Encoderbeweis.
+- Vorbereitetes Design41 Gesamtansichten(33Fit/8Prüfung), wide, eigene linke
+  Intrinsics; noch keine Messreihe oder echte Armfahrt begonnen. Sobald Zustände
+  geklärt: frische vollständige Kollisionsplanung/Vorschau, konkrete erste
+  Fahrfreigabe, echtes Board-/Fokusbild, erst danach ganze Reihe planen.
+- Tatsächlichen MATCH-Lyrical-Fehler behoben: Startup-Skript `.warn`→`.warning`;
+  zwei betroffene Warnpfade offline abgesichert. Insgesamt25 gezielte Tests
+  bestanden. Programm-Ladetimeout3s trennte ROS-Dashboard-Client; native längere
+  Ladeantwort und Play-Antwort separat gesichert, External-Link nicht behauptet.
+- Ursprüngliche rechte/linke Besitzer-GUIs und drei Treiber erhalten; eigenes
+  zusätzliches Beobachterfenster ohne Treiberbesitz wieder geschlossen.
+  Daten/Logs unter `setup/calibration/hardware_handeye/left_rear_20261112/`;
+  [konkreter Wiedereinstieg](docs/left_rear_calibration_preparation_2026-11-12.md),
+  Arbeitsstatus `work/left-rear-calibration-preparation.md`. Bestehende Messprofile
+  nicht verändert; weitere Hardwarefahrt noch nicht freigegeben.
+
 ## Gemessene Kalibrierungen gemeinsam übernommen,2026-11-11
 
 - Expliziter Nutzerauftrag: ermittelte Posen/Kalibrierungen dauerhaft speichern

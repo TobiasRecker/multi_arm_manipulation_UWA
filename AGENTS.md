@@ -130,6 +130,14 @@
   Optikprofil und gleichen, vom Fit ausgeschlossenen Prüfbildern durchführen.
   Gleicher Kameratyp an verschiedenen Armen ist kein Nachweis gleicher
   individueller Intrinsics oder Montage; Arm-/Kamera-/Bildzahleffekte trennen.
+  Hardware-CLI seit2026-11-12 für alle vier Arm-IDs; left_rear verwendet das
+  linke40mm-Tischboard(IDs0–16), nicht das mobile38mm-A4-Board. Fokus und
+  Intrinsics je physischer Kamera neu bestimmen, keine rechten Profile kopieren.
+  Nutzer hat für die konkrete Vorbereitung links hinten ausdrücklich automatisches
+  Einschalten/Bremsenlösen/Laden/Starten über vorhandenen MATCH-/Dashboard-Ablauf
+  beauftragt. Dafür bei erreichbarem Remote-UR keinen unnötigen manuellen
+  Pendantstart verlangen. Dies ist keine Freigabe neuer Arm-Fahrziele. Local-
+  Umschaltung/fehlende aktive URCap-Konfiguration nicht vom PC umgehen.
 - Genehmigte Bedienung: eigene Qt-GUI für die Kalibrierung mit Vorbereitung,
   Start, Pause/Fortsetzen, jederzeit erreichbarem Stopp und explizitem Übernehmen.
   rqt bleibt die manuelle Zellsteuerung. Seit dem Folgeauftrag vom 2026-11-09
