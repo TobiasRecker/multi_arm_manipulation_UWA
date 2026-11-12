@@ -60,7 +60,9 @@ A first [assisted object-digitization pipeline](docs/object_digitization.md)
 reconstructs an open three-compartment carton from saved colour photographs.
 It uses a visible metric board and matching camera intrinsics, explicit image
 landmarks, robust box fitting and STEP/STL/editable-SCAD export. No depth data
-or robot motion. The first estimate is approximately524×102×100mm; wall
+or robot motion.
+A [four-wrist plus OAK scan design and literature comparison](docs/five_camera_reconstruction.md)
+now describes the next extension; it contains no executable robot poses. The first estimate is approximately524×102×100mm; wall
 thickness is assumed. This is a geometric approximation, not validated metrology.
 
 ## OAK camera CAD and tripod

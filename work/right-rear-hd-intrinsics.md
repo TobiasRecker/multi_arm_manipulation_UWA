@@ -22,7 +22,7 @@
   Gelenkfenster,keineRückfahrt. Erster Entwurf mitgroßenWicklungen verworfen;
   neueVerbindungen immerMoveIt-geprüft,kollidierendeReiseverkürzungverworfen.
 - sample_000 accepted:24Ecken/2592×1944,388Manual,63410/19manuell; native
-  V4L2-Readbacks anbeidenBurstenden bestätigt. Weitere Tests32PASS.
+  V4L2-Readbacks anbeidenBurstenden bestätigt. Vorbereitung34TestsPASS; zusätzlicherOffline-Archivexport7TestsPASS.
   VerworfeneVerdeckungsaufnahme archiviert; temporäreUVC-Übergabefehler und
   ungültigeJPEGsbleibendiagnostisch. Kamera-Worker wartetexaktenVision-PID-
   Exit,begrenztS_FMT-Busy/EIO-Recovery,behältVersuchslogs; gültigeJPEGs
@@ -31,7 +31,7 @@
   mitnativerSafety/Link/Stationär-/KollisionsprüfungundabschließenderIntrinsics-
   Auswertung. DiagonalerLFistfreigegebenseparat beweglich; übrigeArme überwacht.
 - LÄUFT: Execsession1925, Log setup/logs/uwa-right-rear-hd-acquisition-early-action.log.
-  sample_001 accepted24Ecken, sample_002 inFahrt. NativeprogrammPLAYING,
+  Zuletzt29/41 akzeptiert, jeweils24Ecken; sample_029 inFahrt. NativeprogrammPLAYING,
   Remote/Linktrue/SafetyNORMAL unabhängigbestätigt; MATCHplay meldetezwar
   fehlendeROSprogram_running-Serviceverifikation, tatsächlicherProgramstart
   warerfolgreich. Nichterneutstarten. ErsterReihenversuch endetevorFahrziel

@@ -82,6 +82,13 @@
 
 ## Bildbasierte Objektdigitalisierung (2026-11-12)
 
+- Weiterer Nutzerwunsch: vierWristkameras plusOAK auf gemeinsamenObjektbereich,
+  fünfFotos proSchritt, optional kleineZusatzbewegungen und Bildrekonstruktions-
+  Literatur nutzen. Konzept docs/five_camera_reconstruction.md; kein bestehender
+  Vierarm-Blick aufs jeweils eigeneBoard als gemeinsameObjektsicht ausgeben.
+  WenigeZentimeterTCP ersetzen keine vollständigeKollisions-/Wegprüfung.
+  Unabhängig bewegte Kameras jeFoto posieren, nicht als starresRig behandeln.
+
 - Erste assistierte Pipeline `digitize_box`, Anleitung docs/object_digitization.md.
   Gespeicherte Dreier-Farbfotos, sichtbares metrischesTischboard, passendeK/D,
   explizite geprüfte Eckpunkte und parametrischer Geometriefit. KeineTiefe beim

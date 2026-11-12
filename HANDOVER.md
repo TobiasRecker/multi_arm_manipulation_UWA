@@ -33,7 +33,7 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   (späteActionregistrierung); früheActionClient-RegistrierungvorMoveItund
   WiederverwendungproBatch beheben dies. Guards/Cancel/Deaktivierung erhalten.
 - LÄUFT: Execsession1925, Log setup/logs/uwa-right-rear-hd-acquisition-early-action.log.
-  Zuletzt6/41gültigeBilder mitje24Ecken; Fahrt/HD-Aufnahmefunktionieren.
+  Zuletzt29/41gültigeBilder mitje24Ecken; Fahrt/HD-Aufnahmefunktionieren.
   EigeneVorschau nachStartgeschlossen, andereVorschauen/Diensteerhalten.
 - Abschlussauftrag: reineIntrinsics-Auswertung, Qualitätswerte/Prüfansichten
   transparent berichten; keineHand-Auge-/globaleProfilübernahmeausdiesemAuftrag.
@@ -577,6 +577,29 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 - Bericht [Objektdigitalisierung](docs/object_digitization.md), Vorschau
   output/images/carton_digitization_preview.png. Rohdaten/Hashmanifest/Overlays
   undKameraprofile untersetup/digitization/carton_20261112/, Logs uwa-carton-*.
+
+## Erweiterung auf vierWristkameras+OAK recherchiert,2026-11-12
+
+- Nutzer wünscht gemeinsamesObjekt inTischmitte,5Fotos jeAufnahmeschritt und
+  ggf.wenigeZentimeterZusatzbewegung. Zielist bessereRekonstruktion auchmit
+  VerfahrenausLiteratur. Nochkein gemeinsamerScanbereich/Zielweg nachgewiesen.
+- BestehendeDesignposen betrachten jeeigenesTischboard, nichtdasselbeObjekt.
+  Grund-/Zusatzposen neu nachSicht/IK/Verdeckung/Gesamtwegen prüfen; kleineTCP-
+  Verschiebung istkeineKollisionsfreigabe. LaufendeRR-/LF-HD-Reihen erhalten.
+- Empfehlung:5festeAnsichten,danach3–5Stellungen jeWrist+1festeOAK =13–21
+  unterschiedlichePerspektiven;25Fotosaus5Runden enthaltenOAK-Wiederholungen.
+  KonfiguriertesDesign config/digitization/five_camera_scan_design.yaml ist
+  nurVorschlag/keineBewegungsschnittstelle. InitialseriellePositionierung,
+  gemessenerStillstand vorungerichtetsynchronenFotos,Objektbleibtruhend.
+- Primärquellenrecherche: COLMAP/klassischeGeometrie+OpenMVS alsVergleich,
+  MASt3R oderVGGT alsgelernteGeometrieinitialisierung;anschließendMesh→CAD-Fit.
+  NeRF/Splats primärDarstellung,editierbarerCAD-KörperbrauchtZusatzschritt.
+  BewegteArmkameraskein starresCOLMAP-Rig;K/DjeSensor,PosejeAufnahme,Maßstab
+  überBoardsundausgelassenePrüfansichten. BewegteArme/Hintergrundmaskieren.
+- HostgrafikIntelArrowLake,keinerkanntesCUDA-Gerät. COLMAPSparseCPU möglich,
+  dessenDenseCUDA; schwereNetzenichtungeprüft inROS-Laufzeitinstallieren.
+  Keine neuenBild-/Hardware-/Installations-/Bewegungsbefehle,dense/gelernte
+  Rekonstruktionnichtausgeführt. Quellen/Abwägung docs/five_camera_reconstruction.md.
 
 ## Nutzerziele und Vorlieben
 

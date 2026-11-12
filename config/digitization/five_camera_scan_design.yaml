@@ -1,0 +1,50 @@
+schema: 1
+status: design_only_not_executable
+# Proposal, not a motion/capture command or a verified common scan position.
+reference_frame: right_table_board
+scan_centre_source: selected_object_bounds_in_reference_frame
+wrist_cameras: [left_front, left_rear, right_front, right_rear]
+overview_camera: oak4
+first_pass:
+  views_per_wrist: 1
+  overview_views: 1
+  unique_view_count: 5
+extended_pass:
+  views_per_wrist_including_initial: 5
+  overview_unique_views: 1
+  unique_view_count: 21
+  repeated_overview_photos_count_as_new_viewpoints: false
+view_design:
+  common_target_visibility_required: true
+  full_object_bounds_and_reference_visibility_checked: true
+  object_distance_from_projection_not_fixed_fov: true
+  small_translation_candidates_m: [0.02, 0.03, 0.05]
+  translation_values_are_candidates_not_prevalidated_paths: true
+  keep_object_centre_in_view: true
+  prefer_same_ik_branch: true
+  additional_elevations_only_if_full_paths_pass: true
+motion:
+  initial_positioning: sequential_reviewed_paths
+  extra_views: one_arm_at_a_time_initial_version
+  joint_velocity_limit_rad_s: 0.05
+  joint_acceleration_limit_rad_s2: 0.10
+  validate_whole_joint_path: true
+  retain_existing_collision_and_native_stop_checks: true
+  wait_for_measured_standstill_before_capture: true
+  no_automatic_return_after_stop: true
+acquisition:
+  colour_only: true
+  fixed_focus_per_camera_and_native_resolution: true
+  actual_per_image_pose_required_for_metric_use: true
+  independent_moving_cameras_not_a_fixed_relative_rig: true
+  static_object_required_for_unsynchronized_photographs: true
+  pose_priority: [visible_metric_fiducials, timestamp_matched_fk_and_handeye]
+  retain_calibration_quality_and_user_acceptance_flags: true
+  keep_originals_masks_intrinsics_poses_and_timestamps: true
+  exclude_moving_arms_from_object_reconstruction: true
+reconstruction:
+  geometry_baseline: colmap_known_pose_or_bundle_adjustment
+  dense_mesh_candidate: openmvs
+  learned_candidates: [mast3r, vggt]
+  final_simple_geometry: existing_parametric_cad_fit
+  board_scale_and_held_out_views_required_for_quality_report: true
