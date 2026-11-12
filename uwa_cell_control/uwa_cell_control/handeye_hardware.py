@@ -25,9 +25,15 @@ from .wrist_hd import make_camera
 
 
 def read_state(node,profiles,args):
-    readings=manual_states(args.manual_states)
+    manual=manual_states(args.manual_states)
     observer=JointObserver(node,profiles,[r for r,p in profiles.items() if p['ip']],args.mode)
-    readings.update(observer.sample())
+    configured={r for r,p in profiles.items() if p['ip']}
+    deadline=time.monotonic()+10
+    while True:
+        readings=dict(manual,**observer.sample(2.))
+        missing=configured-set(readings)
+        if not missing or time.monotonic()>=deadline:break
+        print(json.dumps({'phase':'WAITING_FOR_FRESH_JOINTS','missing_arms':sorted(missing)}),flush=True)
     return observer,readings
 
 
@@ -75,7 +81,8 @@ def plan_series(args):
         else:
             plan=acquisition_plan(model,layout,profiles,args.arm,start,sources,missing,args.count,directory,args.layout,
                 lambda p:print(json.dumps({'phase':'PLANNING',**p}),flush=True),view_design=args.view_design,
-                capture_source=getattr(args,'camera_source',None),focus=getattr(args,'planning_focus',None))
+                capture_source=getattr(args,'camera_source',None),focus=getattr(args,'planning_focus',None),
+                joint_window_deg=getattr(args,'joint_window_deg',None))
         print(json.dumps({'batch':str(directory/'batch.json'),'preview':str(directory/'plan.json'),
                           'new_observations':len(plan['segments']),'motion_seconds':plan['duration_motion_s'],
                           'no_return_after_run':True},indent=2))
@@ -269,6 +276,8 @@ def main():
                 p.add_argument('--camera-source',choices=['http_vga','wrist_hd_service'],default=None,
                                help='Image source to design for; native HD uses a nominal FOV proxy, not scaled VGA calibration')
                 p.add_argument('--planning-focus',type=int,default=None,help='Record intended fixed focus; does not write camera settings')
+                p.add_argument('--joint-window-deg',type=float,default=None,
+                               help='Optional local design envelope about measured start, <=180deg; native robot limits unchanged')
                 p.add_argument('--count',type=int,default=40,help='Additional views after sample_000;61 yields62 total')
                 p.add_argument('--view-design',choices=['standard','wide'],default='standard',
                                help='Wide varies board image position, distance, inclination and roll')

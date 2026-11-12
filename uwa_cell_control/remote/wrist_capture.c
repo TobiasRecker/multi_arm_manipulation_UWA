@@ -49,23 +49,34 @@ int main(int argc,char **argv){
  }
  enum v4l2_buf_type type=V4L2_BUF_TYPE_VIDEO_CAPTURE;
  if(xi(fd,VIDIOC_STREAMON,&type)<0){perror("STREAMON");goto done;}stream=1;
- for(int frame=0;frame<6;frame++){
+ int retained=0;
+ for(int frame=0;frame<32 && retained<3;frame++){
   struct pollfd p={fd,POLLIN,0};if(poll(&p,1,2000)<=0){perror("poll timeout");goto done;}
   struct v4l2_buffer b;memset(&b,0,sizeof b);b.type=type;b.memory=V4L2_MEMORY_MMAP;
   if(xi(fd,VIDIOC_DQBUF,&b)<0){perror("DQBUF");goto done;}
   if(b.index>=4||!maps[b.index].ptr||b.bytesused>maps[b.index].len){fprintf(stderr,"Invalid captured buffer\n");goto done;}
-  if(b.flags & V4L2_BUF_FLAG_ERROR){fprintf(stderr,"Driver marked frame invalid\n");goto done;}
+  int valid=!(b.flags & V4L2_BUF_FLAG_ERROR) && b.bytesused>=4;
+  unsigned char *bytes=maps[b.index].ptr;
+  if(valid && (bytes[0]!=0xff || bytes[1]!=0xd8))valid=0;
+  int eoi=0;
+  if(valid)for(unsigned j=2;j+1<b.bytesused;j++)if(bytes[j]==0xff && bytes[j+1]==0xd9){eoi=1;break;}
+  if(!eoi)valid=0;
   printf("FRAME %d bytes=%u sequence=%u flags=%u timestamp=%ld.%06ld\n",frame,b.bytesused,b.sequence,b.flags,(long)b.timestamp.tv_sec,(long)b.timestamp.tv_usec);fflush(stdout);
-  if(frame>=3){
-   if(frame==3||frame==5)controls(fd,frame);
-   char path[4096];if(snprintf(path,sizeof path,"%s/frame_%03d.jpg",argv[2],frame-3)>=(int)sizeof path){fprintf(stderr,"Output path too long\n");goto done;}
+  if(frame>=3 && valid){
+   char path[4096];if(snprintf(path,sizeof path,"%s/frame_%03d.jpg",argv[2],retained)>=(int)sizeof path){fprintf(stderr,"Output path too long\n");goto done;}
    FILE *f=fopen(path,"wb");if(!f){perror("fopen");goto done;}
    size_t n=fwrite(maps[b.index].ptr,1,b.bytesused,f);int closed=fclose(f);
    if(n!=b.bytesused||closed){fprintf(stderr,"File write failed\n");goto done;}
-   if(frame==5)rc=0;
+   /* Read UVC controls only after this dequeued image has been copied. Logical
+      frame3/frame5 mean first/last retained image; raw sequence stays above. */
+   if(retained==0||retained==2)controls(fd,3+retained);
+   retained++;
+   if(retained==3)rc=0;
   }
+  if(!valid)printf("DISCARDED invalid JPEG frame=%d\n",frame);
   if(xi(fd,VIDIOC_QBUF,&b)<0){perror("requeue");rc=1;goto done;}
  }
+ if(retained<3)fprintf(stderr,"Not enough valid native JPEG frames\n");
 done:
  if(stream){enum v4l2_buf_type type=V4L2_BUF_TYPE_VIDEO_CAPTURE;if(xi(fd,VIDIOC_STREAMOFF,&type)<0){perror("STREAMOFF");rc=1;}}
  for(int i=0;i<4;i++)if(maps[i].ptr)munmap(maps[i].ptr,maps[i].len);

@@ -20,6 +20,7 @@ except ImportError:
 
 BASE = 'http://127.0.0.1:4242'
 OPENER = build_opener(ProxyHandler({}))
+CAPTURE_LOCK_HELD = False
 
 
 def request(path, data=None):
@@ -51,6 +52,16 @@ def settings():
     if result.get('status') != 'succeeded' or not isinstance(result.get('cameraSettings'), dict):
         raise RuntimeError('Actual camera settings unavailable')
     return result['cameraSettings']
+
+
+def wait_vision_exit(pid):
+    # runsv can report the shell wrapper down while visionserver is still
+    # closing its UVC descriptor. Do not race a native format switch against it.
+    deadline = time.time() + 5
+    while os.path.exists('/proc/' + str(pid)):
+        if time.time() >= deadline:
+            raise RuntimeError('Camera vision process did not release its device')
+        time.sleep(.05)
 
 
 def service_for_vision():
@@ -89,6 +100,19 @@ def service_for_vision():
 
 
 def restore(service, original):
+    if CAPTURE_LOCK_HELD:
+        return restore_settings(service, original)
+    # A session's final focus restore must not restart visionserver while a
+    # different native request owns /dev/video0. Share the same remote lock.
+    with open('/tmp/uwa_wrist_hd_capture.lock', 'a') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except IOError:
+            raise RuntimeError('Another native camera transaction is active; restore postponed')
+        return restore_settings(service, original)
+
+
+def restore_settings(service, original):
     subprocess.check_call(['sv', 'up', service], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     normal()
     responses = []
@@ -165,6 +189,7 @@ def restore(service, original):
 
 
 def capture(directory):
+    global CAPTURE_LOCK_HELD
     os.umask(0o077)
     os.mkdir(directory)
     lock = open('/tmp/uwa_wrist_hd_capture.lock', 'a')
@@ -172,6 +197,7 @@ def capture(directory):
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except IOError:
         raise RuntimeError('Another native camera transaction is active')
+    CAPTURE_LOCK_HELD = True
     normal(timeout=4)
     original = settings()
     hello = request('/hello')
@@ -197,6 +223,7 @@ def capture(directory):
               'requested_size': [2592, 1944], 'sensor_exposure_timestamp_available': False,
               'color_pipeline': 'native MJPEG; visible green cast may remain',
               'motion_commands': False}
+    binary = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wrist_capture')
     done = directory + '/restored'
     read_pipe, write_pipe = os.pipe()
     child = os.fork()
@@ -216,7 +243,8 @@ def capture(directory):
                     capture_pid = int(open(pidfile).read())
                     try:
                         args = open('/proc/%d/cmdline' % capture_pid, 'rb').read().decode('utf-8').split('\0')
-                        if os.path.basename(args[0]) == 'wrist_capture' and args[1:3] == ['/dev/video0', directory]:
+                        expected = [binary, '/dev/video0', directory]
+                        if args[:-1] in (expected, ['/usr/bin/python'] + expected):
                             os.kill(capture_pid, signal.SIGTERM)
                             time.sleep(.5)
                     except (IOError, OSError):
@@ -231,7 +259,7 @@ def capture(directory):
     try:
         started = True  # sv down may succeed even if its caller is interrupted.
         subprocess.check_call(['sv', 'down', service], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        binary = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wrist_capture')
+        wait_vision_exit(vision_pid)
         for attempt in range(20):
             log_path = directory + '/capture.log'
             with open(log_path, 'w') as log:
@@ -240,9 +268,14 @@ def capture(directory):
                 code = process.wait()
             report['capture_attempts'] = attempt + 1
             report['capture_returncode'] = code
+            with open(log_path) as source:
+                log_text = source.read()
+            with open(directory + '/capture-attempt-%02d.log' % (attempt + 1), 'w') as archive:
+                archive.write(log_text)
             if code == 0:
                 break
-            if 'S_FMT: Device or resource busy' not in open(log_path).read():
+            if not any(message in log_text for message in
+                       ('S_FMT: Device or resource busy', 'S_FMT: Input/output error')):
                 break
             time.sleep(.25)
         files = ['frame_%03d.jpg' % i for i in range(3)]

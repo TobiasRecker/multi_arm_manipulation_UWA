@@ -37,14 +37,19 @@ def planning_camera(layout,rid,*,capture_source=None,focus=None):
             'source':'nominal FOV; never passed to intrinsic/hand-eye fit'}
 
 
-def acquisition_plan(model,layout,profiles,rid,start,sources,missing,count,directory,layout_file,progress=lambda p:None,*,view_design='standard',capture_source=None,focus=None):
+def acquisition_plan(model,layout,profiles,rid,start,sources,missing,count,directory,layout_file,progress=lambda p:None,*,view_design='standard',capture_source=None,focus=None,joint_window_deg=None):
     if not 30<=count<=79:raise ValueError('Hardware acquisition supports30–79 new poses (31–80 including initial view)')
     if missing:raise ValueError('Observe or explicitly declare all stationary arm poses before planning')
     configure_model(model,rid,DIAGONAL[rid])
     nominal=planning_camera(layout,rid,capture_source=capture_source,focus=focus)
     # This K bounds proposed views only. Real calibration fitting never receives it.
-    proposed=generate_plan(model,layout,start,{rid:nominal},[rid],count,progress,view_design=view_design)[rid]
+    proposed=generate_plan(model,layout,start,{rid:nominal},[rid],count,progress,view_design=view_design,
+        joint_window_rad=np.radians(joint_window_deg) if joint_window_deg is not None else None,
+        check_direct_return=False)[rid]
     nominal['view_design']=view_design
+    if joint_window_deg is not None:nominal['joint_window_about_start_deg']=joint_window_deg
+    nominal['route_ordering']=proposed.get('route_ordering','not reported')
+    nominal['direct_return_checked']=False  # Hardware batch never commands an automatic return.
     poses=[dict(pose,sample_id=f'sample_{index+1:03d}') for index,pose in enumerate(proposed['poses'])]
     return assemble_plan(model,layout,profiles,rid,start,sources,missing,poses,directory,layout_file,nominal)
 
@@ -177,7 +182,7 @@ def acquire(args):
                 if r not in current:raise ValueError(r+': no live joint data')
                 if max(abs(q-plan['start'][j]) for q,j in zip(current[r]['positions'],joint_names(r)))>.01:
                     raise ValueError(r+': start changed; regenerate acquisition plan')
-        def guard():observer.guard(plan,require_program_link=True)
+        def guard():observer.guard(plan,require_program_link=not getattr(args,'check_only',False))
         guard();camera=make_camera(profiles[rid]['ip'],node,metadata=metadata,rid=rid)
         planned_source=plan['planning_only_camera_model'].get('planned_capture_source')
         if planned_source and metadata.get('capture_source',{}).get('kind')!=planned_source:

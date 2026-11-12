@@ -105,6 +105,7 @@ def test_native_failure_still_restores_camera_and_reports_failure(tmp_path,monke
     monkeypatch.setattr(m,'settings',lambda:{'focus':435})
     monkeypatch.setattr(m,'request',lambda *a,**k:{'status':'succeeded'})
     monkeypatch.setattr(m,'service_for_vision',lambda:('/only/vision/service',123))
+    monkeypatch.setattr(m,'wait_vision_exit',lambda pid:None)
     monkeypatch.setattr(m.os,'fork',lambda:987654)
     monkeypatch.setattr(m.os,'waitpid',lambda *a:(987654,0))
     monkeypatch.setattr(m.os,'write',lambda *a:1)

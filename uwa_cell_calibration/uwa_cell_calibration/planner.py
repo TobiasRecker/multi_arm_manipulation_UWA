@@ -43,7 +43,37 @@ def timed_path(model, rid, start, target, velocity=.10, acceleration=.20, durati
     return points
 
 
-def generate_plan(model, layout, start, matrices, ids, count, progress=lambda value: None, *, view_design='standard'):
+def checked_view_order(model,rid,start,preferred,original):
+    """Keep a shortened route only when every new connection passes its sweep."""
+    names=joint_names(rid)
+    def check_order(order):
+        state=dict(start)
+        for p in order:
+            p['path']=timed_path(model,rid,state,p['joints'])
+            state.update(zip(names,p['joints']))
+    try:
+        check_order(preferred)
+        return preferred,'nearest-neighbour and2-opt, fully swept'
+    except ValueError:
+        check_order(original)
+        return list(original),'original collision-checked generation order (shortened route rejected)'
+
+
+def nearest_checked_order(model,rid,start,poses):
+    """Choose the closest reachable view; a blocked shortcut is never selected."""
+    names=joint_names(rid);state=dict(start);remaining=list(poses);ordered=[]
+    while remaining:
+        q=np.asarray([state[j] for j in names])
+        for candidate in sorted(remaining,key=lambda p:np.max(abs(np.asarray(p['joints'])-q))):
+            try:path=timed_path(model,rid,state,candidate['joints'])
+            except ValueError:continue
+            candidate['path']=path;ordered.append(candidate);remaining.remove(candidate)
+            state.update(zip(names,candidate['joints']));break
+        else:raise ValueError('No collision-free nearest-view continuation')
+    return ordered
+
+
+def generate_plan(model, layout, start, matrices, ids, count, progress=lambda value: None, *, view_design='standard',joint_window_rad=None,check_direct_return=True):
     if view_design not in ('standard','wide'):raise ValueError('Unknown acquisition view design')
     if not model.check(start)[0]:
         model.check(start, True)
@@ -68,6 +98,13 @@ def generate_plan(model, layout, start, matrices, ids, count, progress=lambda va
         names = joint_names(rid)
         bounds = np.array([model.bounds[j] for j in names]).T
         current = np.array([start[j] for j in names])
+        if joint_window_rad is not None:
+            if not np.isfinite(joint_window_rad) or not 0<joint_window_rad<=np.pi:
+                raise ValueError('Local acquisition joint window must be in (0,pi] radians')
+            # Optional view-design envelope only, not a change to robot limits.
+            # Keep cable-equipped wrists near the reviewed starting branch.
+            bounds[0]=np.maximum(bounds[0],current-joint_window_rad)
+            bounds[1]=np.minimum(bounds[1],current+joint_window_rad)
         accepted, rejected = [], 0
         wide=view_design=='wide'
         proposals = qmc.Halton(6 if wide else 4, scramble=True, seed=64).random(count*30 if wide else count*20)
@@ -133,10 +170,9 @@ def generate_plan(model, layout, start, matrices, ids, count, progress=lambda va
         # nearest-neighbour route plus 2-opt. Every changed connection is swept again.
         main,reserve=accepted[:count],accepted[count:]
         home=np.array([start[j] for j in names])
-        ordered=[];remaining=list(main);q=home
-        while remaining:
-            chosen=min(remaining,key=lambda p:np.max(abs(np.asarray(p['joints'])-q)))
-            remaining.remove(chosen);ordered.append(chosen);q=np.asarray(chosen['joints'])
+        try:ordered=nearest_checked_order(model,rid,start,main)
+        except ValueError:ordered=list(main)
+        checked_nearest=list(ordered)
         def cost(a,b):return np.max(abs(a-b))
         for _ in range(5):
             improved=False
@@ -148,19 +184,19 @@ def generate_plan(model, layout, start, matrices, ids, count, progress=lambda va
                     if cost(a,cc)+cost(b,d)+1e-8 < cost(a,b)+cost(cc,d):
                         ordered[i:j+1]=reversed(ordered[i:j+1]);improved=True
             if not improved:break
-        state=dict(start)
-        for p in ordered:
-            p['path']=timed_path(model,rid,state,p['joints']);state.update(zip(names,p['joints']))
+        ordered,ordering=checked_view_order(model,rid,start,ordered,checked_nearest)
         from .solver import diverse
         tool_chain=Chain(model.description,model.prefix+f'{rid}_base_link',model.prefix+f'{rid}_tool0')
         singular=diverse([{'T_base_tool0':tool_chain.forward(dict(zip(names,p['joints']))).tolist()}
                          for p in ordered if p['role']=='fit'])
         accepted=ordered+reserve
         # Return paths are checked from the final main and reserve targets.
-        for p in (accepted[count-1],accepted[-1]):
-            state=dict(start);state.update(zip(names,p['joints']))
-            timed_path(model,rid,state,[start[j] for j in names])
+        if check_direct_return:
+            for p in (accepted[count-1],accepted[-1]):
+                state=dict(start);state.update(zip(names,p['joints']))
+                timed_path(model,rid,state,[start[j] for j in names])
         plans[rid]={'poses':accepted[:count],'reserve':accepted[count:],
+                    'route_ordering':ordering,'direct_return_checked':check_direct_return,
                     'rotation_singular_values':singular,
                     'rejected_candidates':rejected,'start_joints':[start[j] for j in names]}
     return plans
