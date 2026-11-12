@@ -10,6 +10,16 @@ import uwa_cell_control.hardware_sequence as module
 from uwa_cell_control.park_arm import JointObserver
 
 
+def test_new_native_hd_design_uses_nominal_proxy_without_reusing_vga_intrinsics():
+    layout=load_layout()
+    camera=module.planning_camera(layout,'right_rear',capture_source='wrist_hd_service',focus=388)
+    assert (camera['width'],camera['height'])==(2592,1944)
+    assert camera['required_focus']==388 and camera['d']==[0.]*5
+    assert camera['planned_capture_source']=='wrist_hd_service'
+    assert 'nominal' in camera['source'] and 'no VGA' in camera['source']
+    assert camera['k']!=layout['calibration']['robots']['right_rear']['camera']['camera_matrix']
+
+
 def test_batch_preserves_roles_checked_samples_and_preview_cannot_execute_as_one_trajectory(tmp_path,monkeypatch):
     layout=load_layout();profiles={r:{'ur_type':a['type'],'kinematics_file':None} for r,a in layout['robots'].items()}
     model,layout=make_model(layout,profiles,tmp_path)

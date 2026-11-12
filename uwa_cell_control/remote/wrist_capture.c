@@ -11,6 +11,16 @@
 #include <linux/videodev2.h>
 struct mapped {void *ptr; size_t len;};
 static int xi(int fd,unsigned long req,void *arg){int r;do{r=ioctl(fd,req,arg);}while(r<0&&errno==EINTR);return r;}
+static void controls(int fd,int frame){
+ const unsigned ids[]={V4L2_CID_FOCUS_ABSOLUTE,V4L2_CID_FOCUS_AUTO,V4L2_CID_EXPOSURE_ABSOLUTE,V4L2_CID_EXPOSURE_AUTO,V4L2_CID_GAIN,V4L2_CID_AUTO_WHITE_BALANCE,V4L2_CID_WHITE_BALANCE_TEMPERATURE};
+ const char *names[]={"focus_absolute","focus_auto","exposure_absolute","exposure_auto","gain","white_balance_auto","white_balance_temperature"};
+ printf("CONTROLS {\"frame\":%d",frame);
+ for(unsigned i=0;i<sizeof(ids)/sizeof(ids[0]);i++){
+  struct v4l2_control c;memset(&c,0,sizeof c);c.id=ids[i];
+  if(xi(fd,VIDIOC_G_CTRL,&c)==0)printf(",\"%s\":%d",names[i],c.value);
+ }
+ printf("}\n");fflush(stdout);
+}
 int main(int argc,char **argv){
  if(argc!=3){fprintf(stderr,"Usage: capture_v4l2 DEVICE OUTPUT_DIRECTORY\n");return 2;}
  int fd=open(argv[1],O_RDWR|O_NONBLOCK),rc=1,changed=0,stream=0,haveparm=0,allocated=0;
@@ -19,6 +29,7 @@ int main(int argc,char **argv){
  memset(&old,0,sizeof old);old.type=V4L2_BUF_TYPE_VIDEO_CAPTURE;
  memset(&parm,0,sizeof parm);parm.type=V4L2_BUF_TYPE_VIDEO_CAPTURE;
  if(fd<0){perror("open");return 1;}
+ controls(fd,-2);
  if(xi(fd,VIDIOC_G_FMT,&old)<0){perror("G_FMT");goto done;}
  haveparm=xi(fd,VIDIOC_G_PARM,&parm)==0;
  fmt=old;fmt.fmt.pix.width=2592;fmt.fmt.pix.height=1944;fmt.fmt.pix.pixelformat=V4L2_PIX_FMT_MJPEG;fmt.fmt.pix.field=V4L2_FIELD_ANY;
@@ -46,6 +57,7 @@ int main(int argc,char **argv){
   if(b.flags & V4L2_BUF_FLAG_ERROR){fprintf(stderr,"Driver marked frame invalid\n");goto done;}
   printf("FRAME %d bytes=%u sequence=%u flags=%u timestamp=%ld.%06ld\n",frame,b.bytesused,b.sequence,b.flags,(long)b.timestamp.tv_sec,(long)b.timestamp.tv_usec);fflush(stdout);
   if(frame>=3){
+   if(frame==3||frame==5)controls(fd,frame);
    char path[4096];if(snprintf(path,sizeof path,"%s/frame_%03d.jpg",argv[2],frame-3)>=(int)sizeof path){fprintf(stderr,"Output path too long\n");goto done;}
    FILE *f=fopen(path,"wb");if(!f){perror("fopen");goto done;}
    size_t n=fwrite(maps[b.index].ptr,1,b.bytesused,f);int closed=fclose(f);

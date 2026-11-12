@@ -54,6 +54,14 @@ requirements, preferences, decisions, verified results and open work.
 [ACTIVE_WORK.md](ACTIVE_WORK.md) explains task-specific status files under `work/`
 for agents sharing this checkout; read active entries before editing or restarting services.
 
+## OAK camera CAD and tripod
+
+The overview camera now uses the supplied OAK-4-Pro CAD model in **Gazebo and
+RViz**, together with a locally authored telescopic tripod. The same geometry
+and poses drive both views. Camera optics and the accepted preliminary pose
+are preserved; the stand remains illustrative visual geometry.
+See [preview, operation and verification](docs/oak_camera_cad.md).
+
 ## RViz: simulation and measured hardware together
 
 The **UWA Cell Simulation** app now adds two measured arms to the existing

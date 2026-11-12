@@ -12,6 +12,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 
 MESH = 'meshes/visual/oak4_pro/oak4_pro.stl'
+GLASS = 'meshes/visual/oak4_pro/oak4_pro_glass.stl'
 BODY = (.32, .35, .39, 1.)
 TUBE = (.25, .28, .33, 1.)
 METAL = (.62, .65, .69, 1.)
@@ -44,7 +45,8 @@ def tube(name, start, end, radius, color):
     if length < 1e-6:
         raise ValueError('Tripod segment must have positive length')
     z = vector / length
-    reference = [0., 1., 0.] if abs(z[1]) < .9 else [1., 0., 0.]
+    reference = ([0., 0., 1.] if abs(z[0]) > .9 else
+                 ([0., 1., 0.] if abs(z[1]) < .9 else [1., 0., 0.]))
     x = np.cross(reference, z)
     x /= np.linalg.norm(x)
     y = np.cross(z, x)
@@ -56,8 +58,13 @@ def camera_and_tripod(sensor_pose):
     """World poses, sensor axes +X forward/+Y left/+Z up, all lengths in m."""
     sensor_pose = np.asarray(sensor_pose, float)
     from ament_index_python.packages import get_package_share_directory
-    resource = (Path(get_package_share_directory('uwa_cell_description')) / MESH).as_uri()
+    share = Path(get_package_share_directory('uwa_cell_description'))
+    if not all((share / item).is_file() for item in (MESH, GLASS)):
+        raise ValueError('OAK visual meshes missing; rebuild uwa_cell_description')
+    resource = (share / MESH).as_uri()
     visuals = [Visual('oak4_pro_cad', sensor_pose, 'mesh', (1., 1., 1.), BODY, resource)]
+    visuals.append(Visual('oak4_pro_front_glass', sensor_pose, 'mesh', (1., 1., 1.),
+                          (.06, .11, .17, .22), (share / GLASS).as_uri()))
     # Approximate underside of housing in the normalized mesh frame. This visual
     # mounting offset is independent of the accepted optical extrinsics.
     plate = sensor_pose @ transform([-.035, 0., -.025])
@@ -116,9 +123,10 @@ def add_visual(parent, visual, reference=None):
 
 def append_sdf_visuals(model, camera_link, sensor_pose):
     visuals = camera_and_tripod(sensor_pose)
-    add_visual(camera_link, visuals[0], sensor_pose)
+    for visual in visuals[:2]:
+        add_visual(camera_link, visual, sensor_pose)
     stand = ET.SubElement(model,'link',name='tripod')
-    for visual in visuals[1:]:
+    for visual in visuals[2:]:
         add_visual(stand,visual)
 
 

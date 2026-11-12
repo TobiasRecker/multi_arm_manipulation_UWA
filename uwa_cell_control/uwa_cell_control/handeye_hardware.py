@@ -74,7 +74,8 @@ def plan_series(args):
                                old['planning_only_camera_model'],resume=resume)
         else:
             plan=acquisition_plan(model,layout,profiles,args.arm,start,sources,missing,args.count,directory,args.layout,
-                lambda p:print(json.dumps({'phase':'PLANNING',**p}),flush=True),view_design=args.view_design)
+                lambda p:print(json.dumps({'phase':'PLANNING',**p}),flush=True),view_design=args.view_design,
+                capture_source=getattr(args,'camera_source',None),focus=getattr(args,'planning_focus',None))
         print(json.dumps({'batch':str(directory/'batch.json'),'preview':str(directory/'plan.json'),
                           'new_observations':len(plan['segments']),'motion_seconds':plan['duration_motion_s'],
                           'no_return_after_run':True},indent=2))
@@ -105,11 +106,13 @@ def capture_observation(camera,node,observer,model,layout,rid,directory,sample_i
             raise ValueError('Robot moved during image capture; discard observation')
     settings=camera.settings()
     if settings['focusAuto']:raise ValueError('Set a fixed manual focus before intrinsic/hand-eye acquisition')
-    hashes=[];receipt=[];frame=None;jpeg=None;detection=None;selected=0
+    hashes=[];receipt=[];frame=None;jpeg=None;detection=None;selected=0;native_validation=None
     if hasattr(camera,'capture_burst'):
         # The service client spins joint/safety subscriptions throughout its
         # camera-only transaction and waits for restoration even after motion.
         burst=camera.capture_burst(stationary)
+        if getattr(camera,'require_native_controls',False):
+            native_validation=validate_native_controls(camera.last_burst,settings)
         candidates=[]
         for index,data in enumerate(burst):
             image=cv2.imdecode(np.frombuffer(data,np.uint8),cv2.IMREAD_COLOR)
@@ -154,12 +157,29 @@ def capture_observation(camera,node,observer,model,layout,rid,directory,sample_i
         'camera_settings':settings,'camera_settings_after':after,'pixel_sha256':hashes[selected],
         'capture_source':getattr(camera,'capture_source',{'kind':'http_vga'}),
         'native_burst':getattr(camera,'last_burst',None),
+        'native_control_validation':native_validation,
         'image':sample_id+'.jpg','receipt_utc':receipt[selected],
         'freshness':{'decoded_payload_changes':len(set(hashes)),'http_samples':len(hashes),
             'stationary_joint_tolerance_rad':.002,'sensor_exposure_timestamp_available':False,
             'association':'Frames acquired/received inside monitored stationary interval; no exposure timestamp guarantee'}}
     atomic_json(output,record)
     return record
+
+
+def validate_native_controls(burst,settings):
+    """Require actual V4L2 readbacks during the first and last retained frame."""
+    samples={s['frame']:s for s in burst.get('sensor_controls',[]) if s.get('frame') in (3,5)}
+    if set(samples)!={3,5}:
+        raise ValueError('Native sensor controls were not read during both burst endpoints')
+    expected={'focus_absolute':settings['focus'],'focus_auto':0}
+    if not settings.get('exposureAuto'):
+        # V4L2_EXPOSURE_MANUAL=1; this camera reports the same exposure units as UCC.
+        expected.update(exposure_absolute=settings['exposure'],exposure_auto=1,gain=settings['gain'])
+    for sample in samples.values():
+        if any(sample.get(key)!=value for key,value in expected.items()):
+            raise ValueError('Native sensor focus/exposure readback differs from the acquisition profile: '+str(sample))
+    return dict(passed=True,expected=expected,samples=list(samples.values()),
+                source='VIDIOC_G_CTRL during retained V4L2 frame3/frame5; not a physical focal-length measurement')
 
 
 def capture(args):
@@ -180,12 +200,15 @@ def capture(args):
                 'kinematics_file':profiles[rid]['kinematics_file']}
         camera=make_camera(profiles[rid]['ip'],node,args,rid=rid)
         info['capture_source']=getattr(camera,'capture_source',{'kind':'http_vga'})
+        info['native_control_readback_required']=getattr(camera,'require_native_controls',False)
         if (directory/'session.json').exists():
             old=json.loads((directory/'session.json').read_text())
             if any(old.get(k)!=info[k] for k in ('robot_id','camera_ip','layout_fingerprint','kinematics_sha256')):
                 raise ValueError('Robot/camera/model changed; start a new acquisition session')
             if old.get('capture_source',{'kind':'http_vga'})!=info['capture_source']:
                 raise ValueError('Image source changed; start a separate HD/VGA session')
+            if old.get('native_control_readback_required',False)!=info['native_control_readback_required']:
+                raise ValueError('Sensor readback policy changed; start a separate session')
         else:atomic_json(directory/'session.json',info)
         record=capture_observation(camera,node,observer,model,layout,rid,
             directory/'records',args.sample_id,args.role)
@@ -243,12 +266,17 @@ def main():
         if command in ('plan-view','plan-series','resume-series'):
             p.add_argument('--output',required=True)
             if command=='plan-series':
+                p.add_argument('--camera-source',choices=['http_vga','wrist_hd_service'],default=None,
+                               help='Image source to design for; native HD uses a nominal FOV proxy, not scaled VGA calibration')
+                p.add_argument('--planning-focus',type=int,default=None,help='Record intended fixed focus; does not write camera settings')
                 p.add_argument('--count',type=int,default=40,help='Additional views after sample_000;61 yields62 total')
                 p.add_argument('--view-design',choices=['standard','wide'],default='standard',
                                help='Wide varies board image position, distance, inclination and roll')
             if command=='resume-series':
                 p.add_argument('batch');p.add_argument('--session',required=True)
         else:
+            p.add_argument('--require-native-controls',action='store_true',
+                           help='Require matching V4L2 focus/exposure readback during retained HD frames')
             p.add_argument('--camera-source',choices=['http_vga','wrist_hd_service'],default=None)
             p.add_argument('--hd-service',default=None,help='Override the selected arm HD service name')
             p.add_argument('--session',required=True);p.add_argument('--sample-id',required=True)
@@ -257,13 +285,14 @@ def main():
     p=sub.add_parser('run-series');p.add_argument('batch');p.add_argument('--session',required=True)
     p.add_argument('--inventory',default=str(ws/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml'))
     p.add_argument('--check-only',action='store_true',help='Recheck the full sequence without motion or controller changes')
+    p.add_argument('--intrinsics-only',action='store_true',help='Fit intrinsics after acquisition; do not run hand-eye fitting')
     args=parser.parse_args()
     try:
         if args.command=='run-series':
             from .hardware_sequence import acquire
             acquire(args)
             if not args.check_only:
-                args.intrinsics_only=False;fit(args)
+                fit(args)
         else:{'plan-view':plan_view,'plan-series':plan_series,'resume-series':plan_series,'capture':capture,'fit':fit}[args.command](args)
         return 0
     except KeyboardInterrupt:return 130

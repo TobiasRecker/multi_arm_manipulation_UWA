@@ -5,6 +5,28 @@ Diese Datei fasst die bisherigen Gespräche und die überprüfte Implementierung
 zusammen. Sie soll bei weiterer Arbeit mitgepflegt werden, nicht als unveränderlicher
 Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [README.md](README.md).
 
+## Links vorne: Kamera und relative Basislage kalibriert,2026-11-12
+
+- Nutzer hat die vollständige Serie freigegeben. 40 weitere Bilder erfolgreich
+  aufgenommen, insgesamt **41/41** unterschiedliche VGA-Ansichten mit jeweils
+  24 Boardecken, 33 Fit / 8 Prüfung. Fokus 245 manuell, 60.590µs, Gain 19.
+- Nach OAK-Profilwechsel v3 wurden die 3607 Punkte der unveränderten Nutzerwege
+  erneut gegen alle vier Arme geprüft. Kinematik-Inhalte identisch, `sample_000`
+  Flanschpose exakt gleich; neue Sitzung und Originalplan separat erhalten.
+  Frühe Discovery-Abbrüche vor jedem Fahrziel. Erfolgreicher Lauf mit lokalem
+  UDP-Messclient und gemeinsamer Einrichtung von Action und Telemetrie.
+- **Intrinsics und Hand-Auge PASS:** mediane Prüf-Reprojektion 0,092px / 0,359px;
+  Board-Translations-/Rotationsstreuung 0,543mm / 0,114°. Keine ausgeschlossenen
+  Bilder, keine angenommene absolute Messgenauigkeit.
+- Relative LF-Basis im LR-`base_link`: [13,92; 1414,32; 0,62]mm, XYZ-Winkel
+  [−0,049; +0,124; +179,143]°, Abstand 1414,39mm. Linkes Board nach Nutzerangabe
+  seit LR-Kalibrierung unverändert. Kein Weltanker/Profil aktiviert.
+- Abschluss NORMAL, External Control verbunden, eigener Controller inaktiv,
+  letzte Pose erreicht (0,000091rad), keine Rückfahrt. Nur eigene Vorschau beendet.
+- [Bericht](docs/left_front_calibration_2026-11-12.md), Daten unter
+  `setup/calibration/hardware_handeye/left_front_20261112/series_current_model_checked/`.
+
+
 ## Vorläufige OAK-Schätzung global übernommen,2026-11-12
 
 - Nutzer akzeptiert nach erklärter5,85/7,40mm- und0,361/0,576°-Prüfkonsistenz
@@ -446,6 +468,27 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   Berichte [Profile](docs/applied_calibrations.md),
   [Rear-HD-Bildtests](docs/wrist_hd_other_arms_2026-11-12.md).
   Daten setup/calibration/wrist_hd/other_arms_20261112/;Sitzungen/RohbildernichtimGit.
+
+## OAK-CAD und eigenes Stativ eingebettet,2026-11-12
+
+- Nutzer beauftragt Modell ausDownloads und optional Stativdarstellung.
+  Archiv oak4-pro-3d-model.zip enthält117MB-STEP-Baugruppe. InMeter konvertiert,
+  Gehäuse/Frontglas getrennt und auf52169Dreiecke/2,61MB reduziert; Quell-/Mesh-
+  Hashes undKoordinatenzuordnung in meshes/visual/oak4_pro/provenance.json.
+- Generisches Fotostativ selbst erstellt: Teleskopbeine/Klemmen/Gummifüße,
+  Spreizstreben/Mittelsäule/Schwenkkopf/Platte. Höhe aus tatsächlicher OAK-Pose,
+  Füße bodenfest. VisuelleNäherung, keine vermesseneStativ-/CAD-Optikmontage.
+- GemeinsameGeometrie fürGazebo undRViz; Mesh-/Zylinder-/Boxmarker. Optische
+  Transformation/K-D/aktivesProfilv3 erhalten, keine Roboter-/Tischparameter
+  geändert. Stativ bleibt wievorher visuell, keine neueMoveIt-Kollision.
+- **21TestsPASS**,2Paketegebaut. Live:2CAD-Meshes+27Stativvisuals inGazebo,
+  32Marker undRViz-Abonnent, frische4000×3000Bilder/K-D/TFs/9Controllerpositiv.
+  Nur uwa-cell-overview.service neu gestartet, keine Zelle/Hardwareprozesse.
+  MaxSim-Gelenkänderung0,00001064rad. KeineHardwarekamera/Armkommandos.
+- Vorschau visuell geprüft, nativeFensteraufnahmen schwarz und nichtals
+  sichtbarerRenderbeleggewertet. Bericht [OAK-CAD](docs/oak_camera_cad.md),
+  Vorschau output/images/oak4_cad_tripod_preview.png; Nachweise
+  setup/models/oak4-pro/live/ unduwa-oak-cad-{build,tests,live}.log.
 
 ## Nutzerziele und Vorlieben
 

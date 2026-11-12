@@ -48,7 +48,9 @@ Das ist ein idealer RGB-Pinhole-Sensor: kein modellierter Autofokus, Rolling-
 Shutter-Effekt, Bildrauschen, Bewegungsunschärfe, Stereo-/Tiefen- oder IR-Kanal.
 Die Hardware bleibt eine Rolling-Shutter-Farbkamera; ein ideales Gazebo-Bild
 beweist keine Global-Shutter-Eigenschaft der echten Kamera.
-Stativ und Gehäuse sind primitive Darstellungen ohne Hersteller-CAD.
+Seit12.11.2026 verwendet das Gehäuse das vom Nutzer bereitgestellte OAK-4-Pro-CAD.
+Das Stativ ist eine selbst erstellte visuelle Näherung mit Teleskopbeinen und Kopf.
+[Modell, Vorschau, Einheiten und Grenzen](oak_camera_cad.md).
 
 ## Bedienen und umpositionieren
 

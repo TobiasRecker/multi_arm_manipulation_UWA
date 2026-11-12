@@ -6,7 +6,6 @@ import os
 from pathlib import Path
 import time
 from threading import Lock
-import xml.etree.ElementTree as ET
 import numpy as np
 
 from geometry_msgs.msg import Point, TransformStamped
@@ -78,11 +77,12 @@ class Overview(Node):
     def apply(self):
         layout = load_layout(self.get_parameter('layout').value)
         cfg = camera_config(layout)  # Validate before touching an existing camera.
+        sdf = model_sdf(cfg) if cfg['enabled'] else None  # Resolve visual assets first.
         self.ready = False
         self.remove()
         if cfg['enabled']:
             time.sleep(.15)
-            if not self.request('create', EntityFactory(sdf=model_sdf(cfg), name=MODEL,
+            if not self.request('create', EntityFactory(sdf=sdf, name=MODEL,
                                                        allow_renaming=False), EntityFactory):
                 raise RuntimeError('Could not spawn OAK overview; is the Gazebo cell running?')
             _, optical = transforms(cfg)

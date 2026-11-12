@@ -102,6 +102,8 @@ def validate_burst(directory, expected_ip):
     if len({m['pixel_sha256'] for m in metrics}) < 2:
         raise ValueError('Native frame payloads did not change')
     report.update(ip=expected_ip, image_size=list(HD_SIZE), frames_metadata=metrics,
+                  sensor_controls=[json.loads(line[len('CONTROLS '):]) for line in
+                                   report.get('capture_log','').splitlines() if line.startswith('CONTROLS ')],
                   received_utc=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
                   timestamp_kind='PC receipt after transaction; no exposure synchronization',
                   capture_source=SOURCE, directory=str(directory.resolve()))
@@ -209,7 +211,10 @@ def make_camera(ip, node, args=None, metadata=None, rid=None):
         raise ValueError('Cannot change image source inside an existing calibration session')
     if kind == 'wrist_hd_service':
         service = getattr(args, 'hd_service', None) or f'/uwa_hardware/{rid}/wrist_camera_hd/capture'
-        return HDCamera(ip, node, service)
+        camera = HDCamera(ip, node, service)
+        camera.require_native_controls = bool(getattr(args,'require_native_controls',False) or
+                                              (metadata or {}).get('native_control_readback_required',False))
+        return camera
     if kind != 'http_vga':
         raise ValueError('Unknown image source')
     return WristCamera(ip)

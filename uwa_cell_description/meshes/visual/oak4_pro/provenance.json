@@ -1,0 +1,72 @@
+{
+  "source_archive": "oak4-pro-3d-model.zip",
+  "source_step": "oak4 enclosure-thermal 30.STEP",
+  "step_sha256": "d7ddc3409a49267aaaf42ecd16c5339827cda94921dd319fe79726cd16589a64",
+  "source_length_unit": "millimetre",
+  "mesh_length_unit": "metre",
+  "linear_deflection_mm": 0.4,
+  "angular_deflection_rad": 0.45,
+  "glass_parts": [
+    {
+      "bounds_mm": [
+        -68.95082065421315,
+        -18.450820654211192,
+        29.399179345912284,
+        68.95082065405694,
+        18.45082065494333,
+        29.6008206540877
+      ]
+    },
+    {
+      "bounds_mm": [
+        -69.15046765638648,
+        -18.65046765634046,
+        29.59953234373896,
+        69.15046765623026,
+        18.65046765720823,
+        30.150467656261032
+      ]
+    }
+  ],
+  "cad_to_sensor_axes": {
+    "x": "CAD +Z",
+    "y": "CAD -X",
+    "z": "CAD -Y"
+  },
+  "cad_visual_origin_mm": [
+    0.0,
+    0.0,
+    32.5
+  ],
+  "placement": "Illustrative RGB front-centre anchor; not a measured optical/CAD registration",
+  "assets": {
+    "oak4_pro.stl": {
+      "sha256": "278c5ac3c81c34740ba5a56e6280ef7d505779bd87659a72da68d1d72383f196",
+      "triangles_before": 621248,
+      "triangles_after": 49999,
+      "bounds_m": [
+        -0.06893981993198395,
+        -0.0017003021202981472,
+        -0.07174163311719894,
+        0.07174163311719894,
+        -0.021241629496216774,
+        0.02126311883330345
+      ],
+      "bytes": 2500034
+    },
+    "oak4_pro_glass.stl": {
+      "sha256": "9ba95d6549fca013e84b1a95f2909eacddeaffa555f6983a83eb8a85e15062d8",
+      "triangles_before": 2170,
+      "triangles_after": 2170,
+      "bounds_m": [
+        -0.003100000321865082,
+        -0.0023500004317611456,
+        -0.06915000081062317,
+        0.06915000081062317,
+        -0.018649999052286148,
+        0.018649999052286148
+      ],
+      "bytes": 108584
+    }
+  }
+}

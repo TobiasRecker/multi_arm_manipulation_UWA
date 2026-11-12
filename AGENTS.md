@@ -19,6 +19,11 @@
 
 ## Neue Kalibrierung links vorne (2026-11-12)
 
+- Abgeschlossen: 41 Ansichten, eigene VGA-Intrinsics und Hand-Auge bestanden
+  (640×480, Fokus245 manuell). Relative Basislage zu hinten links über dasselbe
+  feste Board bestimmt. [Nachweis](docs/left_front_calibration_2026-11-12.md).
+  Ergebnisse separat; keine Übernahme ins aktive Profil oder neue Weltanker.
+
 - Nutzer beauftragt eigene Kamerakalibrierung und Position des UR5left_front.
   Linkes40mm-A3-Board lautNutzer seitLeftRear-Kalibrierung unverändertbefestigt;
   relativeLF/LR-Basislage daraus bestimmbar, absoluteWeltankerweiterunvermessen.
@@ -160,6 +165,11 @@
   Beide ChArUco-Boards aus echten Bildern prüfen; reine Sichtfeldprojektion
   beweist weder fehlende Verdeckung noch kalibrierte Genauigkeit. Das bisher
   nur visuelle Stativ ist kein Hindernis in der MoveIt-PlanningScene.
+  Seit2026-11-12 Kamera-Visual aus Nutzerarchiv oak4-pro-3d-model.zip,
+  reduzierte Meter-Meshes unter meshes/visual/oak4_pro; eigene Stativgeometrie.
+  Beide Ansichten verwenden overview_visuals.py. Optische Pose/K-D bei reinem
+  CAD-Wechsel erhalten; CAD-zu-Optik-Anker und Stativ bleiben visuelle Näherungen.
+  Nur Übersichtsentität neu laden, keine Zelle/Armzustände dafür zurücksetzen.
 - ChArUco-Boards zentral je Tisch und Kameras initial darauf ausrichten.
   Separates mobiles UR-Board seit2026-11-11: A4-Holzträger mit plan aufgeklebtem
   Papier, Definition `uwa_cell_description/config/mobile_charuco_a4.yaml`.

@@ -41,3 +41,16 @@ and [solvePnP documentation](https://docs.opencv.org/4.x/d5/d1f/calib3d_solvePnP
 The planar candidate is selected from image reprojection error and positive
 depth, independently of simulation ground truth. Detailed frame conventions
 and calibration assumptions are documented in `docs/charuco_calibration.md`.
+
+## Supplied OAK-4-Pro CAD
+
+The user supplied `oak4-pro-3d-model.zip` on2026-11-12, containing
+`oak4 enclosure-thermal 30.STEP` (STEP header: SolidWorks2023,2024-08-06).
+Derived metre-scale meshes are in `uwa_cell_description/meshes/visual/oak4_pro/`;
+`provenance.json` records original/derived SHA256, tessellation, reduction,
+coordinate mapping and the approximate visual anchor. The supplied archive
+contains no separate license file; no additional license is asserted here.
+Source CAD and conversion intermediates stay outside Git under `setup/models/`.
+The tripod geometry is locally authored from primitives and does not derive
+from a downloaded tripod CAD. The material palette and transparent front glass
+are visualization choices. Optical extrinsics remain independent of this mesh.

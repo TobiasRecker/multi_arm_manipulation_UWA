@@ -1,6 +1,6 @@
 # Links vorne: Kamera und relative Basislage kalibrieren
 
-- Status: **in Arbeit**,2026-11-12, Hauptagent LF-Kalibrierung.
+- Status: **abgeschlossen – 41 Bilder, Kamera und relative Basislage geprüft**,2026-11-12, Hauptagent LF-Kalibrierung.
 - NeuerNutzerauftrag: Position/Kamera des jetzt ROS-erreichbaren UR5 kalibrieren.
   Arm left_front,192.168.8.2; keine bisherige Frontlinks-Intrinsics/Hand-Auge.
 - Vorbereitung: echteKamerafunktion/Optik/Board prüfen, frischeGelenke/Werkskinematik
@@ -63,3 +63,8 @@
   Action vor der Aktivierung auffinden, vorhandene Guard- und Capture-Prüfungen
   unverändert bzw. native Safety zusätzlich explizit verlangen. Erste späte
   Discovery hat vor dem ersten Fahrziel abgebrochen, Aufnahmen erhalten.
+
+- Serienabschluss: alle 40 weiteren Aufnahmen akzeptiert. Intrinsics und Hand-
+  Auge PASS, Basisabstand links 1414,39mm, relativer Transform separat gespeichert.
+  Eigener Controller inaktiv, letzte Pose gehalten, keine Profilaktivierung.
+  Bericht docs/left_front_calibration_2026-11-12.md und vollständiger Handover.

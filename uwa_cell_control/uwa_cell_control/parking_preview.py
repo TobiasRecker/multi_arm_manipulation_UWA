@@ -12,13 +12,15 @@ import numpy as np
 import yaml
 
 
-def preview(path):
+def preview(path,domain=68):
+    if type(domain) is not int or not 68<=domain<=232:
+        raise ValueError('Preview requires an isolated ROS domain68..232')
     import rclpy
     from sensor_msgs.msg import JointState
     from visualization_msgs.msg import Marker,MarkerArray
     from geometry_msgs.msg import Point
     plan=json.loads(Path(path).read_text())
-    os.environ['ROS_DOMAIN_ID']='68'
+    os.environ['ROS_DOMAIN_ID']=str(domain)
     os.environ['ROS_AUTOMATIC_DISCOVERY_RANGE']='LOCALHOST'
     environment=os.environ.copy()
     # Same host-library cleanup as scripts/control.sh for VS Code Snap terminals.
@@ -40,7 +42,7 @@ def preview(path):
         manager['Displays']=[grid,robot,{'Class':'rviz_default_plugins/MarkerArray','Name':'Path and limitations',
             'Enabled':True,'Marker Topic':{'Value':'/uwa_parking/preview_markers'}}]
         config['Window Geometry']={'Width':1200,'Height':850}
-        config_path=directory/'parking.rviz';config_path.write_text(yaml.safe_dump(config))
+        config_path=directory/(plan['arm']+'_preview.rviz');config_path.write_text(yaml.safe_dump(config))
         rclpy.init(args=[]);node=rclpy.create_node('uwa_parking_preview')
         publisher=node.create_publisher(JointState,'/joint_states',10)
         markers=node.create_publisher(MarkerArray,'/uwa_parking/preview_markers',10)
@@ -72,11 +74,13 @@ def preview(path):
                 label.type=Marker.TEXT_VIEW_FACING;label.action=Marker.ADD;label.pose.orientation.w=1.
                 label.pose.position.z=2.1;label.scale.z=.09
                 label.color.r=1.;label.color.g=1.;label.color.a=1.
-                label.text=f"PREVIEW ONLY · {plan['mode'].upper()} · {plan['arm']} · playback 4x · domain68\n"
+                label.text=f"PREVIEW ONLY · {plan['mode'].upper()} · {plan['arm']} · playback 4x · domain{domain}\n"
                 label.text+=('UNOBSERVED: '+', '.join(plan['unobserved_arms']) if plan['unobserved_arms']
                              else 'Checked model path · real geometry remains provisional')
                 home=[r for r,s in plan['state_sources'].items() if s=='user_nominal_home']
                 if home:label.text+='\nUser-declared nominal Home (not measured): '+', '.join(home)
+                if plan.get('independent_diagonal_arm'):
+                    label.text+='\nIndependent diagonal arm: '+plan['independent_diagonal_arm']+' (snapshot shown)'
                 markers.publish(MarkerArray(markers=[line,label]))
                 rclpy.spin_once(node,timeout_sec=.05)
             failed=[p.returncode for p in processes if p.poll() not in (None,0)]

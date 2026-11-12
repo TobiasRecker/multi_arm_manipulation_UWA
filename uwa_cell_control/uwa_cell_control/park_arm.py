@@ -200,13 +200,14 @@ def main():
     p.add_argument('--check-only',action='store_true',help='Recheck current state and full path without controller or action commands')
     p=sub.add_parser('preview',help='Animate a plan in isolated RViz domain68; no hardware clients')
     p.add_argument('plan')
+    p.add_argument('--domain',type=int,default=68,help='Isolated preview domain68..232; avoid concurrent preview publishers')
     args=parser.parse_args()
     try:
         if args.command=='plan':plan(args)
         elif args.command=='execute':execute(args)
         else:
             from .parking_preview import preview
-            preview(args.plan)
+            preview(args.plan,domain=args.domain)
         return 0
     except KeyboardInterrupt:
         print('Parking interrupted; owned trajectory cancellation requested.');return 130

@@ -16,6 +16,20 @@ from uwa_cell_gazebo.charuco import board_image
 from uwa_cell_control.hardware_charuco import calibrate_intrinsics
 
 
+def test_native_focus_exposure_readback_rejects_wrong_or_missing_in_stream_controls():
+    from uwa_cell_control.handeye_hardware import validate_native_controls
+    settings=dict(focus=388,focusAuto=False,exposure=63410,exposureAuto=False,gain=19)
+    samples=[dict(frame=i,focus_absolute=388,focus_auto=0,exposure_absolute=63410,exposure_auto=1,gain=19) for i in (3,5)]
+    assert validate_native_controls(dict(sensor_controls=samples),settings)['passed']
+    with pytest.raises(ValueError,match='both burst'):
+        validate_native_controls(dict(sensor_controls=samples[:1]),settings)
+    bad=[samples[0],dict(samples[1],focus_absolute=404)]
+    with pytest.raises(ValueError,match='differs'):
+        validate_native_controls(dict(sensor_controls=bad),settings)
+    with pytest.raises(ValueError,match='differs'):
+        validate_native_controls(dict(sensor_controls=[dict(s,exposure_auto=0) for s in samples]),settings)
+
+
 def test_camera_key_reconnects_without_password_but_preserves_host_verification(tmp_path,monkeypatch):
     from uwa_cell_control.wrist_hd import SSH
     monkeypatch.setattr(Path,'home',lambda:tmp_path)

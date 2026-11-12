@@ -14,8 +14,15 @@ from .parking import digest,save_plan
 from .hardware_parallel import DIAGONAL,independent_arm,configure_model
 
 
-def planning_camera(layout,rid):
+def planning_camera(layout,rid,*,capture_source=None,focus=None):
     camera=layout['robots'][rid]['tools'];width,height=camera['camera_width'],camera['camera_height']
+    if capture_source=='wrist_hd_service':
+        from .wrist_hd import HD_SIZE
+        width,height=HD_SIZE
+        focal=width/(2*np.tan(camera['camera_horizontal_fov']/2))
+        return {'k':[[focal,0,width/2],[0,focal,height/2],[0,0,1]],'d':[0.]*5,'width':width,'height':height,
+                'required_focus':focus,'focusAuto':False,'planned_capture_source':capture_source,
+                'source':'nominal native-HD FOV proxy for planning only; no VGA intrinsics copied and never a fit input'}
     measured=layout.get('calibration',{}).get('robots',{}).get(rid,{}).get('camera')
     if measured:
         status=layout['calibration']['robots'][rid].get('quality_status',{}).get('intrinsics','passed')
@@ -30,11 +37,11 @@ def planning_camera(layout,rid):
             'source':'nominal FOV; never passed to intrinsic/hand-eye fit'}
 
 
-def acquisition_plan(model,layout,profiles,rid,start,sources,missing,count,directory,layout_file,progress=lambda p:None,*,view_design='standard'):
+def acquisition_plan(model,layout,profiles,rid,start,sources,missing,count,directory,layout_file,progress=lambda p:None,*,view_design='standard',capture_source=None,focus=None):
     if not 30<=count<=79:raise ValueError('Hardware acquisition supports30–79 new poses (31–80 including initial view)')
     if missing:raise ValueError('Observe or explicitly declare all stationary arm poses before planning')
     configure_model(model,rid,DIAGONAL[rid])
-    nominal=planning_camera(layout,rid)
+    nominal=planning_camera(layout,rid,capture_source=capture_source,focus=focus)
     # This K bounds proposed views only. Real calibration fitting never receives it.
     proposed=generate_plan(model,layout,start,{rid:nominal},[rid],count,progress,view_design=view_design)[rid]
     nominal['view_design']=view_design
@@ -74,6 +81,7 @@ def assemble_plan(model,layout,profiles,rid,start,sources,missing,poses,director
     plan['fingerprint']=digest(plan)
     directory=Path(directory);atomic_json(directory/'batch.json',plan)
     preview={'purpose':'ChArUco acquisition sequence','arm':rid,'joint_names':joint_names(rid),
+             'independent_diagonal_arm':DIAGONAL[rid],
              'start':start,'target':segments[-1]['target'],'points':combined,'duration':offset,
              'tool_path_world':tool_path,'nominal_camera_target_world':None,
              'method':'full MoveIt collision sweep per segment; captures while stationary',
@@ -171,6 +179,9 @@ def acquire(args):
                     raise ValueError(r+': start changed; regenerate acquisition plan')
         def guard():observer.guard(plan,require_program_link=True)
         guard();camera=make_camera(profiles[rid]['ip'],node,metadata=metadata,rid=rid)
+        planned_source=plan['planning_only_camera_model'].get('planned_capture_source')
+        if planned_source and metadata.get('capture_source',{}).get('kind')!=planned_source:
+            raise ValueError('Planned acquisition image source differs from the session')
         first=json.loads((directory/'records/sample_000.json').read_text())
         settings=camera.settings()
         if settings['focusAuto'] or settings['focus']!=first['camera_settings']['focus']:
