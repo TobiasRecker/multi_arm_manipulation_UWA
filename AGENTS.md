@@ -1,5 +1,19 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Native HD-Intrinsics hinten links (2026-11-12)
+
+- Jetzt 41Ansichten/33Fit/8Prüfung bestanden, eigene physische Kamera
+  06561F1400090106 bei2592×1944/Fokus406 manuell. Empfohlener Export:
+  `setup/calibration/hardware_handeye/left_rear_hd_20261112/result_v2/`;
+  `selected_result.json` in der Sitzung verweist darauf.
+- Hier Brown5 mit k3=0: unveränderter erster freier PASS-Fit in result_v1
+  hat nicht monotone Extrapolation außerhalb der beobachteten Ecken. Beide
+  Versionen erhalten, keine Flags umschreiben. Physikalisch plausiblere
+  Extrapolation ist keine gemessene Genauigkeit der äußeren Bildränder.
+- Keine automatische globale Aktivierung oder neuer Hand-Auge-Fit; bisheriges
+  VGA406-/Hand-Auge-Profil bleibt erhalten. HD-/VGA-Bildquelle getrennt halten.
+  [Nachweis](docs/left_rear_hd_intrinsics_2026-11-12.md).
+
 ## Native HD-Intrinsics hinten rechts (2026-11-12)
 
 - Eigene 2592×1944-K/D bei Fokus388 manuell jetzt PASS: 41 Ansichten,

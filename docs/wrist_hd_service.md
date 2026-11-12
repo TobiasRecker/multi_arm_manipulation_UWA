@@ -6,6 +6,12 @@ UCC1.11.1 mit Autofokus wird wegen nachgewiesener Fokusfenster-Restore-Abweichun
 vor weiteren Moduswechseln abgewiesen. [Nachweise beider Rear-Kameras](wrist_hd_other_arms_2026-11-12.md).
 Es wird ausschließlich der Kameradienst kurz unterbrochen; keine Roboterbefehle.
 
+Die eigene [HD-Intrinsics-Reihe hinten links](left_rear_hd_intrinsics_2026-11-12.md)
+ist inzwischen mit41Bildern bestanden:2592×1944/Fokus406 manuell,
+empfohlener separater Export `left_rear_hd_20261112/result_v2/`.
+Eigener Kamera-only-Dienst `uwa-left-rear-wrist-hd.service` im Leerlauf verfügbar;
+keine automatische globale Profilaktivierung.
+
 ## Grünstich und geometrische Kalibrierung
 
 ChArUco verwendet Grauwertkanten. Ein Farbstich allein verhindert daher die

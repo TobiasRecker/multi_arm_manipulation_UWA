@@ -37,7 +37,8 @@ def test_bad_archive_input_is_rejected(tmp_path,fault):
 
 
 @pytest.mark.parametrize('passed',[True,False])
-def test_export_preserves_quality_and_never_activates(tmp_path,passed):
+@pytest.mark.parametrize('alternative',[True,False])
+def test_export_preserves_quality_and_never_activates(tmp_path,passed,alternative):
     batch=dataset(tmp_path)
     for path,value in [('batch.json',batch),('session.json',{}),('operator_approval.json',{})]:
         (tmp_path/path).write_text(json.dumps(value))
@@ -49,12 +50,19 @@ def test_export_preserves_quality_and_never_activates(tmp_path,passed):
     for path in (tmp_path/'records').glob('*.json'):
         row=json.loads(path.read_text());row['corners']=24;path.write_text(json.dumps(row))
     original=(tmp_path/'intrinsics.json').read_bytes();output=tmp_path/'result'
+    source=tmp_path/'intrinsics.json'
+    if alternative:
+        source=tmp_path/'alternative.json'
+        source.write_text(json.dumps(dict(intrinsic,model_selection={'model':'fixed k3'})))
+    options={'intrinsics_path':source} if alternative else {}
     if not passed:
-        with pytest.raises(ValueError):finalize(tmp_path,tmp_path/'batch.json',output)
+        with pytest.raises(ValueError):finalize(tmp_path,tmp_path/'batch.json',output,**options)
         assert not output.exists()
     else:
-        report=finalize(tmp_path,tmp_path/'batch.json',output)
+        report=finalize(tmp_path,tmp_path/'batch.json',output,**options)
         assert report['passed'] and not report['activated'] and not report['handeye_fitted']
-        assert (output/'intrinsics.json').read_bytes()==original
+        assert (output/'intrinsics.json').read_bytes()==source.read_bytes()
+        assert report['source_sha256'][str(source.resolve())]
+        if alternative:assert report['model_selection']['model']=='fixed k3'
         assert (output/'camera_info.yaml').exists()
     assert (tmp_path/'intrinsics.json').read_bytes()==original

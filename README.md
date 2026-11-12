@@ -136,6 +136,11 @@ records the completed41-view left-rear run:33 fit/8 held-out images,
 intrinsics and hand-eye validation passed; versioned results are saved locally.
 The left-rear result was explicitly activated globally on2026-11-12; new
 model loads use bundle hardware_20261112_v3. The Gazebo backend remains separate.
+The [native-HD left-rear intrinsic calibration](docs/left_rear_hd_intrinsics_2026-11-12.md)
+now also passes:41 views at2592×1944/focus406,0.318px median held-out RMS.
+Its recommended separate export is `left_rear_hd_20261112/result_v2/` with
+k3 fixed to zero for plausible extrapolation; the original fit is preserved.
+No automatic global activation or replacement of the VGA/hand-eye profile.
 A separate [native-HD rear-right intrinsic calibration](docs/right_rear_hd_intrinsics_2026-11-12.md)
 now passes at2592×1944/focus388:41 views,33 fit/8 held-out,0.674px median
 validation RMS. The saved ROS-CameraInfo remains separate from the active

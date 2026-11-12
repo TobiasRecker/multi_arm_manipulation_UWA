@@ -39,36 +39,34 @@ Diese Datei fasst die bisherigen Gespräche und die überprüfte Implementierung
 zusammen. Sie soll bei weiterer Arbeit mitgepflegt werden, nicht als unveränderlicher
 Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [README.md](README.md).
 
-## Native HD-Intrinsics hinten links – laufende freigegebene Reihe,2026-11-12
+## Native HD-Intrinsics hinten links abgeschlossen,2026-11-12
 
-- Nutzer beauftragt eigeneHD-Kalibrierung direktnachAbschlussvorne links.
-  Vorhanden waren nur VGA640×480/Fokus406 undHand-Auge sowie einzelneHD-Proben.
-  NeueSitzung setup/calibration/hardware_handeye/left_rear_hd_20261112/.
-- ErsteStillstandsaufnahmePASS:2592×1944,24Ecken deslinken40mm-A3-Boards,
-  Kamera06561F1400090106/UCC3.44,406Manual,33333/Gain16. NativeReadbacks,
-  dreiunterschiedlicheFrames undvollständigerRestore bestätigt. KeineArmfahrt.
-- Kamera-only-Dienst uwa-left-rear-wrist-hd nutzt eingefroreneOriginalhelfer,
-  paralleleSpeedtestsändern dieseReihe nicht. Fahrcontrollergezieltgeladen und
-  inaktivbestätigt; spawner-Namespace-/Parameterproblem separatbehandelt,
-  keineTreiberneustarts. URRUNNING/NORMAL/Remote,ros.urpnochSTOPPED.
-- Forecast:40weitereAnsichten,33Fit/8Prüfung,535,57sreineFahrt/5418Punkte.
-  EigeneRVizDomain73,LF-EndposeausdrücklichPrognose,Forecastnichausführbar.
-  Nutzerbestätigt "Vorschau passt, Fahrbereich und Kabel frei – nach vorne
-  links starten"; Freigabe/Fingerprint/SHA inoperator_approval.json.
-- VorStart müssenalle41LF-Bilder/seinControllerinaktivbestätigt,alleechten
-  Armstellungen neu gelesen und dieselbenLR-Ziele vollständig neu geprüft
-  werden. Skript preparation/recheck_after_left_front.py fährt nicht.
-  DanachbereitsfreigegebeneReihemitnativeSafety/Stationärprüfung ausführen,
-  fremdeDiensteerhalten. NachEndeLRControllerinaktiv/keineRückfahrt,
-  Intrinsics-only/keineglobaleProfilaktivierung. [Bericht](docs/left_rear_hd_intrinsics_2026-11-12.md).
-- LF-Abschluss41/41/Controllerinaktiv18:24:46bestätigt; neuerLive-BatchPASS,
-  Fingerprintd0cb381a24345ef6327bb260417a8941d143893c3040e41c69dee06a154630ee,
-  genehmigteZielereihenfolgebestätigt. ros.urp perROS-Playgestartet.
-- LÄUFT18:29:Exec69707/PID85601,startticks791683,zuletzt31/41gültigeBilder.
-  Startup-DiscoveryabbruchvorerstemFahrziel archiviert; begrenztes16sWarten
-  aufgleichzeitigfrischeDaten,keineStale-Lockerung,13TestsPASS. Wrapperdeaktiviert
-  LR-Motion in finally. EigenesPreviewaus,KameradienstidlezwischenAufnahmen.
-
+- Nutzer beauftragt eigeneHD-Reihe nachLF-Ende und bestätigt konkreteVorschau:
+  "Vorschau passt, Fahrbereich und Kabel frei – nach vorne links starten".
+  NachLF41/41/Controllerinaktiv18:24:46 die gleichen40LR-Ziele mit echten
+  Endstellungen erneut vollständig geprüft,Start18:29:18/Ende18:49:53AWST.
+- **41/41 Bilder,PASS**,33Fit/8vorabPrüfung,20–24Ecken. Kamera06561F1400090106,
+  native2592×1944/Fokus406Manual/33333/Gain16. AlleSensor-/Restoreprüfungen
+  bestanden,123Burst-JPEGs gegenOriginal-SHA verifiziert. KeineBilderentfernt.
+- **Empfohlen result_v2:Brown5/k3=0**,Fit0,3036px/Prüfmedian0,3177px/
+  Prüfmaximum0,3925px. FreierOriginalfitv1 ebenfallsPASS,aber außerhalbder
+  beobachtetenEcken nichtmonotoneRandextrapolation. Deshalb geringereModell-
+  Ordnung aus denselbenFitbildern,unveränderteGrenzen/Prüfrollen;Originalv1
+  erhalten. PositiverJacobi-GittercheckistkeinegemesseneRandgenauigkeit.
+  Eckenhülle32,1%Bildfläche,keineabsolute3D-/Weltgenauigkeitbehaupten.
+- Sitzung setup/calibration/hardware_handeye/left_rear_hd_20261112/,
+  selected_result.json verweistaufv2/CameraInfo/Manifest/Kontaktbogen.
+  NativeSafetyNORMAL,Remote/RUNNING,ros.urpPLAYING;LRControllerinaktiv
+  direktnachgewiesen,JSBaktiv,KameraNormal/LED0,Endfehler0,0000099rad.
+  Exec69707 beendet/Code0/Cleanup0,keineRückfahrt/keinSafetyreset.
+- NativeKameraServiceuwa-left-rear-wrist-hd bleibtkamera-only/idle verfügbar,
+  eigeneDomain73-Vorschaugeschlossen. AndereArme/Dienste/Treibererhalten.
+- AnfänglicherSpawner-Namespace-/Parameterfehler vorAktivierung behoben;
+  ersterStartvorFahrziel wegenfehlenderfrischerRR-Datenabgebrochen.
+  Initialwartephase16s begrenzt,keineUnionalterSnapshots/keineGuardlockerung.
+  13Sequenztests+9ExporttestsPASS. EingefroreneC-/Workerressourcen erhalten.
+- Kein Hand-Auge-Fit oder globaleAktivierung;VGA406-/Hand-Auge-Profilbleibt.
+  [Bericht](docs/left_rear_hd_intrinsics_2026-11-12.md),Arbeitsstand abgeschlossen.
 
 ## Native HD-Intrinsics hinten rechts abgeschlossen, 2026-11-12
 

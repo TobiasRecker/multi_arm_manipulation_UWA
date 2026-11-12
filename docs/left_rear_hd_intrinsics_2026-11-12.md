@@ -1,82 +1,106 @@
 # Hinten links: native HD-Intrinsics, 12.11.2026
 
-Status: **freigegebene Reihe läuft seit18:29 AWST**.
-Bislang existieren bestandene VGA-Intrinsics (640×480/Fokus406) und Hand-Auge;
-einzelne native HD-Fotos waren erfolgreich, eigene HD-K/D fehlten jedoch.
-Neue getrennte Sitzung:
+**Abgeschlossen: 41/41 Aufnahmen, Intrinsics bestanden.** Eigene native HD-K/D
+waren bisher nicht vorhanden; die älteren VGA640×480-/Hand-Auge-Ergebnisse
+bleiben unverändert. Sitzung:
 `setup/calibration/hardware_handeye/left_rear_hd_20261112/`.
 
-## Nachgewiesene Vorbereitung
+## Aufnahme und Freigabe
 
-- Physische Kamera `06561F1400090106`, UCC3.44.0.149696 am UR192.168.8.169.
-- Native2592×1944, Fokus406 manuell, Belichtung33333/Gain16 manuell.
-  Kein VGA-K/D-Skalieren und keine Parameter anderer Kameras übernehmen.
-- `sample_000` im überwachten Stillstand akzeptiert:24 ChArUco-Ecken des
-  festen linken40mm-A3-Boards, IDs0–16. Drei unterschiedliche nativeFrames,
-  tatsächlicher V4L2-Fokus/Auto-/Belichtungs-/Gain-Readback während beider
-  Burstenden und vollständiger Originalkonfigurations-Restore bestätigt.
-- Eigener kamera-only Dienst `uwa-left-rear-wrist-hd.service`, ROS-Domain66,
-  `/uwa_hardware/left_rear/wrist_camera_hd/capture`. Originale C-/Workerressourcen
-  mit SHA unter `preparation/native_resources/` eingefroren, keine parallelen
-  Aufnahmebeschleunigungsänderungen während dieser Reihe übernehmen.
-- Trajektoriencontroller über getrennte SetParameters/Load/Configure-Dienste
-  geladen und ausdrücklich **inaktiv** bestätigt. Zuvor spawner-Aufrufe ohne
-  passende Namespace-Parameterzuordnung fehlgeschlagen; Diagnosen erhalten.
-  Kein Treiberneustart, kein Bewegungsziel und keine Controlleraktivierung.
-- UR bei Vorbereitung RUNNING/NORMAL/Remote, ros.urp geladen, noch STOPPED.
-  Programmstart erst nach Ende vorne links und erfolgreichem Live-Wegcheck.
+Kamera `06561F1400090106`, UCC3.44.0.149696 am UR192.168.8.169,
+native2592×1944, Fokus406 manuell, Belichtung33333/Gain16 manuell.
+Festes linkes40mm-A3-Board, MarkerIDs0–16. Keine skalierten VGA-K/D,
+keine Parameter anderer Kameras und keine Simulationsoptik als Fitvorgabe.
 
-## Gezeigte und freigegebene Reihe
+Erstaufnahme im überwachten Stillstand bestanden. Weitere40Ansichten mit
+vorher festgelegten Rollen: insgesamt33Fit/8unabhängige Prüfung. 20–24Ecken
+pro Bild, keine laufende Aufnahme ausgeschlossen. NativeSensorreadbacks und
+vollständiger Originalkonfigurations-Restore für alle41 bestätigt. Alle123
+Burst-JPEGs gegen die gespeicherten Original-SHA geprüft,41 unterschiedliche
+Messbilder. Die sichtbare wechselnde Grünfärbung betrifft die Farbwiedergabe;
+es wurde keine nachträgliche Farbkorrektur an Messbildern vorgenommen.
 
-40 weitere Ansichten, zusammen33Fit/8vorabPrüfung. Breite Lage-/Neigungs- und
-Abstandsvariation, lokales Gelenkfenster±45° um den gemessenen Start, native
-Grenzen unverändert. 535,57s reine Bewegung,5418 Kollisionsprüfpunkte im
-Planungsmodell. Keine automatische Rückfahrt. Nur left_rear erhält Ziele.
-Die bestehende dokumentierte Diagonalausnahme betrifft ausschließlich
-left_rear↔right_front; vorne links bleibt stationär überwacht.
+Vorne links endete am12.11. um18:24:46AWST mit41Bildern und inaktivem Regler.
+Die LR-Vorschau aufDomain73 zeigte zunächst dessen prognostizierte Endpose;
+Forecast ausdrücklich nicht ausführbar. Nutzerfreigabe:
+**„Vorschau passt, Fahrbereich und Kabel frei – nach vorne links starten“**.
+Anschließend alle realen Armstellungen gelesen, dieselben40Ziele/Reihenfolge/
+Rollen vollständig neu geprüft. Neuer Batch `reviewed_after_left_front/`,
+Fingerprint `d0cb381a24345ef6327bb260417a8941d143893c3040e41c69dee06a154630ee`,
+Freigabe mit SHA gebunden.535,57s reine Bewegung,5418 Modellprüfpunkte,
+Gelenkfenster±45°, native Grenzen unverändert. Diagonalausnahme ausschließlich
+left_rear↔right_front gemäß bestehender Nutzerregel. Vorne links und hinten
+rechts während der Reihe stationär überwacht, keine anderen Arme kommandiert.
 
-Vorschau `forecast_after_left_front/plan.json`, eigener Dienst
-`uwa-left-rear-hd-preview.service` / Domain73. Vorne links ist dort ausdrücklich
-mit seiner **vorhergesagten Endpose** dargestellt. Der Forecastbatch trägt
-`mode:forecast`, `executable:false` und kann nicht direkt ausgeführt werden.
-Er ersetzt keine aktuellen Hindernisstellungen oder Kalibrierung der Montage.
+## Ergebnis und empfohlene Version
 
-Nutzer bestätigt: **„Vorschau passt, Fahrbereich und Kabel frei – nach vorne
-links starten“**, gebunden an Forecastfingerprint/Datei-SHA in
-`operator_approval.json`.
+**Empfohlen: `result_v2/`**, Brown5 mit k3=0 fixiert. Dieselben33Fitbilder und
+8Prüfbilder, keine Punkte entfernt und keine Qualitätsgrenzen gelockert.
 
-Nach allen41 akzeptierten LF-Bildern und dessen inaktivem Bewegungscontroller
-liest `preparation/recheck_after_left_front.py` die realen vier Armstellungen.
-Nur die unveränderten Ziele/Reihenfolge werden übernommen, alle Verbindungen
-erneut kollisionsgeprüft und als `reviewed_after_left_front/` gespeichert.
-Das Skript fährt selbst nicht. Geänderte LR-Startstellung oder abweichende
-Geometrie sind ein Abbruchgrund; keine ungeprüfte Verbindung ergänzen.
+| Größe | Empfohlen v2 | Unveränderter erster Fit v1 |
+|---|---:|---:|
+| Fit-RMS |0,3036px|0,2995px|
+| Median der Prüf-RMS |0,3177px|0,3167px|
+| Größter Prüf-RMS |0,3925px|0,4441px|
+| Fokus / Auflösung |406 /2592×1944|406 /2592×1944|
 
-Danach ursprüngliche Freigabe für diese konkrete Reihe umsetzen: ros.urp
-über bestehenden MATCH-Pfad starten, External-Control-Link/native Safety prüfen,
-`run-series … --intrinsics-only`. Nach Messende nur eigenen Fahrcontroller
-deaktivieren, unabhängige Prüfansichten auswerten und Ergebnis archivieren.
-Keine automatischen Safetyquittierungen, keine Rückfahrt oder globale
-Kalibrierprofilaktivierung. VGA-/HD-/Fokusprofile getrennt erhalten.
+Empfohlene K-Werte in Pixeln: fx2625,2353; fy2608,7368;
+cx1369,2135; cy1018,3033. Brown-Koeffizienten k1,k2,p1,p2,k3:
+`[0.11855075, -0.41444239, -0.00054493, 0.00605939, 0]`.
+Formale relative fokale Fitunsicherheit0,230%/0,189%, maximale Board-
+Neigungsdiversität49,67°. Alle unveränderten automatischen Fehler-/Plausibilitäts-
+und Beobachtbarkeitsgrenzen bestanden.
 
-Logs: `setup/logs/uwa-left-rear-hd-*`; Steuerparameter und Readinessnachweise
-unter `preparation/`. Arbeitsstand `work/left-rear-hd-intrinsics.md`.
+Der erste unbeschränkte Fit bestand ebenfalls die Reprojektionsprüfung,
+sein freier hoher Term k3 führte jedoch außerhalb der beobachteten Punkte zu
+nicht monotoner radialer Extrapolation (minimale radiale Ableitung−1,554 über
+dem nominellen Sensorbereich). Deshalb gezielt k3=0 fixiert und neu aus den
+Trainingsbildern geschätzt. Die Wahl begründet sich durch diese physikalische
+Modellprüfung; Prüfpunkte bleiben vom K/D-Fit ausgeschlossen. Das reduzierte
+Modell hat dort positive radiale Ableitung (Minimum0,778) und auf einem101×101-
+Gitter positive Vorwärts-Jacobi-Determinante (Minimum0,737). Der ursprüngliche
+PASS-Fit und seine Flags wurden nicht überschrieben.
 
-## Durchführung
+Die Ecken reichen ungefähr von[494;494] bis[2217;1614]px; ihre gemeinsame
+konvexe Hülle umfasst32,1% der Bildfläche. Positive Modellableitung ist keine
+Messvalidierung der äußersten Bildränder. Reprojektionswerte und formale
+Unsicherheit sind keine absolute3D-/Hand-Auge-/Basis-/Tisch-/Weltgenauigkeit.
 
-Vorne links endete um18:24:46 mit41/41 Bildern, NORMAL und inaktivem Regler.
-Frische Modell-/Wegprüfung bestanden, alle40Ziele und Rollen unverändert.
-Ausführbarer Batchfingerprint:
-`d0cb381a24345ef6327bb260417a8941d143893c3040e41c69dee06a154630ee`.
-Programstart über vorhandenen ROS-Play-Dienst erfolgreich.
+Dateien relativ zur Sitzung:
 
-Ein initialer Discoveryabbruch endete vor dem ersten Fahrziel. Die Startphase
-wartet jetzt höchstens16s auf gleichzeitig frische Gelenkzustände, ohne alte
-Snapshots zu vereinigen. 13Sequenztests bestanden, darunter Timeout und
-Nichtwiederverwendung inzwischen veralteter Daten. NativesSafety und sämtliche
-Laufzeitguards erhalten. Der neue Start erreicht sample_001.
+- `selected_result.json`: empfohlene Version und SHA-Verweis.
+- `result_v2/intrinsics.json`, `camera_info.yaml`: eigenes empfohlenes HD-Profil.
+- `result_v2/manifest.json`, `quality_summary.json`, `heldout_contact_sheet.jpg`:
+  ursprüngliche Dateihashes, Rollenprüfung, Qualitätswerte und Prüfbilder.
+- `result_v1/` / ursprüngliches `intrinsics.json`: unveränderter erster PASS-Fit.
+- `intrinsics_fix_k3.json`, `model_extrapolation_diagnostic.json`: Modellauswahl.
+- `completion.json`: Controllerstatus, Endfehler und123Original-Burst-SHA.
 
-Laufender Exec69707,Runtime/PID/Startzeit unterpreparation/runtime.json.
-`preparation/run_approved_series.py` führt nach Ende/Interrupt in finally die
-LR-Deaktivierung aus; Ergebnis incontroller_deactivation.log kontrollieren.
-Messauswertung folgt nach vollständiger Reihe, noch kein neuer Fit.
+## Ausführung, Abschluss und technische Nachweise
+
+Reihe18:29:18–18:49:53AWST erfolgreich, inklusive Kameraaufnahmen/Auswertung
+etwa20,6Minuten. Letztes Ziel erreicht, maximaler Gelenkfehler0,0000099rad.
+Eigener Fahrcontroller danach erfolgreich deaktiviert und über direkte
+Controllerliste **inaktiv** bestätigt. Joint-State-Broadcaster bleibt aktiv.
+URRUNNING/NORMAL/Remote, ros.urpPLAYING; KameraNormal, Fokus406 manuell,
+LED-Wert0. Keine automatische Rückfahrt, kein Safetyreset, keine fremden
+Dienste/Treiber gestoppt. Eigene bestätigte Vorschau vorher geschlossen,
+Kamera-only-Dienst `uwa-left-rear-wrist-hd.service` bleibt im Leerlauf verfügbar.
+
+Controller zunächst über den Spawner ohne passende Namespace-Zuordnung nicht
+initialisierbar; anschließend korrekte Parameter über getrennte SetParameters,
+Load/Configure-Dienste gesetzt und nur inaktiv geladen. Erster Startversuch vor
+jedem Fahrziel wegen zunächst fehlender frischer RR-Gelenkdaten abgebrochen.
+Startphase wartet jetzt begrenzt16s auf gleichzeitig frische Daten; keine alten
+Snapshots zusammenführen, alle Laufzeitguards unverändert.13Sequenztests und
+9Exporttests bestanden; native C-/Workerressourcen für diese Reihe eingefroren.
+
+Read-only-Endnachweise `final_controllers.log`, `final_native_status.json`;
+Runtime und automatische Controller-Deaktivierung unter `preparation/`.
+Logs `setup/logs/uwa-left-rear-hd-*`, einschließlich ursprünglicher Fehlversuche.
+Offline-Archivtool unterstützt explizites alternatives Fit-Artefakt, prüft
+weiterhin PASS, Anzahl, Optikprofil, Originalbilder und feste Prüfrollen.
+
+**Kein neuer Hand-Auge-Fit und keine globale Profilaktivierung.** Für zukünftige
+HD-Auswertung ausdrücklich `result_v2` bei406Manual verwenden. Bestehendes
+VGA-/Hand-Auge-Profil und vorläufige Welt-/Tischanker bleiben unverändert.

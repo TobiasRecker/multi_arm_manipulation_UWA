@@ -51,17 +51,22 @@ def audit_records(session,batch):
     return rows,hashes
 
 
-def finalize(session,batch_path,output):
+def finalize(session,batch_path,output,*,intrinsics_path=None):
     session=Path(session).resolve();output=Path(output).resolve()
     batch=json.loads(Path(batch_path).read_text())
     rows,hashes=audit_records(session,batch)
-    intrinsics=json.loads((session/'intrinsics.json').read_text())
+    source_intrinsics=Path(intrinsics_path or session/'intrinsics.json').resolve()
+    intrinsics=json.loads(source_intrinsics.read_text())
     if (intrinsics.get('passed') is not True or
             intrinsics['fit_count']!=sum(r['role']=='fit' for r in rows) or
             intrinsics['validation_count']!=sum(r['role']=='validation' for r in rows)):
         raise ValueError('Intrinsic fit failed or fitting/held-out counts differ')
+    if any(r['image_size']!=intrinsics['image_size'] or
+           ('camera_settings' in r and r['camera_settings']['focus']!=intrinsics['focus'])
+           for r in rows):
+        raise ValueError('Intrinsic resolution/focus differs from observations')
     output.mkdir(exist_ok=False)
-    shutil.copy2(session/'intrinsics.json',output/'intrinsics.json')
+    shutil.copy2(source_intrinsics,output/'intrinsics.json')
     k=np.asarray(intrinsics['camera_matrix']);d=intrinsics['distortion'];width,height=intrinsics['image_size']
     info=dict(image_width=width,image_height=height,camera_name=batch['arm']+'_native_hd_focus'+str(intrinsics['focus']),
         distortion_model='plumb_bob',camera_matrix=dict(rows=3,cols=3,data=k.ravel().tolist()),
@@ -69,7 +74,7 @@ def finalize(session,batch_path,output):
         rectification_matrix=dict(rows=3,cols=3,data=np.eye(3).ravel().tolist()),
         projection_matrix=dict(rows=3,cols=4,data=np.c_[k,np.zeros(3)].ravel().tolist()))
     (output/'camera_info.yaml').write_text(yaml.safe_dump(info))
-    for item in (session/'session.json',Path(batch_path),session/'operator_approval.json'):
+    for item in (session/'session.json',Path(batch_path).resolve(),session/'operator_approval.json',source_intrinsics):
         hashes[str(item)]=digest_file(item)
     report=dict(schema=1,created_at=datetime.now().astimezone().isoformat(),passed=True,activated=False,
         arm=batch['arm'],session=str(session),count=len(rows),fit_count=intrinsics['fit_count'],
@@ -81,6 +86,8 @@ def finalize(session,batch_path,output):
         native_controls=('Actual V4L2 focus/manual exposure checked at retained burst endpoints'
                          if all(r.get('native_burst') for r in rows) else 'Not applicable to VGA-only observations'),
         automatic_return=False,handeye_fitted=False)
+    report['source_intrinsics']=str(source_intrinsics)
+    if 'model_selection' in intrinsics:report['model_selection']=intrinsics['model_selection']
     (output/'manifest.json').write_text(json.dumps(report,indent=2)+'\n')
     return report
 
@@ -88,8 +95,10 @@ def finalize(session,batch_path,output):
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--session',type=Path,required=True);p.add_argument('--batch',type=Path,required=True)
-    p.add_argument('--output',type=Path,required=True);args=p.parse_args()
-    print(json.dumps(finalize(args.session,args.batch,args.output),indent=2))
+    p.add_argument('--output',type=Path,required=True)
+    p.add_argument('--intrinsics',type=Path,help='Explicit separately fitted model; original session result remains unchanged')
+    args=p.parse_args()
+    print(json.dumps(finalize(args.session,args.batch,args.output,intrinsics_path=args.intrinsics),indent=2))
 
 
 if __name__=='__main__':main()

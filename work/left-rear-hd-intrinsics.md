@@ -1,50 +1,28 @@
-# Native HD-Intrinsics hinten links vorbereiten
+# Native HD-Intrinsics hinten links
 
-- Status: **in Arbeit**,2026-11-12,Hauptagent LR-HD.
-- Nutzer beauftragt Vorbereitung und anschließende eigene native HD-Reihe,
-  sobald vorne links fertig ist. Vorhandene VGA-/Hand-Auge-Ergebnisse erhalten.
-- Bereiche: eigene Sitzung unter setup/calibration/hardware_handeye/
-  left_rear_hd_20261112/, vorhandener HD-Kameradienst, konkrete neue Wege und
-  Vorschau. Keine fremden Kamera-Worker verändern, kein Treiberneustart.
-- Links vorne läuft separat: bis dessen Abschluss keine LR-Armfahrt und keine
-  Änderung seiner Hindernisstellung. Vorläufige Planung mit LF-Endpose nur als
-  Prognose kennzeichnen, vor Ausführung echte Endstellungen erneut prüfen.
-- Eigene Kamera-only-Prüfung auf left_rear geplant. Speed-/LED-Testaufgabe:
-  bitte left_rear ab jetzt für diese Kalibrierung freihalten; RF bleibt frei.
-  Vor Zugriff laufende native Kameratransaktionen prüfen, keine fremde beenden.
-- Native2592×1944, eigener unveränderter manueller Fokus, rechtes/anderes K/D
-  nicht kopieren. Festes linkes40mm-A3-Board IDs0–16. Keine automatische globale
-  Aktivierung oder neue Weltanker. Ziel33Fit/8vorabPrüfung wie hinten rechts.
-
-- Erstaufnahme sample_000 PASS:24Ecken/2592×1944, Fokus406Manual,
-  Belichtung33333/Gain16;V4L2 währendBurst bestätigt,3verschiedeneFrames und
-  vollständigerRestore. Kameraservice uwa-left-rear-wrist-hd mit eingefrorenen
-  originalenC-/Workerressourcen, kein parallel veränderterFastpfad.
-- Forecastplan:40Ansichten,33Fit/8Prüfunginsgesamt,535,57sFahrt/5418Punkte.
-  LF-Endpose ausdrücklichPrognose,modeforecast/executablefalse. RVizDomain73,
-  eigenerDienst uwa-left-rear-hd-preview. Kein LR-Bewegungsbefehl.
-- Nutzerfreigabe gespeichert: "Vorschau passt, Fahrbereich und Kabel frei –
-  nach vorne links starten". NachLF-Abschluss nurgleicheZielreihenfolge,
-  echteLive-Stellungen neuprüfen und reviewed_after_left_front erzeugen.
-  Skript preparation/recheck_after_left_front.py fährt nicht.
-- LR meldetRUNNING/NORMAL/Remote,ros.urpSTOPPED. Trajektoriencontroller wird
-  ausdrücklichinaktiv geladen; Play erstnachLF-Ende. FinaleReadiness prüfen.
-
-- LF beendet41/41 und Controllerinaktiv bestätigt18:24:46AWST. NeuerLive-
-  WegcheckPASS,40Ziele/Reihenfolge/Rollen exaktwieForecast. EchterBatch unter
-  reviewed_after_left_front/, Fingerprint
-  d0cb381a24345ef6327bb260417a8941d143893c3040e41c69dee06a154630ee.
-  Freigabe an neuenBatch-SHA gebunden. Ein redundanterLF-Service-Lesetimeout
-  durch tatsächlichen zeitlich passendenCompletionnachweis+neueLivewinkel
-  ersetzt; keinerleiBewegung daraus. EigeneDomain73-Vorschau nachFreigabe aus.
-- LRros.urp überbestehendenDashboardROS-Play gestartet,AntwortStartingprogram.
-  ErsterReihenstart vorFahrziel wegenfehlenderfrischerRR-Gelenke abgebrochen,
-  Controllerinaktiv bestätigt. Startup wartetnun begrenzt16s auf gleichzeitig
-  frischeZustände (keineUnionalterSamples);13SequenztestsPASS.
-- LÄUFT seit18:29:18AWST: Exec69707,PID85601/startticks791683,Runtime unter
-  preparation/runtime.json. Log setup/logs/uwa-left-rear-hd-acquisition.log.
-  Zuletzt31/41akzeptiert,20–24Ecken; MOVINGsample_031. KeineanderenArme kommandieren, keineWorkeränderung.
-- Eigenes preparation/run_approved_series.py deaktiviert in finally nurLR-
-  Bewegungscontroller überMATCH;Cleanupresultatprüfen. BeiAbbruch nurverifizierten
-  PID mitSIGINT,keineautomatischeRückfahrt/Quittierung. NachkompletterReihe
-  Intrinsics-onlyFit,Originalaudit/Export,Abschlussstatusnachweisen.
+- Status: **abgeschlossen**,2026-11-12,Hauptagent LR-HD.
+- Nutzerauftrag: eigeneHD-K/D vorbereiten und nachLF-Abschluss aufnehmen.
+  NeueVorschauDomain73 konkretfreigegeben, gleicherZielbatch mit allenrealen
+  Endstellungen neu geprüft. Forecast/Live-SHA/Freigabe erhalten.
+- 41/41 Bilder,33Fit/8Prüfung,20–24Ecken. Kamera06561F1400090106,
+  2592×1944/406Manual/33333/Gain16. AlleNativeControls undRestoresPASS,
+  123Burstoriginale mitHashesgeprüft. KeineverworfenenReihenbilder.
+- Reihe18:29:18–18:49:53AWST fertig,Exec69707beendet/Code0/Cleanup0.
+  Runtimehistorie unter preparation/runtime.json;kein laufenderFahrprozess.
+  LRControllerinaktiv direktnachgewiesen,URRUNNING/NORMAL/Remote,
+  ros.urpPLAYING,KameraNormal/LED0,Endfehler0,0000099rad. KeineRückfahrt.
+- Empfohlenes separatesHD-Profil in result_v2/:Brown5/k3=0,
+  Fit0,3036px/Prüfmedian0,3177px/Maximum0,3925px. OriginalfreierFitv1
+  ebenfallsPASS,aber nichtmonotoneRandextrapolation;unverändertbehalten.
+  Reduktion nachphysikalischerModellprüfung,keineBild-/Grenzwertänderung.
+  ÄußersteBildrändernichtgemessen;keineabsolute3D-Genauigkeitbehaupten.
+- Sitzung setup/calibration/hardware_handeye/left_rear_hd_20261112/;
+  selected_result.json verweistv2,CameraInfo/Manifest/Kontaktbogen/Completion.
+  Kein Hand-Auge-Fit oder globalesProfil aktiviert; VGA406erhalten.
+- 13Sequenztests+9ExporttestsPASS. InitialeDiscoverywartephase16s begrenzt,
+  frischeZustände gleichzeitig nötig;keineUnionalterSamples. EigenesKamera-
+  Service nutztgefroreneOriginalworker/C,keinefremdenWorker/Treibergeändert.
+- EigeneDomain73-Vorschaugeschlossen;KameraServiceuwa-left-rear-wrist-hd
+  bleibtausdrücklichkamera-only/idle. AndereKameranutzer könnenLRwieder nutzen.
+- Abschlussbericht docs/left_rear_hd_intrinsics_2026-11-12.md,
+  AGENTS/HANDOVER/README imgleichenArbeitsgang aktualisiert.
