@@ -29,3 +29,22 @@
   Skript preparation/recheck_after_left_front.py fährt nicht.
 - LR meldetRUNNING/NORMAL/Remote,ros.urpSTOPPED. Trajektoriencontroller wird
   ausdrücklichinaktiv geladen; Play erstnachLF-Ende. FinaleReadiness prüfen.
+
+- LF beendet41/41 und Controllerinaktiv bestätigt18:24:46AWST. NeuerLive-
+  WegcheckPASS,40Ziele/Reihenfolge/Rollen exaktwieForecast. EchterBatch unter
+  reviewed_after_left_front/, Fingerprint
+  d0cb381a24345ef6327bb260417a8941d143893c3040e41c69dee06a154630ee.
+  Freigabe an neuenBatch-SHA gebunden. Ein redundanterLF-Service-Lesetimeout
+  durch tatsächlichen zeitlich passendenCompletionnachweis+neueLivewinkel
+  ersetzt; keinerleiBewegung daraus. EigeneDomain73-Vorschau nachFreigabe aus.
+- LRros.urp überbestehendenDashboardROS-Play gestartet,AntwortStartingprogram.
+  ErsterReihenstart vorFahrziel wegenfehlenderfrischerRR-Gelenke abgebrochen,
+  Controllerinaktiv bestätigt. Startup wartetnun begrenzt16s auf gleichzeitig
+  frischeZustände (keineUnionalterSamples);13SequenztestsPASS.
+- LÄUFT seit18:29:18AWST: Exec69707,PID85601/startticks791683,Runtime unter
+  preparation/runtime.json. Log setup/logs/uwa-left-rear-hd-acquisition.log.
+  Aktuell MOVINGsample_001. KeineanderenArme kommandieren, keineWorkeränderung.
+- Eigenes preparation/run_approved_series.py deaktiviert in finally nurLR-
+  Bewegungscontroller überMATCH;Cleanupresultatprüfen. BeiAbbruch nurverifizierten
+  PID mitSIGINT,keineautomatischeRückfahrt/Quittierung. NachkompletterReihe
+  Intrinsics-onlyFit,Originalaudit/Export,Abschlussstatusnachweisen.

@@ -82,7 +82,8 @@ class Worker(QtCore.QThread):
                         self.rig.preview.start()
                     else:
                         self.rig.preview.stop()
-                    self.message.emit('Live view resumed.' if value else 'PAUSED · OAK released. Displayed images are snapshots.')
+                    self.message.emit('LIVE · Wrist LEDs active while viewing.' if value else
+                        'PAUSED · Wrist LEDs released (other viewers may keep them on). OAK released. Images are snapshots.')
                 if self.quit_requested:
                     break
                 if not self.live:
@@ -148,7 +149,8 @@ class Window(QtWidgets.QMainWindow):
         layout = QtWidgets.QVBoxLayout(root)
         board = rig.board_config
         title = QtWidgets.QLabel(f"{board['board_id']} · IDs {min(board['marker_ids'])}–{max(board['marker_ids'])} · "
-            f"{board['square_length'] * 1000:g} mm squares · Camera controls only")
+            f"{board['square_length'] * 1000:g} mm squares · "
+            + ('Both table references · ' if board.get('alternate_boards') else '') + 'Camera controls only')
         title.setStyleSheet('font-size:21px;font-weight:bold;')
         layout.addWidget(title)
         self.overall = QtWidgets.QLabel('WAITING FOR ' + self.count_label + ' CAMERAS')
@@ -171,10 +173,18 @@ class Window(QtWidgets.QMainWindow):
             column.addWidget(self.states[name])
             self.details[name] = QtWidgets.QLabel('No image received')
             self.details[name].setWordWrap(True)
-            self.details[name].setMinimumHeight(90)
+            self.details[name].setMinimumHeight(60 if len(self.camera_names) > 3 else 90)
             column.addWidget(self.details[name])
             row.addLayout(column, index // 3, index % 3)
-        layout.addLayout(row, 1)
+        if len(self.camera_names) > 3:
+            camera_area = QtWidgets.QWidget()
+            camera_area.setLayout(row)
+            scroll = QtWidgets.QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.setWidget(camera_area)
+            layout.addWidget(scroll, 1)
+        else:
+            layout.addLayout(row, 1)
         self.action = QtWidgets.QLabel('CONNECTING · Starting camera previews…')
         self.action.setWordWrap(True)
         self.action.setMinimumHeight(65)
@@ -330,7 +340,7 @@ def main():
     p.add_argument('--capture-only', action='store_true')
     p.add_argument('--quick', action='store_true', help='Capture-only: use wrist VGA rather than native HD')
     p.add_argument('--five-cameras', action='store_true', help='Four wrists plus OAK; separate object-scan focus profile')
-    p.add_argument('--board', choices=('mobile', 'left', 'right'), help='Default mobile, or right table with --five-cameras')
+    p.add_argument('--board', choices=('mobile', 'left', 'right', 'both'), help='Default mobile, or both tables with --five-cameras')
     args = p.parse_args()
     options = {}
     if args.five_cameras:
@@ -338,7 +348,7 @@ def main():
             'src/multi_arm_manipulation_UWA/config/digitization/five_camera_capture.yaml')
         if args.output is None:
             args.output = args.workspace / 'setup/digitization/five_camera'
-    rig = CaptureRig(args.workspace, args.output, board=args.board or ('right' if args.five_cameras else 'mobile'), **options)
+    rig = CaptureRig(args.workspace, args.output, board=args.board or ('both' if args.five_cameras else 'mobile'), **options)
     if args.capture_only:
         try:
             rig.lock_focus()

@@ -6,6 +6,7 @@ import subprocess
 import sys
 import time
 import wrist_worker as worker
+import wrist_led_restore
 
 original_restore = worker.restore
 DIRECTORY = None
@@ -23,7 +24,7 @@ def verify_mode():
 
 def restore(service, original):
     started = time.time()
-    result = original_restore(service, original)
+    result = wrist_led_restore.restore(original_restore, worker, service, original)
     restored = time.time()
     try:
         result['v4l2_mode'] = verify_mode()
@@ -38,7 +39,7 @@ def restore(service, original):
         worker.wait_vision_exit(pid)
         subprocess.check_call([BINARY, '--restore-mode', '/dev/video0', DIRECTORY],
                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        result = original_restore(service, original)
+        result = wrist_led_restore.restore(original_restore, worker, service, original)
         result['v4l2_mode'] = verify_mode()
         result['format_restore_strategy'] = 'explicit_fallback'
         result['format_restore_fallback_reason'] = str(error)

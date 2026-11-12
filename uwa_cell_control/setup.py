@@ -16,4 +16,5 @@ setup(name='uwa_cell_control',version='0.1.0',packages=find_packages(),
                                       'board_capture_gui = uwa_cell_control.board_capture_gui:main',
                                       'digitize_box = uwa_cell_control.object_digitization:main',
                                       'object_scan_plan = uwa_cell_control.object_scan_plan:main',
+                                      'object_scan_bootstrap = uwa_cell_control.object_scan_bootstrap:main',
                                       'wrist_hd_service = uwa_cell_control.wrist_hd_service:main']})

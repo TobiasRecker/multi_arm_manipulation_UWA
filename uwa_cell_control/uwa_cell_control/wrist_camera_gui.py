@@ -216,6 +216,7 @@ class Window(QtWidgets.QMainWindow):
         led_row = QtWidgets.QHBoxLayout()
         self.led_mode = QtWidgets.QComboBox()
         self.led_mode.addItems(['LED Auto', 'LED Off', 'LED Manual'])
+        self.led_mode.setCurrentIndex(2)
         self.led_percent = QtWidgets.QSpinBox()
         self.led_percent.setRange(0, 100)
         self.led_percent.setValue(30)
@@ -256,12 +257,16 @@ class Window(QtWidgets.QMainWindow):
         self.worker.commands.put((action, value))
 
     def show_settings(self, settings):
+        from .wrist_activity import directory
+        ip = self.worker.camera.base.split('//')[1].split(':')[0]
+        managed = (directory(ip) / 'enabled').exists()
+        light = (f'LED {round(settings.get("lightingValue", 0)/1.75)}% · MANAGED: off after last viewer/photo'
+                 if managed else f'LED readback {settings.get("lightingMode", "?")} / {settings.get("lightingValue", "?")}')
         self.settings_label.setText(f'Server mode: {"AUTO" if settings["focusAuto"] else "MANUAL"} · '
                                     f'API focus value: {settings["focus"]} · Robotiq display: {1023-settings["focus"]}')
         self.appearance_label.setText(f'Exposure: {"AUTO" if settings.get("exposureAuto") else "MANUAL"} · '
             f'{settings.get("exposure", "?")} µs · raw gain {settings.get("gain", "?")} · '
-            f'EV {settings.get("exposureSensitivity", "?")} · LED mode {settings.get("lightingMode", "?")} '
-            '(0=Auto, 1=Off, 2=Manual)')
+            f'EV {settings.get("exposureSensitivity", "?")} · {light}')
         if not self.slider_edited:
             self.slider.setValue(max(0, min(1023, 1023-settings['focus'])))
             self.slider_edited = False

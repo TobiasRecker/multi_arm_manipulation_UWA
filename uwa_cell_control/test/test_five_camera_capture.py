@@ -131,3 +131,25 @@ def test_metric_preparation_keeps_extra_cameras_without_inventing_intrinsics(tmp
     (capture / 'manifest.json').write_text(json.dumps(manifest))
     with pytest.raises(ValueError, match='stationary'):
         prepare_capture(capture, tmp_path / 'invalid')
+
+
+def test_dual_reference_detector_keeps_each_board_identity(tmp_path):
+    raw = yaml.safe_load((Path(__file__).parents[2] / 'uwa_cell_description/config/cell_layout.yaml').read_text())
+    primary = reference_board(raw, 'right')
+    primary['alternate_boards'] = [reference_board(raw, 'left')]
+    detector = MobileBoard(primary)
+    for table in ['left', 'right']:
+        board = MobileBoard(reference_board(raw, table))
+        image = board.board.generateImage((1400, 1000))
+        image = cv2.copyMakeBorder(image, 40, 40, 40, 40, cv2.BORDER_CONSTANT, value=255)
+        obs, _ = detector.observe(cv2.cvtColor(image, cv2.COLOR_GRAY2BGR))
+        assert obs['full'] and obs['board_id'] == table + '_table_board'
+
+
+def test_velocity_violation_cannot_be_hidden_by_matching_endpoint_positions():
+    audit = StationarityAudit({'a': list('abcdef')})
+    for t in np.arange(0, 1.01, .05):
+        audit.receive('a', np.zeros(6), np.zeros(6), float(t))
+    audit.arm(1.)
+    audit.receive('a', np.zeros(6), [.1, 0, 0, 0, 0, 0], 1.05)
+    assert not audit.summary()['stationarity_confirmed']

@@ -31,6 +31,7 @@ def main():
     import rclpy
     from rclpy.callback_groups import ReentrantCallbackGroup
     from rclpy.executors import MultiThreadedExecutor
+    from rclpy.executors import ExternalShutdownException
     from rclpy.qos import QoSProfile, DurabilityPolicy
     from sensor_msgs.msg import CompressedImage
     from std_srvs.srv import Trigger
@@ -84,11 +85,12 @@ def main():
     node.get_logger().info('HD capture ready: ' + profile['namespace'] + '/wrist_camera_hd/capture')
     try:
         executor.spin()
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
         # Do not terminate a transaction during its restoration.
-        executor.shutdown(wait_for_threads=True)
+        with lock:
+            executor.shutdown(timeout_sec=3, wait_for_threads=False)
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()

@@ -47,6 +47,7 @@ def set_active(ip, active):
     desired = profile['active'] if active else {'lightingMode': 2, 'lightingValue': 0}
     result = remote(ip, desired)
     write_json(folder / 'state.json', dict(active=active, verified=True,
+        verified_epoch=time.time(),
         updated_utc=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), settings=result['settings']))
     return result
 
@@ -121,6 +122,24 @@ def enroll(ip):
     reconcile(ip)
 
 
+def configure(ip, intensity):
+    """Change the active manual intensity; a closed viewer stays dark."""
+    if type(intensity) is not int or not 0 <= intensity <= 175:
+        raise ValueError('LED intensity must be 0…175')
+    folder = directory(ip)
+    with (folder / 'mutex.lock').open('a') as mutex:
+        fcntl.flock(mutex, fcntl.LOCK_EX)
+        profile = json.loads((folder / 'profile.json').read_text())
+        profile['active'] = {'lightingMode': 2, 'lightingValue': intensity}
+        write_json(folder / 'profile.json', profile)
+        with (folder / 'use.lock').open('a') as use:
+            try:
+                fcntl.flock(use, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return set_active(ip, True)['settings']
+            return set_active(ip, False)['settings']
+
+
 def reconcile(ip):
     folder = directory(ip)
     if not (folder / 'enabled').exists():
@@ -137,7 +156,8 @@ def reconcile(ip):
                 return
             state_file = folder / 'state.json'
             state = json.loads(state_file.read_text()) if state_file.exists() else {}
-            if state.get('active') is False and state.get('verified'):
+            if (state.get('active') is False and state.get('verified')
+                    and time.time() - state.get('verified_epoch', 0) < 15):
                 return
             return set_active(ip, False)
 

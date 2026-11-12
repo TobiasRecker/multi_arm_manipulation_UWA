@@ -17,11 +17,40 @@ def save(path,value):
     Path(path).write_text(json.dumps(value,indent=2,allow_nan=False)+'\n')
 
 
+def board_observation(image, config, table):
+    """Use chess corners, or noncollinear marker corners when the object covers them."""
+    from uwa_cell_gazebo.charuco import make_board
+    from .hardware_charuco import observe
+    board=make_board(config,table)
+    observation=observe(image,config,table);observation.pop('annotated')
+    if observation['corners']>=4:
+        observation['reference_type']='charuco_chess_corners'
+        return observation
+    params=cv2.aruco.DetectorParameters();params.cornerRefinementMethod=cv2.aruco.CORNER_REFINE_SUBPIX
+    detected,ids,_=cv2.aruco.ArucoDetector(board.getDictionary(),params).detectMarkers(image)
+    known={int(i):np.asarray(p).reshape(4,3) for i,p in zip(board.getIds().ravel(),board.getObjPoints())}
+    objects=[];pixels=[];used=[]
+    if ids is not None:
+        for corners,index in zip(detected,ids.ravel()):
+            if int(index) in known:
+                objects.extend(known[int(index)].tolist());pixels.extend(corners.reshape(4,2).tolist());used.append(int(index))
+    observation.update(corners=len(objects),object_points=objects,image_points=pixels,
+                       reference_type='aruco_marker_corners',marker_ids=used)
+    return observation
+
+
+def in_anchor_board(camera_board, source, anchor, oak_boards):
+    """Image-derived bridge: T_cam_source @ inv(T_oak_source) @ T_oak_anchor."""
+    if source==anchor:
+        return np.asarray(camera_board)
+    if source not in oak_boards or anchor not in oak_boards:
+        raise ValueError('OAK must see both boards to bridge their metric frames')
+    return np.asarray(camera_board) @ np.linalg.inv(oak_boards[source]) @ np.asarray(oak_boards[anchor])
+
+
 def prepare_capture(capture,output):
     """Freeze image-specific optics and independently observed metric board poses."""
     from uwa_cell_description.configuration import load_layout
-    from uwa_cell_gazebo.charuco import make_board
-    from .hardware_charuco import observe
     from .board_photo_evaluation import pose_from_observation
     capture=Path(capture).resolve();output=Path(output).resolve();output.mkdir(parents=True,exist_ok=True)
     manifest=json.loads((capture/'manifest.json').read_text())
@@ -34,31 +63,22 @@ def prepare_capture(capture,output):
         raise ValueError('Active calibration changed since capture; select/freeze its original optics explicitly')
     reference=manifest.get('board',{}).get('board_id','right_table_board')
     table='left' if reference=='left_table_board' else 'right'
-    board=make_board(layout['charuco'],table);models={}
+    both=bool(manifest.get('board',{}).get('alternate_boards'))
+    tables=[table]+(['left' if table=='right' else 'right'] if both else [])
+    models={};oak_boards={}
     names=manifest['cameras']
     if not names or set(names)-{'oak4','left_front','left_rear','right_front','right_rear'}:
         raise ValueError('Unsupported or empty camera set')
-    for name in names:
+    # OAK supplies the observed board-to-board bridge, never nominal table poses.
+    for name in sorted(names,key=lambda name: name!='oak4'):
         record=json.loads((capture/name/'record.json').read_text())
         path=capture/name/record['image']
         if hashlib.sha256(path.read_bytes()).hexdigest()!=record['sha256']:
             raise ValueError('Original image hash mismatch: '+name)
         image=cv2.imread(str(path))
         if image is None:raise ValueError('Original photograph cannot be decoded: '+name)
-        observation=observe(image,layout['charuco'],table);observation.pop('annotated')
-        if observation['corners']<4:
-            params=cv2.aruco.DetectorParameters();params.cornerRefinementMethod=cv2.aruco.CORNER_REFINE_SUBPIX
-            detected,ids,_=cv2.aruco.ArucoDetector(board.getDictionary(),params).detectMarkers(image)
-            known={int(i):np.asarray(p).reshape(4,3) for i,p in zip(board.getIds().ravel(),board.getObjPoints())}
-            objects=[];pixels=[];used=[]
-            if ids is not None:
-                for corners,index in zip(detected,ids.ravel()):
-                    if int(index) in known:
-                        objects.extend(known[int(index)].tolist());pixels.extend(corners.reshape(4,2).tolist());used.append(int(index))
-            observation.update(corners=len(objects),object_points=objects,image_points=pixels,
-                               reference_type='aruco_marker_corners',marker_ids=used)
-        else:observation['reference_type']='charuco_chess_corners'
-        camera={'image':str(path),'observation':observation,'profile_id':profile['profile_id'],
+        observations={t:board_observation(image,layout['charuco'],t) for t in tables}
+        camera={'image':str(path),'observation':observations[table],'profile_id':profile['profile_id'],
                 'profile_sha256':profile['sha256'],'metric_usable':False,
                 'metric_pose_source':f'visible {table}-table board; no robot FK'}
         if name=='oak4':
@@ -67,29 +87,46 @@ def prepare_capture(capture,output):
             if focus!=factory['factory_calibration_lens_position']:
                 raise ValueError('OAK photograph focus differs from its factory intrinsic reference')
             optics={'K':np.asarray(factory['camera_matrix_8000x6000']),'D':np.asarray(factory['distortion'])}
-            if observation['image_size']!=[8000,6000]:raise ValueError('OAK native8K mode required')
+            if observations[table]['image_size']!=[8000,6000]:raise ValueError('OAK native8K mode required')
             camera['intrinsics_status']='factory reference; not independently validated for this session'
         else:
             intrinsic=profile['robots'].get(name,{}).get('camera');settings=record['settings_before']
-            if (not intrinsic or intrinsic['image_size']!=observation['image_size'] or
+            if (not intrinsic or intrinsic['image_size']!=observations[table]['image_size'] or
                     settings['focusAuto'] or intrinsic['focus']!=settings['focus']):
                 camera['reason']='No matching native image-size/manual-focus intrinsic profile'
                 models[name]=camera
                 continue
             optics={'K':np.asarray(intrinsic['camera_matrix']),'D':np.asarray(intrinsic['distortion'])}
             camera['intrinsics_status']=profile['robots'][name]['quality_status']['intrinsics']
-        try:pose,rms=pose_from_observation(observation,optics)
-        except ValueError as error:
-            camera['reason']='Insufficient metric board reference: '+str(error)
+        poses={}
+        for t in tables:
+            try:poses[t]=pose_from_observation(observations[t],optics)
+            except ValueError:pass
+        if name=='oak4':oak_boards={t:pose.tolist() for t,(pose,rms) in poses.items()}
+        chosen=None
+        for t in tables:
+            if t not in poses:continue
+            pose,rms=poses[t]
+            try:anchored=in_anchor_board(pose,t,table,oak_boards)
+            except ValueError:continue
+            chosen=t,anchored,rms
+            break
+        if chosen is None:
+            camera['reason']='Insufficient metric board reference or missing observed OAK board-to-board bridge'
             models[name]=camera
             continue
+        t,pose,rms=chosen
         camera.update(K=optics['K'].tolist(),D=optics['D'].tolist(),T_camera_board=pose.tolist(),
-                      board_rms_px=rms,metric_usable=True)
+                      board_rms_px=rms,metric_usable=True,observation=observations[t],
+                      observed_reference_table=t,anchor_reference_table=table,
+                      metric_pose_source=('visible board; no robot FK' if t==table else
+                          'visible alternate board plus same-set OAK board-to-board image bridge; no robot FK'))
         models[name]=camera
     save(output/'camera_models.json',models)
     save(output/'preparation.json',{'schema':1,'capture_manifest':str(capture/'manifest.json'),
         'capture_manifest_sha256':hashlib.sha256((capture/'manifest.json').read_bytes()).hexdigest(),
         'reference':f'{table}-table ChArUco board,40mm squares; print scale assumed correct',
+        'oak_observed_board_poses':oak_boards,
         'metric_cameras':[name for name,model in models.items() if model['metric_usable']],
         'depth_used':False,'new_camera_calibration':False,'hardware_commands':False})
     return models

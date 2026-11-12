@@ -47,6 +47,7 @@ def write_json(path, value):
 class MobileBoard:
     def __init__(self, config):
         self.config = config
+        self.alternatives = [MobileBoard(item) for item in config.get('alternate_boards', [])]
         self.ids = set(config['marker_ids'])
         dictionary = cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco, config['dictionary']))
         self.board = cv2.aruco.CharucoBoard((config['squares_x'], config['squares_y']),
@@ -86,6 +87,11 @@ class MobileBoard:
             result['status'] = 'FULL BOARD'
         elif result['corners'] or seen:
             result['status'] = 'PARTIAL BOARD'
+        for detector in self.alternatives:
+            other, overlay = detector.observe(image)
+            if (other['usable'], other['corners'], len(other['marker_ids'])) > (
+                    result['usable'], result['corners'], len(result['marker_ids'])):
+                result, annotated = other, overlay
         return result, annotated
 
 
@@ -168,7 +174,9 @@ class CaptureRig:
         from uwa_cell_description.configuration import load_layout
         layout = load_layout()
         self.board_config = (yaml.safe_load((repo / 'uwa_cell_description/config/mobile_charuco_a4.yaml').read_text())
-                             if board == 'mobile' else reference_board(layout, board))
+                             if board == 'mobile' else reference_board(layout, 'right' if board == 'both' else board))
+        if board == 'both':
+            self.board_config['alternate_boards'] = [reference_board(layout, 'left')]
         self.optics = yaml.safe_load(Path(optics_path or repo / 'config/three_camera_capture.yaml').read_text())
         if set(self.wrist_cameras) - self.optics['wrist_manual_focus'].keys():
             raise ValueError('Acquisition profile lacks selected camera focus values')

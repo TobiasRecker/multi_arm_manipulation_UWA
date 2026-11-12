@@ -76,8 +76,9 @@ def main():
         ax.view_init(elev=elev, azim=azim)
         ax.set_title('Common object views' if index == 0 else 'Top view', weight='bold')
     fig.suptitle('FIVE-CAMERA SCAN DESIGN — NO HARDWARE MOTION', fontsize=19, weight='bold')
+    dimensions = ' x '.join(str(round(v * 1000)) for v in data['design']['size_m'])
     fig.text(.03, .03, f"{data['unique_view_count']} planned viewpoints | conservative collision-body bounds shown | "
-             'object envelope 160 x 550 x 120 mm\n'
+             f'object envelope {dimensions} mm\n'
              'Provisional world anchors / some nominal camera mounts. Visibility is a model prediction, not a real-image check.', fontsize=12)
     fig.tight_layout(rect=[0, .08, 1, .95])
     args.output.parent.mkdir(parents=True, exist_ok=True)

@@ -83,16 +83,29 @@ class WristCamera:
     def lighting(self, mode, percent):
         if type(percent) is not int or not 0 <= percent <= 100:
             raise ValueError('LED intensity must be 0…100 percent')
+        from .wrist_activity import directory, configure
+        ip = self.base.split('//')[1].split(':')[0]
+        if (directory(ip) / 'enabled').exists():
+            if mode not in (1, 2):
+                raise CameraError('Managed LEDs use manual intensity. Select LED Manual or LED Off.')
+            return configure(ip, 0 if mode == 1 else int(percent*1.75+.5))
         return self.update_controls({'lightingMode': mode, 'lightingValue': int(percent*1.75+.5)})
 
     def restore_appearance(self, original):
         changes = {key: original[key] for key in ('exposureAuto', 'exposureSensitivity', 'lightingMode', 'lightingValue')}
+        from .wrist_activity import directory, configure
+        ip = self.base.split('//')[1].split(':')[0]
+        managed = (directory(ip) / 'enabled').exists()
+        if managed:
+            changes = {k: v for k, v in changes.items() if not k.startswith('lighting')}
         # Auto-mode cached defaults can be zero; never send them as manual values.
         if 1 <= original.get('exposure', 0) <= 66604:
             changes['exposure'] = original['exposure']
         if 16 <= original.get('gain', 0) <= 1008:
             changes['gain'] = original['gain']
         result = self.update_controls(changes)
+        if managed:
+            result = configure(ip, original['lightingValue'])
         if original['exposureAuto']:
             self.trigger(exposure=True)
             result = self.settings()

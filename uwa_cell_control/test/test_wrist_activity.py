@@ -121,3 +121,15 @@ def test_remote_legacy_led_mapping_and_unrelated_focus_are_verified(monkeypatch)
     result = m.apply({'lightingMode': 1, 'lightingValue': 0})
     assert result['verified'] and result['settings']['focus'] == 388
     assert result['settings']['lightingMode'] == 1
+
+
+def test_adjusting_closed_viewer_keeps_lights_off_and_open_viewer_updates_profile(managed):
+    folder, calls = managed
+    activity.configure(IP, 70)
+    assert calls[-1] == {'lightingMode': 2, 'lightingValue': 0}
+    with activity.Activity(IP):
+        assert calls[-1]['lightingValue'] == 70
+        activity.configure(IP, 35)
+        assert calls[-1]['lightingValue'] == 35
+    assert calls[-1]['lightingValue'] == 0
+    assert json.loads((folder / 'profile.json').read_text())['active']['lightingValue'] == 35

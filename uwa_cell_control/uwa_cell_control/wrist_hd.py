@@ -129,6 +129,9 @@ class NativeCapture:
                        'wrist_capture.c': (self.resources / 'wrist_capture_fast.c').read_bytes()}
         else:
             sources = {n: (self.resources / n).read_bytes() for n in ('wrist_worker.py', 'wrist_capture.c')}
+        for name in ('wrist_led_restore.py', 'wrist_worker_managed.py'):
+            if (self.resources / name).exists():
+                sources[name] = (self.resources / name).read_bytes()
         tag = hashlib.sha256(b''.join(sources.values())).hexdigest()[:16]
         remote = '/tmp/uwa_hd_tools_' + tag
         if self.remote == remote:
@@ -139,10 +142,12 @@ class NativeCapture:
         self.ssh.run('gcc -std=gnu99 -Wall -Wextra -O2 ' + shlex.quote(remote + '/wrist_capture.c') +
                      ' -o ' + shlex.quote(remote + '/wrist_capture'), timeout=30)
         self.remote = remote
-        self.worker_entrypoint = 'wrist_worker_fast.py' if self.fast else 'wrist_worker.py'
+        self.worker_entrypoint = ('wrist_worker_fast.py' if self.fast else
+            'wrist_worker_managed.py' if 'wrist_worker_managed.py' in sources else 'wrist_worker.py')
 
     def capture(self):
-        with WristCamera(self.ip).activity():
+        with WristCamera(self.ip).activity() as use:
+            self.managed_led = use.lease is not None
             return self._capture()
 
     def _capture(self):
@@ -153,6 +158,10 @@ class NativeCapture:
         destination.parent.mkdir(parents=True, exist_ok=True)
         # Camera-only transaction has its own remote lock/watchdog/finally.
         command = 'python ' + shlex.quote(self.remote + '/' + self.worker_entrypoint) + ' ' + shlex.quote(remote)
+        if self.managed_led:
+            if self.worker_entrypoint == 'wrist_worker.py':
+                raise RuntimeError('Frozen camera resources do not support managed LEDs; update only after the active series')
+            command = 'UWA_WRIST_MANAGED_LED=1 ' + command
         try:
             self.ssh.run(command, timeout=100)
         finally:
@@ -165,11 +174,22 @@ class NativeCapture:
 
     def restore_configuration(self, original):
         """Camera-only, fully verified restore, also after a temporary focus lock."""
+        camera = WristCamera(self.ip)
+        with camera.activity() as use:
+            desired = dict(original)
+            if use.lease is not None:
+                actual = camera.settings(refresh=True)
+                desired.update({k: actual[k] for k in ('lightingMode', 'lightingValue')})
+            return self._restore_configuration(desired, use.lease is not None)
+
+    def _restore_configuration(self, original, managed_led):
         self.bootstrap()
+        module = 'wrist_worker_managed as m;w=m.worker' if (self.resources / 'wrist_worker_managed.py').exists() else 'wrist_worker as w'
         script = ('import sys,json;sys.path.insert(0,' + repr(self.remote) + ');'
-                  'import wrist_worker as w;original=json.load(sys.stdin);'
+                  'import ' + module + ';original=json.load(sys.stdin);'
                   'service,_=w.service_for_vision();print(json.dumps(w.restore(service,original)))')
-        return json.loads(self.ssh.run('python -c ' + shlex.quote(script),
+        command = ('UWA_WRIST_MANAGED_LED=1 ' if managed_led else '') + 'python -c ' + shlex.quote(script)
+        return json.loads(self.ssh.run(command,
                                       data=json.dumps(original).encode(), timeout=40))
 
 

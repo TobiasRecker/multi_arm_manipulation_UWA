@@ -5,6 +5,37 @@ Diese Datei fasst die bisherigen Gespräche und die überprüfte Implementierung
 zusammen. Sie soll bei weiterer Arbeit mitgepflegt werden, nicht als unveränderlicher
 Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [README.md](README.md).
 
+## Native HD-Intrinsics hinten links – laufende freigegebene Reihe,2026-11-12
+
+- Nutzer beauftragt eigeneHD-Kalibrierung direktnachAbschlussvorne links.
+  Vorhanden waren nur VGA640×480/Fokus406 undHand-Auge sowie einzelneHD-Proben.
+  NeueSitzung setup/calibration/hardware_handeye/left_rear_hd_20261112/.
+- ErsteStillstandsaufnahmePASS:2592×1944,24Ecken deslinken40mm-A3-Boards,
+  Kamera06561F1400090106/UCC3.44,406Manual,33333/Gain16. NativeReadbacks,
+  dreiunterschiedlicheFrames undvollständigerRestore bestätigt. KeineArmfahrt.
+- Kamera-only-Dienst uwa-left-rear-wrist-hd nutzt eingefroreneOriginalhelfer,
+  paralleleSpeedtestsändern dieseReihe nicht. Fahrcontrollergezieltgeladen und
+  inaktivbestätigt; spawner-Namespace-/Parameterproblem separatbehandelt,
+  keineTreiberneustarts. URRUNNING/NORMAL/Remote,ros.urpnochSTOPPED.
+- Forecast:40weitereAnsichten,33Fit/8Prüfung,535,57sreineFahrt/5418Punkte.
+  EigeneRVizDomain73,LF-EndposeausdrücklichPrognose,Forecastnichausführbar.
+  Nutzerbestätigt "Vorschau passt, Fahrbereich und Kabel frei – nach vorne
+  links starten"; Freigabe/Fingerprint/SHA inoperator_approval.json.
+- VorStart müssenalle41LF-Bilder/seinControllerinaktivbestätigt,alleechten
+  Armstellungen neu gelesen und dieselbenLR-Ziele vollständig neu geprüft
+  werden. Skript preparation/recheck_after_left_front.py fährt nicht.
+  DanachbereitsfreigegebeneReihemitnativeSafety/Stationärprüfung ausführen,
+  fremdeDiensteerhalten. NachEndeLRControllerinaktiv/keineRückfahrt,
+  Intrinsics-only/keineglobaleProfilaktivierung. [Bericht](docs/left_rear_hd_intrinsics_2026-11-12.md).
+- LF-Abschluss41/41/Controllerinaktiv18:24:46bestätigt; neuerLive-BatchPASS,
+  Fingerprintd0cb381a24345ef6327bb260417a8941d143893c3040e41c69dee06a154630ee,
+  genehmigteZielereihenfolgebestätigt. ros.urp perROS-Playgestartet.
+- LÄUFT18:29:Exec69707/PID85601,startticks791683,ersteBewegung001.
+  Startup-DiscoveryabbruchvorerstemFahrziel archiviert; begrenztes16sWarten
+  aufgleichzeitigfrischeDaten,keineStale-Lockerung,13TestsPASS. Wrapperdeaktiviert
+  LR-Motion in finally. EigenesPreviewaus,KameradienstidlezwischenAufnahmen.
+
+
 ## Native HD-Intrinsics hinten rechts abgeschlossen, 2026-11-12
 
 - Nutzerfreigabe für genau die Domain72-Vorschau umgesetzt. Alle **41/41**
@@ -36,31 +67,23 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   direkteControllerlistebestätigtTreiber/Inaktivität. Nachweise/Bedienung:
   [Bericht](docs/right_rear_hd_intrinsics_2026-11-12.md).
 
-## Links vorne: native HD-Reihe vorbereitet, 2026-11-12
+## Links vorne: native HD-Reihe abgeschlossen, 2026-11-12
 
-- Nutzer beauftragt separate HD-Kalibrierung. Am CB3 i686 ohne GCC wurden
-  native 2592 × 1944 MJPEGs über den neuen 32-Bit-Aufnahmehelfer nachgewiesen.
-  Kamera `028E1F350009061C`; Sensorwerte während der Bilder: Fokus 245 manuell,
-  Belichtung 60.590 µs, Gain 19. Rückstellung auf 640 × 480 und vollständigen
-  ursprünglichen Kameraeinstellungen einschließlich `Normal` bestätigt.
-- ROS-Dienst `/uwa_hardware/left_front/wrist_camera_hd/capture` mit
-  `scripts/left_front_wrist_hd.py`; erstes HD-Messbild im Stillstand akzeptiert,
-  alle 24 ChArUco-Ecken. Getrennte Sitzung
+- CB3 i686, Kamera `028E1F350009061C`, 41 native JPEGs mit 2592 × 1944;
+  33 Fit / 8 unabhängige Prüfung, feste V4L2-Werte Fokus 245, 60.590 µs,
+  Gain 19, Originalkameraeinstellungen nach jedem Burst verifiziert.
+- Intrinsics **PASS**: medianer Prüf-RMS 0,336 px; Hand-Auge **FAIL**: 1,593 px
+  bei Grenze 1,00 px. Boardstreuung 0,899 mm / 0,173°. HD-Basislage nur
+  diagnostisch, 1,86 mm / 0,172° Abweichung von VGA, kein Profil aktiviert.
+- Erster Abbruch: ROS-Stillstandsprüfung reagiert auf gestartete RR-Reihe.
+  Nach RR-Ende dieselbe Reststrecke mit allen vier realen Zuständen geprüft.
+  Zweiter Abbruch: External Control nach 56-ms-Überlauf getrennt, Safety
+  NORMAL und geladenes `ros.urp` STOPPED; ROS-Play, neuer Live-Check, weiter.
+  Nach lokalem Prozessende in erreichter Pose 037 dort stationär aufgenommen.
+  Am Ende LF-Fahrcontroller inaktiv, External Control verbunden, keine Rückfahrt.
+- [Bericht](docs/left_front_hd_calibration_2026-11-12.md), Sitzung unter
   `setup/calibration/hardware_handeye/left_front_hd_20261112/`.
-- 40 weitere Ansichten aus der aktuellen Pose in umgekehrter VGA-Reihenfolge
-  neu geplant, 3.607 Punkte gegen die ganze Zelle geprüft, `--check-only`
-  bestanden. 33 Fit / 8 unabhängige Prüfung insgesamt vorgesehen. RViz-Vorschau
-  auf isolierter Domain 69. Die neue reale Serie wurde danach separat
-  freigegeben. Siehe
-  [Arbeitsstand](work/left-front-hd-calibration.md).
-- Folgefreigabe für genau diese Serie erhalten und frisch revidiert. Fünf
-  Bilder mit jeweils 24 Ecken vollständig gesichert. Beim fünften Fahrabschnitt
-  erkannte der Stillstandsguard die separat gestartete Reihe hinten rechts.
-  Eigener LF-Controller nach Abbruch nachweislich inaktiv, UR-Safety NORMAL,
-  External Control verbunden. Kein Schutzstopp und keine Rückfahrt. LF wartet
-  auf RR-Abschluss; der verbliebene Weg beginnt auf der schon freigegebenen
-  Strecke. Passiver Dienst prüft ihn mit Live-Stellungen nach RR-Ende; keine
-  autonome Fahrfortsetzung im Hintergrund. HD-Fit weiterhin offen.
+  Kamera-Dienst: [wrist_hd_service.md](docs/wrist_hd_service.md).
 
 ## Links vorne: Kamera und relative Basislage kalibriert,2026-11-12
 

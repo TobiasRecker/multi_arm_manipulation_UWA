@@ -58,3 +58,20 @@ def test_scheduler_changes_order_when_only_one_serial_order_is_clear():
     assert all(len(s['points']) >= 21 for s in found[1])
     assert found[1][1]['start'][nb[0]] == .02
     assert checked_schedule(model, start, {a: [entry], b: [entry]}, lambda _: False) is None
+
+
+def test_observed_two_board_bridge_has_correct_transform_direction():
+    from scipy.spatial.transform import Rotation
+    from uwa_cell_control.object_digitization import in_anchor_board
+    def pose(xyz, rpy):
+        T = np.eye(4)
+        T[:3, :3] = Rotation.from_euler('xyz', rpy).as_matrix()
+        T[:3, 3] = xyz
+        return T
+    oak_left = pose([.2, -.4, 1.], [.1, -.3, .5])
+    left_right = pose([.9, .02, -.001], [.001, .002, -.03])
+    camera_left = pose([.03, -.2, .5], [.4, -.2, .1])
+    actual = in_anchor_board(camera_left, 'left', 'right', {'left': oak_left, 'right': oak_left @ left_right})
+    np.testing.assert_allclose(actual, camera_left @ left_right, atol=1e-12)
+    with pytest.raises(ValueError, match='both boards'):
+        in_anchor_board(camera_left, 'left', 'right', {'left': oak_left})

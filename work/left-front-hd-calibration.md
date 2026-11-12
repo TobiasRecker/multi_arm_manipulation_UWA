@@ -1,6 +1,6 @@
 # Native HD-Kalibrierung vorne links
 
-- Status: **in Arbeit**, 2026-11-12, Hauptagent LF-HD.
+- Status: **abgeschlossen (Aufnahme und Auswertung; Hand-Auge nicht bestanden)**, 2026-11-12, Hauptagent LF-HD.
 - Nutzer beauftragt nach bestandener VGA-Kalibrierung getrennte native HD-Reihe.
 - Erst Kamera-only: CB3 i686/Linux3.14/Python2.7 ohne gcc; nativen V4L2-Helfer
   prüfen, bestehende Sicherung/Rückstellung beibehalten. UCC1.11.1, Kamera
@@ -64,3 +64,11 @@
   vor Planung deaktiviert. 26 Abschnitte / 2038 Punkte erneut mit allen vier
   Live-Stellungen geprüft, erster Weg nur unbefahrener Teil der ursprünglichen
   Gerade. Danach freigegebene Reihe erneut bei sample_015 fortgesetzt.
+- 18:25: 41/41 native Messbilder, 33 Fit/8 Prüfung verifiziert. Zwischen
+  Position 037 und Bildaufnahme endete der lokale Client; Stellung 037
+  (0,00007 rad) bestätigt und Foto ohne Bewegung nachgeholt. Die letzten drei
+  unveränderten Wege separat live geprüft und erfolgreich abgeschlossen.
+  LF-Fahrcontroller inaktiv, Safety NORMAL, Link aktiv, kein Rückfahrziel.
+- Intrinsics PASS (0,336 px Prüfmedian); Hand-Auge FAIL (1,593 px > 1,00 px).
+  Streuung 0,899 mm / 0,173°. Keine Aktivierung, VGA bleibt Referenz.
+  Details in `docs/left_front_hd_calibration_2026-11-12.md`.

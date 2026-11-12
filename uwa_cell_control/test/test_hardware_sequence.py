@@ -159,3 +159,28 @@ def test_larger_hardware_result_keeps_quality_and_simulation_limits():
     with pytest.raises(ValueError,match='30-50'):validate_result(bad)
     bad=deepcopy(result);bad['robots']['right_front']['fit_count']=69
     with pytest.raises(ValueError,match='30-80'):validate_result(bad)
+
+
+def test_initial_discovery_waits_for_simultaneously_fresh_required_arms(monkeypatch):
+    clock=[0.];snapshots=[{'left_rear':{}},{'right_rear':{}},{'left_rear':{},'right_rear':{}}]
+    monkeypatch.setattr(module.time,'monotonic',lambda:clock[0])
+    class Observer:
+        def sample(self,seconds):
+            clock[0]+=seconds
+            return snapshots.pop(0)
+    plan={'arm':'left_rear','state_sources':{'left_rear':'live_joint_states','right_rear':'live_joint_states'}}
+    out=module.initial_joint_state(Observer(),plan,timeout=8.)
+    assert set(out)=={'left_rear','right_rear'} and not snapshots
+
+
+def test_initial_discovery_timeout_does_not_reuse_previously_seen_stale_arm(monkeypatch):
+    clock=[0.];calls=[0]
+    monkeypatch.setattr(module.time,'monotonic',lambda:clock[0])
+    class Observer:
+        def sample(self,seconds):
+            clock[0]+=seconds;calls[0]+=1
+            return {'left_rear':{}} if calls[0]==1 else {'right_rear':{}}
+    plan={'arm':'left_rear','state_sources':{'left_rear':'live_joint_states','right_rear':'live_joint_states'}}
+    with pytest.raises(ValueError,match='left_rear'):
+        module.initial_joint_state(Observer(),plan,timeout=5.)
+    assert clock[0]<=7.

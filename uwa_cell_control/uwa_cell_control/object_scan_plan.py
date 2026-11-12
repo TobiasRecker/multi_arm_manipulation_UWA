@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from itertools import permutations, product
 import json
 from pathlib import Path
+import time
 
 import numpy as np
 from scipy.optimize import least_squares
@@ -51,21 +52,27 @@ def target_geometry(layout, description, config):
         raise ValueError('Object centre requires three finite metres')
     obj = frame.copy()
     obj[:3, 3] = (frame @ np.r_[centre, 1])[:3]
+    yaw = float(config.get('yaw_rad', 0.))
+    if not np.isfinite(yaw):
+        raise ValueError('Object yaw must be finite radians')
+    obj[:3, :3] = frame[:3, :3] @ Rotation.from_euler('z', yaw).as_matrix()
     size = np.asarray(config['size_m'], float)
     local = box_points(size)
     world = local @ obj[:3, :3].T + obj[:3, 3]
     board = layout['charuco']
-    table_frame = Chain(description, 'world', table + '_table_top').forward({})
-    B = table_frame @ table_board_transform(board, table)
-    points = np.asarray([[x * board['square_length'], y * board['square_length'], 0]
-                         for y in range(1, board['squares_y']) for x in range(1, board['squares_x'])])
-    points = points @ B[:3, :3].T + B[:3, 3]
-    markers = np.asarray(make_board(board, table).getObjPoints()).reshape(-1, 3)
-    markers = markers @ B[:3, :3].T + B[:3, 3]
+    references = {}
+    for name in ('left', 'right'):
+        table_frame = Chain(description, 'world', name + '_table_top').forward({})
+        B = table_frame @ table_board_transform(board, name)
+        points = np.asarray([[x * board['square_length'], y * board['square_length'], 0]
+                             for y in range(1, board['squares_y']) for x in range(1, board['squares_x'])])
+        points = points @ B[:3, :3].T + B[:3, 3]
+        markers = np.asarray(make_board(board, name).getObjPoints()).reshape(-1, 3)
+        markers = markers @ B[:3, :3].T + B[:3, 3]
+        references[name] = dict(T_world_board=B, board_points=points, marker_points=markers)
     return dict(T_world_object=obj, bounds=np.array([-size / 2, size / 2]),
-                corners=world, centre=obj[:3, 3], board_points=points,
-                marker_points=markers,
-                T_world_board=B, table=table)
+                corners=world, centre=obj[:3, 3], references=references,
+                **references[table], table=table)
 
 
 def look_at(eye, target, x_hint=(1., 0., 0.)):
@@ -123,24 +130,26 @@ def visibility(geometry, frames, camera, target, intrinsic, ignore=()):
                                intrinsic['size'], margin=12)
     # Full bounds inside image is separate from surface/board occlusion.
     blocked = geometry.blocked(camera[:3, 3], target['corners'], frames, ignore_links=ignore)
-    _, board_inside = project_points(target['board_points'], camera, intrinsic['K'], intrinsic['D'],
-                                     intrinsic['size'], margin=12)
-    board_blocked = geometry.blocked(camera[:3, 3], target['board_points'], frames, ignore_links=ignore)
-    board_blocked |= segment_box_hits(camera[:3, 3], target['board_points'],
-                                      target['T_world_object'], target['bounds'])
-    _, marker_inside = project_points(target['marker_points'], camera, intrinsic['K'], intrinsic['D'],
-                                     intrinsic['size'], margin=12)
-    marker_blocked = geometry.blocked(camera[:3, 3], target['marker_points'], frames, ignore_links=ignore)
-    marker_blocked |= segment_box_hits(camera[:3, 3], target['marker_points'],
-                                     target['T_world_object'], target['bounds'])
-    complete_markers = int((marker_inside & ~marker_blocked).reshape(-1, 4).all(axis=1).sum())
-    chess_visible = target['board_points'][board_inside & ~board_blocked]
-    chess_rank = int(np.linalg.matrix_rank(chess_visible - chess_visible.mean(axis=0))) if len(chess_visible) else 0
+    references = {}
+    for name, reference in target['references'].items():
+        points, markers = reference['board_points'], reference['marker_points']
+        _, board_inside = project_points(points, camera, intrinsic['K'], intrinsic['D'], intrinsic['size'], margin=12)
+        board_blocked = geometry.blocked(camera[:3, 3], points, frames, ignore_links=ignore)
+        board_blocked |= segment_box_hits(camera[:3, 3], points, target['T_world_object'], target['bounds'])
+        _, marker_inside = project_points(markers, camera, intrinsic['K'], intrinsic['D'], intrinsic['size'], margin=12)
+        marker_blocked = geometry.blocked(camera[:3, 3], markers, frames, ignore_links=ignore)
+        marker_blocked |= segment_box_hits(camera[:3, 3], markers, target['T_world_object'], target['bounds'])
+        complete_markers = int((marker_inside & ~marker_blocked).reshape(-1, 4).all(axis=1).sum())
+        chess_visible = points[board_inside & ~board_blocked]
+        rank = int(np.linalg.matrix_rank(chess_visible - chess_visible.mean(axis=0))) if len(chess_visible) else 0
+        references[name] = dict(visible_reference_corners=int(len(chess_visible)), reference_chess_rank=rank,
+                                visible_complete_reference_markers=complete_markers)
+    best = max(references, key=lambda name: references[name]['visible_complete_reference_markers'])
+    reference_ok = references[best]['visible_complete_reference_markers'] >= 2
     return dict(all_bounds_in_frame=bool(inside.all()), unblocked_box_corners=int((inside & ~blocked).sum()),
-                visible_reference_corners=int((board_inside & ~board_blocked).sum()),
-                reference_chess_rank=chess_rank, visible_complete_reference_markers=complete_markers,
-                reference_pose_geometrically_supported=complete_markers >= 2,
-                passes=bool(inside.all() and (inside & ~blocked).sum() >= 4 and complete_markers >= 2))
+                reference_table=best, reference_views=references, **references[best],
+                reference_pose_geometrically_supported=reference_ok,
+                passes=bool(inside.all() and (inside & ~blocked).sum() >= 4 and reference_ok))
 
 
 def add_object_collision(model, target, padding):
@@ -156,8 +165,8 @@ def add_object_collision(model, target, padding):
     # penetrate the tabletop and invalidate every state before any arm moved.
     shape.dimensions = (target['bounds'][1] - target['bounds'][0] + [2 * padding, 2 * padding, padding]).tolist()
     pose = Pose()
-    pose.position.x, pose.position.y, pose.position.z = target['centre'].tolist()
-    pose.position.z += padding / 2
+    pose.position.x, pose.position.y, pose.position.z = (
+        target['centre'] + target['T_world_object'][:3, :3] @ [0, 0, padding / 2]).tolist()
     q = Rotation.from_matrix(target['T_world_object'][:3, :3]).as_quat()
     pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w = q.tolist()
     obj.primitives, obj.primitive_poses, obj.operation = [shape], [pose], CollisionObject.ADD
@@ -171,7 +180,8 @@ def candidates_for_arm(model, layout, geometry, start, target, rid, config):
     base = Chain(model.description, 'world', rid + '_base_link').forward({})[:3, 3]
     azimuth = np.arctan2(*(base - target['centre'])[[1, 0]])
     intrinsic = optics(layout, rid)
-    result, reasons = [], dict(ik=0, collision=0, visibility=0)
+    result, reasons = [], dict(ik=0, collision=0, visibility=0, bounds_outside_image=0,
+                              object_occluded=0, reference_not_visible=0)
     for radius, height, angle, roll in product(config['horizontal_distances_m'], config['heights_above_centre_m'],
                                               config['azimuth_offsets_deg'], config['roll_deg']):
         a = azimuth + np.deg2rad(angle)
@@ -196,6 +206,9 @@ def candidates_for_arm(model, layout, geometry, start, target, rid, config):
             view = visibility(geometry, frames, actual, target, intrinsic, [rid + '_wrist_camera_link'])
             if not view['passes']:
                 reasons['visibility'] += 1
+                reasons['bounds_outside_image'] += int(not view['all_bounds_in_frame'])
+                reasons['object_occluded'] += int(view['unblocked_box_corners'] < 4)
+                reasons['reference_not_visible'] += int(not view['reference_pose_geometrically_supported'])
                 continue
             result.append(dict(joints=q.tolist(), camera_world=actual.tolist(), view=view,
                                score=float(np.linalg.norm(q - q0)), optics=intrinsic))
@@ -325,9 +338,40 @@ def plan_scan(layout, model, start, sources, config):
     return result
 
 
+def read_live_snapshot(inventory):
+    """ROS subscriptions only; no driver startup, controllers or actions."""
+    import rclpy
+    from rclpy.context import Context
+    from rclpy.executors import SingleThreadedExecutor
+    from rclpy.signals import SignalHandlerOptions
+    from match_ur_hardware.profiles import load_profiles
+    from .park_arm import JointObserver
+    profiles = load_profiles(inventory)
+    context = Context()
+    rclpy.init(args=[], context=context, domain_id=66, signal_handler_options=SignalHandlerOptions.NO)
+    node = rclpy.create_node('uwa_object_scan_snapshot', context=context)
+    observer = JointObserver(node, profiles, ROBOT_IDS, 'hardware')
+    executor = SingleThreadedExecutor(context=context)
+    executor.add_node(node)
+    try:
+        deadline = time.monotonic() + 3.
+        while time.monotonic() < deadline:
+            executor.spin_once(timeout_sec=.05)
+        readings = {rid: dict(record) for rid, record in observer.received.items()
+                    if time.monotonic() - record['received_monotonic'] < .5}
+        return dict(mode='hardware', arms=readings, source='read-only ROS JointState subscriptions',
+                    recorded_at=datetime.now(timezone.utc).isoformat())
+    finally:
+        executor.shutdown()
+        observer.close()
+        node.destroy_node()
+        context.try_shutdown()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--snapshot', type=Path, help='Read-only saved mode/arms JointState snapshot')
+    parser.add_argument('--read-live-state', action='store_true', help='Read all four joint states; never start drivers')
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--config', type=Path)
     parser.add_argument('--layout', type=Path, default=default_layout_path())
@@ -338,18 +382,26 @@ def main():
         from .parking_preview import preview
         preview(args.output / f'review_step_{args.preview_step:03d}.json', domain=73)
         return
-    if args.snapshot is None or args.config is None:
-        parser.error('--snapshot and --config are required for planning')
+    if (args.snapshot is None and not args.read_live_state) or args.config is None:
+        parser.error('Provide --config and either --snapshot or --read-live-state')
+    if args.snapshot is not None and args.read_live_state:
+        parser.error('Choose a saved snapshot or --read-live-state')
     from match_ur_hardware.profiles import load_profiles
     config = yaml.safe_load(args.config.read_text())
-    snapshot = json.loads(args.snapshot.read_text())
+    args.output.mkdir(parents=True, exist_ok=True)
+    if args.read_live_state:
+        snapshot = read_live_snapshot(args.inventory)
+        args.snapshot = args.output / 'snapshot.json'
+        args.snapshot.write_text(json.dumps(snapshot, indent=2) + '\n')
+    else:
+        snapshot = json.loads(args.snapshot.read_text())
     if snapshot.get('mode') not in ('hardware', 'mock'):
         raise ValueError('Snapshot requires explicit hardware/mock provenance')
     layout = load_layout(args.layout)
     start, sources, missing = complete_state(layout, snapshot['arms'])
-    if missing or any(sources[rid] not in ('live_joint_states', 'mock_joint_states') for rid in ROBOT_IDS):
+    expected_source = 'live_joint_states' if snapshot['mode'] == 'hardware' else 'mock_joint_states'
+    if missing or any(sources[rid] != expected_source for rid in ROBOT_IDS):
         raise ValueError('All four measured joint states are required; no home/layout substitution')
-    args.output.mkdir(parents=True, exist_ok=True)
     profiles = load_profiles(args.inventory)
     model, layout = make_model(layout, profiles, args.output / 'model')
     result = plan_scan(layout, model, start, sources, config)

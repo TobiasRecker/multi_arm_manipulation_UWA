@@ -22,7 +22,11 @@ class LeftFrontNativeCapture(NativeCapture):
 
     def bootstrap(self):
         sources = {'wrist_worker.py': (self.resources / 'wrist_worker.py').read_bytes(),
-                   'wrist_capture': (self.resources / 'wrist_capture_i686.py').read_bytes()}
+                   'wrist_capture': (self.resources / ('wrist_capture_i686_fast.py' if self.fast else 'wrist_capture_i686.py')).read_bytes()}
+        if self.fast:
+            sources['wrist_worker_fast.py'] = (self.resources / 'wrist_worker_fast.py').read_bytes()
+        for name in ('wrist_led_restore.py', 'wrist_worker_managed.py'):
+            sources[name] = (self.resources / name).read_bytes()
         tag = hashlib.sha256(b'\0'.join(sources.values())).hexdigest()[:16]
         remote = '/tmp/uwa_hd_tools_' + tag
         if self.remote == remote:
@@ -33,6 +37,7 @@ class LeftFrontNativeCapture(NativeCapture):
             self.ssh.run('umask 077; cat > ' + path, data=data)
         self.ssh.run('chmod 700 ' + shlex.quote(remote + '/wrist_capture'))
         self.remote = remote
+        self.worker_entrypoint = 'wrist_worker_fast.py' if self.fast else 'wrist_worker_managed.py'
 
 
 def main():

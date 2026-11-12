@@ -153,6 +153,21 @@ def validate_batch(plan,profiles,current_layout):
         raise ValueError('Hardware acquisition requires measured/declared real states')
 
 
+def initial_joint_state(observer,plan,timeout=16.):
+    """Allow discovery to settle before motion; never merge expired snapshots."""
+    required={r for r,s in plan['state_sources'].items()
+              if s=='live_joint_states' and r!=independent_arm(plan)}
+    deadline=time.monotonic()+timeout
+    while True:
+        current=observer.sample(2.)
+        missing=required-set(current)
+        if not missing:return current
+        if time.monotonic()>=deadline:
+            raise ValueError('No fresh initial joint data: '+', '.join(sorted(missing)))
+        print(json.dumps({'phase':'WAITING_FOR_FRESH_JOINTS','stage':'series_start',
+                          'missing_arms':sorted(missing)}),flush=True)
+
+
 def acquire(args):
     import rclpy
     from match_ur_hardware.operations import switch
@@ -183,7 +198,7 @@ def acquire(args):
         if diagonal:configure_model(model,rid,diagonal)
         validate_resume_records(plan,directory)
         validate_session_model(metadata,rid,profiles[rid],layout)
-        current=observer.sample()
+        current=initial_joint_state(observer,plan)
         for r,s in plan['state_sources'].items():
             if r==diagonal:continue
             if s=='live_joint_states':
