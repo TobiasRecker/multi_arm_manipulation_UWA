@@ -1,5 +1,22 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Ausdrücklich übernommene vorläufige OAK-Registrierung (2026-11-12)
+
+- Gemeinsamer Standard jetzt **hardware_20261112_v3**. User akzeptiert die
+  erklärte erste OAK↔Front-Wrist-Schätzung für erste Versuche; SHA-gebundene
+  Annahme im Profil, Original-`passed:false` niemals umschreiben. Roboterfits
+  ausv2 unverändert; Rear-HD388 hat weiterhin keine geprüften Intrinsics.
+- OAK-Weltpose mit gemessenem Front-q, Werks-FK und übernommener Hand-Auge-
+  Matrix abgeleitet, Welt-/Basisanker bleibt vorläufig. OAK-Stativ **raumfest**;
+  spätere Tischverschiebung darf es nicht mitnehmen. Neue Weltbasisvermessung
+  erfordert explizite Neuregistrierung. Anleitung docs/oak_preliminary_adoption_2026-11-12.md.
+- Gazebo und TF/Marker verwenden dieselbe akzeptierte optische Pose; reale
+  Referenz `real_oak4_rgb_optical_frame` ist kein LIVE-Bildnachweis. Jetty/Ogre2
+  unterstützt hier Brown-Verzeichnung nicht: Sim-OAK-Pinhole und D=0 ehrlich
+  deklarieren, physische Rational14-K/D separat erhalten. Stativ weiterhin
+  visual-only, kein neu hinzugefügtes Kollisionshindernis. Nur Kamera neu laden,
+  keine Arme zurücksetzen oder echte Hardwaredienste dafür neu starten.
+
 ## Neue Kalibrierung links vorne (2026-11-12)
 
 - Nutzer beauftragt eigene Kamerakalibrierung und Position des UR5left_front.
@@ -104,7 +121,7 @@
   als zusätzliche Konfigurationsquelle einführen.
   Nutzerauftrag2026-11-11: gemessene gültige Teilkalibrierungen gemeinsam nutzen.
   Standard-Loader verwendet `cell_layout_calibrated.yaml` als dünne Referenz auf
-  diese Geometrie plus `config/calibration/hardware_20261112_v2/profile.json`.
+  diese Geometrie plus `config/calibration/hardware_20261112_v3/profile.json`.
   Rohes Nominalmodell bleibt explizit ladbar. Drei Werkskinematiken sowie
   validierte VGA-Intrinsics/Hand-Auge beider Rear-Arme bleiben erhalten.
   Neuester Nutzerauftrag2026-11-12 nach erklärtem Qualitätsfehler: Front-HD-

@@ -5,6 +5,80 @@ Diese Datei fasst die bisherigen Gespräche und die überprüfte Implementierung
 zusammen. Sie soll bei weiterer Arbeit mitgepflegt werden, nicht als unveränderlicher
 Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [README.md](README.md).
 
+## Vorläufige OAK-Schätzung global übernommen,2026-11-12
+
+- Nutzer akzeptiert nach erklärter5,85/7,40mm- und0,361/0,576°-Prüfkonsistenz
+  die erste OAK↔Front-Wrist-Schätzung für erste Versuche und beauftragt Anwendung
+  überall einschließlich digitaler Zelle/Gazebo/RViz. Neues Standardprofil
+  **hardware_20261112_v3**, vorherigev1/v2 und alle Originalresultate erhalten.
+- Profilkopie enthält relative Schätzung/Protokoll, gemessenen Front-q-Snapshot
+  vor15:59:05, originale Factory-K/D, SHA-Referenzen und explizite pro-Artefakt-
+  Nutzerannahme. passed:false/diagnostic_only:true des Ursprungs unverändert.
+  Alte Roboterartefakte und Gelenkstartwerte bytegleich; keine Rear-HD-K erfinden.
+- Ableitung: T_world_frontBase(nominal) @ FK_factory(q_measured) @ übernommenes
+  T_tool0_frontOptical @ inverse(T_oak_front). Pose ca.[1,2203;0,0522;1,8578]m.
+  Weltanker ausdrücklich weiterhin vorläufig, keine neue Tisch-/Basisvermessung.
+  OAK raumfest eingefroren, folgt später verschobenen Tischen nicht automatisch.
+- Gemeinsamer Description-Loader validiert Starrheit, komplette Ableitung,
+  Kamera-/Referenzidentität, Hashes und konkrete Annahme. Sim-/View-Planung nutzt
+  dieses Profil, vorhandene Planfingerprints müssen regulär neu geprüft werden.
+  Nominalmodus weiterhin ausdrücklichladbar, keine alten Fingerprints ändern.
+- Gazebo-Sensorpose/ROS-optical gleich; zusätzlich Referenzframe
+  real_oak4_rgb_optical_frame inDomain64, kein echter LIVE-Streamnachweis.
+  RViz-Gehäuse/Stativ/Frustum mit PRELIMINARY/USER ACCEPTED/Weltankerhinweis.
+  overview.sh nutzt kalibriertes Standardlayout; neue Fotosessions speichern
+  calibration_context.json. BestehendeFotos/Manifeste unverändert.
+- Physische8K-K/D Rational14 bei116 vollständig archiviert/exportiert als
+  oak4_camera_info.yaml. Jetty/Ogre2 meldet BrownDistortionModel unsupported.
+  Deshalb simulierteOAK ehrlichPinhole mit skaliertenK/D=0; keine nichtgerenderte
+  Verzeichnung als Bildgeometrie ausgeben. Brown5-Näherung nur archiviert für
+  spätereRenderer, maxca6,32px/8K auf unabhängigem Prüfgitter. Reale Auswertung
+  behält Rational14. Stativ wie bisher visual-only, kein neues Kollisionshindernis.
+- Drei Pakete gebaut;40gezielte TestsPASS, einschließlichFK-/SDF-/Optikgleichheit,
+  Weltfestigkeit beiTischbewegung, alteRoboterbytes, SHA-/Akzeptanz-/Matrixfehler,
+  MoveIt/Overlay undFoto-/Auswertungsregressionen.
+- DigitaleZelle über normalenApp-Launcher inDomain64/Partitionuwa_cell_sim
+  geöffnet,Gazebo+RViz+Scan+rqt. Erster Kamerasensor beim frühen Szenenaufbau
+  verloren, nurKamera neu geladen: Bildempfang wiederhergestellt, keineZell-
+  oderRoboterzustände zurückgesetzt. KünftigerLaunch startet Overview erstnach
+  Zellmodell-Spawn. Für ehrliche Pinhole-Metadaten nur verifiziertenOverview-PID
+  22847 sauber mitSIGINT beendet und als eigener uwa-cell-overview gestartet.
+- FinaleLiveprüfungPASS:4000×3000,2verschiedeneBildzeitstempel,D=[0,0,0,0,0],
+  K passtFactoryskalierung, beideTFs exaktProfil, GazeboSceneSensorlinkpose
+  stimmt, RVizMarkerabonnent nachgewiesen, Simuhr26,406sweiter, Gelenkeendlich,
+  alle9Simulationscontrolleraktiv. KeineHardwaredienste/Power/Play/Armfahrt.
+- Nachweise setup/calibration/three_camera_evaluation_20261112/adoption-live/
+  {report.json,simulated-overview.jpg}, Logs setup/logs/uwa-oak-profile-adoption-*
+  (frühereFehlversuchebehalten). Beschreibung docs/oak_preliminary_adoption_2026-11-12.md.
+
+## Links vorne: erste Boardaufnahme erfolgreich,2026-11-12
+
+- Nutzer hat den nach Absturz neu geprüften 53-Sekunden-Weg freigegeben. Der
+  UR5 vorne links hat ihn erfolgreich ausgeführt (Result 0, Endfehler 0,0000623 rad).
+  Andere Arme wurden nur beobachtet; keine Rückfahrt. Der eigene Trajektorien-
+  controller wurde nach der Aufnahme wieder deaktiviert.
+- Zwei frühere Versuche endeten vor einem Fahrziel: fehlender Controller und
+  zu kurze Action-Discovery. Korrekte LF-Parameter im passenden Namensraum
+  gesetzt; Laden und Konfigurieren über getrennte ROS-Dienste, anschließend
+  Action-Discovery vor der Aktivierung. Keine Treiber oder Sicherheitsfunktionen
+  geändert. Die Ausführung nutzte weiterhin native Safety, External Control
+  und frische Zustände aller vier Arme.
+- `sample_000` akzeptiert: 640×480, 24 ChArUco-Ecken, drei unterschiedliche
+  HTTP-Frames im überwachten Stillstand. Eigener Fokus 245 manuell, Belichtung
+  60.590 µs manuell, Gain 19. Originaleinstellungen und Diagnosebilder erhalten.
+- 40 zusätzliche Ansichten mit allen vier Armen als Hindernisse und ohne
+  diagonale Ausnahme geplant. Zusammen mit sample_000: 33 Fit- und
+  8 unabhängige Prüfansichten. Reine Bewegung 354.6s,
+  zusätzlich Stillstand und Aufnahme. Vollständiger Check-only bestanden;
+  keine Serienfahrt ausgelöst. Fingerprint `a23608cb8cccf2c7ddf1c806451eb8de6f364df601a9368d3886fbdc74915d3b`.
+- Messung, Diagnosen und Pläne unter
+  `setup/calibration/hardware_handeye/left_front_20261112/`. RViz-Vorschau der
+  Serie getrennt von Hardware. Nächster Schritt: Freigabe des neuen Wegs.
+  Die relative LF-Basislage wird erst nach bestandenem Fit über das gemeinsame
+  feste linke Board und die validierte LR-Referenz bestimmt. Keine globale Pose
+  und kein Kalibrierprofil aktiviert.
+
+
 ## Sechs mobile Drei-Kamera-Fotosets offline ausgewertet,2026-11-12
 
 - Nutzer bittet um Einschätzung seiner bisherigen Fotos, nach PC-Absturz

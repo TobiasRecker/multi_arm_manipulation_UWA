@@ -2,7 +2,7 @@
 
 Stand2026-11-12. Der Nutzer hat die Speicherung und gemeinsame Verwendung der
 ermittelten Posen/Kalibrierungen ausdrücklich beauftragt. Profil:
-[`hardware_20261112_v2`](../uwa_cell_description/config/calibration/hardware_20261112_v2/profile.json).
+[`hardware_20261112_v3`](../uwa_cell_description/config/calibration/hardware_20261112_v3/profile.json).
 Es wird mit `uwa_cell_description` installiert und enthält SHA256-Referenzen
 auf unveränderte Ergebniskopien und individuelle UR-Kinematikdateien. Die
 Rohbilder und ursprünglichen Sitzungsergebnisse unter `setup/calibration/`
@@ -19,7 +19,13 @@ die spätere Übernahme ist durch dieses separate Profil dokumentiert.
 | Basis→Board-Relation | beide Rear-Arme und Front rechts, als eigene Referenzframes | Front unterhalb Qualitätsgrenze übernommen; kein vermessener Welt-/Tischanker |
 | Park-/erste Aufnahmeposen | beide rechten Arme, benannte Gelenkreferenzen | neu planen, nicht als Live-Zustand verwenden |
 | Front-HD-Hand-Auge | **auf ausdrücklichen Nutzerauftrag angewendet** | automatische Qualität weiter FAIL:1,925px/0,588°; als `operator_accepted_below_threshold` gekennzeichnet |
-| Welt-/Tisch-/Basisrelation, OAK-Extrinsics | weiterhin nicht kalibriert | keine Messwerte erfinden |
+| OAK-Extrinsics | vorläufig ausdrücklich übernommen inv3 | relativer Kamerafit; Weltanker bleibt nominal, keine unabhängige Hardwaregenauigkeit |
+| Welt-/Tisch-/Basisrelation | weiterhin nicht kalibriert | keine Messwerte erfinden |
+
+Die [nachfolgende vorläufige OAK-Übernahme](oak_preliminary_adoption_2026-11-12.md)
+ergänztv2 bei unveränderten Roboterartefakten. Sie gilt für die digitale Zelle,
+Gazebo/RViz, Sichtplanung und den Kontext neuer Fotosessions. Pinhole-Rendering
+in Ogre2 und vollständige physische Rational14-Intrinsics bleiben getrennt.
 
 ## Globale Aktivierung am2026-11-12
 
@@ -105,7 +111,9 @@ Normaler App-Start und neue Planaufrufe verwenden das Profil automatisch.
 Bei bereits laufender Simulation wäre ein Neustart zur Änderung des physischen
 Gazebo-Modells nötig; nicht während laufender Bewegungen durchführen. Diese
 Übernahme hat keine reale Fahrt ausgelöst. Tisch-/Basisposen, initiale Gelenkziele,
-OAK-Designpose, Scanregistrierung und Boardgröße wurden nicht aus dem Fit geändert.
+OAK-Designpose, Scanregistrierung und Boardgröße wurden bei dieser damaligen
+v2-Übernahme nicht aus dem Fit geändert. Die spätere OAK-Übernahme inv3 ist oben
+separat verlinkt; Scan, Boardgrößen und Gelenkstartwerte bleiben erhalten.
 
 ## Posen wiederfinden
 

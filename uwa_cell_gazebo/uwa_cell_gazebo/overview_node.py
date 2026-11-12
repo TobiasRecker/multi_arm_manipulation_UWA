@@ -1,5 +1,6 @@
 """Own only the static overview camera; never restart the cell or command arms."""
 import fcntl
+from copy import deepcopy
 from functools import partial
 import os
 from pathlib import Path
@@ -28,6 +29,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 from .camera_bridge import image_message, info_message
 from .configuration import default_layout_path, load_layout
 from .overview import MODEL, FRAME, TOPIC, camera_config, intrinsic, model_sdf, transforms
+from .overview_visuals import sdf_visual_markers
 
 
 class Overview(Node):
@@ -90,11 +92,18 @@ class Overview(Node):
             msg.transform.translation.x, msg.transform.translation.y, msg.transform.translation.z = optical[:3,3].tolist()
             q = Rotation.from_matrix(optical[:3,:3]).as_quat()
             msg.transform.rotation.x, msg.transform.rotation.y, msg.transform.rotation.z, msg.transform.rotation.w = q.tolist()
-            self.broadcaster.sendTransform(msg)
+            frames = [msg]
+            if cfg.get('real_frame_id'):
+                real = deepcopy(msg)
+                real.child_frame_id = cfg['real_frame_id']
+                frames.append(real)
+            self.broadcaster.sendTransform(frames)
             self.ready = True
         self.get_logger().info(f'OAK overview: enabled={cfg["enabled"]}, '
             f'{cfg["width"]}x{cfg["height"]}@{cfg["rate"]}, '
-            f'xyz={cfg["xyz"]}, target={cfg["look_at"]}; nominal, uncalibrated')
+            f'xyz={cfg["xyz"]}, target={cfg["look_at"]}; '
+            f'{cfg.get("quality_status", "nominal_design")}, '
+            f'world={cfg.get("world_registration", "nominal")}')
         self.publish_markers(cfg)
 
     def publish_markers(self, cfg):
@@ -102,29 +111,15 @@ class Overview(Node):
         clear.header.frame_id = 'world'
         message = MarkerArray(markers=[clear])
         if cfg['enabled']:
-            def pose_matrix(text):
-                values = np.fromstring(text or '0 0 0 0 0 0',sep=' ')
-                result = np.eye(4)
-                result[:3,3] = values[:3]
-                result[:3,:3] = Rotation.from_euler('xyz',values[3:]).as_matrix()
-                return result
-            for link in ET.fromstring(model_sdf(cfg)).findall('model/link'):
-                parent = pose_matrix(link.findtext('pose'))
-                for visual in link.findall('visual'):
-                    pose = parent @ pose_matrix(visual.findtext('pose'))
-                    marker = Marker(ns='oak_overview', id=len(message.markers), type=Marker.CUBE)
-                    marker.header.frame_id = 'world'
-                    marker.pose.position.x,marker.pose.position.y,marker.pose.position.z = pose[:3,3].tolist()
-                    q = Rotation.from_matrix(pose[:3,:3]).as_quat().tolist()
-                    marker.pose.orientation.x,marker.pose.orientation.y,marker.pose.orientation.z,marker.pose.orientation.w = q
-                    marker.scale.x,marker.scale.y,marker.scale.z = map(float,visual.findtext('geometry/box/size').split())
-                    marker.color.r,marker.color.g,marker.color.b,marker.color.a = map(float,visual.findtext('material/diffuse').split())
-                    message.markers.append(marker)
+            message.markers.extend(sdf_visual_markers(model_sdf(cfg)))
             # A fixed-length frustum symbol, not a guarantee against occlusion.
             optical = transforms(cfg)[1]
             pixels = np.array([[0,0,1],[cfg['width'],0,1],
                                [cfg['width'],cfg['height'],1],[0,cfg['height'],1]])
-            rays = pixels @ np.linalg.inv(intrinsic(cfg)).T * 2.5
+            import cv2
+            rays_xy = cv2.undistortPoints(pixels[:,:2].reshape(-1,1,2).astype(float),
+                intrinsic(cfg),np.asarray(cfg.get('distortion',np.zeros(5)))).reshape(-1,2)
+            rays = np.c_[rays_xy,np.ones(4)] * 2.5
             corners = rays @ optical[:3,:3].T + optical[:3,3]
             frustum = Marker(ns='oak_overview',id=len(message.markers),type=Marker.LINE_LIST)
             frustum.header.frame_id='world'
@@ -136,6 +131,15 @@ class Overview(Node):
                     frustum.points.extend([Point(x=float(a[0]),y=float(a[1]),z=float(a[2])),
                                            Point(x=float(b[0]),y=float(b[1]),z=float(b[2]))])
             message.markers.append(frustum)
+            if cfg.get('quality_status'):
+                label = Marker(ns='oak_overview',id=len(message.markers),type=Marker.TEXT_VIEW_FACING)
+                label.header.frame_id='world'
+                label.pose.orientation.w=1.
+                label.pose.position.x,label.pose.position.y,label.pose.position.z=(optical[:3,3]+[0,0,.18]).tolist()
+                label.scale.z=.055
+                label.color.r,label.color.g,label.color.b,label.color.a=1.,.85,.15,1.
+                label.text='OAK: PRELIMINARY / USER ACCEPTED\nWorld anchor provisional'
+                message.markers.append(label)
         self.markers.publish(message)
 
     def reload(self, request, response):

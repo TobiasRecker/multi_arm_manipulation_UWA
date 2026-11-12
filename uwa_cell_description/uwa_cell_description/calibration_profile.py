@@ -123,6 +123,9 @@ def load_profile(path):
             read_artifact(path.parent, arm['rejected_handeye'])
         if 'camera_info' in arm:
             read_artifact(path.parent, arm['camera_info'])
+    if 'overview_camera' in profile:
+        from .overview_profile import load_overview
+        profile['overview_camera'] = load_overview(path.parent, profile['overview_camera'], profile['robots'])
     profile['file'] = str(path)
     profile['sha256'] = hashlib.sha256(path.read_bytes()).hexdigest()
     return profile
@@ -141,6 +144,13 @@ def apply_layout(layout, profile):
                 robot['tools']['camera_width'], robot['tools']['camera_height'] = arm['camera']['image_size']
             if [robot['tools']['camera_width'], robot['tools']['camera_height']] != arm['camera']['image_size']:
                 raise ValueError(f'{rid}: calibrated image mode differs from configured camera size')
+    if 'overview_camera' in profile:
+        from .overview_profile import R_SENSOR_OPTICAL
+        pose = rigid(profile['overview_camera']['registration']['T_world_oak_optical'])
+        cfg = layout['overview_camera']
+        cfg['xyz'] = pose[:3,3].tolist()
+        cfg['look_at'] = (pose[:3,3] + 1.5*pose[:3,2]).tolist()
+        cfg['roll'] = float(Rotation.from_matrix(pose[:3,:3] @ R_SENSOR_OPTICAL.T).as_euler('xyz')[0])
     layout['calibration'] = profile
     return layout
 

@@ -70,9 +70,14 @@ def setup(context):
                             parameters=[{'robot_ids': cameras, 'use_sim_time': True}],
                             output='screen'))
     if layout.get('overview_camera', {}).get('enabled', False):
-        actions.append(Node(package='uwa_cell_gazebo', executable='oak_overview',
-                            parameters=[{'layout': layout_path, 'use_sim_time': True}],
-                            output='screen'))
+        overview = Node(package='uwa_cell_gazebo', executable='oak_overview',
+                        parameters=[{'layout': layout_path, 'use_sim_time': True}], output='screen')
+        # Creating this separate sensor model before the cell is inserted can
+        # lose the camera during the initial scene reconstruction. Spawn only
+        # after the cell exists; no robot state is reset for later camera reloads.
+        def overview_after_cell(event, ctx):
+            return [overview] if event.returncode == 0 else []
+        actions.append(RegisterEventHandler(OnProcessExit(target_action=spawn,on_exit=overview_after_cell)))
     if enabled(context, 'gui'):
         # The gz-sim-main wrapper leaves its GUI child behind on SIGINT on this
         # Jetty installation. Launch the packaged client directly instead.

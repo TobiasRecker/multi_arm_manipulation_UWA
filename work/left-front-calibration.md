@@ -47,3 +47,19 @@
   Erster echter Fit-Datensatz sample_000:640×480,24Ecken,3 verschiedene Frames
   im Stillstand, eigener Fokus245Manual/60590µsManual/Gain19. Originalsettings
   und Nachweise in preparation/. Noch kein Fit/keine Basispose aktiviert.
+
+- Erster Controller wieder inaktiv; kein Rückweg. 40 weitere Ansichten komplett
+  geplant und check-only PASS, ohne diagonale Ausnahme. Reine Fahrt 354.6s.
+  Gesamt 33 Fit/8 Prüfansichten. Vorschau geöffnet,
+  Serienfahrt wartet auf Freigabe des neuen Plans. Referenz für Basispose gesichert.
+
+- Nutzerfreigabe der 40 Ansichten: „macht bitte alle bilder“. Originalplan
+  a23608cb... unverändert archiviert; nach dem parallelen OAK-Profilwechsel
+  v3 alle 3607 identischen Punkte im aktuellen Modell geprüft. Roboter- und
+  Boardgeometrie verglichen, Kinematikdateien bytegleich, sample_000-Flanschpose
+  identisch. Neue Sitzung `series_current_model_checked`, Freigabe und
+  Geometrienachweis `approval_and_recheck.json`.
+- Messserie nur vorne links; andere Arme und Kamera-GUI unangetastet lassen.
+  Action vor der Aktivierung auffinden, vorhandene Guard- und Capture-Prüfungen
+  unverändert bzw. native Safety zusätzlich explizit verlangen. Erste späte
+  Discovery hat vor dem ersten Fahrziel abgebrochen, Aufnahmen erhalten.

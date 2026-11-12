@@ -1,4 +1,4 @@
-"""Static OAK4 overview design: nominal pinhole camera, not measured extrinsics."""
+"""Static OAK overview using the shared accepted registration when available."""
 import argparse
 from copy import deepcopy
 import json
@@ -7,11 +7,14 @@ from pathlib import Path
 import xml.etree.ElementTree as ET
 
 import numpy as np
+import cv2
 from scipy.spatial.transform import Rotation
 import yaml
 
 from .configuration import default_layout_path, nominal_layout_path, load_layout, number, vector
 from .charuco import table_board_transform
+from uwa_cell_description.overview_profile import R_SENSOR_OPTICAL
+from .overview_visuals import append_sdf_visuals
 
 MODEL = 'uwa_oak_overview'
 FRAME = 'oak_overview_rgb_optical_frame'
@@ -38,11 +41,35 @@ def camera_config(layout):
     for key in ('width', 'height'):
         if isinstance(cfg[key], bool) or not isinstance(cfg[key], int) or not 64 <= cfg[key] <= 8192:
             raise ValueError(f'overview_camera.{key} must be an integer in [64,8192]')
+    measured = layout.get('calibration', {}).get('overview_camera')
+    if measured:
+        cfg['world_optical'] = measured['registration']['T_world_oak_optical']
+        physical = measured['factory']
+        k = np.asarray(physical['camera_matrix_8000x6000']).copy()
+        k[0] *= cfg['width']/8000
+        k[1] *= cfg['height']/6000
+        cfg['camera_matrix'] = k.tolist()
+        # Jetty's installed Ogre2 backend reports Brown distortion unsupported.
+        # Advertise the image geometry actually rendered, never nonzero D for
+        # an undistorted image. The physical Rational14 and Brown approximation
+        # remain archived separately for real image evaluation / future backends.
+        cfg['distortion'] = [0.,0.,0.,0.,0.]
+        cfg['rendering_model'] = 'pinhole; installed Ogre2 does not render Brown distortion'
+        cfg['horizontal_fov'] = float(2*math.atan(cfg['width']/(2*k[0,0])))
+        cfg['quality_status'] = measured['quality_status']
+        cfg['world_registration'] = measured['registration']['world_registration']
+        cfg['simulation_approximation'] = measured['simulation']
+        cfg['real_frame_id'] = measured['registration']['real_optical_frame']
     return cfg
 
 
 def transforms(cfg):
     """Return world<-Gazebo sensor (+X forward) and world<-REP103 optical."""
+    if 'world_optical' in cfg:
+        optical = np.asarray(cfg['world_optical'], float)
+        sensor = optical.copy()
+        sensor[:3,:3] = optical[:3,:3] @ R_SENSOR_OPTICAL.T
+        return sensor, optical
     direction = np.subtract(cfg['look_at'], cfg['xyz'])
     yaw = math.atan2(direction[1], direction[0])
     pitch = math.atan2(-direction[2], math.hypot(*direction[:2]))
@@ -55,6 +82,8 @@ def transforms(cfg):
 
 
 def intrinsic(cfg):
+    if 'camera_matrix' in cfg:
+        return np.asarray(cfg['camera_matrix'], float)
     f = cfg['width'] / (2 * math.tan(cfg['horizontal_fov'] / 2))
     return np.array([[f, 0, cfg['width']/2], [0, f, cfg['height']/2], [0, 0, 1.]])
 
@@ -63,13 +92,15 @@ def project(points, cfg):
     camera = np.linalg.inv(transforms(cfg)[1])
     points = np.asarray(points)
     local = points @ camera[:3, :3].T + camera[:3, 3]
-    pixels = local @ intrinsic(cfg).T
-    return pixels[:, :2] / pixels[:, 2:3], local[:, 2]
+    pixels = cv2.projectPoints(local.astype(float), np.zeros(3), np.zeros(3),
+                              intrinsic(cfg), np.asarray(cfg.get('distortion', np.zeros(5))))[0].reshape(-1,2)
+    return pixels, local[:, 2]
 
 
 def coverage(layout):
     cfg = camera_config(layout)
-    result = dict(camera=cfg, calibrated=False, occlusion_checked=False, tables={}, boards={})
+    result = dict(camera=cfg, calibrated=False, quality_status=cfg.get('quality_status','nominal_design'),
+                  occlusion_checked=False, tables={}, boards={})
     for table_id, t in layout['tables'].items():
         table = np.eye(4)
         table[:3, :3] = Rotation.from_euler('xyz', t['rpy']).as_matrix()
@@ -109,28 +140,8 @@ def model_sdf(cfg):
     link = ET.SubElement(model, 'link', name='rgb_camera')
     sensor_pose, _ = transforms(cfg)
     rpy = Rotation.from_matrix(sensor_pose[:3, :3]).as_euler('xyz')
-    ET.SubElement(link, 'pose').text = ' '.join(map(str, [*cfg['xyz'], *rpy]))
-    # Approximate housing behind the optical centre. No proprietary CAD claimed.
-    def box(parent, name, pose, size, color):
-        visual = ET.SubElement(parent, 'visual', name=name)
-        ET.SubElement(visual, 'pose').text = pose
-        geometry = ET.SubElement(visual, 'geometry')
-        ET.SubElement(ET.SubElement(geometry, 'box'), 'size').text = size
-        material = ET.SubElement(visual, 'material')
-        for key in ('ambient', 'diffuse'):
-            ET.SubElement(material, key).text = color
-    box(link, 'oak_housing', '-0.035 0 0 0 0 0', '.07 .16 .055', '.15 .18 .22 1')
-    for i, y in enumerate([-.06, 0, .06]):
-        box(link, f'lens_{i}', f'0 {y} 0 0 0 0', '.004 .022 .022', '.03 .05 .08 1')
-    tripod = ET.SubElement(model, 'link', name='tripod')
-    x,y,z = cfg['xyz']
-    ET.SubElement(tripod, 'pose').text = f'{x} {y} 0 0 0 0'
-    box(tripod, 'mast', f'0 0 {z/2} 0 0 0', f'.035 .035 {z}', '.22 .23 .25 1')
-    for i in range(3):
-        a = i*2*math.pi/3
-        box(tripod, f'foot_{i}', f'{.2*math.cos(a)} {.2*math.sin(a)} .035 0 0 {a}',
-            '.45 .035 .05', '.22 .23 .25 1')
-    # Tripod is visual-only until included in the planning collision scene.
+    ET.SubElement(link, 'pose').text = ' '.join(map(str, [*sensor_pose[:3,3], *rpy]))
+    append_sdf_visuals(model, link, sensor_pose)
     sensor = ET.SubElement(link, 'sensor', name='oak_rgb', type='camera')
     for key, value in [('always_on','true'), ('update_rate',str(cfg['rate'])),
                        ('topic',TOPIC+'/image_raw'), ('frame_id',FRAME)]:
@@ -144,6 +155,19 @@ def model_sdf(cfg):
     for key in ('near','far'):
         ET.SubElement(clip,key).text = str(cfg[key])
     ET.SubElement(camera, 'camera_info_topic').text = TOPIC+'/camera_info'
+    if 'camera_matrix' in cfg:
+        k = intrinsic(cfg)
+        lens = ET.SubElement(camera,'lens')
+        ET.SubElement(lens,'type').text = 'gnomonical'
+        ET.SubElement(lens,'scale_to_hfov').text = 'false'
+        intrinsics = ET.SubElement(lens,'intrinsics')
+        for key,value in zip(('fx','fy','cx','cy','s'),(k[0,0],k[1,1],k[0,2],k[1,2],k[0,1])):
+            ET.SubElement(intrinsics,key).text = str(value)
+        if any(cfg['distortion']):
+            distortion = ET.SubElement(camera,'distortion')
+            for key,value in zip(('k1','k2','p1','p2','k3'),cfg['distortion']):
+                ET.SubElement(distortion,key).text = str(value)
+            ET.SubElement(distortion,'center').text = f'{k[0,2]/cfg["width"]} {k[1,2]/cfg["height"]}'
     return ET.tostring(root, encoding='unicode')
 
 

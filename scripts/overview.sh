@@ -6,7 +6,7 @@ source "$script_dir/env.bash"
 case "${1:-view}" in
   run)
     exec ros2 run uwa_cell_gazebo oak_overview --ros-args -p use_sim_time:=true \
-      -p "layout:=${2:-$script_dir/../uwa_cell_description/config/cell_layout.yaml}"
+      -p "layout:=${2:-$script_dir/../uwa_cell_description/config/cell_layout_calibrated.yaml}"
     ;;
   start)
     if systemctl --user is-active --quiet uwa-cell-overview; then
@@ -15,7 +15,7 @@ case "${1:-view}" in
     fi
     systemd-run --user --unit=uwa-cell-overview --collect \
       --property=KillSignal=SIGINT --property=KillMode=mixed --property=TimeoutStopSec=15 \
-      /usr/bin/bash "$script_dir/overview.sh" run "${2:-$script_dir/../uwa_cell_description/config/cell_layout.yaml}"
+      /usr/bin/bash "$script_dir/overview.sh" run "${2:-$script_dir/../uwa_cell_description/config/cell_layout_calibrated.yaml}"
     ;;
   reload)
     exec ros2 service call /uwa_cell/oak_overview/reload std_srvs/srv/Trigger '{}'

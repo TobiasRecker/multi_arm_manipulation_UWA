@@ -156,6 +156,16 @@ class CaptureRig:
         self.session = self.output / (datetime.now().strftime('%Y%m%d_%H%M%S_') + uuid.uuid4().hex[:8])
         self.session.mkdir()
         write_json(self.session / 'board.json', self.board_config)
+        from uwa_cell_description.configuration import load_layout
+        calibration = load_layout().get('calibration', {})
+        overview = calibration.get('overview_camera')
+        if overview:
+            write_json(self.session / 'calibration_context.json', dict(
+                profile_id=calibration['profile_id'], profile_sha256=calibration['sha256'],
+                overview_registration=overview['registration'],
+                physical_oak_intrinsics=overview['factory'],
+                quality_status=overview['quality_status'],
+                note='Accepted preliminary registration; world/base anchor remains provisional. No new calibration performed.'))
         self.preview = OakPreview(self.ws, self.inventory['cameras']['oak4'], self.session / 'preview',
                                   self.optics['oak_manual_focus'])
         self.busy = threading.Lock()

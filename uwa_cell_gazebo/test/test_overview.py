@@ -5,13 +5,14 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import pytest
 
-from uwa_cell_gazebo.configuration import load_layout
+from uwa_cell_gazebo.configuration import load_layout, nominal_layout_path
 from uwa_cell_gazebo.overview import camera_config, coverage, model_sdf, project, transforms
 from uwa_cell_gazebo.charuco import board_image, detect_pose
 
 
 def test_world_optical_basis_target_and_default_table_coverage():
-    layout = load_layout()
+    # Nominal design coverage is a design property; measured framing can differ.
+    layout = load_layout(nominal_layout_path())
     cfg = camera_config(layout)
     assert cfg['xyz'][2] <= 2.0  # user's current tripod limit
     sensor, optical = transforms(cfg)

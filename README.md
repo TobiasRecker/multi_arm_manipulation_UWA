@@ -27,14 +27,16 @@ hardware by default. The layout is provisional, not a calibrated digital twin.
 Separate, explicit local hardware preparation is available in the UWA Arms app.
 
 Updated2026-11-12, the default model applies the versioned
-[measured calibration bundle](docs/applied_calibrations.md): three individual UR
-factory kinematics, left-rear and both right-camera VGA intrinsics, plus both
-rear-camera hand-eye optics. The failed front-HD result remains excluded.
+[measured calibration bundle](docs/applied_calibrations.md): individual factory
+kinematics for left-rear and both right arms, validated rear VGA optics, and
+explicitly accepted front native-HD intrinsics/hand-eye despite their failed
+automatic quality thresholds. The original quality flags remain visible.
+The current **hardware_20261112_v3** also applies the user's accepted
+preliminary OAK registration to Gazebo/RViz and shared model/view planning.
 The original nominal layout remains available. Table/base world poses and the
-OAK pose remain provisional. The latest bundle `hardware_20261112_v2` uses
-front native-HD intrinsics and hand-eye after the user's explicit adoption of
-the below-threshold result. Its failed automatic quality flags remain visible;
-both validated rear calibrations are preserved.
+OAK world anchor remain provisional.
+The external camera stays world-fixed when a table moves. See
+[OAK adoption, frames and renderer limits](docs/oak_preliminary_adoption_2026-11-12.md).
 Named parking/capture joint references are saved without automatic execution.
 
 A [rough real OAK pose and shared-view arm design](docs/oak_pose_and_shared_views_2026-11-12.md)
@@ -104,7 +106,7 @@ It now accepts all four arm IDs. The
 records the completed41-view left-rear run:33 fit/8 held-out images,
 intrinsics and hand-eye validation passed; versioned results are saved locally.
 The left-rear result was explicitly activated globally on2026-11-12; new
-model loads use bundle hardware_20261112_v2. The Gazebo backend remains separate.
+model loads use bundle hardware_20261112_v3. The Gazebo backend remains separate.
 The first real rear-right series completed on2026-11-11:41 views,33 fitting and8
 held out; intrinsics and hand-eye validation passed. Results and remaining
 accuracy limits are recorded in the linked hardware calibration guide.
