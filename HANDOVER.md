@@ -5,6 +5,31 @@ Diese Datei fasst die bisherigen Gespräche und die überprüfte Implementierung
 zusammen. Sie soll bei weiterer Arbeit mitgepflegt werden, nicht als unveränderlicher
 Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [README.md](README.md).
 
+## Wiederverwendbarer OAK4-Fotodienst,2026-11-12
+
+- Nutzer beauftragt nach erfolgreichem Standard/HQ-Vergleich dauerhafte Ablage
+  als Service und sichtbare Dokumentation für spätere Agenten.
+- Implementierung im OAK-Repo `tools/oak4_photo{.sh,_service.py,_capture.py}`,
+  Anleitung `OAK4_PHOTOS.md`. CLI ohne ROS, Trigger-Services unter `/oak4/photo/`
+  (capture_hq/capture_standard/capture_compare/status), Domain65/LOCALHOST.
+- Installiert/aktiviert: systemd-user `uwa-oak4-photo.service`; idle ohne Kamera.
+  Bestehende isolierte Laufzeit `.venvs/oak4` (DepthAI3.12) und oakctl verwendet;
+  Inventar-IP/Geräte-ID zentral aus Zellrepo, keine temporären Chatabhängigkeiten.
+- HQ ISO100, max90ms, acht echte48MP-Frames mit konstantemFokus/WB, nativePNG.
+  Sensor10fps, nur angeforderte Vollbilder übertragen. Keine Rohsensor-/HDR-
+  Aufnahme, keine Bewegungskompensation oder automatische Roboterfahrt.
+  Exklusiver SDK-Zugriff, kein automatisches Stoppen fremder Kameradienste.
+- Reale Serviceprobe PASS: setup/oak4/photos/20261112-135950-compare-cf3a4ee9/,
+  drei intakte8000×6000-PNGs, StandardISO309/16,666ms, HQISO100/51,498ms,
+  Fokus107/WB4138K, achtverschiedeneFrames. Status währenddessen erreichbar,
+  zweiteAufnahme abgewiesen, danachREADY. Sechs Fehler-/Sperr-/TimeouttestsPASS.
+- Finale reguläre HQ-Serviceprobe nach dem letzten Dienstupdate ebenfalls PASS:
+  setup/oak4/photos/20261112-140403-hq-f3cec77a/, ISO100, acht unterschiedliche
+  native48MP-Frames, exposure_limited=false. Benutzerdienst aktiv und enabled.
+- Agentenhinweise/README in beiden Repos und Workspace-Einstieg ergänzt.
+  Ergebnisse dauerhaft in setup/oak4/photos/; keine Bilddateien im Git.
+
+
 ## Grobe OAK-Pose und Beobachtungsstellungen,2026-11-12
 
 - Nutzer bittet um grobe OAK-Pose relativ rechtemTisch sowie UR-Stellungen mit

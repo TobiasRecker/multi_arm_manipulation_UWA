@@ -4,12 +4,16 @@
 ros_namespace: /uwa_hardware
 robots:
   left_front:
-    ip: null
+    ip: 192.168.8.2  # User assignment and Dashboard identity checked2026-11-12
     ur_type: ur5
     port_base: 51000
-    kinematics_file: null
+    kinematics_file: ur_kinematics/left_front_2017356443.yaml
     external_control_program: ''
     compliance_enabled: false
+    dashboard_port: 29999
+    serial_number: '2017356443'
+    dashboard_model: UR5
+    polyscope_version: 3.15.1.106171
   left_rear:
     ip: 192.168.8.169  # User assignment and read-only reachability verified2026-11-11
     ur_type: ur7e

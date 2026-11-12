@@ -1,5 +1,10 @@
 # UWA four-arm laboratory cell
 
+Native **48MP Standard/HQ photographs** are available through the reusable
+[OAK4 photo service](../oak_camera_calibration/OAK4_PHOTOS.md), including a CLI
+and `/oak4/photo/capture_hq` (`std_srvs/srv/Trigger`, domain65). HQ uses ISO100,
+longer exposure and eight averaged frames; files remain under `setup/oak4/photos/`.
+
 ROS 2 **Lyrical**, Ubuntu 26.04 and **Gazebo Jetty**. This repository models
 two tables carrying one UR5, one UR7e and two UR5e robots. It starts simulated
 hardware by default. The layout is provisional, not a calibrated digital twin.

@@ -1,5 +1,17 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Vorhandener OAK4-HQ-Fotodienst
+
+- Für physische OAK-Fotos den [wiederverwendbaren Fotodienst](../oak_camera_calibration/OAK4_PHOTOS.md)
+  verwenden: aus Workspace `bash src/oak_camera_calibration/tools/oak4_photo.sh capture`.
+  ROS-Domain65/LOCALHOST, `/oak4/photo/capture_hq` als Trigger; Standard/Vergleich
+  und Status ebenfalls vorhanden. Installiert: `uwa-oak4-photo.service` (user).
+- 48MP8000×6000, HQ ISO100/max90ms/achtFrames, gegateter10fps-Sensorbetrieb.
+  Bilder und tatsächliche Frame-/Belichtungs-/Fokusdaten in `setup/oak4/photos/`.
+  Kamera/Szene stillhalten; kein automatischer Robotermove/Stillstandsnachweis,
+  kein RAW und kein Ersatz einer fokusgebundenen Kamerakalibrierung. Exklusiven
+  Kamerazugriff beachten, keine fremden Live-/ROS-Dienste automatisch stoppen.
+
 ## Vor der Arbeit
 
 - [ACTIVE_WORK.md](ACTIVE_WORK.md) und aktive Einträge unter `work/` lesen.
