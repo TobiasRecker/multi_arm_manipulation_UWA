@@ -1,0 +1,16 @@
+schema: 1
+# Design envelope for the previous long carton, centred on the RIGHT tabletop.
+# Not a measured object pose. Change explicitly for another scan position/size.
+reference_frame: right_table_top
+centre_m: [0.0, 0.0, 0.065]
+size_m: [0.16, 0.55, 0.12]
+collision_padding_m: 0.015
+horizontal_distances_m: [0.45, 0.60, 0.75]
+heights_above_centre_m: [0.30, 0.45]
+azimuth_offsets_deg: [0, -30, 30]
+roll_deg: [0, 180]
+keep_per_arm: 4
+velocity_rad_s: 0.05
+acceleration_rad_s2: 0.10
+extra_camera_xy_offsets_m: [[0.02, 0.0], [-0.02, 0.0], [0.0, 0.02], [0.0, -0.02]]
+extra_max_joint_change_rad: 0.35

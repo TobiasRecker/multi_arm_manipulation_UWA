@@ -5,40 +5,36 @@ Diese Datei fasst die bisherigen Gespräche und die überprüfte Implementierung
 zusammen. Sie soll bei weiterer Arbeit mitgepflegt werden, nicht als unveränderlicher
 Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [README.md](README.md).
 
-## Native HD-Intrinsics hinten rechts – laufende Reihe,2026-11-12
+## Native HD-Intrinsics hinten rechts abgeschlossen, 2026-11-12
 
-- Nutzer beauftragt neueHD-Intrinsics für right_rear. Eigenes2592×1944-Profil
-  bei388Manual, passend zu bisherigenDreierfotos; rechtes festes40mm-A3-Board
-  IDs50–66. Nutzerbestätigt unverändertesBoard und entfernt mobilesA4/Verdeckung.
-- Sitzung setup/calibration/hardware_handeye/right_rear_hd_20261112/,
-  geplant41Ansichten (33Fit/8vorabPrüfung), reineFahrt490,25s. EigeneVorschau
-  Domain72,45°lokalesPlanungsfenster gegenKabelwicklungen. AlleVerbindungen
-  MoveIt-geprüft, keineRückfahrt, nurRR-Ziele. DiagonalerLF nach bestehender
-  Nutzerregel separatbeweglich; übrigeChecks/nativesSafety unverändert.
-- KonkreteFreigabe "Vorschau passt, Fahrbereich und Kabel frei – Reihe starten"
-  in operator_approval.json, Fingerprintdesreviewed_series/batch.json
-  19d68cdeb45acc0a0f8278c494156bb780da0385309902e8d555f54d7770e651.
-- ErstaufnahmePASS:24Ecken,3verschiedenenativeFrames, Fokus388/Auto0 und
-  Belichtung63410/Gain19Manual durchV4L2anbeidenbehaltenenBurstendenbestätigt.
-  Readbacks/Normal/gesamteOriginalkonfiguration strengbestätigt. Verdeckte
-  Erstversuchsdiagnose archiviert, fehlerhafteFrameskeinMessdatensatz.
-- NativeKamerapfad wartet tatsächlichenVisionPID-Exit, begrenzteS_FMT-Busy/EIO-
-  WiederholungmitVersuchslogs; verwirftungültigeJPEGsinnerhalbbegrenzterWarmup-
-  Schleife, PC-Decodierung/nativesFormat/geändertePixelbleibenzwingend.
-  StandaloneFocusRestore teilt dieselbeRemote-Transaktionssperre, darfkeine
-  fremdeNativeAufnahmeunterbrechen. KeineFirmware-/UR-Treiber-/Safetyänderung.
-- MATCHPlay-Verifikationshelfer meldetfehlendenROSprogram_running-Service;
-  unabhängignativPLAYING/Remote/NORMALundExternalControllinktruebestätigt.
-  NichtunnötigProgrammneustarten. ErsterReihenstart brachvorFahrzielab
-  (späteActionregistrierung); früheActionClient-RegistrierungvorMoveItund
-  WiederverwendungproBatch beheben dies. Guards/Cancel/Deaktivierung erhalten.
-- LÄUFT: Execsession1925, Log setup/logs/uwa-right-rear-hd-acquisition-early-action.log.
-  Zuletzt29/41gültigeBilder mitje24Ecken; Fahrt/HD-Aufnahmefunktionieren.
-  EigeneVorschau nachStartgeschlossen, andereVorschauen/Diensteerhalten.
-- Abschlussauftrag: reineIntrinsics-Auswertung, Qualitätswerte/Prüfansichten
-  transparent berichten; keineHand-Auge-/globaleProfilübernahmeausdiesemAuftrag.
-  NachMessende nurRRMotioncontrollerdeaktivieren, keineautomatischeRückfahrt.
-  Anleitung docs/right_rear_hd_intrinsics_2026-11-12.md. MomentstandkeinAbschluss.
+- Nutzerfreigabe für genau die Domain72-Vorschau umgesetzt. Alle **41/41**
+  Aufnahmen gespeichert, 33 Fit / 8 vorab ausgeschlossene Prüfung. Physische
+  Kamera01D1111A00090912, native2592×1944, Fokus388 manuell,
+  Belichtung63410/Gain19. Festes rechtes40mm-A3-Board unverändert laut Nutzer.
+- **Intrinsics PASS**, unveränderte Qualitätsgrenzen: Fit0,7605px,
+  Prüfmedian0,6742px, Prüfmaximum0,9219px. Fokale Fitunsicherheit0,496/0,396%.
+  18–24Ecken jeBild; alle Sensorreadbacks,3unterschiedlichenBurstframes und
+  vollständigeKamera-Restores bestätigt. Originale/Prüfrollen/Hashes auditiert.
+- Sitzung setup/calibration/hardware_handeye/right_rear_hd_20261112/;
+  unverändertesErgebnis/ROS-CameraInfo/Manifest/Bildübersicht in result_v1/.
+  Boardeckenhülle34,9% derBildfläche, äußersteRänder nichtgleichvalidiert;
+  Reprojektionsfehler keine absolute3D-/Welt-/Hand-Auge-Genauigkeit.
+- Abgeschlossen18:01AWST. LetzterGelenkfehler0,000044rad, RR-Fahrcontroller
+  nachweislichinaktiv (direkteListControllers),UR RUNNING/NORMAL/Remote.
+  ros.urp bleibtPLAYING, keineRückfahrt/keinSafetyreset, fremdeDiensteerhalten.
+  EigenerExec1925 beendet; Domain72-Vorschau bereitsgeschlossen. DiagonaleLF-
+  Aufgabe darf ihren eigenenRestweg jetzt anhandrealerRR-Endpose neuprüfen.
+- Kein Hand-Auge-Fit oder globaleAktivierung beauftragt; bestehendesRear-
+  VGA404-/Hand-Auge-Profilunverändert. NeueHD388-K/D separatverwendbar.
+- NativeAufnahmepfad mitSensorreadback,gebundenerVision-PID-Freigabe,
+  begrenzterIO-/JPEG-Recovery und gemeinsamerRestore-Kamerasperre geprüft.
+  FrüherActionClient vorMoveIt,proBatchwiederverwendet; nativeSafety/Guard/
+  Cancel/Deaktivierungerhalten. 34Vorbereitungstests+7Offline-ExporttestsPASS.
+- Freigabe/Fingerprint19d68cdeb45acc0a0f8278c494156bb780da0385309902e8d555f54d7770e651
+  in operator_approval.json. VerworfeneVorbereitungsbilder/Fehllogs separat
+  erhalten. SchnellerStatushelper hattefalschnegativeROSDiscovery;
+  direkteControllerlistebestätigtTreiber/Inaktivität. Nachweise/Bedienung:
+  [Bericht](docs/right_rear_hd_intrinsics_2026-11-12.md).
 
 ## Links vorne: native HD-Reihe vorbereitet, 2026-11-12
 
@@ -578,28 +574,26 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   output/images/carton_digitization_preview.png. Rohdaten/Hashmanifest/Overlays
   undKameraprofile untersetup/digitization/carton_20261112/, Logs uwa-carton-*.
 
-## Erweiterung auf vierWristkameras+OAK recherchiert,2026-11-12
+## Vier Wrist-Kameras plus OAK: Scan-Konzept, 2026-11-12
 
-- Nutzer wünscht gemeinsamesObjekt inTischmitte,5Fotos jeAufnahmeschritt und
-  ggf.wenigeZentimeterZusatzbewegung. Zielist bessereRekonstruktion auchmit
-  VerfahrenausLiteratur. Nochkein gemeinsamerScanbereich/Zielweg nachgewiesen.
-- BestehendeDesignposen betrachten jeeigenesTischboard, nichtdasselbeObjekt.
-  Grund-/Zusatzposen neu nachSicht/IK/Verdeckung/Gesamtwegen prüfen; kleineTCP-
-  Verschiebung istkeineKollisionsfreigabe. LaufendeRR-/LF-HD-Reihen erhalten.
-- Empfehlung:5festeAnsichten,danach3–5Stellungen jeWrist+1festeOAK =13–21
-  unterschiedlichePerspektiven;25Fotosaus5Runden enthaltenOAK-Wiederholungen.
-  KonfiguriertesDesign config/digitization/five_camera_scan_design.yaml ist
-  nurVorschlag/keineBewegungsschnittstelle. InitialseriellePositionierung,
-  gemessenerStillstand vorungerichtetsynchronenFotos,Objektbleibtruhend.
-- Primärquellenrecherche: COLMAP/klassischeGeometrie+OpenMVS alsVergleich,
-  MASt3R oderVGGT alsgelernteGeometrieinitialisierung;anschließendMesh→CAD-Fit.
-  NeRF/Splats primärDarstellung,editierbarerCAD-KörperbrauchtZusatzschritt.
-  BewegteArmkameraskein starresCOLMAP-Rig;K/DjeSensor,PosejeAufnahme,Maßstab
-  überBoardsundausgelassenePrüfansichten. BewegteArme/Hintergrundmaskieren.
-- HostgrafikIntelArrowLake,keinerkanntesCUDA-Gerät. COLMAPSparseCPU möglich,
-  dessenDenseCUDA; schwereNetzenichtungeprüft inROS-Laufzeitinstallieren.
-  Keine neuenBild-/Hardware-/Installations-/Bewegungsbefehle,dense/gelernte
-  Rekonstruktionnichtausgeführt. Quellen/Abwägung docs/five_camera_reconstruction.md.
+- Nutzerziel: gemeinsames Objekt in Tischmitte, fünf Fotos je Aufnahmeschritt,
+  optional kleine Zusatzbewegungen und Nutzung von Literaturverfahren.
+  Gemeinsamer Scanbereich und Wege sind noch nicht nachgewiesen; bisherige
+  Designposen zielen jeweils auf das eigene Tischboard.
+- Empfehlung: fünf feste Ansichten, danach 3–5 Stellungen je Wrist plus feste
+  OAK, also 13–21 verschiedene Blickpunkte. Kleine TCP-Bewegungen erfordern
+  weiterhin vollständige Wegprüfung. Zunächst seriell positionieren und vor
+  nicht belichtungssynchronen Fotos gemessenen Stillstand bestätigen.
+- Designprofil config/digitization/five_camera_scan_design.yaml: nicht ausführbar,
+  keine Bewegungsschnittstelle; Syntax und Ansichtszähler geprüft. Keine laufenden
+  RR-/LF-HD-Kalibrierungen unterbrochen, keine Hardwareaufnahme oder Armfahrt.
+- Primärquellen: COLMAP/OpenMVS als geometrische Vergleichsbasis, MASt3R oder
+  VGGT als gelernte Initialisierung, anschließend Mesh und parametrischer CAD-Fit.
+  Intrinsics je Sensor, Pose je Aufnahme; Maßstab, Objektmasken und zurückgehaltene
+  Prüfansichten erhalten. NeRF/Splats benötigen zusätzliche Geometrie-/CAD-Schritte.
+- Host mit Intel-Grafik, kein erkanntes CUDA-Gerät. COLMAP Sparse auf CPU möglich,
+  dessen eigene dichte Rekonstruktion benötigt CUDA. Keine Modelle installiert
+  oder ausgeführt. Stand und Quellen: docs/five_camera_reconstruction.md.
 
 ## Nutzerziele und Vorlieben
 

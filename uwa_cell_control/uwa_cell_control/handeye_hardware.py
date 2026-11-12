@@ -22,6 +22,7 @@ from .parking import complete_state,digest,manual_states,make_model,save_plan
 from .hardware_charuco import first_view,observe,calibrate_intrinsics
 from .wrist_camera import WristCamera,save_snapshot
 from .wrist_hd import make_camera
+from .wrist_activity import photo_activity
 
 
 def read_state(node,profiles,args):
@@ -91,6 +92,7 @@ def plan_series(args):
         node.destroy_node();rclpy.shutdown()
 
 
+@photo_activity
 def capture_observation(camera,node,observer,model,layout,rid,directory,sample_id,role,*,freshness_timeout=6.,capture_guard=None):
     """Conservative stationary interval plus changed decoded image payloads.
 

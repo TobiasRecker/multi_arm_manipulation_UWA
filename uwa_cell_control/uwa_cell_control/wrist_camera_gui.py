@@ -40,6 +40,13 @@ class CameraWorker(QtCore.QThread):
 
     def run(self):
         try:
+            with self.camera.activity():
+                self.run_preview()
+        except Exception as error:
+            self.message.emit(f'FAILED · Camera lighting cleanup: {error}', True)
+
+    def run_preview(self):
+        try:
             self.original = self.camera.settings()
             self.current = self.original
             self.directory.mkdir(parents=True, exist_ok=True)

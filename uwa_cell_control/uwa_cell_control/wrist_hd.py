@@ -112,8 +112,9 @@ def validate_burst(directory, expected_ip):
 
 
 class NativeCapture:
-    def __init__(self, ip, ssh, output, resources=None):
+    def __init__(self, ip, ssh, output, resources=None, *, fast=True):
         self.ip, self.ssh, self.output = ip, ssh, Path(output)
+        self.fast = fast
         if resources is None:
             from ament_index_python.packages import get_package_share_directory
             resources = Path(get_package_share_directory('uwa_cell_control')) / 'remote'
@@ -121,7 +122,12 @@ class NativeCapture:
         self.remote = None
 
     def bootstrap(self):
-        sources = {n: (self.resources / n).read_bytes() for n in ('wrist_worker.py', 'wrist_capture.c')}
+        if self.fast:
+            sources = {'wrist_worker.py': (self.resources / 'wrist_worker_fast.py').read_bytes(),
+                       'wrist_worker_legacy.py': (self.resources / 'wrist_worker.py').read_bytes(),
+                       'wrist_capture.c': (self.resources / 'wrist_capture_fast.c').read_bytes()}
+        else:
+            sources = {n: (self.resources / n).read_bytes() for n in ('wrist_worker.py', 'wrist_capture.c')}
         tag = hashlib.sha256(b''.join(sources.values())).hexdigest()[:16]
         remote = '/tmp/uwa_hd_tools_' + tag
         if self.remote == remote:
@@ -134,6 +140,10 @@ class NativeCapture:
         self.remote = remote
 
     def capture(self):
+        with WristCamera(self.ip).activity():
+            return self._capture()
+
+    def _capture(self):
         self.bootstrap()
         token = uuid.uuid4().hex
         remote = '/tmp/uwa_hd_' + token
@@ -154,8 +164,14 @@ class NativeCapture:
     def restore_configuration(self, original):
         """Camera-only, fully verified restore, also after a temporary focus lock."""
         self.bootstrap()
+        # The fast entry point verifies a per-capture mode snapshot. A separate
+        # focus restore has no snapshot; use the common proven settings helper.
+        module = 'wrist_worker_legacy' if self.fast and 'left_front' not in type(self).__name__.lower() else 'wrist_worker'
+        # CB3 bootstrap overrides the resource set and retains the legacy worker.
+        if type(self).__name__ == 'LeftFrontNativeCapture':
+            module = 'wrist_worker'
         script = ('import sys,json;sys.path.insert(0,' + repr(self.remote) + ');'
-                  'import wrist_worker as w;original=json.load(sys.stdin);'
+                  'import ' + module + ' as w;original=json.load(sys.stdin);'
                   'service,_=w.service_for_vision();print(json.dumps(w.restore(service,original)))')
         return json.loads(self.ssh.run('python -c ' + shlex.quote(script),
                                       data=json.dumps(original).encode(), timeout=40))

@@ -1,5 +1,6 @@
-"""English three-camera mobile ChArUco viewer; no robot control API."""
+"""English multi-camera ChArUco viewer; no robot control API."""
 import argparse
+from contextlib import ExitStack
 import hashlib
 import json
 import os
@@ -12,7 +13,7 @@ import cv2
 import numpy as np
 from python_qt_binding import QtCore, QtGui, QtWidgets
 
-from .board_capture import CAMERAS, CaptureRig, MobileBoard
+from .board_capture import CAMERAS, FIVE_CAMERAS, CaptureRig, MobileBoard
 
 
 class Worker(QtCore.QThread):
@@ -29,6 +30,19 @@ class Worker(QtCore.QThread):
         self.live = True
         self.detector = MobileBoard(rig.board_config)
         self.sequences = {}
+        self.wrist_usage = ExitStack()
+
+    def wrist_live(self, active):
+        self.wrist_usage.close()
+        if active:
+            try:
+                for name in getattr(self.rig, 'wrist_cameras', CAMERAS[:-1]):
+                    camera = self.rig.wrist(name)
+                    if hasattr(camera, 'activity'):
+                        self.wrist_usage.enter_context(camera.activity())
+            except BaseException:
+                self.wrist_usage.close()
+                raise
 
     def publish(self, name, jpeg, metadata):
         image = cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_COLOR)
@@ -41,17 +55,18 @@ class Worker(QtCore.QThread):
 
     def run(self):
         try:
-            self.message.emit('PREPARING · Applying fixed session focus (front 435 / rear 388 / OAK 116)…')
+            self.message.emit('PREPARING · Applying the selected fixed-focus profile…')
+            self.wrist_live(True)
             self.rig.lock_focus()
             self.rig.preview.start()
-            self.message.emit('LIVE VIEW STARTING · Hold the mobile A4 board in the shared field of view.')
+            self.message.emit('LIVE VIEW STARTING · Hold the object and reference board still.')
             while not self.quit_requested:
                 try:
                     command, value = self.commands.get_nowait()
                 except queue.Empty:
                     command, value = None, None
                 if command == 'capture':
-                    self.message.emit('RUNNING · Taking three photos. HOLD BOARD STILL until DONE.')
+                    self.message.emit(f'RUNNING · Taking {len(getattr(self.rig, "cameras", CAMERAS))} photos. HOLD STILL until DONE.')
                     report = self.rig.capture_all(native=value, resume_preview=self.live and not self.quit_requested)
                     self.result.emit(report)
                     # Actual saved images, not previous preview frames.
@@ -62,6 +77,7 @@ class Worker(QtCore.QThread):
                                 kind='SAVED SNAPSHOT', image_size=record['observation']['image_size']))
                 elif command == 'live':
                     self.live = value
+                    self.wrist_live(value)
                     if value:
                         self.rig.preview.start()
                     else:
@@ -72,7 +88,7 @@ class Worker(QtCore.QThread):
                 if not self.live:
                     self.msleep(100)
                     continue
-                for name in CAMERAS:
+                for name in getattr(self.rig, 'cameras', CAMERAS):
                     if self.quit_requested or not self.commands.empty():
                         break
                     try:
@@ -105,15 +121,21 @@ class Worker(QtCore.QThread):
                 self.rig.restore_focus()
             except Exception as error:
                 self.message.emit('FAILED · Focus restoration: ' + str(error))
+            try:
+                self.wrist_usage.close()
+            except Exception as error:
+                self.message.emit('FAILED · Wrist LEDs could not be switched off: ' + str(error))
 
 
 class Window(QtWidgets.QMainWindow):
     def __init__(self, rig):
         super().__init__()
         self.rig = rig
+        self.camera_names = getattr(rig, 'cameras', CAMERAS)
+        self.count_label = {3: 'THREE', 5: 'FIVE'}.get(len(self.camera_names), str(len(self.camera_names)))
         self.data, self.pixmaps, self.errors, self.changes = {}, {}, {}, {}
         self.busy = self.closing = False
-        self.setWindowTitle('UWA Camera Capture · Mobile A4 Board')
+        self.setWindowTitle('UWA Camera Capture · ' + rig.board_config['board_id'])
         self.resize(1470, 820)
         self.setStyleSheet('QMainWindow,QWidget {background:#171c24;color:#ffffff;} '
             'QLabel {font-size:15px;} QPushButton {background:#f0f3f7;color:#111827;'
@@ -124,22 +146,24 @@ class Window(QtWidgets.QMainWindow):
         root = QtWidgets.QWidget()
         self.setCentralWidget(root)
         layout = QtWidgets.QVBoxLayout(root)
-        title = QtWidgets.QLabel('MOBILE A4 · ChArUco IDs 75–91 · 38 mm squares · Camera controls only')
+        board = rig.board_config
+        title = QtWidgets.QLabel(f"{board['board_id']} · IDs {min(board['marker_ids'])}–{max(board['marker_ids'])} · "
+            f"{board['square_length'] * 1000:g} mm squares · Camera controls only")
         title.setStyleSheet('font-size:21px;font-weight:bold;')
         layout.addWidget(title)
-        self.overall = QtWidgets.QLabel('WAITING FOR THREE CAMERAS')
+        self.overall = QtWidgets.QLabel('WAITING FOR ' + self.count_label + ' CAMERAS')
         self.overall.setMinimumHeight(48)
         layout.addWidget(self.overall)
-        row = QtWidgets.QHBoxLayout()
+        row = QtWidgets.QGridLayout()
         self.labels, self.states, self.details = {}, {}, {}
-        for name in CAMERAS:
+        for index, name in enumerate(self.camera_names):
             column = QtWidgets.QVBoxLayout()
             label = QtWidgets.QLabel(name.replace('_', ' ').upper())
             label.setStyleSheet('font-size:20px;font-weight:bold;')
             column.addWidget(label)
             self.labels[name] = QtWidgets.QLabel('Waiting for camera…')
             self.labels[name].setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-            self.labels[name].setMinimumSize(300, 320)
+            self.labels[name].setMinimumSize(240, 145 if len(self.camera_names) > 3 else 320)
             self.labels[name].setStyleSheet('background:#000;border:2px solid #cbd5e1;')
             column.addWidget(self.labels[name], 1)
             self.states[name] = QtWidgets.QLabel('WAITING')
@@ -149,7 +173,7 @@ class Window(QtWidgets.QMainWindow):
             self.details[name].setWordWrap(True)
             self.details[name].setMinimumHeight(90)
             column.addWidget(self.details[name])
-            row.addLayout(column, 1)
+            row.addLayout(column, index // 3, index % 3)
         layout.addLayout(row, 1)
         self.action = QtWidgets.QLabel('CONNECTING · Starting camera previews…')
         self.action.setWordWrap(True)
@@ -161,7 +185,7 @@ class Window(QtWidgets.QMainWindow):
         self.mode.addItems(['Native photos: Wrist 2592×1944 + OAK 8000×6000',
                             'Quick photos: Wrist 640×480 + OAK 8000×6000'])
         controls.addWidget(self.mode)
-        self.capture = QtWidgets.QPushButton('CAPTURE ALL THREE')
+        self.capture = QtWidgets.QPushButton('CAPTURE ALL ' + self.count_label)
         self.capture.clicked.connect(self.take)
         controls.addWidget(self.capture)
         self.pause = QtWidgets.QPushButton('Pause live view')
@@ -174,7 +198,7 @@ class Window(QtWidgets.QMainWindow):
         layout.addLayout(controls)
         note = QtWidgets.QLabel('Hold the board still for the ENTIRE capture (up to ~1 minute). '
             'Photos are NOT exposure-synchronized. Native mode briefly pauses wrist video. '
-            'Focus is held for this session (OAK: 116). Intrinsics must match focus and resolution. '
+            'Focus is held for this session. Intrinsics must match focus and resolution. '
             'Board detection is not a calibration quality check.')
         note.setWordWrap(True)
         layout.addWidget(note)
@@ -195,7 +219,7 @@ class Window(QtWidgets.QMainWindow):
         self.capture.setEnabled(False)
         self.pause.setEnabled(False)
         self.mode.setEnabled(False)
-        self.action.setText('RECEIVED · Capture all three requested. HOLD BOARD STILL.')
+        self.action.setText('RECEIVED · Capture all ' + self.count_label.lower() + ' requested. HOLD STILL.')
         self.worker.commands.put(('capture', self.mode.currentIndex() == 0))
 
     def toggle_live(self, checked):
@@ -223,9 +247,11 @@ class Window(QtWidgets.QMainWindow):
         if report['all_captured']:
             counts = ', '.join(name + ': ' + str(r['observation']['corners']) + '/24'
                                for name, r in report['cameras'].items())
-            text = 'DONE · Three photos saved. ' + counts
+            text = f'DONE · {len(report["cameras"])} photos saved. ' + counts
             if not report['all_usable']:
                 text += ' · INCOMPLETE SHARED BOARD VIEW'
+            if report.get('stationary_set_confirmed') is False:
+                text = 'FAILED STATIONARITY AUDIT · Images saved for diagnosis only. ' + text
         else:
             text = 'FAILED / PARTIAL SET · ' + '; '.join(name + ': ' + r.get('error', 'saved')[-250:]
                 for name, r in report['cameras'].items())
@@ -235,7 +261,7 @@ class Window(QtWidgets.QMainWindow):
 
     def refresh(self):
         current = []
-        for name in CAMERAS:
+        for name in getattr(self.rig, 'cameras', CAMERAS):
             meta = self.data.get(name)
             if not meta:
                 text, color = 'WAITING / NO IMAGE', '#ffe066'
@@ -268,15 +294,15 @@ class Window(QtWidgets.QMainWindow):
             self.states[name].setText(text)
             self.states[name].setStyleSheet(f'background:{color};color:#000;font-size:17px;font-weight:bold;padding:5px;')
             self.details[name].setText(detail)
-        ready = len(current) == 3 and all(current)
-        self.overall.setText('ALL THREE DETECT MOBILE BOARD · Capture to check native detail (hold still)' if ready else
-            'CHECK SHARED VIEW · Show the mobile A4 board to all three cameras; full board is best')
+        ready = len(current) == len(self.camera_names) and all(current)
+        self.overall.setText('ALL ' + self.count_label + ' DETECT REFERENCE BOARD · Capture to check native detail (hold still)' if ready else
+            'CHECK SHARED VIEW · Show the selected reference board to all cameras; full board is best')
         self.overall.setStyleSheet('background:' + ('#8effa2' if ready else '#ffe066') +
             ';color:#000;font-size:19px;font-weight:bold;padding:8px;')
         if self.busy:
             self.capture.setText(f'CAPTURING · {time.monotonic() - self.started:.0f} s')
         else:
-            self.capture.setText('CAPTURE ALL THREE')
+            self.capture.setText('CAPTURE ALL ' + self.count_label)
 
     def closeEvent(self, event):
         if self.worker.isRunning():
@@ -303,8 +329,16 @@ def main():
     p.add_argument('--output', type=Path)
     p.add_argument('--capture-only', action='store_true')
     p.add_argument('--quick', action='store_true', help='Capture-only: use wrist VGA rather than native HD')
+    p.add_argument('--five-cameras', action='store_true', help='Four wrists plus OAK; separate object-scan focus profile')
+    p.add_argument('--board', choices=('mobile', 'left', 'right'), help='Default mobile, or right table with --five-cameras')
     args = p.parse_args()
-    rig = CaptureRig(args.workspace, args.output)
+    options = {}
+    if args.five_cameras:
+        options = dict(cameras=FIVE_CAMERAS, optics_path=args.workspace /
+            'src/multi_arm_manipulation_UWA/config/digitization/five_camera_capture.yaml')
+        if args.output is None:
+            args.output = args.workspace / 'setup/digitization/five_camera'
+    rig = CaptureRig(args.workspace, args.output, board=args.board or ('right' if args.five_cameras else 'mobile'), **options)
     if args.capture_only:
         try:
             rig.lock_focus()

@@ -1,5 +1,6 @@
-"""Mobile-board observations and camera-only three-camera datasets."""
+"""Board observations and camera-only datasets for selected Wrist/OAK cameras."""
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import nullcontext
 from datetime import datetime, timezone
 import hashlib
 import fcntl
@@ -21,6 +22,18 @@ from .wrist_camera import WristCamera
 from .wrist_hd import NativeCapture, SSH, control_path
 
 CAMERAS = ('right_front', 'right_rear', 'oak4')
+FIVE_CAMERAS = ('left_front', 'left_rear', 'right_front', 'right_rear', 'oak4')
+
+
+def reference_board(layout, name):
+    """Keep table-board identity/scale separate from the mobile A4 reference."""
+    if name not in ('left', 'right'):
+        raise ValueError('Expected left or right table board')
+    config = layout['charuco']
+    first = config['boards'][name]['marker_start']
+    return {key: config[key] for key in ('dictionary', 'squares_x', 'squares_y',
+            'square_length', 'marker_length')} | dict(board_id=name + '_table_board',
+            marker_ids=list(range(first, first + config['squares_x'] * config['squares_y'] // 2)))
 
 
 def utc():
@@ -138,12 +151,27 @@ class OakPreview:
 
 
 class CaptureRig:
-    def __init__(self, workspace, output=None):
+    cameras = CAMERAS
+    wrist_cameras = CAMERAS[:-1]
+    audit_stationarity = False
+
+    def __init__(self, workspace, output=None, *, cameras=CAMERAS, optics_path=None, board='mobile'):
         self.ws = Path(workspace).resolve()
         repo = self.ws / 'src/multi_arm_manipulation_UWA'
         self.inventory = yaml.safe_load((repo / 'config/hardware_inventory.yaml').read_text())
-        self.board_config = yaml.safe_load((repo / 'uwa_cell_description/config/mobile_charuco_a4.yaml').read_text())
-        self.optics = yaml.safe_load((repo / 'config/three_camera_capture.yaml').read_text())
+        self.cameras = tuple(cameras)
+        if (not self.cameras or len(set(self.cameras)) != len(self.cameras) or
+                set(self.cameras) - set(FIVE_CAMERAS) or 'oak4' not in self.cameras):
+            raise ValueError('Select distinct supported cameras including oak4')
+        self.wrist_cameras = tuple(name for name in self.cameras if name != 'oak4')
+        self.audit_stationarity = set(self.cameras) == set(FIVE_CAMERAS)
+        from uwa_cell_description.configuration import load_layout
+        layout = load_layout()
+        self.board_config = (yaml.safe_load((repo / 'uwa_cell_description/config/mobile_charuco_a4.yaml').read_text())
+                             if board == 'mobile' else reference_board(layout, board))
+        self.optics = yaml.safe_load(Path(optics_path or repo / 'config/three_camera_capture.yaml').read_text())
+        if set(self.wrist_cameras) - self.optics['wrist_manual_focus'].keys():
+            raise ValueError('Acquisition profile lacks selected camera focus values')
         self.output = Path(output or self.ws / 'setup/calibration/three_camera_mobile')
         self.output.mkdir(parents=True, exist_ok=True)
         lock_root = self.ws / 'setup/calibration/three_camera_mobile'
@@ -156,8 +184,9 @@ class CaptureRig:
         self.session = self.output / (datetime.now().strftime('%Y%m%d_%H%M%S_') + uuid.uuid4().hex[:8])
         self.session.mkdir()
         write_json(self.session / 'board.json', self.board_config)
-        from uwa_cell_description.configuration import load_layout
-        calibration = load_layout().get('calibration', {})
+        write_json(self.session / 'acquisition_profile.json', dict(cameras=self.cameras,
+            optics=self.optics, board=self.board_config, robot_motion_commands=False))
+        calibration = layout.get('calibration', {})
         overview = calibration.get('overview_camera')
         if overview:
             write_json(self.session / 'calibration_context.json', dict(
@@ -179,7 +208,7 @@ class CaptureRig:
 
     def lock_focus(self):
         """Apply the repeatable acquisition focus profile; restore on close."""
-        for name in CAMERAS[:2]:
+        for name in self.wrist_cameras:
             camera = self.wrist(name)
             original = camera.settings(refresh=True)
             if name not in self.original_settings:
@@ -206,7 +235,7 @@ class CaptureRig:
             differences = [k for k in original if k not in ignored and original[k] != actual[k]]
             if differences:
                 raise RuntimeError(name + ': focus lock changed other settings: ' + ', '.join(differences))
-        self.fixed_settings = {name: self.wrist(name).settings(refresh=True) for name in CAMERAS[:2]}
+        self.fixed_settings = {name: self.wrist(name).settings(refresh=True) for name in self.wrist_cameras}
         write_json(self.session / 'fixed_wrist_settings.json', self.fixed_settings)
 
     def restore_focus(self):
@@ -239,7 +268,7 @@ class CaptureRig:
             rclpy.init(args=[], context=context, domain_id=66, signal_handler_options=SignalHandlerOptions.NO)
             node = rclpy.create_node('uwa_camera_capture_observer', context=context)
             profiles = load_profiles(self.ws / 'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml')
-            observer = JointObserver(node, profiles, CAMERAS[:2], 'hardware')
+            observer = JointObserver(node, profiles, self.wrist_cameras, 'hardware')
             executor = SingleThreadedExecutor(context=context)
             executor.add_node(node)
             deadline = time.monotonic() + 2
@@ -248,7 +277,8 @@ class CaptureRig:
             arms = {n: dict(value, joint_names=profiles[n]['joint_names']) for n, value in observer.received.items()
                     if time.monotonic() - value['received_monotonic'] < .5}
             return dict(recorded_at=utc(), arms=arms, safety_modes=dict(observer.safety_modes),
-                        domain=66, complete=len(arms) == 2, source='read-only ROS JointState subscriptions')
+                        domain=66, complete=len(arms) == len(self.wrist_cameras),
+                        source='read-only ROS JointState subscriptions')
         except Exception as error:
             return dict(recorded_at=utc(), arms={}, complete=False, error=str(error))
         finally:
@@ -262,9 +292,14 @@ class CaptureRig:
                 context.try_shutdown()
 
     def capture_one(self, name, directory, native=True):
+        camera = self.wrist(name) if name != 'oak4' else None
+        with getattr(camera, 'activity', nullcontext)():
+            return self._capture_one(name, directory, native)
+
+    def _capture_one(self, name, directory, native=True):
         directory.mkdir()
         started = utc()
-        record = dict(camera=name, started_at=started, success=False)
+        record = dict(camera=name, started_at=started, started_monotonic=time.monotonic(), success=False)
         try:
             if name == 'oak4':
                 path = self.ws / 'src/oak_camera_calibration/tools/oak4_photo_service.py'
@@ -310,24 +345,33 @@ class CaptureRig:
                 sha256=hashlib.sha256(image_path.read_bytes()).hexdigest())
         except Exception as error:
             record['error'] = str(error)
-        record.update(finished_at=utc(), timestamp_kind='host request/completion window; not exposure synchronization')
+        record.update(finished_at=utc(), finished_monotonic=time.monotonic(),
+            timestamp_kind='host request/completion window; not exposure synchronization')
         write_json(directory / 'record.json', record)
         return record
+
+    def capture_monitor(self, directory):
+        from .capture_telemetry import CaptureMonitor
+        return CaptureMonitor(self.ws, directory, self.wrist_cameras)
 
     def capture_all(self, native=True, resume_preview=False):
         if not self.busy.acquire(blocking=False):
             raise RuntimeError('Capture already running')
         directory = self.session / ('set_' + datetime.now().strftime('%H%M%S_%f'))
         directory.mkdir()
-        report = dict(schema=1, started_at=utc(), cameras={}, board=self.board_config,
+        report = dict(schema=1, started_at=utc(), cameras={}, selected_cameras=list(self.cameras), board=self.board_config,
             hardware_synchronized=False, instruction='Hold board and cameras still during the entire acquisition',
             calibration_applied=False)
         report['optical_profiles'] = dict(wrist=self.fixed_settings, oak_manual_focus=self.preview.focus)
+        monitor = None
         try:
             self.preview.stop()
+            if self.audit_stationarity:
+                monitor = self.capture_monitor(directory)
+                monitor.wait_still()
             report['telemetry_before'] = self.telemetry()
-            with ThreadPoolExecutor(max_workers=3) as pool:
-                futures = {pool.submit(self.capture_one, name, directory / name, native): name for name in CAMERAS}
+            with ThreadPoolExecutor(max_workers=len(self.cameras)) as pool:
+                futures = {pool.submit(self.capture_one, name, directory / name, native): name for name in self.cameras}
                 for future in as_completed(futures):
                     name = futures[future]
                     try:
@@ -336,7 +380,7 @@ class CaptureRig:
                         report['cameras'][name] = dict(success=False, error=str(error))
             report['telemetry_after'] = self.telemetry()
             report['endpoint_joint_delta_rad'] = {}
-            for name in CAMERAS[:2]:
+            for name in self.wrist_cameras:
                 before = report['telemetry_before']['arms'].get(name)
                 after = report['telemetry_after']['arms'].get(name)
                 if before and after:
@@ -345,8 +389,22 @@ class CaptureRig:
         except Exception as error:
             report['error'] = str(error)
         finally:
+            if monitor is not None:
+                try:
+                    report['stationarity'] = monitor.finish()
+                except Exception as error:
+                    report['stationarity'] = dict(stationarity_confirmed=False, error=str(error))
+            if self.audit_stationarity:
+                report['stationary_set_confirmed'] = report.get('stationarity', {}).get('stationarity_confirmed', False)
+                for name, record in report['cameras'].items():
+                    record['stationarity_audit'] = '../stationarity.json'
+                    if report['stationary_set_confirmed'] and name in self.wrist_cameras:
+                        record['static_window_joint_positions'] = report['stationarity']['reference_positions'][name]
+                        record['pose_timestamp_kind'] = 'constant within audited acquisition drift bound; not exposure-synchronized'
+                    write_json(directory / name / 'record.json', record)
             report.update(finished_at=utc(), directory=str(directory),
-                all_captured=len(report['cameras']) == 3 and all(r['success'] for r in report['cameras'].values()))
+                all_captured=set(report['cameras']) == set(self.cameras) and
+                    all(r['success'] for r in report['cameras'].values()))
             report['all_usable'] = report['all_captured'] and all(
                 r['observation']['usable'] for r in report['cameras'].values())
             report['all_full'] = report['all_captured'] and all(

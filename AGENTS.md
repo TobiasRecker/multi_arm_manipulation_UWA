@@ -1,11 +1,31 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Native HD-Intrinsics hinten rechts (2026-11-12)
+
+- Eigene 2592×1944-K/D bei Fokus388 manuell jetzt PASS: 41 Ansichten,
+  33 Fit / 8 vorab ausgeschlossene Prüfung. Ergebnis und ROS-CameraInfo unter
+  `setup/calibration/hardware_handeye/right_rear_hd_20261112/result_v1/`;
+  Nachweis `docs/right_rear_hd_intrinsics_2026-11-12.md`.
+- Nur für Kamera01D1111A00090912 / nativen HD-Modus / Fokus388 verwenden.
+  Keine automatische globale Aktivierung oder neue Hand-Auge-Kalibrierung;
+  bestehendes Rear-VGA404-Profil bleibt unverändert. VGA-/HD-K/D nicht mischen.
+  Eckenabdeckung und unabhängige Reprojektion sind keine absolute Weltgenauigkeit.
+
+## Wrist-Aufnahmezeit und Beleuchtung (Nutzerauftrag 2026-11-12)
+
+- Wrist-LEDs aller vier Arme nur während Fotoaufnahme oder genutztem
+  Videostream einschalten; im Leerlauf ausschalten. Parallele Kameranutzer
+  berücksichtigen, aktive fremde Messreihen nicht durch LED-Wechsel stören.
+- HD-Beschleunigung mit gemessenen Zeitanteilen und Bildvergleich begründen;
+  native Auflösung, fokusgebundene Profile, Frische-/Kontrollnachweise und
+  bestätigte Wiederherstellung erhalten. Qualitätsgleichheit nicht vermuten.
+
 ## Ausdrücklich übernommene vorläufige OAK-Registrierung (2026-11-12)
 
 - Gemeinsamer Standard jetzt **hardware_20261112_v3**. User akzeptiert die
   erklärte erste OAK↔Front-Wrist-Schätzung für erste Versuche; SHA-gebundene
   Annahme im Profil, Original-`passed:false` niemals umschreiben. Roboterfits
-  ausv2 unverändert; Rear-HD388 hat weiterhin keine geprüften Intrinsics.
+  ausv2 unverändert; neue Rear-HD388-Intrinsics separat geprüft, noch nicht aktiviert.
 - OAK-Weltpose mit gemessenem Front-q, Werks-FK und übernommener Hand-Auge-
   Matrix abgeleitet, Welt-/Basisanker bleibt vorläufig. OAK-Stativ **raumfest**;
   spätere Tischverschiebung darf es nicht mitnehmen. Neue Weltbasisvermessung
@@ -44,7 +64,8 @@
   Pause gibt nur eigeneVorschau frei, keinefremdenKameraprozesse stoppen.
 - Fokusprofil `config/three_camera_capture.yaml`, Originalsicherung und
   vollständigerReadback beiWiederherstellung. NativeHD/VGA/Fokusprofiletrennen;
-  RR-HD388 nochkeinevalidiertenIntrinsics. Keine automatischenFits/Aktivierung.
+  RR-HD388 jetzt separat validiert, siehe obiger Ergebnisstand.
+  Keine automatischenFits/Aktivierung aus der Aufnahme-GUI.
 - Kontrast-/Textfeedback, Live-/Snapshot-/STALE-/Bildaltertrennung. Preview-
   ErkennungkeinGenauigkeitsnachweis, Dreierfotos nichtbelichtungssynchron.
   Bilder/Boardkorrespondenzen/Sitzungsberichte nurunter setup/calibration/.
@@ -82,12 +103,12 @@
 
 ## Bildbasierte Objektdigitalisierung (2026-11-12)
 
-- Weiterer Nutzerwunsch: vierWristkameras plusOAK auf gemeinsamenObjektbereich,
-  fünfFotos proSchritt, optional kleineZusatzbewegungen und Bildrekonstruktions-
-  Literatur nutzen. Konzept docs/five_camera_reconstruction.md; kein bestehender
-  Vierarm-Blick aufs jeweils eigeneBoard als gemeinsameObjektsicht ausgeben.
-  WenigeZentimeterTCP ersetzen keine vollständigeKollisions-/Wegprüfung.
-  Unabhängig bewegte Kameras jeFoto posieren, nicht als starresRig behandeln.
+- Nutzerwunsch vom 2026-11-12: vier Wrist-Kameras plus OAK auf einen gemeinsamen
+  Objektbereich ausrichten, fünf Fotos pro Schritt und optional kleine zusätzliche
+  Bewegungen. Literaturverfahren prüfen; Konzept docs/five_camera_reconstruction.md.
+  Bestehende Posen auf jeweils eigene Boards beweisen keine gemeinsame Objektsicht.
+  Kleine TCP-Verschiebungen ersetzen keine vollständige Kollisions-/Wegprüfung.
+  Kameraextrinsics je Aufnahme bestimmen; bewegte Kameras sind kein starres Rig.
 
 - Erste assistierte Pipeline `digitize_box`, Anleitung docs/object_digitization.md.
   Gespeicherte Dreier-Farbfotos, sichtbares metrischesTischboard, passendeK/D,

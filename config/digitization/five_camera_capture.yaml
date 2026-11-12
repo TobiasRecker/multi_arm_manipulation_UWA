@@ -1,0 +1,9 @@
+schema: 1
+# Acquisition focus values, NOT camera calibrations or motion targets.
+# Rear-left HD at this focus still needs matching native-HD intrinsics.
+wrist_manual_focus:
+  left_front: 245
+  left_rear: 406
+  right_front: 435
+  right_rear: 388
+oak_manual_focus: 116

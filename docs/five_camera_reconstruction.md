@@ -1,135 +1,107 @@
 # Vier Armkameras plus OAK für Objektrekonstruktion
 
-Stand12.11.2026. Nutzerziel: Objekt in einem gemeinsamen Tischbereich, vier
-Wrist-Kameras darauf ausrichten und zusammen mitOAK fünfFotos pro Aufnahmeschritt
-speichern. Optional wenigeZentimeter Kameraverschiebung für zusätzlicheAnsichten.
-Dies ist eine **Auslegung und Literaturbewertung**, kein ausgeführter Fahrplan.
+Stand: 12.11.2026. Nutzerziel: ein Objekt in einem gemeinsamen Tischbereich mit
+vier Wrist-Kameras und OAK fotografieren, optional mit zusätzlichen Ansichten
+nach kleinen Kamerabewegungen. **Recherche und Konzept, kein ausführbarer Fahrplan.**
 
-## Was der Ausbau bringen kann
+## Nutzen und gemeinsame Sicht
 
-Vier verschiedene Blickrichtungen können gegenüber dem bisherigen OAK/Front-
-Messpaar mehr Außenflächen und Innenwände erfassen. Der gemeinsame sichtbare
-Objektbereich ist erst zu prüfen: Die bisherigen Vierarm-Designposen betrachten
-jeweils das eigene Tischboard. Sie beweisen keine gemeinsame Sicht aller Arme
-auf einen Karton in der Mitte eines bestimmtenTischs. Für den ersten Entwurf
-bietet sich der bisherige rechteBoardbereich an; das ist eine Designannahme.
+Vier Blickrichtungen können mehr Außenflächen und Innenwände erfassen. Zunächst
+müssen Erreichbarkeit, Bildausschnitt und Verdeckungen für denselben Objektbereich
+geprüft werden. Die bisherigen Vierarm-Designposen betrachten jeweils das eigene
+Tischboard; sie beweisen keine gemeinsame Sicht auf ein Objekt. Der bisherige
+rechte Boardbereich ist nur eine erste Designannahme.
 
-Entscheidend sind überlappende Ansichten und freie Sicht. Ein höheres Bildzähler-
-Ergebnis allein garantiert keine vollständigere oder genauereGeometrie. Die
-Unterseite bleibt auf dem Tisch verdeckt; sie braucht beiBedarf einen getrennten
-zweiten Aufbau. EinfarbigePappe bietet wenigBildtextur, reflektierendeKanten und
-bewegteArme können Zuordnung erschweren. Objektmasken und gezielteBlickwinkel
-gehören deshalb zur Pipeline.
+Zuerst eine Stellung je Wrist plus OAK: **fünf Ansichten**. Anschließend insgesamt
+3–5 Stellungen je Wrist plus eine feste OAK-Perspektive: **13–21 unterschiedliche
+Blickpunkte**. Fünf Aufnahmerunden ergeben zwar 25 Fotos, aber die OAK wiederholt
+ihre Perspektive. Verdeckte Unterseiten brauchen einen zweiten Aufbau. Einfarbige
+Pappe bietet wenig Bildtextur; mehr Fotos allein garantieren keine bessere Geometrie.
 
-Vorschlag: zuerst eine feste gemeinsame Stellung jeArm plusOAK, also5Ansichten.
-Danach proWrist insgesamt3–5 verteilteStellungen:13–21verschiedenePerspektiven
-mit der einen festenOAK. FünfAufnahmerunden können25Fotos erzeugen, aber die
-fünfOAK-Fotos stammen weiterhin aus derselbenPerspektive. WiederholteBurstframes
-sind ebenfalls keine neuen Kamerastellungen.
+## Kleine Bewegungen und Aufnahme
 
-## Kleine Bewegungen bleiben zu planen
+Wenige Zentimeter TCP-Verschiebung beweisen keine Kollisionsfreiheit. Der gesamte
+Gelenkweg einschließlich Ellbogen, Handgelenken, Greifern und Kameras ist gegen
+andere Arme, Tisch und Objekt zu prüfen. IK-Zweigwechsel vermeiden; vorhandene
+Kollisionsprüfungen und native UR-Stoppfunktionen erhalten. Nicht modellierte
+Kabel werden durch einen Planer nicht automatisch erfasst.
 
-WenigeZentimeterTCP-Verschiebung sind kein Nachweis für Kollisionsfreiheit.
-IK-Zweigwechsel, Drehungen vonEllbogen/Handgelenken, andereArme, Tisch, Objekt,
-Greifer und Kameragehäuse müssen im vollständigenGelenkweg betrachtet werden.
-Bestehende Kollisions- und nativeUR-Stoppfunktionen bleiben erhalten. Nicht
-modellierte Kabel/Fixtures werden durch einen Planer nicht automatisch erfasst.
+Bei 50 cm Objektabstand erzeugen 2 cm seitliche Verschiebung etwa 2,29° und 5 cm
+etwa 5,71° Richtungsänderung. Das hilft der Parallaxe, erschließt aber kaum eine
+verdeckte Rückseite. Zusätzliche Höhen und Blickrichtungen sind deshalb zu prüfen.
+Der Bildausschnitt folgt Objektgröße und tatsächlicher Kameraprojektion; gerade
+der 52-cm-Karton passt nicht bei jedem Kameraabstand vollständig ins Bild.
 
-ZumEinordnen:2cm seitlicheVerschiebung bei50cmObjektabstand ändern die Richtung
-zum Objekt um etwa2,29°,5cm um5,71° (`atan(baseline/distance)`). Das hilft lokaler
-Parallaxe, erschließt aber kaum eine völligverdeckteRückseite. Für zusätzliche
-Flächen sind unterschiedliche Azimute und Höhen zu bewerten. Der Abstand folgt
-Objektgröße und tatsächlicherK/D-Projektion; der52cm-Karton passt nicht automatisch
-bei jedem kleinenKameraabstand komplett ins Bild.
+Für die erste Umsetzung: Arme nacheinander positionieren, für Zusatzansichten
+zunächst jeweils einen Arm bewegen und vor der Aufnahme gemessenen Stillstand
+aller Arme bestätigen. Gemeinsame Anforderung der Fotos bedeutet keine synchrone
+Belichtung. Objekt und Referenz müssen während der Aufnahme ruhen.
 
-Zunächst Arme seriell in die gemeinsamenGrundstellungen bringen und bei weiteren
-Ansichten jeweils einenArm bewegen. AlleArme vorFotos anhandTelemetrie still
-bestätigen. Das vorhandene Kamera-only-Verfahren kann dieFotos gemeinsam anfordern,
-bietet aber keineBelichtungssynchronität; Objekt/Referenz müssen währenddessen
-ruhen. Kein pauschaler Neustart oder Eingriff in laufendeKalibrierreihen.
+## Verfahren aus der Literatur
 
-## Geeignete Verfahren aus der Literatur
+- **COLMAP und OpenMVS:** geometrische Vergleichsbasis mit Kameraparametern,
+  bekannten Posen und gegebenenfalls Bündelausgleich. OpenMVS verarbeitet Posen
+  und dünne Punktwolken zu dichten Oberflächen und texturierten Meshes.
+  [COLMAP](https://colmap.github.io/faq.html),
+  [OpenMVS](https://github.com/cdcseacave/openMVS).
+- **DUSt3R / MASt3R:** gelernte Punktkarten und Bildzuordnung; MASt3R ergänzt
+  dichte Merkmale für robustere Korrespondenzen auch bei stark verschiedenen
+  Ansichten. Kandidat für weniger manuelle Punktzuordnung, hier noch ungetestet.
+  [DUSt3R](https://arxiv.org/abs/2312.14132),
+  [MASt3R](https://arxiv.org/abs/2406.09756),
+  [Implementierung](https://github.com/naver/mast3r).
+- **VGGT:** schätzt Kameraparameter, Tiefen-/Punktkarten und Bildpunktspuren;
+  offizieller COLMAP-Export mit optionalem Bündelausgleich. Kandidat für eine
+  weitere Initialisierung und Vergleichsrekonstruktion. Gelernte Tiefe ist
+  bildbasiert, aber kein Nachweis metrischer Richtigkeit.
+  [Implementierung](https://github.com/facebookresearch/vggt).
+- **NeRF / Gaussian Splatting:** interessant für Ansichtsynthese und Darstellung.
+  Ein Darstellungsmodell ist noch kein editierbarer, maßhaltiger CAD-Körper.
+  Zusätzliche Mesh-Exporte sind möglich; anschließend bleibt die CAD-Anpassung.
+  [Nerfstudio-Geometrieexport](https://docs.nerf.studio/quickstart/export_geometry.html).
 
-### COLMAP und klassische Mehrbildrekonstruktion
+Die unabhängig bewegten Wrist-Kameras sind **kein starres Kamerarig**. Intrinsics
+je physischer Kamera führen, Posen dagegen je Aufnahme aktualisieren beziehungsweise
+mit passenden Messprioren optimieren. COLMAPs Rigmodell setzt feste relative
+Sensorposen voraus: [Rig-Dokumentation](https://colmap.github.io/rigs.html).
 
-COLMAP unterstützt Kameraparameter, bekanntePosen und Bündelausgleich. Das eignet
-sich als geometrischeVergleichsbasis für unsere kalibriertenFotos. Für die
-Oberfläche ist anschließend beispielsweiseOpenMVS ein passender Kandidat; dessen
-Eingang sind Kameraposen und eine dünnePunktwolke, Ausgabe ein texturiertesMesh.
-Primärquellen: [COLMAP](https://colmap.github.io/faq.html),
-[OpenMVS](https://github.com/cdcseacave/openMVS).
+## Empfohlene Pipeline und Prüfung
 
-Die vier unabhängig bewegtenArmkameras bilden **kein starresFünfkamerarig**.
-COLMAPsRigmodell setzt feste relativeSensorposen voraus. Deshalb Kamera-Intrinsics
-jephysischemSensor führen, Kameraposen jedoch jeAufnahme aktualisieren oder mit
-geeignetenMessprioren optimieren. [Rig-Dokumentation](https://colmap.github.io/rigs.html).
+`Fotos → Objektmasken → Punktwolke → Oberflächenmesh → parametrischer CAD-Fit`
 
-### DUSt3R und MASt3R
+Originale, passende K/D und Bildgrößen, Fokus, Zeitstempel, Telemetrie, Referenzmaßstab
+und Qualitätskennzeichnung speichern. Kameraposen bevorzugt aus sichtbaren
+metrischen Referenzen, alternativ aus zeitlich passender FK und Hand-Auge-
+Kalibrierung bestimmen. Keine alten, ungemessenen Roboterposen übernehmen.
+Objektmasken schließen Arme und Hintergrund von der Rekonstruktion aus;
+Boardreferenzen separat zur Posenschätzung nutzen.
 
-DUSt3R schätzt Punktkarten und richtet mehrereAnsichten geometrisch aus.
-MASt3R ergänzt dafür gelernte dichteMerkmale zur robusterenBildzuordnung, auch
-bei stark unterschiedlichenAnsichten. Das ist ein sinnvollerForschungskandidat
-für weniger manuellePunktzuordnung. Es ist noch nicht auf unserenKarton getestet.
-Primärquellen: [DUSt3R](https://arxiv.org/abs/2312.14132),
-[MASt3R](https://arxiv.org/abs/2406.09756),
-[Implementierung](https://github.com/naver/mast3r).
+Den Karton zunächst mit mehr Ansichten und bestehendem CAD-Fit auswerten. Denselben
+unveränderten Datensatz mit klassischer Geometrie und später MASt3R oder VGGT
+vergleichen. Vorab zurückgehaltene Ansichten, Boardmaßstab und reale Kontrollmaße
+prüfen Geometrie und Skalierung. Für einfache Objekte bleibt eine Ebenen-/Quader-
+oder andere parametrische Anpassung sinnvoll. Ein Mesh wird nicht automatisch
+zu bearbeitbaren CAD-Flächen.
 
-### VGGT
+## Lokaler Stand
 
-VGGT schätzt aus Bildsammlungen unter anderemKameraparameter, Tiefen-/Punktkarten
-und Bildpunktspuren. Das offizielleProjekt bietet einenCOLMAP-Export und optionalen
-Bündelausgleich. Füruns käme es als zusätzlicheInitialisierung/Vergleichsrekonstruktion
-in Betracht. EinegelernteTiefenschätzung ist weiterhin bildbasiert und keine echte
-Tiefensensoraufnahme, aber auch kein Nachweis metrischerRichtigkeit. Maßstab und
-Abweichungen mitBoards/ausgelassenenAnsichten kontrollieren.
-[OffizielleImplementierung](https://github.com/facebookresearch/vggt).
+- Alle vier Wrist-Kameras haben inzwischen einen nachgewiesenen nativen
+  HD-Aufnahmepfad. Der bestehende CaptureRig-Code verwaltet noch zwei rechte
+  Wrist-Kameras plus OAK; fünf Kameras sind dort noch nicht implementiert.
+- HD-Kalibrierungen rechts hinten und links vorne laufen beziehungsweise warten
+  auf Fortsetzung. Passende K/D und Fokus nicht als bereits aktiviert voraussetzen.
+  Laufende Serien werden für dieses Konzept nicht unterbrochen.
+- Lokal ist Intel-Arrow-Lake-Grafik erkannt, kein NVIDIA/CUDA-Gerät. COLMAPs
+  Sparse-Schritte können auf CPU laufen, seine eigene dichte Rekonstruktion
+  benötigt CUDA. Schwere Lernverfahren zunächst begrenzt testen oder auf einem
+  geeigneten GPU-Rechner ausführen.
+  [COLMAP ohne CUDA](https://colmap.github.io/faq.html#available-functionality-without-gpu-cuda).
+- `config/digitization/five_camera_scan_design.yaml` ist ein nicht ausführbares
+  Designprofil ohne Consumer. YAML und Ansichtszähler wurden geprüft.
+- Noch keine gemeinsamen Zielposen oder Verbindungswege berechnet/geprüft,
+  keine neue Kameraaufnahme oder Armbewegung, keine Modellinstallation und
+  keine dichte oder gelernte Rekonstruktion für diese Recherche ausgeführt.
 
-### NeRF und Gaussian Splatting
-
-Diese Verfahren sind für Ansichtsynthese und anschaulicheDarstellung interessant.
-Ein solchesDarstellungsmodell ist noch kein editierbarer, maßhaltigerCAD-Solid.
-Meshing ist möglich; Nerfstudio dokumentiert dafür unteranderemTSDF-/Poisson-
-Exporte. FürunserZiel würde anschließend weiter eineGeometrie-/CAD-Anpassung
-folgen. [Geometrieexport](https://docs.nerf.studio/quickstart/export_geometry.html).
-
-## Empfehlung für unsere Pipeline
-
-DieAufnahme bleibt unabhängig vomRekonstruktionsbackend:
-
-`5-Kamera-Datensatz → Objektmasken → Geometrie/Punktwolke → Oberflächenmesh → einfacherCAD-Fit`
-
-Dieausgewählten, passenden K/D undBildgrößen, Fokus, Kamerapose proFoto,
-Referenzmaßstab, Telemetrie/Belichtungsfenster undQualitätskennzeichnung müssen
-mitgespeichert werden. DieObjektmasken verhindern, dassArme/Hintergrund stattObjekt
-rekonstruiert werden; Boardreferenzen dürfen für diePosenschätzung separat dienen.
-EinTeil derAnsichten wird vorAuswertung ausschließlich zurKontrolle reserviert.
-
-Zuerst den bisherigenKartontest mitmehrAnsichten und dem existierendenCAD-Fit
-wiederholen. Parallel denselben eingefrorenenDatensatz mit klassischerGeometrie
-und späterMASt3R oderVGGT auswerten. So lässtsich beobachten, ob mehrDetails und
-wenigerHandarbeit entstehen und wie gut zusätzlicheAnsichten vorhergesagt werden.
-Eine komplexereMeshoberfläche wird nicht automatisch zu bearbeitbarenCAD-Flächen;
-für einfacheObjekte behalten wir dieParameter-/Ebenen-/Quaderanpassung.
-
-## Lokaler Stand und nächste konkrete Umsetzung
-
-- Alle vier Armkameras haben inzwischen einen nativenHD-Aufnahmepfad; links
-  vorne wurde derCB3-Bootstrap in der parallelenAufgabe erfolgreich erweitert.
-  Derbisherige CaptureRig-Code verwaltet jedoch nur zweiWristkameras plusOAK.
-- HD-Kalibrierungen rechts hinten und links vorne laufen beziehungsweise werden
-  gerade fortgesetzt. Nicht als bereits erfolgreich abgeschlossen oderaktiviert
-  voraussetzen. ProKamera passendeK/D/Fokus und Pose-/Boardreferenz prüfen.
-- DieserPC hat laut lokalem`lspci` IntelArrowLake-Grafik, kein erkanntesNVIDIA/CUDA-
-  Gerät. COLMAP-Feature-/Sparse-Schritte können aufCPU laufen; dessen eigene
-  dichteRekonstruktion benötigtCUDA. Für schwere gelernteBackends erst begrenzten
-  Test oder geeignetenGPU-Rechner vorsehen, keine bestehendeROS-Umgebung ersetzen.
-  [COLMAP ohneCUDA](https://colmap.github.io/faq.html#available-functionality-without-gpu-cuda).
-- Designprofil: `config/digitization/five_camera_scan_design.yaml`. Es wird von
-  keinemBewegungsprogramm eingelesen und ist ausdrücklich nicht ausführbar.
-  Noch keine gemeinsamenVierarm-Zielposen/Verbindungswege berechnet odergeprüft;
-  keine Kameraaufnahme, echteArmbewegung, Paketinstallation oderGPU-Modellausführung
-  für dieseRecherche durchgeführt.
-
-AlsNächstes braucht es einen Objekt-/Referenzbereich mit vollständiger gemeinsamer
-Sicht, passendeKameraprofile, einenfrischenVierarmzustand und konkretevollständig
-geprüfte Grund-/Zusatzposen. Erst daraus entsteht eine inRViz reviewbareFahrfolge.
+Nächster Umsetzungsschritt: gemeinsamen Scanbereich festlegen, passende Kamera-
+profile und aktuellen Vierarmzustand einlesen, dann Grund- und Zusatzposen mit
+vollständigen Verbindungswegen prüfen und in RViz zur Durchsicht darstellen.

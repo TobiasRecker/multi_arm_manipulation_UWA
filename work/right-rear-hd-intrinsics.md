@@ -1,6 +1,6 @@
 # Native HD-Intrinsics hinten rechts aufnehmen
 
-- Status: **in Arbeit**,2026-11-12,Hauptagent.
+- Status: **abgeschlossen**,2026-11-12,Hauptagent.
 - Nutzer beauftragt als nächsten Schritt neue Intrinsics für right_rear im
   nativen2592×1944-Modus; eigenes Profil Fokus388 passend zu bisherigen
   Drei-Kamera-Fotos, keine VGA-K/D übertragen oder alte Fits überschreiben.
@@ -30,13 +30,14 @@
 - JetztFreigabeumsetzung: nurRRros.urp überMATCHplay starten,dann40Ansichten
   mitnativerSafety/Link/Stationär-/KollisionsprüfungundabschließenderIntrinsics-
   Auswertung. DiagonalerLFistfreigegebenseparat beweglich; übrigeArme überwacht.
-- LÄUFT: Execsession1925, Log setup/logs/uwa-right-rear-hd-acquisition-early-action.log.
-  Zuletzt29/41 akzeptiert, jeweils24Ecken; sample_029 inFahrt. NativeprogrammPLAYING,
-  Remote/Linktrue/SafetyNORMAL unabhängigbestätigt; MATCHplay meldetezwar
-  fehlendeROSprogram_running-Serviceverifikation, tatsächlicherProgramstart
-  warerfolgreich. Nichterneutstarten. ErsterReihenversuch endetevorFahrziel
-  wegen spätregistrierterAction; gemeinsamerMATCHClient frühvorMoveItinit
-  erstelltundproBatchwiederverwendet, Guards/Controllercleanupbeibehalten.
-- RemoteCameraWorker/NativeC nun eingefroren währendReihe. Abschluss:
-  nurRR-Bewegungscontrollerdeaktivieren, alleRecords/NativeControls prüfen,
-  Intrinsics-onlyFit/Prüfbericht erstellen. BeiAbbruchkeineRückfahrt/keinReset.
+- Abgeschlossen18:01AWST:41/41 Bilder,33Fit/8Prüfung. IntrinsicsPASS,
+  RMS0,7605px/Prüfmedian0,6742px/max0,9219px. AlleNativeControls/Restorechecks
+  bestanden; Originalhashaudit+CameraInfo in result_v1/. KeineHand-Auge- oder
+  globaleProfilaktivierung; VGA404 unverändert. 7Offline-ExporttestsPASS.
+- Exec1925 beendet. RR-Fahrcontroller durchMATCHdeaktiviert, direkte
+  ListControllers bestätigt alle3Motioncontrollerinaktiv/JSBaktiv. NativeUR
+  RUNNING/NORMAL/Remote,ros.urpPLAYING. LetzterGelenkfehler0,000044rad.
+  KeineRückfahrt/keinReset/fremderDienststopp. RR-Reihe nutztKamera nichtmehr;
+  LF-Restprüfung kann echteRR-Endpose lesen. EigenerHD-Kameradienst bleibtidle.
+- Ergebnisbericht docs/right_rear_hd_intrinsics_2026-11-12.md und HANDOVER
+  aktualisiert. RuntimeKamerahelfer nachMessende nichtweitergeändert.

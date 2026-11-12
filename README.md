@@ -60,10 +60,11 @@ A first [assisted object-digitization pipeline](docs/object_digitization.md)
 reconstructs an open three-compartment carton from saved colour photographs.
 It uses a visible metric board and matching camera intrinsics, explicit image
 landmarks, robust box fitting and STEP/STL/editable-SCAD export. No depth data
-or robot motion.
-A [four-wrist plus OAK scan design and literature comparison](docs/five_camera_reconstruction.md)
-now describes the next extension; it contains no executable robot poses. The first estimate is approximately524×102×100mm; wall
+or robot motion. The first estimate is approximately 524×102×100 mm; wall
 thickness is assumed. This is a geometric approximation, not validated metrology.
+
+A [four-wrist plus OAK scan design and literature comparison](docs/five_camera_reconstruction.md)
+now describes the next extension; it contains no executable robot poses.
 
 ## OAK camera CAD and tripod
 
@@ -126,6 +127,10 @@ records the completed41-view left-rear run:33 fit/8 held-out images,
 intrinsics and hand-eye validation passed; versioned results are saved locally.
 The left-rear result was explicitly activated globally on2026-11-12; new
 model loads use bundle hardware_20261112_v3. The Gazebo backend remains separate.
+A separate [native-HD rear-right intrinsic calibration](docs/right_rear_hd_intrinsics_2026-11-12.md)
+now passes at2592×1944/focus388:41 views,33 fit/8 held-out,0.674px median
+validation RMS. The saved ROS-CameraInfo remains separate from the active
+VGA404/hand-eye profile; no automatic global activation.
 The first real rear-right series completed on2026-11-11:41 views,33 fitting and8
 held out; intrinsics and hand-eye validation passed. Results and remaining
 accuracy limits are recorded in the linked hardware calibration guide.

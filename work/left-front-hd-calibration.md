@@ -49,3 +49,18 @@
   `resume_same_path` mit real gemessenen Posen und ruft nur `--check-only` auf.
   Kein unbeaufsichtigter Fahrstart. Die anschließenden 35 Wege bleiben exakt
   gleich; nur Abschnitt 005 wird entlang des freigegebenen Wegs gekürzt.
+
+- Nutzer beauftragt Fortsetzung. RR beendet, beide Fahrcontroller inaktiv
+  gemessen. Live-Restprüfung erfolgreich: 36 Abschnitte, 3095 Punkte,
+  verkürzter Abschnitt 005 auf Originalgerade, alle folgenden Wege identisch.
+  Nutzerfreigabe gilt für denselben Weg. Nur LF startet erneut.
+- 18:08: zweiter Abbruch, diesmal beim Abschnitt 015 durch External-Control-
+  Verlust. Treiber protokollierte unmittelbar vorher 56-ms-Zyklus statt 8 ms;
+  Zusammenhang zeitlich beobachtet, Ursache nicht bewiesen. Native Safety
+  NORMAL, geladenes `ros.urp` STOPPED, keine automatische Safetyquittierung.
+  15 akzeptierte native Datensätze. Eigenen alten RViz-Preview beendet.
+- Geladenes `ros.urp` einmal per vorhandenem ROS-Play gestartet, Stillstand,
+  Normal und Link bestätigt. Beim Reconnect reaktivierten eigenen Fahrregler
+  vor Planung deaktiviert. 26 Abschnitte / 2038 Punkte erneut mit allen vier
+  Live-Stellungen geprüft, erster Weg nur unbefahrener Teil der ursprünglichen
+  Gerade. Danach freigegebene Reihe erneut bei sample_015 fortgesetzt.

@@ -112,7 +112,15 @@ class WristCamera:
             time.sleep(.1)
 
     def image(self):
-        return self.request('/current.jpg?type=color', image=True)
+        with self.activity() as use:
+            if use.started:
+                # Do not return the image cached before the light came on.
+                self.trigger()
+            return self.request('/current.jpg?type=color', image=True)
+
+    def activity(self):
+        from .wrist_activity import Activity
+        return Activity(self.base.split('//')[1].split(':')[0])
 
     def update_focus(self, *, focus, auto):
         if type(focus) is not int or not 0 <= focus <= 1023 or type(auto) is not bool:
