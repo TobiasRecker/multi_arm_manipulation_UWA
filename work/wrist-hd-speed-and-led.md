@@ -1,6 +1,6 @@
 # HD-Aufnahmezeit und nutzungsabhängige Wrist-LEDs
 
-- Status: **in Arbeit**, 2026-11-12, Hauptagent dieses Gesprächs.
+- Status: **Implementierung und Prüfungen abgeschlossen; automatischer LR-Rollout wartet auf Reihenabschluss**, 2026-11-12, Hauptagent dieses Gesprächs.
 - Nutzerauftrag: HD-Fotoworkflow auf Beschleunigung ohne nennenswerte
   Qualitätseinbußen prüfen/testen; LEDs aller vier Wristkameras ausschließlich
   während Fotoaufnahme oder Videonutzung einschalten.
@@ -37,3 +37,22 @@
   (−16,19%). Je24Ecken und Laplacewerte32,67–32,98 bzw32,79–33,06.
   Frühe erfolglose LED-/Restoreversuche bleiben als Diagnose archiviert;
   Kamera danach Normal/Fokus435/60000µs/LED0 bestätigt. Keine Armfahrt.
+
+- Abschlussprüfung: Paketgebaut,45gezielte TestsPASS; ein Python-Fork-Warnhinweis
+  im isolierten Crash-Test, keine fehlgeschlagenen Prüfungen. Reale zwei Viewer /
+  ersterCrashweiteran / letzterCrashLED0 bestanden. Echte Qt-Vorschau samt
+  LED-Knopfdruck und normalem Schließen bestanden; Intensität0, Fokus435/60000
+  unverändert. Screenshot/JSON im Diagnoseverzeichnis. GUI jetzt --arm für alle
+  vier IDs, keine irreführende feste Right-Rear-Beschriftung bei anderer Kamera.
+- Echte bestehende ROS-HD-Dienste LF/RR bestanden (13,57s/24,39s), jeweils
+  single-switch-VGA-/1/15s-Nachweis, vollständigerRestore und nachAntwortLED0.
+  CB3-Vergleich legacy16,522s/fast13,714s (−17,00%). Ursprünglicher Helper bleibt
+  vorhanden; 32-Bit-Fasthelfer separat, keine gcc-Installation auf Robotern.
+- LR-Reihe läuft weiterhin unverändert, zuletzt33/41 inFahrt. Automatischer
+  Rollout in setup/wrist_lighting/pending/left_rear.json wartet auf Besitzer-
+  Abschlussstatus und freienNativeLock. PhaseCOMPLETE wird erst nach altem
+  Kameradienststopp, neuem Kameradienststart und bestätigtem LED0 geschrieben.
+  Keine weiteren Eingaben erforderlich; keine Arm-/Treiber-/Programmkommandos.
+- Andere aktuelle Arbeit: Offline-Analyse `object-scan-swept-volumes` durch
+  Digitalisierungsagenten; keine dessen Scanwege/Controller verändert.
+- Doku docs/wrist_speed_led_2026-11-12.md, README/AGENTS/HANDOVER aktualisiert.

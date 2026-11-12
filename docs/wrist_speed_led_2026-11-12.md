@@ -101,6 +101,10 @@ Rohbilder/Reports/Sensorwerte einschließlich verworfener Diagnoseversuche:
 `live_led_leases.json`: zwei echte Vorschauprozesse; erster Absturz lässt Licht
 für zweiten an, letzter Absturz führt zu bestätigtem Licht0, alle übrigen
 Settings identisch. Bau/gezielte Regressionen:
-`setup/logs/uwa-wrist-speed-led-{build,tests}.log`. Prüfungen umfassen Mehrnutzer,
+`setup/logs/uwa-wrist-speed-led-{build,tests}.log`: Bau und45gezielte Tests bestanden.
+Echte ROS-Aufrufe LF13,57s/RR24,39s mit bestätigtem LED0; Qt-Vorschau/LED-Knopf/
+Schließen ebenfalls bestanden (`gui-led-preview.json`, `gui-led-active.png`).
+Das Wrist-Fenster akzeptiert `--arm right_front|right_rear|left_front|left_rear`.
+Prüfungen umfassen Mehrnutzer,
 Absturz, fehlgeschlagenes Einschalten, aufgeschobenen Rollout, Modusrückfall,
 Firmware-Shim und bestehende HD-/HTTP-/Kalibrier-/Capture-App-Pfade.

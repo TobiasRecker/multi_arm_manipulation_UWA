@@ -130,7 +130,7 @@ class CameraWorker(QtCore.QThread):
 
 
 class Window(QtWidgets.QMainWindow):
-    def __init__(self, ip, directory):
+    def __init__(self, ip, directory, arm=None):
         super().__init__()
         self.lock = (Path(tempfile.gettempdir())/f'uwa-wrist-focus-{ip}.lock').open('a')
         try:
@@ -143,12 +143,13 @@ class Window(QtWidgets.QMainWindow):
         self.changed_at = time.monotonic()
         self.closing = False
         self.slider_edited = False
-        self.setWindowTitle('UWA · Right rear wrist camera')
+        label = (arm.replace('_', ' ').title() + ' wrist camera') if arm else 'Wrist camera'
+        self.setWindowTitle('UWA · ' + label)
         self.resize(1120, 940)
         root = QtWidgets.QWidget()
         self.setCentralWidget(root)
         layout = QtWidgets.QVBoxLayout(root)
-        heading = QtWidgets.QLabel(f'RIGHT REAR · {ip}:4242 · Camera controls only')
+        heading = QtWidgets.QLabel(f'{label.upper()} · {ip}:4242 · Camera controls only')
         heading.setStyleSheet('font-size: 20px; font-weight: bold;')
         layout.addWidget(heading)
         self.image_label = QtWidgets.QLabel('Connecting to camera…')
@@ -328,14 +329,15 @@ def main():
     ws = Path(os.environ.get('UWA_WS', str(Path.home()/'UWA_ws')))
     parser.add_argument('--inventory', type=Path, default=ws/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml')
     parser.add_argument('--output', type=Path)
+    parser.add_argument('--arm', choices=('right_rear', 'right_front', 'left_rear', 'left_front'), default='right_rear')
     args = parser.parse_args()
     inventory = yaml.safe_load(args.inventory.read_text())
-    ip = inventory['robots']['right_rear']['ip']
+    ip = inventory['robots'][args.arm]['ip']
     if not ip:
-        parser.error('right_rear has no IP in the hardware inventory')
+        parser.error(args.arm + ' has no IP in the hardware inventory')
     directory = args.output or ws/'setup/calibration/wrist_focus'/datetime.now(ZoneInfo('Australia/Perth')).strftime('%Y%m%d_%H%M%S')
     app = QtWidgets.QApplication(sys.argv[:1])
-    window = Window(ip, directory)
+    window = Window(ip, directory, args.arm)
     window.show()
     return app.exec()
 

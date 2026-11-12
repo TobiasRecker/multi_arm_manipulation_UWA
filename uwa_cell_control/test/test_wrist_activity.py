@@ -174,3 +174,22 @@ def test_deferred_rollout_stops_only_old_camera_then_starts_new_and_enrolls_once
     count = len(calls)
     activity.pending_enrollment(job)
     assert len(calls) == count
+
+
+def test_focus_write_preserves_leased_manual_led_despite_getter_setter_difference(managed, monkeypatch):
+    from uwa_cell_control.wrist_camera import WristCamera
+    camera = WristCamera(IP)
+    current = dict(focus=435, focusAuto=False, lightingMode=1, lightingValue=53,
+                   exposureAuto=False, exposure=60000, gain=16)
+    monkeypatch.setattr(camera, 'settings', lambda **kw: dict(current))
+    sent = []
+    def request(path, body):
+        change = dict(body['cameraSettings'])
+        sent.append(change)
+        current.update(change)
+        current['lightingMode'] = 1 if change['lightingMode'] == 2 else 0
+    monkeypatch.setattr(camera, 'request', request)
+    result = camera.update_focus(focus=450, auto=False)
+    assert sent[0]['lightingMode'] == 2
+    assert result['lightingMode'] == 1 and result['lightingValue'] == 53
+    assert result['focus'] == 450 and result['exposure'] == 60000

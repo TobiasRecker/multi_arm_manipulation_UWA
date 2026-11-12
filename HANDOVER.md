@@ -27,6 +27,9 @@
   setup/wrist_lighting/pending/left_rear.json. Guardian wartet Abschlussstatus
   und freien Kameralock, ersetzt dann ausschließlich altenLR-Kameradienst durch
   uwa-wrist-hd-left-rear-managed.service und bestätigt LED0. Keine UR-/Motionaktion.
+- Bau und45gezielte RegressionenPASS; reale Qt-Vorschau/LED-Knopf/Schließen
+  sowie ROS-HD-Aufrufe LF13,57s/RR24,39s mit abschließendem LED0 bestanden.
+  Wrist-Fenster --arm wählt alle vier IDs bei unverändertem StandardRR.
 - [Bedienung/Prüfgrenzen](docs/wrist_speed_led_2026-11-12.md), Rohdaten
   setup/calibration/wrist_speed_led_20261112/, Test-/Buildlogs
   setup/logs/uwa-wrist-speed-led-*.log. Frühe verworfene LED-/Restoreversuche erhalten.
@@ -61,7 +64,7 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 - LF-Abschluss41/41/Controllerinaktiv18:24:46bestätigt; neuerLive-BatchPASS,
   Fingerprintd0cb381a24345ef6327bb260417a8941d143893c3040e41c69dee06a154630ee,
   genehmigteZielereihenfolgebestätigt. ros.urp perROS-Playgestartet.
-- LÄUFT18:29:Exec69707/PID85601,startticks791683,zuletzt20/41gültigeBilder.
+- LÄUFT18:29:Exec69707/PID85601,startticks791683,zuletzt31/41gültigeBilder.
   Startup-DiscoveryabbruchvorerstemFahrziel archiviert; begrenztes16sWarten
   aufgleichzeitigfrischeDaten,keineStale-Lockerung,13TestsPASS. Wrapperdeaktiviert
   LR-Motion in finally. EigenesPreviewaus,KameradienstidlezwischenAufnahmen.
