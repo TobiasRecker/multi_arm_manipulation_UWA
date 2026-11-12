@@ -46,9 +46,10 @@
   als zusätzliche Konfigurationsquelle einführen.
   Nutzerauftrag2026-11-11: gemessene gültige Teilkalibrierungen gemeinsam nutzen.
   Standard-Loader verwendet `cell_layout_calibrated.yaml` als dünne Referenz auf
-  diese Geometrie plus `config/calibration/hardware_20261111_v1/profile.json`.
-  Rohes Nominalmodell bleibt explizit ladbar. Drei Werkskinematiken, beide rechten
-  Intrinsics und Rear-Hand-Auge verwenden; Front-Hand-Auge bleibt abgelehnt.
+  diese Geometrie plus `config/calibration/hardware_20261112_v1/profile.json`.
+  Rohes Nominalmodell bleibt explizit ladbar. Seit Nutzerauftrag2026-11-12 drei Werkskinematiken, linkeRear-/beide rechten
+  VGA-Intrinsics und beideRear-Hand-Auge verwenden. Front-Hand-Auge und das
+  nicht bestandeneFront-HD-Profil bleiben ausgeschlossen.
   Posenreferenzen sind keine aktuellen Hinderniszustände/Fahrfreigaben. Keine
   absolute Basis-/Tischpose aus nur ungefähr bekannter Boardlage ableiten.
 - Weltachsen: X rechts, Y hinten, Z oben. Montageposen beziehen sich auf

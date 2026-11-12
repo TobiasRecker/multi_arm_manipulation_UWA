@@ -1,8 +1,8 @@
 # Übernommene Kalibrierungen und Referenzposen
 
-Stand2026-11-11. Der Nutzer hat die Speicherung und gemeinsame Verwendung der
+Stand2026-11-12. Der Nutzer hat die Speicherung und gemeinsame Verwendung der
 ermittelten Posen/Kalibrierungen ausdrücklich beauftragt. Profil:
-[`hardware_20261111_v1`](../uwa_cell_description/config/calibration/hardware_20261111_v1/profile.json).
+[`hardware_20261112_v1`](../uwa_cell_description/config/calibration/hardware_20261112_v1/profile.json).
 Es wird mit `uwa_cell_description` installiert und enthält SHA256-Referenzen
 auf unveränderte Ergebniskopien und individuelle UR-Kinematikdateien. Die
 Rohbilder und ursprünglichen Sitzungsergebnisse unter `setup/calibration/`
@@ -12,13 +12,31 @@ die spätere Übernahme ist durch dieses separate Profil dokumentiert.
 | Teil | Übernommen | Grenze |
 |---|---|---|
 | Werkskinematik | left_rear, right_front, right_rear | links vorne noch nominal |
+| Intrinsics K/D | left_rear640×480, Fokus406 manuell | 41 Ansichten,33Fit/8Prüfung; neues globales Profil |
 | Intrinsics K/D | right_rear640×480, Fokus404 manuell | Bildränder nicht unabhängig geprüft |
 | Intrinsics K/D | right_front640×480, Fokus435 manuell | gilt für unveränderten Bildmodus/Fokus |
-| Hand-Auge tool0→optical | right_rear | interne unabhängige Prüfung bestanden; keine absolute Genauigkeitszusage |
-| Basis→Board-Relation | right_rear, als eigener Referenzframe | kein vermessener Welt-/Tischanker |
+| Hand-Auge tool0→optical | left_rear und right_rear | interne unabhängige Prüfung bestanden; keine absolute Genauigkeitszusage |
+| Basis→Board-Relation | beide Rear-Arme, als eigener Referenzframe | kein vermessener Welt-/Tischanker |
 | Park-/erste Aufnahmeposen | beide rechten Arme, benannte Gelenkreferenzen | neu planen, nicht als Live-Zustand verwenden |
 | Front-Hand-Auge | archiviert, **nicht angewendet** | Rotations-RMS0,652° überschreitet0,5° |
 | Welt-/Tisch-/Basisrelation, OAK-Extrinsics | weiterhin nicht kalibriert | keine Messwerte erfinden |
+
+## Globale Aktivierung am2026-11-12
+
+Auf ausdrücklichen Nutzerauftrag ergänzt das neue Bündel die bestandenen
+linkenRear-Intrinsics und Hand-Auge aus `left_rear_20261112/result_v1/`.
+Altes Bündel `hardware_20261111_v1` und seine Dateien bleiben unverändert als
+Rückfall erhalten. Bestehende gültige rechte Parameter sind bytegleich übernommen;
+die fehlgeschlagene Front-HD-Kalibrierung wird nicht übernommen.
+
+Profil vollständig vor Umschalten validiert, `uwa_cell_description` gebaut und
+das installierte Standardlayout als `hardware_20261112_v1` bestätigt. Sieben
+gezielte Consumer-/MoveIt-/Optiktests bestanden, einschließlich linker
+Sensorpose, K/D und gemessenem Boardframe bei unveränderten Weltankern und
+Gehäusekollisionen. Logs `setup/logs/uwa-calibration-20261112-{build,tests}.log`.
+Keine Hardwarebefehle oder Treiberneustarts; keine Zell-Simulation lief während
+Aktivierung. Bereits geladene Modelle übernehmen Profile erst beim Neuladen.
+Laufende Hardware-Treiber behalten ihre identischen Werkskinematiken.
 
 ## Verwendung
 
@@ -63,7 +81,7 @@ OAK-Designpose, Scanregistrierung und Boardgröße wurden nicht aus dem Fit geä
 
 ## Posen wiederfinden
 
-[`named_poses.json`](../uwa_cell_description/config/calibration/hardware_20261111_v1/named_poses.json)
+[`named_poses.json`](../uwa_cell_description/config/calibration/hardware_20261112_v1/named_poses.json)
 enthält `right_front_park`, `right_rear_park`, `right_front_first_capture` und
 `right_rear_first_capture`, jeweils mit sechs eindeutig benannten Gelenken in
 Radiant, Quelle/Hash und Herkunft als früheres Ziel oder gemessener Snapshot.
@@ -71,7 +89,7 @@ Kein Eintrag wird automatisch zu einer Startstellung oder einer Fahrfreigabe.
 Die Matrizen `T_base_board` und `T_tool0_camera` stehen im Rear-Ergebnisarchiv;
 sie beziehen sich auf `base_link`, `tool0` und den OpenCV-Board-/Optikframe.
 
-## Prüfung
+## Historische Prüfung vom2026-11-11
 
 Fünf Pakete gebaut.99 Offlineprüfungen umfassen
 unveränderte Weltanker/Gehäuse, Hashfehler, abgelehnte Front-Extrinsics, Bildmodus,

@@ -4,28 +4,53 @@ Stand2026-11-12. Ziel **left_rear=192.168.8.169**, konfigurierter UR7e,
 Seriennummer20265701623. Individuelle Werkskinematik bereits im gemeinsamen
 Messprofil vorhanden. Vorherige rechte Kalibrierergebnisse bleiben erhalten.
 
-## Aktueller Stand: Restreihe läuft
+## Links hinten: reale Kalibrierung abgeschlossen, 2026-11-12
 
-Die vollständige41er-Reihe wurde ausdrücklich beauftragt. Nach29 akzeptierten
-Aufnahmen wurde bei sample029 ein nativer C159A5 ausgelöst; die eigene Action
-wurde gecancelt, alle linken Motioncontroller wurden inaktiv bestätigt. Kein
-automatisches Quittieren und keine Rückfahrt. Rein lesend war die Nutzlast0kg.
+- Vollständige **41 Ansichten** mit eigenen HTTP-VGA-Bildern (640×480):
+  **33 Fit / 8 vorher reservierte Prüfbilder**, alle akzeptiert, jeweils24 Ecken,
+  41 verschiedene decodierte Bilder. Kein Bild ausgeschlossen oder überschrieben.
+  Fester Fokus406Manual,33333µsManual/Gain16; kein fremdes Kamera-/HD-Profil.
+- **Intrinsics PASS:** Fit-RMS0,1143px, medianer Prüf-RMS **0,1481px**.
+  **Hand-Auge PASS:** Prüf-Reprojektion **0,2496px**, Board-Translationsstreuung
+  **0,7402mm**, Rotationsstreuung **0,1671°**. Interne zurückgehaltene Prüfung,
+  keine absolute Genauigkeitsgarantie. HTTP-Empfang ist kein Belichtungszeitstempel.
+- Ergebnis und Rohdaten versioniert unter
+  `setup/calibration/hardware_handeye/left_rear_20261112/result_v1/`:
+  `summary.json`, `intrinsics.json`, `handeye_result.json`, vollständige41er-
+  Roh-/Annotationsdaten und SHA256-Manifest. Quelle/Originalrollen erhalten.
+  Ergebnis zunächst nicht automatisch aktiviert. Auf späteren ausdrücklichen
+  Nutzerauftrag am selben Tag global in **hardware_20261112_v1** übernommen;
+  archiviertes ursprüngliches `activated:false` bleibt als Historie erhalten.
+- Abschluss: SafetyNORMAL, alle linken Motioncontroller inaktiv, Endfehler
+  **0,0000338rad**, Positionsänderung über das letzte0,5s-Prüffenster0,0000424rad.
+  Keine Rückfahrt; Arm bleibt an letzter Aufnahmeansicht. Kein fremder Arm gestoppt.
 
-Nach Nutzermeldung „habe ich gefixt“:1kg/CoG[0,0,0],NORMAL/PLAYING/External
-Control und aktuelle Zustände aller drei vernetzten Arme bestätigt. Fokus406
-Manual, Belichtung33333µsManual/Gain16 unverändert. Kein Werkzeugwert vom
-Agenten gesetzt. Die zwölf fehlenden Originalziele samt Prüfrollen wurden aus
-der aktuellen Stellung erneut verbunden und vollständig kollisionsgeprüft:
-`resume_after_payload/batch.json`,f1801646…;204,84s reine Bewegung.
-Die vorhandene Freigabe gilt für diese unveränderten Ziele; Restreihe gestartet.
+### Unterbrechungen und Wiederaufnahme
 
-Die29 gesicherten Bilder bleiben unverändert. Ein separater Diagnosefit ergab
-0,140px Intrinsics- und0,253px Hand-Auge-Prüffehler, ist aber wegen29<30
-Mindestbildern ausdrücklich nicht aktivierbar. Endergebnis erst nach vollständiger
-Reihe und unabhängiger Auswertung. Daten unter
-`setup/calibration/hardware_handeye/left_rear_20261112/`,Fortschritt in
-`preparation/resume-run.log`. Andere Arme bleiben stationär; keine automatische
-Rückfahrt oder Profilaktivierung. Vorbereitungsabschnitte unten sind Historie.
+- Bei sample029 nativer **C159A5/Wrist3**;29 Bilder gesichert, eigene Action
+  gecancelt und linke Motioncontroller inaktiv. RTDE bestätigte0kg/CoG[0,0,0].
+  Nutzer meldet Ursache behoben; anschließend1kg/CoG[0,0,0],NORMAL/PLAYING/Link
+  geprüft. Kein Nutzlastwert vom Agenten geraten/gesetzt, keine Autoquittierung.
+  Separater29er-Diagnosefit bleibt historisch/inaktiv (Mindestzahl30).
+- Zwölf Originalrestziele neu aus tatsächlichem Start verbunden; zuerst vor jeder
+  Bewegung wegen fehlender rechter Rear-Telemetrie abgebrochen. Alter Manager18298
+  stürzte nach PrimaryClient-Pipeline-Überlauf mitExit−11 ab. Nur diesen Treiber
+  als `uwa-right-rear-calibration-observer` wieder gestartet, Motion inaktiv,
+  kein Power/Play/Armziel. Linker Dienst und Frontmanager erhalten.
+- Nach32 Aufnahmen Abbruch wegen Frontbewegung unter alter Stillstandsregel.
+  Nutzer bestätigt hier ausdrücklich: **„Ja, diagonale Arme erreichen sich nicht;
+  Restreihe ausführen“**. Das ist eine Nutzerangabe zur Reichweite, keine Messung.
+  Neue neunRestziele `resume_diagonal/batch.json` (d913d5c2…) samt unveränderten
+  Originalzielen/Prüfrollen geprüft; nur gegenseitigeLR/RF-Kollisionen und deren
+  Stillstandsabhängigkeit ausgenommen. Übrige Kollisionsprüfung/nativeUR-Sicherheit
+  erhalten. Vorherige pauschale Warte-/Einarmangaben sind für dieses Paar überholt.
+- AutoReview hatte die neue Ausnahme zunächst mangels konkreter Freigabe im
+  aktuellen Gespräch abgelehnt; dabei keine Fahrt. Erst nach obiger ausdrücklicher
+  Bestätigung und erneutem Gesamtcheck gestartet. Diagonaltests2/2 bestanden.
+- Fortsetzung bis sample040 und Auswertung Exit0; Originaldaten/Haltebilder
+  erhalten. Logs `preparation/{series-run,resume-run-after-observer,
+  resume-diagonal-run}.log`, Abschluss `completion-state.json` und Freigaben dort.
+  Weitere Front-HD-Arbeit läuft separat und wird hier nicht gesteuert.
 
 ## Erste Pose erreicht und echtes Board geprüft
 
@@ -186,9 +211,3 @@ Danach geladenen Pfad geprüft, Clientverbindung erneut aufgebaut und den vom
 Nutzer beauftragten Play-Befehl nativ bestätigt(`Starting program`). Das ist
 kein Nachweis des weiterhin fehlenden External-Control-Links. Keine pauschalen
 Treiber-/ROS-Neustarts und keine Schutzstoppquittierung ausgeführt.
-
-- Fortsetzungsstart vor jeder Bewegung abgelehnt: hinten rechte Live-Telemetrie
-  verloren. Dessen ursprünglicherManager18298 stürzte nach PrimaryClient-Pipeline-
-  Überlauf mitExit−11 ab; zwischenzeitlich auchDashboard nicht erreichbar, danach
-  RUNNING/NORMAL/Remote/STOPPED. Nur rechten Rear-Treiber für Zustandsmessung
-  wieder starten, keine Power-/Play-/Armziele; anschließend Vollcheck wiederholen.

@@ -26,68 +26,121 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 - **Explizit seit 2026-11-09:** Wichtige Ziele, Anforderungen, Entscheidungen und
   Vorlieben parallel in AGENTS-/Handover-Dateien festhalten.
 
-## Front-HD-Reihe gestartet, diagonale Unabhängigkeit,2026-11-12
+## Globales Profil aktiviert und drei Boards mit OAK erkannt,2026-11-12
 
-- Neueste Nutzerkorrektur hebt vorherige Reihenfolge„erstlinks fertig“ auf:
-  diagonal könnenRoboter laut Nutzer physisch nicht zusammenreichen. Dies
-  ist eine **Nutzerangabe**,keine gemessene Reichweiten-/Basiskalibrierung.
-  Neue Hardwarebatches benennen unabhängig bewegbaren diagonalen Partner;
-  nur Inter-Roboter-Kollisionen dieses Paars und dessen Stillstandsabhängigkeit
-  entfallen. Selbst-/Tisch-/Werkzeug-/andereArmkollisionen undUR-Safety bleiben.
-- Für Frontrechts ist `independent_diagonal_arm=left_rear`,für Linksrear die
-  Gegenrichtung. Keine allgemeine Gleich-Tisch-/Nachbararm-Ausnahme zulassen.
-  Prüfung imHardwareplanfingerprint dokumentiert.26 gezielte Tests undBuild
-  bestanden; keine Änderung ursprünglicher Ziele/Prüfrollen oder Fitlogik.
-- Benutzerauftrag40HD-Gesamtstellungen mit32Fit/8Prüfung. sample000 akzeptiert,
-  39zusätzlichewide-Ziele/535,5sBewegung. AktuellerBatch6c70b73a… mit neuer
-  diagonalerRegel nach tatsächlichen Livezuständen komplett nachgeprüft.
-  RechteRear-Telemetrie war kurz beim vom anderen Agenten erledigten Neustart
-  weg,danach wieder da; Frontstart erst nach erfolgreichemVollcheck.
-- **Frontreihe jetzt gestartet**,keine Wartepflicht auf Linksabschluss mehr.
-  Datensatz setup/calibration/hardware_handeye/right_front_hd_20261112/.
-  Autorisierung/Startmarker inpreparation/,GUI zeigtFortschritt/rotesSTOP.
-  Nur Frontziele gesendet, native Stopps canceln; kein Auto-Reset/Rückweg.
-- Front übernativeDashboard eingeschaltet/Brake/ros.urp gestartet, vorher
-  alterMotioncontrollerdeaktiviert. FehlenderDashboardROSClient separat
-  wiederhergestellt,STOPService verfügbar. KeineFronttreiberneustarts.
-  Kamera435Manual/60000µs/Gain16,HD2592×1944. Noch kein40erErgebnis behaupten.
-  EigeneDokumentation work/front-hd-calibration-40.md, Laufprotokoll im dortigen
-  GUI-Sitzungsverzeichnis; ursprünglicheVGA-Sitzungen/Profile erhalten.
+- Nutzer beauftragt explizit globale Aktivierung. Neues versioniertes
+  `hardware_20261112_v1` ergänzt linkeRear-VGA-Intrinsics/Hand-Auge aus bestandenem
+ 41er-result_v1. Alte rechte gültige Werte/kinematics/namedposes bytegleich;
+  vorherigesBündel unverändert erhalten. FehlgeschlageneFront-HD-/VGA-Extrinsics
+  ausgeschlossen. Keine neuen Welt-/Basis-/Tischanker oder OAK-Extrinsics.
+- Gemeinsame Standardreferenz umgestellt,description gebaut, installiertes
+  Standardprofil bestätigt. Sieben Modell-/K-D-/Sensor-/MoveIt-Consumerprüfungen
+  bestanden, einschließlich linker optischerPose und unveränderter Gehäuse/Weltanker.
+  Neue Modellloads/Planungen verwendenProfil; keine aktiveSimulation neu gestartet,
+  keine UR-Kommandos/Treiberneustarts. Aktivierungsaudit untersetup/calibration/.
+- Ethernet-OAK238 exklusiv geöffnet (Live-Dienst vorher inaktiv), natives
+  **8000×6000**-NV12-Foto vomIMX586 aufgenommen; kein Upscaling, danach geschlossen.
+  OriginalPNG und annotiertes8K-JPEG/Übersicht sowieID-/Eckbericht lokal unter
+  `setup/oak4/captures/boards_20261112/`. Keine privaten Fotos imGit.
+- Alle drei gleichzeitig vollständig erkannt: linkes/hinteresTischboard IDs0–16,
+  rechtes/vorderesTischboard50–66,mobilesA4-Board75–91. Je **17/17Marker und
+ 24/24ChArUco-Ecken**. Detektion aufOriginal8K ohne GroundTruth/Robotermodell.
+- ReineErkennungsprüfung, noch keine OAK-Extrinsics oder metrischeRegistrierung.
+  MobilesBoard liegt imFoto untenlinks; Werkzeug-zu-Board-Montage bleibt unbekannt.
+  NächsterKalibrierschritt getrennt planen, keine neueRoboterfahrt hieraus ableiten.
 
-## Links hinten: zwölf Restansichten nach Schutzstopp,2026-11-12
+## Front-HD-Reihe vollständig aufgenommen, Qualität abgelehnt, 2026-11-12
 
-- Nutzer beauftragt nach erfolgreicher Erstpose ausdrücklich die vorbereitete
-  Messreihe. Freigegebener Batch850765e9… unverändert:40 Zusatzansichten,
-  später41 Gesamtbilder/33Fit/8vorher reservierte Prüfungen. Gesamtvorschau vor Erststart geprüft,
-  vollständiger --check-only bestanden. Ausschließlich left_rear bewegt.
-- Optik406Manual/33333µsManual/Gain16 fixiert, Originaleinstellungen vorher
-  gespeichert, viermal24Ecken bestätigt. sample000 mit24Ecken akzeptiert,
-  HTTP-VGA640×480 als eigene Quelle; keine HD-/rechten Intrinsics übernommen.
-- Start/Aufnahmefortschritt unter left_rear_20261112/preparation/series-run.log,
-  Quellen/Liveprefix unter records/. UWA-Arms-Beobachter mit nurleft_rear
-  ausgewählt für STOP geöffnet. Mid-Series22/22 verschiedene Bilder/konstante
-  Optik, linker Treiber weiterhin48FDs. Noch keine Fit-/Ergebnisfreigabe behaupten.
-- Nach kompletter Aufnahme automatische unabhängige Intrinsics-/Hand-Auge-
-  Auswertung; native Stopps abbrechen/canceln, kein Auto-Reset/Rückweg.
+- **40/40 native HD-Ansichten** von right_front,2592×1944;32Fit/8vorab
+  reservierte Prüfungen. Alle angenommen,20–24Ecken,40 verschiedene Pixel-Hashes.
+  Eigener Frontlauf ohne Unterbrechung. Rohdaten und getrennte Diagnoseversion
+  unter `setup/calibration/hardware_handeye/right_front_hd_20261112/` erhalten.
+- **Keine Qualitätsfreigabe:** Intrinsics-Fit1,1984px überschreitet1px;
+  regulärer Ablauf daher Exit1 nach vollständiger Aufnahme. Zusätzliche reine
+  Offline-Diagnose: Intrinsics-Prüfung1,0031px, Hand-Auge-Prüfung1,9248px,
+  Boardstreuung1,2669mm/0,5884°. Keine Bilder entfernt/Prüfbilder zumFit benutzt,
+  keine Grenzwerte geändert. Diagnosewerte ausdrücklich nicht aktiviert.
+- Neueste Nutzerkorrektur ersetzt vorheriges „erst links fertig“: diagonale
+  reale Arme erreichen einander laut Nutzer nicht. Bedienerangabe, kein eigener
+  Messnachweis. Fingerprinted `independent_diagonal_arm=left_rear` für Front;
+  nur dieses Paar von gegenseitiger Kollision/Stillstandsabhängigkeit befreit.
+  Selbst-/Tisch-/Werkzeug-/übrige Armkollisionen und native UR-Safety erhalten.
+ 26 gezielte Tests und Lyrical-Build bestanden.
+- Fokus435Manual/60000µs/Gain16 während der gesamten Reihe. HD-Transaktionen
+  jeweils mit bestätigtem Restore. Abschlusslesetest12:37Perth: KameraNormal,
+  Originalsettings vollständig identisch; FrontRUNNING/NORMAL/PLAYING,Velocity0,
+  hält letzte Aufnahmestellung mit aktivem skaliertem Trajektoriencontroller.
+  Keine Rückfahrt/Schutzquittierung/Profilaktivierung. Andere Arme nicht gesteuert.
+- Vollständige Werte und Nachweise: [Front-HD-Bericht](docs/front_hd_calibration_2026-11-12.md).
+  Arbeitsstatus `work/front-hd-calibration-40.md`. Weitere Auswertung der Bilder
+  ist offline möglich, ohne neue reale Bewegung. Ältere VGA-Profile erhalten.
 
-### Unterbrechung und freigegebene Fortsetzung
+## Front-HD: Grund des Intrinsics-Abbruchs eingegrenzt,2026-11-12
 
-- Bei sample029 nativer C159A5/Wrist3;29 gültige Bilder(23Fit/6Prüfung),
-  zwölf Originalziele offen. Eigene Action gecancelt und alle linken
-  Motioncontroller inaktiv bestätigt. Kein Schutzreset oder automatische Rückfahrt.
-- RTDE nur lesend: zunächst0kg/CoG[0,0,0]. Nutzer meldet Ursache behoben;
-  danach1kg/CoG[0,0,0],NORMAL/PLAYING/ExternalControltrue. Keine Werkzeugmasse
-  vom Agenten geraten/gesetzt. Fokus406Manual/33333µs/Gain16 unverändert.
-- Aktuelle Telemetrie aller drei vernetzten Arme erneut gelesen. Restziele mit
-  Original-IDs/Prüfrollen werden vor Fortsetzung von jetziger Stellung neu gegen
-  die ganze Szene verbunden/geprüft. Vorhandene Serienfreigabe bleibt gültig.
-- Separater unveränderlicher29er-Diagnosedatensatz unter partial_29_analysis:
-  Intrinsics-Prüfung0,140px,Hand-Auge-Prüfung0,253px,Boardstreuung0,652mm/0,165°.
-  Profil bleibt abgelehnt/inaktiv, weil29<30 Mindestbilder; keine Grenzwertänderung.
-  Dies ist kein Abschluss der41er-Reihe. Front-HD-Aufgabe wartet weiter.
-- Restbatchf1801646…: zwölf unveränderte Originalziele/Rollen,204,84s Bewegung,
-  vollständiger --check-only bestanden und Fortsetzung gestartet.
-  Fortschritt preparation/resume-run.log, keine automatische Rückfahrt.
+- Nutzer fragt nach gleicherFrontkamera/Board mit bestandenerVGA-Kalibrierung.
+  WichtigePräzisierung: Front-VGA-Intrinsics bestanden; Front-Hand-Auge bereits
+  wegen0,652°>0,5°abgelehnt. HD hat0,588°,nochimmernichtfreigegeben.
+- Absolute1Pixel-Grenze berücksichtigt4,05fachhöhereHD-Auflösung nicht:
+  1,198HDpx entsprechen0,296VGApx,alt0,289px. KontrollierteOffline-Auswertung
+  derselben40HD-Bilder(32/8fest):Verkleinernauf640×480+Eckenneuerkennung ergibt
+  Fit0,315px/Prüfmedian0,276px. KeinBelegfürgenerellschlechtereHD-Geometrie.
+- ArUco-Subpixelablation bringt praktischkeineÄnderung(1,19834vs1,19841px).
+  Rotationsursache nochungeklärt:Optik-/Bildpose,Boardplanheit,Montagestabilität,
+  Restbewegung/Zeitzuordnung möglicheBeiträge,keinernachgewiesen.
+  NativeHD-KontrollwertewährendStreamwerdennochnichtzurückgelesen;
+  Vorher-/Nachher-HTTP-SettingsbelegenkeinevollständigeIn-Stream-Konstanz.
+- Diagnosev1 unterHD-Sitzung/resolution_diagnosis_v1/,80Originalhashesbestätigt.
+  KeineRealbefehle,Produktions-/GrenzwertänderungenoderProfilaktivierung.
+  Bericht docs/front_hd_calibration_2026-11-12.md ergänzt. Auflösungsbewusste
+  Bildfehler/robusteGewichtungkünftiggemeinsamdefinieren;mm/Gradseparatprüfen.
+
+## Links hinten: reale Kalibrierung abgeschlossen, 2026-11-12
+
+- Vollständige **41 Ansichten** mit eigenen HTTP-VGA-Bildern (640×480):
+  **33 Fit / 8 vorher reservierte Prüfbilder**, alle akzeptiert, jeweils24 Ecken,
+  41 verschiedene decodierte Bilder. Kein Bild ausgeschlossen oder überschrieben.
+  Fester Fokus406Manual,33333µsManual/Gain16; kein fremdes Kamera-/HD-Profil.
+- **Intrinsics PASS:** Fit-RMS0,1143px, medianer Prüf-RMS **0,1481px**.
+  **Hand-Auge PASS:** Prüf-Reprojektion **0,2496px**, Board-Translationsstreuung
+  **0,7402mm**, Rotationsstreuung **0,1671°**. Interne zurückgehaltene Prüfung,
+  keine absolute Genauigkeitsgarantie. HTTP-Empfang ist kein Belichtungszeitstempel.
+- Ergebnis und Rohdaten versioniert unter
+  `setup/calibration/hardware_handeye/left_rear_20261112/result_v1/`:
+  `summary.json`, `intrinsics.json`, `handeye_result.json`, vollständige41er-
+  Roh-/Annotationsdaten und SHA256-Manifest. Quelle/Originalrollen erhalten.
+  Ergebnis zunächst nicht automatisch aktiviert. Auf späteren ausdrücklichen
+  Nutzerauftrag am selben Tag global in **hardware_20261112_v1** übernommen;
+  archiviertes ursprüngliches `activated:false` bleibt als Historie erhalten.
+- Abschluss: SafetyNORMAL, alle linken Motioncontroller inaktiv, Endfehler
+  **0,0000338rad**, Positionsänderung über das letzte0,5s-Prüffenster0,0000424rad.
+  Keine Rückfahrt; Arm bleibt an letzter Aufnahmeansicht. Kein fremder Arm gestoppt.
+
+### Unterbrechungen und Wiederaufnahme
+
+- Bei sample029 nativer **C159A5/Wrist3**;29 Bilder gesichert, eigene Action
+  gecancelt und linke Motioncontroller inaktiv. RTDE bestätigte0kg/CoG[0,0,0].
+  Nutzer meldet Ursache behoben; anschließend1kg/CoG[0,0,0],NORMAL/PLAYING/Link
+  geprüft. Kein Nutzlastwert vom Agenten geraten/gesetzt, keine Autoquittierung.
+  Separater29er-Diagnosefit bleibt historisch/inaktiv (Mindestzahl30).
+- Zwölf Originalrestziele neu aus tatsächlichem Start verbunden; zuerst vor jeder
+  Bewegung wegen fehlender rechter Rear-Telemetrie abgebrochen. Alter Manager18298
+  stürzte nach PrimaryClient-Pipeline-Überlauf mitExit−11 ab. Nur diesen Treiber
+  als `uwa-right-rear-calibration-observer` wieder gestartet, Motion inaktiv,
+  kein Power/Play/Armziel. Linker Dienst und Frontmanager erhalten.
+- Nach32 Aufnahmen Abbruch wegen Frontbewegung unter alter Stillstandsregel.
+  Nutzer bestätigt hier ausdrücklich: **„Ja, diagonale Arme erreichen sich nicht;
+  Restreihe ausführen“**. Das ist eine Nutzerangabe zur Reichweite, keine Messung.
+  Neue neunRestziele `resume_diagonal/batch.json` (d913d5c2…) samt unveränderten
+  Originalzielen/Prüfrollen geprüft; nur gegenseitigeLR/RF-Kollisionen und deren
+  Stillstandsabhängigkeit ausgenommen. Übrige Kollisionsprüfung/nativeUR-Sicherheit
+  erhalten. Vorherige pauschale Warte-/Einarmangaben sind für dieses Paar überholt.
+- AutoReview hatte die neue Ausnahme zunächst mangels konkreter Freigabe im
+  aktuellen Gespräch abgelehnt; dabei keine Fahrt. Erst nach obiger ausdrücklicher
+  Bestätigung und erneutem Gesamtcheck gestartet. Diagonaltests2/2 bestanden.
+- Fortsetzung bis sample040 und Auswertung Exit0; Originaldaten/Haltebilder
+  erhalten. Logs `preparation/{series-run,resume-run-after-observer,
+  resume-diagonal-run}.log`, Abschluss `completion-state.json` und Freigaben dort.
+  Weitere Front-HD-Arbeit läuft separat und wird hier nicht gesteuert.
 
 ### Abgeschlossene Erstpose und Bildprüfung
 
@@ -1623,9 +1676,3 @@ aktiv; separate MuR-Simulation inaktiv. Vor weiterer Prozessarbeit neu prüfen.
 Die Liste beschreibt offene Arbeitspakete, keinen Auftrag, sie ohne weitere
 fachliche Abstimmung sofort alle umzusetzen. Aktuelle Konfigurationswerte und
 Bedienung haben Vorrang vor überholten Gesprächsständen.
-
-- Fortsetzungsstart vor jeder Bewegung abgelehnt: hinten rechte Live-Telemetrie
-  verloren. Dessen ursprünglicherManager18298 stürzte nach PrimaryClient-Pipeline-
-  Überlauf mitExit−11 ab; zwischenzeitlich auchDashboard nicht erreichbar, danach
-  RUNNING/NORMAL/Remote/STOPPED. Nur rechten Rear-Treiber für Zustandsmessung
-  wieder starten, keine Power-/Play-/Armziele; anschließend Vollcheck wiederholen.

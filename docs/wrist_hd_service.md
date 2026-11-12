@@ -136,18 +136,17 @@ Fehler verwirft die Messung; vor Fortsetzung tatsächlichen Normalzustand prüfe
 
 Ausgangspunkt: [einmaliger nativer Foto-Nachweis](wrist_native_photo_2026-11-12.md).
 
-## Konkret gestarteter40erFrontlauf2026-11-12
+## Abgeschlossener40erFrontlauf2026-11-12
 
-Nutzer beauftragt40Gesamtstellungen(32Fit/8vorabPrüfung). NeueSitzung
-`setup/calibration/hardware_handeye/right_front_hd_20261112/`:sample000HD
-mit24Ecken akzeptiert,39 weitereStellungen geplant undnachVollcheckgestartet.
-NeuesteKorrektur erlaubt diagonalen Parallelbetrieb: Frontrechts mussnichtauf
-Linksrear warten. Genau diesesPaarkeine gegenseitigeKollisions-/Stillstands-
-abhängigkeit; andereKollisionen/Arme/Tabellen undnativeSafety bleiben geprüft.
-GeometrischeNicht-Erreichbarkeit ist hierbei Nutzerangabe,nichtMessnachweis.
+Alle40 nativen2592×1944-Ansichten aufgenommen,32Fit/8vorabPrüfung,20–24Ecken,
+40 verschiedene ausgewählte Bilder. Fokus435Manual/60000µs/Gain16 konstant;
+jeweils Restore bestätigt. Front konnte nach Nutzerkorrektur unabhängig vom
+Diagonalpartner links hinten arbeiten. Dessen Nichterreichbarkeit ist eine
+Nutzerangabe; übrige Kollisionsprüfung/native Safety bleiben erhalten.
 
-Batch6c70b73a… in`final_plan/`,festeZiele/32-8-Rollen unter
-`preparation/fixed-goals-and-roles.json`,Operatoranweisung/Startmarker und
-Fortschritt in`preparation/`. EigenesUWA-Fenster zeigtFortschritt undSTOP;
-Schließen/STOP beendetden eigenenRunnerauchwährendHD-Warten. KeineAktivierung
-desneuenKalibrierprofilsautomatisch,nachvollständigerReiheunabhängigerFit.
+**Qualität abgelehnt, kein neues Profil aktiv:** Intrinsics-Fit1,1984px bei1px
+Grenze. Zusätzliche Offline-Diagnose: Hand-Auge-Prüfung1,9248px, Boardstreuung
+1,2669mm/0,5884°. Alle Rohdaten und Diagnoseversion lokal unter
+`setup/calibration/hardware_handeye/right_front_hd_20261112/` erhalten.
+Kamera am Ende wiederNormal, vollständige Einstellungen identisch bestätigt.
+Details: [Front-HD-Bericht](front_hd_calibration_2026-11-12.md).

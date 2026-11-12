@@ -28,11 +28,12 @@ def test_measured_model_preserves_world_anchors_and_housing(tmp_path):
         for suffix in ('wrist_camera_link', 'robotiq_85_base_link'):
             np.testing.assert_allclose(Chain(raw, rid+'_tool0', rid+'_'+suffix).forward({}),
                                        Chain(calibrated, rid+'_tool0', rid+'_'+suffix).forward({}))
-    arm = measured['calibration']['robots']['right_rear']
-    np.testing.assert_allclose(Chain(calibrated, 'right_rear_tool0',
-        'right_rear_wrist_camera_optical_frame').forward({}), arm['fit']['T_tool0_camera'], atol=1e-12)
-    np.testing.assert_allclose(Chain(calibrated, 'right_rear_base_link',
-        'right_rear_measured_board_frame').forward({}), arm['fit']['T_base_board'], atol=1e-12)
+    for rid in ('left_rear', 'right_rear'):
+        arm = measured['calibration']['robots'][rid]
+        np.testing.assert_allclose(Chain(calibrated, rid+'_tool0',
+            rid+'_wrist_camera_optical_frame').forward({}), arm['fit']['T_tool0_camera'], atol=1e-12)
+        np.testing.assert_allclose(Chain(calibrated, rid+'_base_link',
+            rid+'_measured_board_frame').forward({}), arm['fit']['T_base_board'], atol=1e-12)
     assert 'fit' not in measured['calibration']['robots']['right_front']
     np.testing.assert_allclose(Chain(calibrated, 'right_front_tool0',
         'right_front_wrist_camera_optical_frame').forward({}), Chain(raw, 'right_front_tool0',
@@ -44,7 +45,7 @@ def test_intrinsics_and_sensor_frame_match_measured_optical_frame(tmp_path):
     description = render_description(layout, tmp_path)[0]
     root = ET.fromstring(description)
     from scipy.spatial.transform import Rotation
-    for rid in ('right_front', 'right_rear'):
+    for rid in ('left_rear', 'right_front', 'right_rear'):
         arm = layout['calibration']['robots'][rid]
         sensor = root.find(f"gazebo[@reference='{rid}_wrist_camera_link']/sensor")
         camera = sensor.find('camera')

@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "kind": "hardware",
+  "profile_id": "hardware_20261112_v1",
+  "created_at": "2026-11-12",
+  "robots": {
+    "left_rear": {
+      "ur_type": "ur7e",
+      "kinematics": {
+        "file": "left_rear_kinematics.yaml",
+        "sha256": "bb92bea2073fe81efc918de6825c4c271d6ab6ea0790780b5a749bfd42aeb340",
+        "source": "setup/calibration/hardware_first_view/ur_kinematics/left_rear.yaml"
+      },
+      "intrinsics": {
+        "file": "left_rear_intrinsics.json",
+        "sha256": "2a192be497559d2120ee96e2a93f31d29e2f4cf1a4f55efc4997844a76c1a59f",
+        "source": "setup/calibration/hardware_handeye/left_rear_20261112/result_v1/intrinsics.json"
+      },
+      "handeye": {
+        "file": "left_rear_handeye_result.json",
+        "sha256": "2c42ed1cf1a29ef15d5e28d43a4ad9260033688a4f6d03b34ed0b1f23b60b6e0",
+        "source": "setup/calibration/hardware_handeye/left_rear_20261112/result_v1/handeye_result.json"
+      },
+      "camera_info": {
+        "file": "left_rear_camera_info.yaml",
+        "sha256": "470a7c507c6010ecffd0e193525989f652881904bb4e0bce05565058d51830ba"
+      }
+    },
+    "right_front": {
+      "ur_type": "ur5e",
+      "kinematics": {
+        "file": "right_front_kinematics.yaml",
+        "sha256": "5f8fbcf5b8fa4d8f166a08fc7612ce62ecf9aa4fb0f87a4ec12661a364fdbf90",
+        "source": "setup/calibration/hardware_first_view/ur_kinematics/right_front.yaml"
+      },
+      "intrinsics": {
+        "file": "right_front_intrinsics.json",
+        "sha256": "7e4f66fde3816bb2e4d4a733a3465567f266a780abad121f332954a9ecf4c991",
+        "source": "setup/calibration/hardware_handeye/right_front_20261111/evaluation_v1/intrinsics.json"
+      },
+      "rejected_handeye": {
+        "file": "right_front_handeye_result.json",
+        "sha256": "5da5abb61df6e499c1ff0ad8c86043658cf40a1a4c0886a56bc500cfe7d0e34a",
+        "source": "setup/calibration/hardware_handeye/right_front_20261111/evaluation_v1/handeye_result.json",
+        "reason": "Independent board rotation RMS0.6519455921deg exceeds0.5deg; not applied"
+      },
+      "camera_info": {
+        "file": "right_front_camera_info.yaml",
+        "sha256": "c9991d0730d5d543a241751b908dcbc30b8de19cc2877ac3da8005c90cbdb10f"
+      }
+    },
+    "right_rear": {
+      "ur_type": "ur5e",
+      "kinematics": {
+        "file": "right_rear_kinematics.yaml",
+        "sha256": "70f7e7753abb1068b9dc6ccb171e1bb9f4ae8d0be65b772b55abc8838331573e",
+        "source": "setup/calibration/hardware_first_view/ur_kinematics/right_rear.yaml"
+      },
+      "intrinsics": {
+        "file": "right_rear_intrinsics.json",
+        "sha256": "fde1f43e07c48b69da82b8f60e96245544c201c35f17d26c9302180642f0e086",
+        "source": "setup/calibration/hardware_handeye/right_rear_20261111/result_v1/intrinsics.json"
+      },
+      "handeye": {
+        "file": "right_rear_handeye_result.json",
+        "sha256": "f1ce3641c5ab05f89a4141a0ba2b845842a0224885662df98583aa0480da99c0",
+        "source": "setup/calibration/hardware_handeye/right_rear_20261111/result_v1/handeye_result.json"
+      },
+      "camera_info": {
+        "file": "right_rear_camera_info.yaml",
+        "sha256": "3ffcbe28c9b7a35d2e11b240c9561eee24b28236c40f9cfd0261649c67625103"
+      }
+    }
+  },
+  "not_calibrated": [
+    "world_to_tables",
+    "robot_base_mounts",
+    "relative_robot_bases",
+    "oak_extrinsics",
+    "camera_housing_geometry"
+  ],
+  "application": "Factory arm kinematics; validated camera optics. No joint commands or base relocation.",
+  "named_poses": {
+    "file": "named_poses.json",
+    "sha256": "a9e43f7e6f6a8daf1fb55387988a8c8d6cf26f5d1682a85b07e80659752d1ea0"
+  },
+  "previous_profile": "hardware_20261111_v1"
+}

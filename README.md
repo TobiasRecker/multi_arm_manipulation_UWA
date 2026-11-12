@@ -5,9 +5,10 @@ two tables carrying one UR5, one UR7e and two UR5e robots. It starts simulated
 hardware by default. The layout is provisional, not a calibrated digital twin.
 Separate, explicit local hardware preparation is available in the UWA Arms app.
 
-Since2026-11-11, the default model applies the versioned
+Updated2026-11-12, the default model applies the versioned
 [measured calibration bundle](docs/applied_calibrations.md): three individual UR
-factory kinematics, both right-camera intrinsics and rear-right hand-eye optics.
+factory kinematics, left-rear and both right-camera VGA intrinsics, plus both
+rear-camera hand-eye optics. The failed front-HD result remains excluded.
 The original nominal layout remains available. Table/base world poses and the
 OAK pose remain provisional; front hand-eye failed validation and is excluded.
 Named parking/capture joint references are saved without automatic execution.
@@ -67,9 +68,10 @@ stationary ChArUco observations, and fits intrinsics before the existing
 hand-eye solver. See [hardware camera calibration](docs/hardware_handeye.md).
 It now accepts all four arm IDs. The
 [left-rear preparation status](docs/left_rear_calibration_preparation_2026-11-12.md)
-records the completed first move, fixed VGA optics and the resumed41-view
-series after a native protective stop.
-Its results are not automatically activated; the Gazebo backend remains separate.
+records the completed41-view left-rear run:33 fit/8 held-out images,
+intrinsics and hand-eye validation passed; versioned results are saved locally.
+The left-rear result was explicitly activated globally on2026-11-12; new
+model loads use bundle hardware_20261112_v1. The Gazebo backend remains separate.
 The first real rear-right series completed on2026-11-11:41 views,33 fitting and8
 held out; intrinsics and hand-eye validation passed. Results and remaining
 accuracy limits are recorded in the linked hardware calibration guide.
@@ -77,6 +79,12 @@ The subsequent [front62-view experiment](docs/front_calibration_2026-11-11.md)
 completed with50 fitting and12 held-out views: intrinsics passed, hand-eye
 rotation validation failed (0.652° versus0.5°), so the profile remains inactive.
 Its20/33/50-view comparison showed no clear large gain from image count alone.
+The [native HD40-view run](docs/front_hd_calibration_2026-11-12.md) on2026-11-12
+captured all40 poses (32 fit/8 held out) at2592×1944 via the new HD service.
+The intrinsic fit failed the existing1px limit (1.198px); hand-eye diagnostic
+validation also failed. Original data are saved; no new profile was activated.
+Diagonal hardware arms now operate independently under the user's reach statement,
+with all remaining collision and native UR safety checks retained.
 
 The interface, tooltips and application-menu entry are in English. Click
 feedback uses a persistent high-contrast RECEIVED/RUNNING/DONE/FAILED panel,

@@ -1,6 +1,6 @@
 # Kalibrierung links hinten vorbereiten
 
-- Status: **neun Restansichten mit freigegebener Diagonalregel werden geprüft**,2026-11-12, Hauptagent.
+- Status: **abgeschlossen – 41 Bilder, Intrinsics und Hand-Auge PASS**,2026-11-12, Hauptagent.
 - Nutzer hat left_rear eingerichtet; Auftrag: Erreichbarkeit prüfen und
   Kalibrierung vorbereiten. Keine neue reale Fahrfreigabe ableiten.
 - Ziel192.168.8.169, External Control PC192.168.8.209/Port52002, Domain66.
@@ -117,3 +117,21 @@
   AktuelleAGENTS-Nutzerkorrektur erlaubt unabhängigesDiagonalpaarLR↔RF.
   Neue Restplanung resume_diagonal mit denselben neunOriginalzielen/-rollen,
  102,51s Bewegung; neue Diagonaltests2/2 bestanden. Keine Fremdprozesse stoppen.
+
+- DiagonaleAusnahme zunächst vonAutoReview abgelehnt: keine neueFahrt. Nutzer
+  bestätigt anschließend hier ausdrücklich: „Ja, diagonale Arme erreichen sich
+  nicht; Restreihe ausführen“. approval.json gespeichert, erneutFullcheck
+  bestanden, Batchd913d5c2… gestartet. Nur gegenseitigeLR/RF-Kollisionen und
+  derenStillstandsabhängigkeit ausgenommen; übrigePrüfungen/nativeSafety bleiben.
+
+- Abschluss12:17AWST: alle41Bilder/33Fit/8Prüfung, je24Ecken/41unique,
+  Originalrollen unverändert. Intrinsics-Prüfmedian0,1481px,Hand-Auge0,2496px,
+  Boardstreuung0,7402mm/0,1671°. Ergebnis PASS, activated=false.
+- Versionierter kompletter result_v1-Snapshot mitSHA256 gespeichert. NativeSafety
+  NORMAL, vierlinkeMotioncontroller inaktiv, letztesZiel3,38e-5radFehler; keine
+  Rückfahrt. EigenesSTOP-Beobachterfenster undTreiber bleiben bereit. Front-
+  HD-Aufgabe bleibt unabhängig. Keine Aktivierung oder neueFahrziele offen.
+
+- Folgeauftrag2026-11-12: gültige linkeRear-Kalibrierung jetzt ausdrücklich
+  global als hardware_20261112_v1 aktiviert; siehework/global-calibration-oak-boards.md.
+  Historisches result_v1 bleibt unverändert.
