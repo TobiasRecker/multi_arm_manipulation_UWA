@@ -25,18 +25,27 @@ def prepare_capture(capture,output):
     from .board_photo_evaluation import pose_from_observation
     capture=Path(capture).resolve();output=Path(output).resolve();output.mkdir(parents=True,exist_ok=True)
     manifest=json.loads((capture/'manifest.json').read_text())
-    if manifest.get('all_captured') is not True:raise ValueError('Three successful original photos required')
+    if manifest.get('all_captured') is not True:raise ValueError('Successful original photos required for every selected camera')
+    if manifest.get('stationary_set_confirmed') is False:
+        raise ValueError('Object photo set failed its stationary telemetry audit')
     layout=load_layout();profile=layout['calibration']
     context=json.loads((capture.parent/'calibration_context.json').read_text())
     if context['profile_sha256']!=profile['sha256']:
         raise ValueError('Active calibration changed since capture; select/freeze its original optics explicitly')
-    board=make_board(layout['charuco'],'right');models={}
-    for name in ('oak4','right_front','right_rear'):
+    reference=manifest.get('board',{}).get('board_id','right_table_board')
+    table='left' if reference=='left_table_board' else 'right'
+    board=make_board(layout['charuco'],table);models={}
+    names=manifest['cameras']
+    if not names or set(names)-{'oak4','left_front','left_rear','right_front','right_rear'}:
+        raise ValueError('Unsupported or empty camera set')
+    for name in names:
         record=json.loads((capture/name/'record.json').read_text())
         path=capture/name/record['image']
         if hashlib.sha256(path.read_bytes()).hexdigest()!=record['sha256']:
             raise ValueError('Original image hash mismatch: '+name)
-        image=cv2.imread(str(path));observation=observe(image,layout['charuco'],'right');observation.pop('annotated')
+        image=cv2.imread(str(path))
+        if image is None:raise ValueError('Original photograph cannot be decoded: '+name)
+        observation=observe(image,layout['charuco'],table);observation.pop('annotated')
         if observation['corners']<4:
             params=cv2.aruco.DetectorParameters();params.cornerRefinementMethod=cv2.aruco.CORNER_REFINE_SUBPIX
             detected,ids,_=cv2.aruco.ArucoDetector(board.getDictionary(),params).detectMarkers(image)
@@ -50,7 +59,8 @@ def prepare_capture(capture,output):
                                reference_type='aruco_marker_corners',marker_ids=used)
         else:observation['reference_type']='charuco_chess_corners'
         camera={'image':str(path),'observation':observation,'profile_id':profile['profile_id'],
-                'profile_sha256':profile['sha256'],'metric_usable':False,'metric_pose_source':'visible right-table board; no robot FK'}
+                'profile_sha256':profile['sha256'],'metric_usable':False,
+                'metric_pose_source':f'visible {table}-table board; no robot FK'}
         if name=='oak4':
             factory=profile['overview_camera']['factory']
             focus=record['camera_metadata']['standard']['lens_position']
@@ -60,7 +70,7 @@ def prepare_capture(capture,output):
             if observation['image_size']!=[8000,6000]:raise ValueError('OAK native8K mode required')
             camera['intrinsics_status']='factory reference; not independently validated for this session'
         else:
-            intrinsic=profile['robots'][name].get('camera');settings=record['settings_before']
+            intrinsic=profile['robots'].get(name,{}).get('camera');settings=record['settings_before']
             if (not intrinsic or intrinsic['image_size']!=observation['image_size'] or
                     settings['focusAuto'] or intrinsic['focus']!=settings['focus']):
                 camera['reason']='No matching native image-size/manual-focus intrinsic profile'
@@ -68,14 +78,18 @@ def prepare_capture(capture,output):
                 continue
             optics={'K':np.asarray(intrinsic['camera_matrix']),'D':np.asarray(intrinsic['distortion'])}
             camera['intrinsics_status']=profile['robots'][name]['quality_status']['intrinsics']
-        pose,rms=pose_from_observation(observation,optics)
+        try:pose,rms=pose_from_observation(observation,optics)
+        except ValueError as error:
+            camera['reason']='Insufficient metric board reference: '+str(error)
+            models[name]=camera
+            continue
         camera.update(K=optics['K'].tolist(),D=optics['D'].tolist(),T_camera_board=pose.tolist(),
                       board_rms_px=rms,metric_usable=True)
         models[name]=camera
     save(output/'camera_models.json',models)
     save(output/'preparation.json',{'schema':1,'capture_manifest':str(capture/'manifest.json'),
         'capture_manifest_sha256':hashlib.sha256((capture/'manifest.json').read_bytes()).hexdigest(),
-        'reference':'right-table ChArUco board,40mm squares; print scale assumed correct',
+        'reference':f'{table}-table ChArUco board,40mm squares; print scale assumed correct',
         'metric_cameras':[name for name,model in models.items() if model['metric_usable']],
         'depth_used':False,'new_camera_calibration':False,'hardware_commands':False})
     return models
@@ -240,7 +254,7 @@ def overlays(cameras,annotations,result,output):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--capture-set',type=Path,help='Prepare image-specific camera models from a saved three-camera set')
+    parser.add_argument('--capture-set',type=Path,help='Prepare image-specific camera models from a saved photo set')
     parser.add_argument('--cameras',type=Path)
     parser.add_argument('--landmarks',type=Path)
     parser.add_argument('--output',type=Path,required=True)

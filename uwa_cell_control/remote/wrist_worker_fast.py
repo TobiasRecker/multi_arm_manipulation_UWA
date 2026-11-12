@@ -4,7 +4,8 @@ import json
 import os
 import subprocess
 import sys
-import wrist_worker_legacy as worker
+import time
+import wrist_worker as worker
 
 original_restore = worker.restore
 DIRECTORY = None
@@ -21,7 +22,9 @@ def verify_mode():
 
 
 def restore(service, original):
+    started = time.time()
     result = original_restore(service, original)
+    restored = time.time()
     try:
         result['v4l2_mode'] = verify_mode()
         result['format_restore_strategy'] = 'visionserver_single_switch'
@@ -39,6 +42,8 @@ def restore(service, original):
         result['v4l2_mode'] = verify_mode()
         result['format_restore_strategy'] = 'explicit_fallback'
         result['format_restore_fallback_reason'] = str(error)
+    result['timing_seconds'] = {'settings_and_normal': restored - started,
+                                'mode_verification_and_fallback': time.time() - restored}
     return result
 
 
@@ -52,7 +57,10 @@ if __name__ == '__main__':
         DIRECTORY = sys.argv[1]
         if not DIRECTORY.startswith('/tmp/uwa_hd_') or '/' in DIRECTORY[len('/tmp/uwa_hd_'):]:
             raise ValueError('Unexpected capture directory')
+        started = time.time()
         result = worker.capture(DIRECTORY)
+        result['transaction_seconds'] = time.time() - started
+        worker.save(DIRECTORY + '/report.json', result)
         print(json.dumps(result))
         sys.exit(0 if result['success'] else 1)
     except Exception as error:

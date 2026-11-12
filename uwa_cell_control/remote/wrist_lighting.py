@@ -39,7 +39,7 @@ def apply(desired):
         if version.startswith(('UCC-1.11.1.', 'UCC-3.44.0.')) and change['lightingMode'] in (0, 1):
             change['lightingMode'] = 1 - change['lightingMode']
         # A setter error alone is inconclusive on UCC4.1; actual readback decides.
-        request('/setcamerasettings?setManualValuesIfModeChanged=true', change)
+        response = request('/setcamerasettings?setManualValuesIfModeChanged=true', change)
         automatic = set()
         if before.get('focusAuto'):
             automatic.add('focus')
@@ -51,7 +51,14 @@ def apply(desired):
                          and actual.get(k) != before[k]]
             if unrelated:
                 raise RuntimeError('LED operation changed other camera fields: ' + str(unrelated))
-            if all(actual.get(k) == v for k, v in desired.items()):
+            matches = all(actual.get(k) == v for k, v in desired.items())
+            # The tested UCC readback encodes manual LED mode as 1, for both
+            # zero and nonzero intensity. The setter's documented manual mode
+            # is 2. Require its successful acknowledgement AND actual intensity.
+            if (desired['lightingMode'] == 2 and response.get('status') == 'succeeded'
+                    and version.startswith(('UCC-4.1.0.', 'UCC-1.11.1.', 'UCC-3.44.0.'))):
+                matches = actual.get('lightingValue') == desired['lightingValue'] and actual.get('lightingMode') in (1, 2)
+            if matches:
                 return {'before': before, 'settings': actual, 'verified': True}
             time.sleep(.1)
         raise RuntimeError('LED readback mismatch: ' + str(actual))

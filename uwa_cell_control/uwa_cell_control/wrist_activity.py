@@ -115,7 +115,7 @@ def enroll(ip):
         if not (folder / 'profile.json').exists():
             settings = remote(ip, None)['settings']
             write_json(folder / 'profile.json', {'ip': ip,
-                'active': {k: settings[k] for k in ('lightingMode', 'lightingValue')},
+                'active': {'lightingMode': 2, 'lightingValue': settings['lightingValue'] or 53},
                 'original_settings': settings})
         (folder / 'enabled').touch()
     reconcile(ip)

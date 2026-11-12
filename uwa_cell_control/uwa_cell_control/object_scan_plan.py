@@ -16,7 +16,7 @@ from scipy.spatial.transform import Rotation
 import yaml
 
 from uwa_cell_description.configuration import ROBOT_IDS, joint_names, load_layout, default_layout_path
-from uwa_cell_gazebo.charuco import table_board_transform
+from uwa_cell_gazebo.charuco import table_board_transform, make_board
 from uwa_cell_gazebo.charuco_views import Chain
 from uwa_cell_calibration.planner import timed_path
 from .parking import complete_state, digest, make_model
@@ -32,10 +32,20 @@ def box_points(size):
 
 def target_geometry(layout, description, config):
     reference = config['reference_frame']
-    if reference not in ('left_table_top', 'right_table_top'):
+    if reference not in ('left_table_top', 'right_table_top', 'table_pair_midpoint'):
         raise ValueError('Expected an explicit tabletop reference frame')
-    table = reference.removesuffix('_table_top')
-    frame = Chain(description, 'world', reference).forward({})
+    if reference == 'table_pair_midpoint':
+        table = config.get('reference_board_table', 'right')
+        if table not in ('left', 'right'):
+            raise ValueError('Reference board must be left or right')
+        tables = [Chain(description, 'world', t + '_table_top').forward({}) for t in ('left', 'right')]
+        if abs(tables[0][2, 3] - tables[1][2, 3]) > .02:
+            raise ValueError('Tabletop heights differ; common support plane requires a measured reference')
+        frame = tables[1].copy()
+        frame[:3, 3] = (tables[0][:3, 3] + tables[1][:3, 3]) / 2
+    else:
+        table = reference.removesuffix('_table_top')
+        frame = Chain(description, 'world', reference).forward({})
     centre = np.asarray(config['centre_m'], float)
     if centre.shape != (3,) or not np.isfinite(centre).all():
         raise ValueError('Object centre requires three finite metres')
@@ -45,12 +55,16 @@ def target_geometry(layout, description, config):
     local = box_points(size)
     world = local @ obj[:3, :3].T + obj[:3, 3]
     board = layout['charuco']
-    B = frame @ table_board_transform(board, table)
+    table_frame = Chain(description, 'world', table + '_table_top').forward({})
+    B = table_frame @ table_board_transform(board, table)
     points = np.asarray([[x * board['square_length'], y * board['square_length'], 0]
                          for y in range(1, board['squares_y']) for x in range(1, board['squares_x'])])
     points = points @ B[:3, :3].T + B[:3, 3]
+    markers = np.asarray(make_board(board, table).getObjPoints()).reshape(-1, 3)
+    markers = markers @ B[:3, :3].T + B[:3, 3]
     return dict(T_world_object=obj, bounds=np.array([-size / 2, size / 2]),
                 corners=world, centre=obj[:3, 3], board_points=points,
+                marker_points=markers,
                 T_world_board=B, table=table)
 
 
@@ -114,9 +128,19 @@ def visibility(geometry, frames, camera, target, intrinsic, ignore=()):
     board_blocked = geometry.blocked(camera[:3, 3], target['board_points'], frames, ignore_links=ignore)
     board_blocked |= segment_box_hits(camera[:3, 3], target['board_points'],
                                       target['T_world_object'], target['bounds'])
+    _, marker_inside = project_points(target['marker_points'], camera, intrinsic['K'], intrinsic['D'],
+                                     intrinsic['size'], margin=12)
+    marker_blocked = geometry.blocked(camera[:3, 3], target['marker_points'], frames, ignore_links=ignore)
+    marker_blocked |= segment_box_hits(camera[:3, 3], target['marker_points'],
+                                     target['T_world_object'], target['bounds'])
+    complete_markers = int((marker_inside & ~marker_blocked).reshape(-1, 4).all(axis=1).sum())
+    chess_visible = target['board_points'][board_inside & ~board_blocked]
+    chess_rank = int(np.linalg.matrix_rank(chess_visible - chess_visible.mean(axis=0))) if len(chess_visible) else 0
     return dict(all_bounds_in_frame=bool(inside.all()), unblocked_box_corners=int((inside & ~blocked).sum()),
                 visible_reference_corners=int((board_inside & ~board_blocked).sum()),
-                passes=bool(inside.all() and (inside & ~blocked).sum() >= 4))
+                reference_chess_rank=chess_rank, visible_complete_reference_markers=complete_markers,
+                reference_pose_geometrically_supported=complete_markers >= 2,
+                passes=bool(inside.all() and (inside & ~blocked).sum() >= 4 and complete_markers >= 2))
 
 
 def add_object_collision(model, target, padding):

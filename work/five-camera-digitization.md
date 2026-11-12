@@ -14,3 +14,8 @@
 - Ziel dieser Umsetzung: wiederverwendbarer Fünfkamera-Aufnahmepfad und konkreter
   Sicht-/Erreichbarkeitsbericht für einen gemeinsamen Objektbereich. Danach neue
   Wege in RViz prüfen; Rekonstruktionsbackends separat am eingefrorenen Datensatz.
+
+- Nutzerkorrektur: neuer größerer Karton **zwischen beiden Tischen**, nicht der
+  frühere Karton auf dem rechten Tisch. Erste plan_v2 mit 20 Modellansichten
+  bleibt als verworfener Aufbau archiviert; keine Fahrfreigabe daraus ableiten.
+  Maße/Auflagehöhe angefragt; zunächst OAK-Einzelfoto ohne Wrist-/Armzugriff.

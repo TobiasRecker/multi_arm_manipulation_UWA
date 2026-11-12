@@ -29,11 +29,19 @@ class StationarityAudit:
         if positions.shape != (6,) or not np.isfinite(positions).all():
             return False
         with self.lock:
+            if velocities is not None:
+                velocities = np.asarray(velocities, float)
+                if velocities.shape != (6,) or not np.isfinite(velocities).all():
+                    if self.armed:
+                        self.violations.add(rid + ': invalid joint velocities')
+                    return False
             rows = self.history[rid]
             rows.append((now, positions, velocities))
             while rows and rows[0][0] < now - max(2., 2 * self.settle):
                 rows.popleft()
             if self.armed:
+                if velocities is not None and np.max(abs(velocities)) > .01:
+                    self.violations.add(rid + ': nonzero velocity during acquisition')
                 delta = float(np.max(abs(positions - self.reference[rid])))
                 self.peaks[rid] = max(self.peaks[rid], delta)
                 if delta > self.max_drift:
