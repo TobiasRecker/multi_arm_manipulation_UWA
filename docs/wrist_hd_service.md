@@ -1,6 +1,9 @@
 # HD-Bilddienst und Hardwarekalibrierung
 
-Stand2026-11-12,ROS2Lyrical. Echte Drei-Bilder-Probe auf **right_front** bestanden.
+Stand2026-11-12,ROS2Lyrical. Echte Drei-Bilder-Proben auf **right_front** und
+**left_rear** vollständig bestanden. Rechts hinten nativeBilder erhalten;
+UCC1.11.1 mit Autofokus wird wegen nachgewiesener Fokusfenster-Restore-Abweichung
+vor weiteren Moduswechseln abgewiesen. [Nachweise beider Rear-Kameras](wrist_hd_other_arms_2026-11-12.md).
 Es wird ausschließlich der Kameradienst kurz unterbrochen; keine Roboterbefehle.
 
 ## Grünstich und geometrische Kalibrierung
@@ -53,8 +56,9 @@ Dessen ROS-Zeitstempel ist **Empfangszeit**,kein Belichtungszeitstempel.
 
 Statusabfragen bleiben während der Transaktion erreichbar. Parallele Aufnahmen
 werden im ROS-Prozess und zusätzlich auf dem Controller gesperrt. Der Dienst
-verwendet die IP aus dem zentralen Inventar. Andere Arms können ausgewählt
-werden, sind über diesen Dienst aber noch nicht real getestet.
+verwendet die IP aus dem zentralen Inventar. Links hinten ist vollständig getestet. Rechts hinten liefert nativeBilder,
+wird im getesteten alten Autofokusmodus wegen fehlgeschlagenem ROI-Restore
+konservativ vor weiteren Kameraänderungen abgewiesen.
 
 ## Eigene HD-Kalibriersitzung
 
@@ -104,6 +108,11 @@ Profile und alte Sitzungen bleiben erhalten; keine automatische Profilaktivierun
 4. Stream/Puffer freigeben,VGA-Modus/Bildintervall zurücksetzen,Visiondienst
    wieder starten und auf tatsächliches **Normal** warten.
 5. Vollständige Originalsettings zurückschreiben und forceRefresh vergleichen.
+   Verzögerte Rückmeldungen begrenzt abwarten. Automatische Fokus-/Belichtungs-
+   Ausgabewerte dürfen bei aktivemAutomodus variieren, sämtlicheKonfigurations-
+   felder müssen stimmen. Beide manuell gesteuerten Werte bleiben exakt geprüft.
+   Nur bei getestetenLegacy-Zweigen1.11.1/3.44.0 LED-Schreibcodierung korrigieren;
+   entscheidend bleibt der tatsächlicheReadback.
    Firmware4.1 meldet beim Auto-LED-Setter teilweise Fehler15 trotz angewandtem
    Wert; vollständiger identischer Rücklesevergleich ist entscheidend.
 6. Erst nach bestätigtem Restore und nativer JPEG-Dekodierung Erfolg melden.
@@ -150,3 +159,12 @@ Grenze. Zusätzliche Offline-Diagnose: Hand-Auge-Prüfung1,9248px, Boardstreuung
 `setup/calibration/hardware_handeye/right_front_hd_20261112/` erhalten.
 Kamera am Ende wiederNormal, vollständige Einstellungen identisch bestätigt.
 Details: [Front-HD-Bericht](front_hd_calibration_2026-11-12.md).
+
+## Ausdrückliche Übernahme der Front-HD-Kalibrierung
+
+Nach der Fehlererklärung hat der Nutzer dieFront-HD-Daten ausdrücklich
+übernommen. Standardprofil ist **hardware_20261112_v2**, Front-K/D und
+Hand-Auge bleiben als `operator_accepted_below_threshold` mit `passed:false`
+gekennzeichnet. HD-CameraInfo gilt für2592×1944/Fokus435Manual, nicht für
+HTTP-VGA oder andere physischeKameras. Bestehende validierteRear-Profile erhalten.
+Details: [übernommene Kalibrierungen](applied_calibrations.md).

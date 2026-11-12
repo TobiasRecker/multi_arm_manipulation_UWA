@@ -109,14 +109,24 @@ def restore(service, original):
         automatic.add('focus')
     if original.get('exposureAuto'):
         automatic.update(('exposure', 'gain'))
+    legacy_led_mapping = None
     for attempt in range(21):
         actual = settings()
         differences = {k: [v, actual.get(k)] for k, v in original.items()
                        if k not in automatic and actual.get(k) != v}
+        if attempt == 0 and 'lightingMode' in differences and original['lightingMode'] in (0, 1):
+            version = request('/hello').get('version', '')
+            # Measured on these exact legacy branches: setter0 reads back1,
+            # setter1 reads back0. Never assume this for untested firmware.
+            if version.startswith(('UCC-1.11.1.', 'UCC-3.44.0.')):
+                legacy_led_mapping = 1 - original['lightingMode']
+                responses.append(request('/setcamerasettings?setManualValuesIfModeChanged=true',
+                                         {'cameraSettings': {'lightingMode': legacy_led_mapping}}))
         if not differences:
             return {'settings': actual, 'setter_responses': responses,
                     'all_original_fields_match': actual == original,
                     'all_configuration_fields_match': True,
+                    'legacy_led_write_value': legacy_led_mapping,
                     'automatic_output_fields': sorted(automatic)}
         if attempt < 20:
             time.sleep(.25)
@@ -134,6 +144,18 @@ def capture(directory):
     normal(timeout=4)
     original = settings()
     hello = request('/hello')
+    if hello.get('version', '').startswith('UCC-1.11.1.') and original.get('focusAuto'):
+        # Real right-rear tests found accumulating ROI shifts after each native
+        # mode/server restart. Do not repeat a known non-restorable transaction.
+        report = {'schema_version': 1, 'success': False, 'restore_ok': True,
+                  'state_changed': False, 'motion_commands': False,
+                  'camera': hello, 'original_settings': original,
+                  'error': 'UCC1.11.1 autofocus ROI restoration is not supported; '
+                           'no camera mode/service changes made. Use a verified '
+                           'manual-focus profile or update and retest the URCap.'}
+        save(directory + '/original-settings.json', original)
+        save(directory + '/report.json', report)
+        return report
     service, vision_pid = service_for_vision()
     save(directory + '/original-settings.json', original)
     report = {'schema_version': 1, 'success': False, 'restore_ok': False,

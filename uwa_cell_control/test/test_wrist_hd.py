@@ -102,6 +102,38 @@ def test_restore_waits_for_async_settings_and_keeps_auto_mode_configuration_stri
         m.restore('/only/camera/service',original)
 
 
+def test_restore_legacy_led_setter_mapping_requires_real_matching_readback(monkeypatch):
+    m=worker()
+    original={'focus':406,'focusAuto':False,'exposure':33333,'exposureAuto':False,
+              'gain':16,'lightingMode':1,'lightingValue':0}
+    actual=dict(original)
+    def request(path,data=None):
+        if path=='/hello':return {'version':'UCC-3.44.0.149696'}
+        change=data['cameraSettings']
+        if 'lightingMode' in change:actual['lightingMode']=1-change['lightingMode']
+        return {'status':'succeeded'}
+    monkeypatch.setattr(m,'normal',lambda **k:None)
+    monkeypatch.setattr(m.subprocess,'check_call',lambda *a,**k:0)
+    monkeypatch.setattr(m,'request',request)
+    monkeypatch.setattr(m,'settings',lambda:dict(actual))
+    monkeypatch.setattr(m.time,'sleep',lambda _:None)
+    result=m.restore('/only/camera/service',original)
+    assert result['all_original_fields_match'] and result['legacy_led_write_value']==0
+
+
+def test_known_legacy_autofocus_roi_failure_declines_before_any_mode_change(tmp_path,monkeypatch):
+    m=worker()
+    monkeypatch.setattr(m,'normal',lambda **k:None)
+    monkeypatch.setattr(m,'settings',lambda:{'focusAuto':True,'focus':388})
+    monkeypatch.setattr(m,'request',lambda path:{'version':'UCC-1.11.1.10337'})
+    def forbidden(*args,**kwargs):raise AssertionError('Must not stop service or change camera mode')
+    monkeypatch.setattr(m,'service_for_vision',forbidden)
+    monkeypatch.setattr(m.subprocess,'check_call',forbidden)
+    result=m.capture(str(tmp_path/'request'))
+    assert not result['success'] and result['restore_ok'] and not result['state_changed']
+    assert 'autofocus ROI' in result['error']
+
+
 class BurstCamera:
     capture_source=SOURCE
     last_burst={'transport':'native_v4l2_mjpeg'}

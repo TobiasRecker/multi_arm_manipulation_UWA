@@ -46,10 +46,17 @@
   als zusätzliche Konfigurationsquelle einführen.
   Nutzerauftrag2026-11-11: gemessene gültige Teilkalibrierungen gemeinsam nutzen.
   Standard-Loader verwendet `cell_layout_calibrated.yaml` als dünne Referenz auf
-  diese Geometrie plus `config/calibration/hardware_20261112_v1/profile.json`.
-  Rohes Nominalmodell bleibt explizit ladbar. Seit Nutzerauftrag2026-11-12 drei Werkskinematiken, linkeRear-/beide rechten
-  VGA-Intrinsics und beideRear-Hand-Auge verwenden. Front-Hand-Auge und das
-  nicht bestandeneFront-HD-Profil bleiben ausgeschlossen.
+  diese Geometrie plus `config/calibration/hardware_20261112_v2/profile.json`.
+  Rohes Nominalmodell bleibt explizit ladbar. Drei Werkskinematiken sowie
+  validierte VGA-Intrinsics/Hand-Auge beider Rear-Arme bleiben erhalten.
+  Neuester Nutzerauftrag2026-11-12 nach erklärtem Qualitätsfehler: Front-HD-
+  Intrinsics und Hand-Auge ausdrücklich übernehmen. Profilv2 verwendet sie mit
+  `operator_accepted_below_threshold`, nativen2592×1944 und Fokus435Manual.
+  Fehlgeschlagene `passed:false`-Ergebnisse niemals als PASS umschreiben.
+  Ausnahme nur pro exakt SHA256-gebundenem Artefakt mit konkreter dokumentierter
+  Nutzerentscheidung; ohne diese gelten die bisherigen Qualitätsgrenzen weiter.
+  Integrität, endliche Werte, starre Transformationen und Beobachtungszahlen
+  bleiben auch bei ausdrücklicher Übernahme geprüft. Keine neue Basis-/Weltpose.
   Posenreferenzen sind keine aktuellen Hinderniszustände/Fahrfreigaben. Keine
   absolute Basis-/Tischpose aus nur ungefähr bekannter Boardlage ableiten.
 - Weltachsen: X rechts, Y hinten, Z oben. Montageposen beziehen sich auf

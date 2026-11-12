@@ -1,0 +1,98 @@
+schema_version: 1
+status: experimental_design_not_hardware_command
+date: '2026-11-12'
+reference_frame: right_table_top
+axes: X right, Y rear, Z up; table origin at tabletop centre
+oak_pose:
+  xyz_m:
+  - 0.8064328220885076
+  - 0.025349804826389696
+  - 0.957766126143802
+  T_table_rgb_optical:
+  - - 0.06248886376258165
+    - 0.5527082960024219
+    - -0.8310286886959803
+    - 0.8064328220885076
+  - - 0.9978027444772805
+    - -0.016227383309456563
+    - 0.06423671181290867
+    - 0.025349804826389696
+  - - 0.022018742454286516
+    - -0.8332167854532379
+    - -0.5525078853914255
+    - 0.957766126143802
+  - - 0.0
+    - 0.0
+    - 0.0
+    - 1.0
+  view_depression_deg: 33.539235086308544
+  board_pose_assumption: Existing nominal right tabletop board placement and yaw;
+    not surveyed
+  source_image_sha256: ef637df8721d3ae500ef411ee3a7d659664fbb58546bb9c94537cf14d4bc600d
+  intrinsics: OAK factory EEPROM at4000x3000 scaled to8000x6000, lens116 calibration;
+    capture autofocus position unknown
+  provisional_not_global: true
+model_profile: hardware_20261112_v2
+targets_rad:
+  left_front:
+  - 2.3518578505286705
+  - -1.9383650551488658
+  - 2.1286613469868416
+  - -2.9859096726171597
+  - -2.5539629743330843
+  - 0.11448310316968933
+  left_rear:
+  - -4.88540699598597
+  - -2.760975656935243
+  - 2.0862107401153946
+  - -2.222220578156181
+  - -1.5769553289764566
+  - -0.13864418319264937
+  right_front:
+  - -5.624984288820034
+  - -0.22114686070786785
+  - -1.9786656501682427
+  - -1.175427279320741
+  - 1.0903385348452101
+  - 0.2501319356784115
+  right_rear:
+  - -0.5768727793628529
+  - -0.9567991273278952
+  - -1.970329536771544
+  - -0.6119874348543046
+  - 2.304069358018163
+  - -0.09736322110953836
+shared_area_m2_approx:
+  left_front: 0.5890909090909091
+  left_rear: 0.7030303030303031
+  right_front: 0.9696969696969697
+  right_rear: 0.770909090909091
+shared_mobile_pattern_placements:
+  left_front: 11
+  left_rear: 28
+  right_front: 39
+  right_rear: 28
+validation:
+  all_four_target_model_collision_free: true
+  each_wrist_own_board_corners: 24
+  oak_both_table_board_corners: 48
+  baseline_clear_table_fraction_model: 0.5365418894830659
+  proposed_clear_table_fraction_model: 0.7807486631016043
+  full_serial_model_sweeps_passed: true
+  serial_order:
+  - left_front
+  - left_rear
+  - right_rear
+  - right_front
+  left_front_current_state: user_nominal_home, not encoder measurement
+  hardware_motion_executed: false
+  hardware_execution_approved: false
+artifacts: $UWA_WS/setup/calibration/oak_pose_20261112/design_wrist/
+limitations:
+- Provisional table and robot base mounting; do not infer absolute robot world registration
+- Conservative collision-mesh boxes and5mm camera near clipping for visibility
+- Only modelled bodies; no cables, people, unmodelled fixtures or tripod collisions
+- Camera autofocus/frame settings may affect factory intrinsics; single-image pose
+  is preliminary
+- Before real motion obtain fresh states, review current scene and plan exactly selected
+  arm paths

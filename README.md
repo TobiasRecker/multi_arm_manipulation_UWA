@@ -10,8 +10,16 @@ Updated2026-11-12, the default model applies the versioned
 factory kinematics, left-rear and both right-camera VGA intrinsics, plus both
 rear-camera hand-eye optics. The failed front-HD result remains excluded.
 The original nominal layout remains available. Table/base world poses and the
-OAK pose remain provisional; front hand-eye failed validation and is excluded.
+OAK pose remain provisional. The latest bundle `hardware_20261112_v2` uses
+front native-HD intrinsics and hand-eye after the user's explicit adoption of
+the below-threshold result. Its failed automatic quality flags remain visible;
+both validated rear calibrations are preserved.
 Named parking/capture joint references are saved without automatic execution.
+
+A [rough real OAK pose and shared-view arm design](docs/oak_pose_and_shared_views_2026-11-12.md)
+is available: experimental camera/table registration, collision-checked model
+postures and a separate read-only RViz preview on domain70. These targets have
+not been executed on hardware or made the simulation's default initial poses.
 
 Project context is maintained in [HANDOVER.md](HANDOVER.md): user goals,
 requirements, preferences, decisions, verified results and open work.
@@ -71,7 +79,7 @@ It now accepts all four arm IDs. The
 records the completed41-view left-rear run:33 fit/8 held-out images,
 intrinsics and hand-eye validation passed; versioned results are saved locally.
 The left-rear result was explicitly activated globally on2026-11-12; new
-model loads use bundle hardware_20261112_v1. The Gazebo backend remains separate.
+model loads use bundle hardware_20261112_v2. The Gazebo backend remains separate.
 The first real rear-right series completed on2026-11-11:41 views,33 fitting and8
 held out; intrinsics and hand-eye validation passed. Results and remaining
 accuracy limits are recorded in the linked hardware calibration guide.
@@ -82,9 +90,15 @@ Its20/33/50-view comparison showed no clear large gain from image count alone.
 The [native HD40-view run](docs/front_hd_calibration_2026-11-12.md) on2026-11-12
 captured all40 poses (32 fit/8 held out) at2592×1944 via the new HD service.
 The intrinsic fit failed the existing1px limit (1.198px); hand-eye diagnostic
-validation also failed. Original data are saved; no new profile was activated.
+validation also failed. Original data are saved. After reviewing the failure, the user explicitly
+adopted the front-HD parameters in bundle `hardware_20261112_v2`; quality remains
+marked below threshold. New front models use2592×1944 K/D, not the640×480 HTTP mode.
 Diagonal hardware arms now operate independently under the user's reach statement,
 with all remaining collision and native UR safety checks retained.
+Native HD capture was also tested on [both rear cameras](docs/wrist_hd_other_arms_2026-11-12.md):
+left rear passed a complete ROS burst with restored settings and24 ChArUco corners.
+Right rear supplied native images; its old UCC1.11.1 autofocus mode changes the
+focus window on restart and is declined before further mode changes.
 
 The interface, tooltips and application-menu entry are in English. Click
 feedback uses a persistent high-contrast RECEIVED/RUNNING/DONE/FAILED panel,

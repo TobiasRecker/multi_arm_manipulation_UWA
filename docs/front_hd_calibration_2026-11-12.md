@@ -4,7 +4,10 @@ Die beauftragte Aufnahme ist vollständig abgeschlossen: **40 unterschiedliche
 Roboterstellungen, 32 Fit- und 8 vorab reservierte Prüfbilder**, jeweils native
 **2592 × 1944 Pixel** aus dem neuen ROS-HD-Dienst. Alle 40 Bilder wurden angenommen
 (20–24 ChArUco-Ecken), alle ausgewählten Pixel-Hashes sind verschieden.
-Die automatische Kalibrierfreigabe ist **fehlgeschlagen**; kein Profil aktiviert.
+Die automatische Kalibrierfreigabe ist **fehlgeschlagen**. Nach Erläuterung der
+Fehler hat der Nutzer am selben Tag die Daten ausdrücklich übernommen:
+**hardware_20261112_v2** ist jetzt Standard, mit unveränderten `passed:false`-
+Flags und Kennzeichnung `operator_accepted_below_threshold`.
 
 ## Qualitätswerte
 
@@ -22,7 +25,8 @@ unter `evaluation_v1/`: ausschließlich die 32 Trainingsbilder liefern K/D,
 anschließend unveränderter Park-/robuster Hand-Auge-Solver. Acht feste Prüfbilder
 bleiben vom Fit ausgeschlossen. Kein Bild ausgeschlossen, keine Ground Truth
 oder nominelle Extrinsics für den Fit benutzt, keine Grenzwerte geändert.
-Diagnose-Transformationen sind ausdrücklich **nicht freigegeben**.
+Die ursprüngliche automatische Diagnose gibt diese Transformationen nicht frei.
+Die spätere Nutzerübernahme ist separat im versioniertenProfil dokumentiert.
 Die Boardstreuung ist eine interne Konsistenzprüfung, kein Nachweis absoluter
 Genauigkeit. Mit nur einem rechten Arm entsteht keine neue relative Basispose.
 
@@ -138,3 +142,14 @@ Aufnahmestellung0,0000453rad. Der skalierte Trajektoriencontroller bleibt aktiv
 und hält diese Stellung; keine Rückfahrt. Kamera wieder **Normal**, sämtliche
 Einstellungen identisch mit der letzten Aufnahme. Bestehendes Kalibrierprofil
 unverändert. Andere Arme/Dienste wurden zum Abschluss nicht gesteuert.
+
+## Nachfolgende Nutzerübernahme
+
+Auftrag: „Okay, kannst du die daten dann bitte übernehmen?“ nach Erklärung der
+Auflösungsgrenze und der verbleibenden Rotationsinkonsistenz. V2 verwendet die
+Front-HD-Intrinsics undHand-Auge-Transformationen ausdrücklich unterhalb der
+bisherigen Qualitätsgrenzen. Ursprüngliche Diagnose-/Rohdaten unverändert,
+keine Grenzwerte geändert. Separate SHA256-gebundene Ausnahmen imProfil;
+Rear-Kalibrierungen ausv1 erhalten. NativeFrontgröße2592×1944/Fokus435Manual,
+HD-K/D nicht aufHTTP-VGA anwenden. Keine reale Bewegung/Modellprozessneustarts.
+Details und Prüfnachweise: [übernommene Kalibrierungen](applied_calibrations.md).

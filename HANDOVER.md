@@ -5,6 +5,67 @@ Diese Datei fasst die bisherigen Gespräche und die überprüfte Implementierung
 zusammen. Sie soll bei weiterer Arbeit mitgepflegt werden, nicht als unveränderlicher
 Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [README.md](README.md).
 
+## Grobe OAK-Pose und Beobachtungsstellungen,2026-11-12
+
+- Nutzer bittet um grobe OAK-Pose relativ rechtemTisch sowie UR-Stellungen mit
+  freier Tisch-/gemeinsamerOAK-Wrist-Sicht. Keine neue realeFahrt ausgeführt.
+- EEPROM-K/D derOAK238 reinlesend,8K-Bildecken beiderTischboards perIPPE/LM
+  ausgewertet. Relativ angenommenerrechterTischplattenmitte **[+0,806;+0,025;
+  +0,958]m**,33,54°nachunten; bei0,90m Tischhöhe etwa1,858mBodenhöhe.
+  LinkesBoard unabhängig0,960m/33,58°. Boardabstand0,959m statt0,90mNominal:
+  Tischbewegung/Boardlage noch nicht trennbar, keine Welt-/Basisanker verschieben.
+- Einbild-/Factory-Intrinsics-Schätzung mit unbekanntemFoto-AF-Wert, keine endgültige
+  OAK-Kalibrierung. Eigenes experimentellesDesignprofil ohne globaleAktivierung:
+  config/view_designs/oak_shared_views_20261112.yaml. Aktuellesparallelübernommenes
+  hardware_20261112_v2 unverändert benutzt, Front-Qualitätskennzeichnung erhalten.
+- Vierarm-Zielkonfiguration kollisionsfrei, jeWrist24Board-Ecken, OAK48Ecken.
+  KonservativeMesh-Box-Sichtschätzung freieGesamttischfläche54%→78%; keine
+  echtePixel-Messung. GemeinsamfreieTischflächen ungefähr0,59/0,70/0,97/0,77m².
+  HorizontalesmobilesA4-Muster passt vollständig in beideKameras bei
+ 11/28/39/28 der54geprüftenPlatzierungen jeArm(LF/LR/RF/RR).
+- Serielle reineModellwege LF→LR→RR→RF mit368s/3685Samples vollständig geprüft;
+  echteAusführung bleibt false(linksFront nurNutzer-Home,provisorischeMontagen).
+  Keine zusätzlichenWrist2-Umdrehungen, Wrist3-Änderungmax90° alsSuchpräferenz.
+- StatischeRViz-Vorschau aufDomain70 geöffnet(28Gelenke/9Marker gelesen), ohne
+  Hardwareclients oderTF-/Joint-Kommandobrücke. FünfGeometrietestsPASS.
+  Vergleichsbild undlokaleYAML/Posen/Hashnachweise unter
+  setup/calibration/oak_pose_20261112/design_wrist/; Geometrie-/Wegprüfung und
+  Grenzen in [Bericht](docs/oak_pose_and_shared_views_2026-11-12.md).
+
+## Aktuell: Front-HD übernommen und weitere HD-Kameras geprüft, 2026-11-12
+
+- Nach Erklärung der Qualitätsabweichungen ausdrücklicher Nutzerauftrag:
+  Front-HD-Daten übernehmen. Neues Standardprofil **hardware_20261112_v2**,
+  baut aufv1 auf; beide validiertenRear-Optiken und Werkskinematiken unverändert.
+  Front-Intrinsics2592×1944/Fokus435Manual und Hand-Auge übernommen mit
+  `operator_accepted_below_threshold`; ursprüngliche `passed:false` bleiben.
+  Nutzerentscheidung pro Artefakt anSHA256/Qualitätsbericht gebunden; keine
+  Grenzwerte geändert. Ohne diese konkrete Ausnahme weiterhin strenge Ablehnung.
+- Standardloader und generierteFront-Optikmatrix geprüft; keine Welt-/Basen-
+  verlegung, keine Arm-/Dashboardbefehle, keine Hardware-/Gazebo-Neustarts.
+  Neue Modell-/Planaufrufe nutzenv2; bereits geladene Modelle erst nachNeuladen.
+  HD-K/D nicht auf640×480-HTTP-Bilder oder andere Kameras anwenden.
+- **left_rear HD-Service PASS:** drei2592×1944-Bilder,je24Ecken,16,12s,
+  Restore/Normal und sämtlicheOriginalsettings identisch. UCC3.44.0.149696,
+  Kamera06561F1400090106. NativeDaten service/left_rear/c1990d41963846b78e3346ee5b3a8b5d.
+- **right_rear nativeHD erhalten**,3×2592×1944,UCC1.11.1.10337,
+  Kamera01D1111A00090912. Decke/Leuchte stattBoard,keineArmfahrt fürsMotiv.
+  VollständigerService-Restore imAutofokusmodus FAIL: FokusfensterX1/Y1 von
+  165/134 über158/118 auf158/102 verschoben; ursprünglicheROI nicht exakt
+  wiederhergestellt. Autofokus/Autoexposure-Modi,LED und übrigeFelder erhalten,
+  KameraNormal. Dies wird nicht als vollständigerErfolg verschwiegen.
+- Weitere UCC1.11.1-Autofokus-Aufrufe vorKamera-/Modusänderung abweisen;
+  echter Guardtest2,88s, state_changed:false, vollständigeVorher-/Nachhergleichheit.
+  VerifiziertesManualprofil oderUpdate+Restoretest vorweitererSerie nötig.
+- LegacyLED-Schreibwerte0/1 bei tatsächlich getestetenZweigen1.11.1/3.44.0
+  invertiert; jetztgezieltberücksichtigt, tatsächlicherReadbackmaßgeblich.
+  BegrenztesWarten aufSettings;automatischbestimmteFokus-/Exposureausgaben
+  dynamisch,Konfigurations-/manuelleWerte weiterhinstrenggeprüft.
+- **45Tests PASS**,3LyricalPaketegebaut;Logs uwa-front-hd-adoption-{tests,build}.
+  Berichte [Profile](docs/applied_calibrations.md),
+  [Rear-HD-Bildtests](docs/wrist_hd_other_arms_2026-11-12.md).
+  Daten setup/calibration/wrist_hd/other_arms_20261112/;Sitzungen/RohbildernichtimGit.
+
 ## Nutzerziele und Vorlieben
 
 - Neue Roboter-Codebasis auf **ROS 2 Lyrical** unter **Ubuntu 26.04** aufbauen.
@@ -55,7 +116,7 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   reservierte Prüfungen. Alle angenommen,20–24Ecken,40 verschiedene Pixel-Hashes.
   Eigener Frontlauf ohne Unterbrechung. Rohdaten und getrennte Diagnoseversion
   unter `setup/calibration/hardware_handeye/right_front_hd_20261112/` erhalten.
-- **Keine Qualitätsfreigabe:** Intrinsics-Fit1,1984px überschreitet1px;
+- **Zum ursprünglichen Abschluss keine automatische Qualitätsfreigabe:** Intrinsics-Fit1,1984px überschreitet1px;
   regulärer Ablauf daher Exit1 nach vollständiger Aufnahme. Zusätzliche reine
   Offline-Diagnose: Intrinsics-Prüfung1,0031px, Hand-Auge-Prüfung1,9248px,
   Boardstreuung1,2669mm/0,5884°. Keine Bilder entfernt/Prüfbilder zumFit benutzt,
