@@ -629,6 +629,32 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   output/images/carton_digitization_preview.png. Rohdaten/Hashmanifest/Overlays
   undKameraprofile untersetup/digitization/carton_20261112/, Logs uwa-carton-*.
 
+## Bewegungsraum-/Parallelprüfung der Scanwege, 2026-11-12
+
+- Nutzer will maximale Vorstöße über mittige virtuelle Wände und daraus mehr
+  parallele Bewegung. Implementiert Offline-CLI scan_separation, keine Motion-
+  Clients/Dienst-/Kameraaktionen. Ganze68Kollisionskörper einschließlich Greifer
+  und Kameras, Originalquintiken und konservative Zwischenpunktpolster geprüft.
+- Quelle new_carton_plan_current, Modellhardware_20261112_v3. Über gesamte Wege
+  LF/RF keine Mittellinienüberschreitung; LR≤34,1mm und RR≤60,4mm gegeneinander,
+  tatsächliche Stichproben32,5/58,9mm. Greiferfinger begrenzen diese Vorstöße.
+- Anfangswege aller4Arme zeitunabhängig getrennt, trotz hinterer Ebenenübertritte:
+  gedrehte3D-Ebene liefert28,6mm Abstanduntergrenze. Technische Prüfschwelle20mm,
+  keine gemessene Reserve realer Montagefehler. Alle übrigen Paarabstände größer.
+- Zusatzansichten hinteres Paar nicht vollständig mit20mm nachgewiesen, auch
+  bei289Einzelkörperpaaren: linke Finger gegenüber rechtemwrist_2 bleiben offen.
+  Kein tatsächlicher Kollisionsfund behauptet. Andere5Armpaare getrennt.
+- Prüfablauf: alle4Anfangswege parallel; Zusatzketten LF/LR/RF parallel inRunden,
+  dannRR. Nicht nachgewiesene Paarreihenfolge LR→RR unverändert; Gelenkpunkte/
+  Zeitparameter unverändert, Stillstands-/Fotobarriere nachjederRunde.
+  Reine Fahrzeit193,5→80,9s(−58,2%), ohne Aufnahme/Stillstand. Nur Prüfartefakt,
+  keine Integration/Aktivierung paralleler Hardwarebewegungen.
+- Quell-/URDF-/Mesh-SHA gebunden; Greiferwerte explizite Modellannahme, Weltanker
+  vorläufig, Kabel/Personen/Stativ nicht modelliert. Neue Wege neu prüfen.
+- Build und12neueTests/Planungs-/Parkregressionen geprüft. Anleitung
+  docs/scan_separation.md, Daten setup/digitization/five_camera_design_20261112/
+  separation_review/, separater installierterCLI-Lauf separation_installed/.
+
 ## OAK zuerst und Fünfkamera-Softwarestufe, 2026-11-12
 
 - Nutzer beauftragt Umsetzung; korrigierter Aufbau: neuer größerer Karton in der
@@ -639,7 +665,7 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   43,9×34,6×15,8cm; kein finales CAD/Genauigkeitsnachweis. Overlay durchgesehen.
   Planungsreserve max(Bild,Nutzer)×1,15+4cm ergibt54,5×43,7×27cm.
 - Neue CLI object_scan_bootstrap (Foto/assistierte Schätzung), object_scan_plan
-  (nur Lesen/Modellprüfung/RViz-Vorschau Domain73) und scripts/object_capture.sh
+  (nur Lesen/Modellprüfung/RViz-Vorschau Domain74) und scripts/object_capture.sh
   (vier Wrist+OAK, Kamera-only). Dreikamera-Standard erhalten. Keine Bewegungs-
   Clients im neuen Planer; alle Ergebniswege bleiben executable:false.
 - Neue gemeinsame Modellansichten mit beiden Referenzboards; enger Suchbereich

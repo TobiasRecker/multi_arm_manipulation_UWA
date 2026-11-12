@@ -74,6 +74,9 @@ describes the methods and limits. The first [OAK-first scan workflow](docs/objec
 now estimates coarse box geometry, prepares checked view proposals and provides a
 five-camera viewer via `bash src/multi_arm_manipulation_UWA/scripts/object_capture.sh`.
 Corner selection is assisted; no real scan motion has been executed.
+A [virtual-wall and swept-volume analysis](docs/scan_separation.md) now derives a
+parallel review schedule from the unchanged scan paths. It retains the original
+order for pairs without a separation proof; no hardware execution is enabled.
 
 ## OAK camera CAD and tripod
 

@@ -376,11 +376,11 @@ def main():
     parser.add_argument('--config', type=Path)
     parser.add_argument('--layout', type=Path, default=default_layout_path())
     parser.add_argument('--inventory', type=Path, default=Path(__file__).resolve().parents[2] / 'config/hardware_inventory.yaml')
-    parser.add_argument('--preview-step', type=int, help='Only preview an existing report step on domain73')
+    parser.add_argument('--preview-step', type=int, help='Only preview an existing report step on domain74')
     args = parser.parse_args()
     if args.preview_step is not None:
         from .parking_preview import preview
-        preview(args.output / f'review_step_{args.preview_step:03d}.json', domain=73)
+        preview(args.output / f'review_step_{args.preview_step:03d}.json', domain=74)
         return
     if (args.snapshot is None and not args.read_live_state) or args.config is None:
         parser.error('Provide --config and either --snapshot or --read-live-state')

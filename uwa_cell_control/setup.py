@@ -17,4 +17,5 @@ setup(name='uwa_cell_control',version='0.1.0',packages=find_packages(),
                                       'digitize_box = uwa_cell_control.object_digitization:main',
                                       'object_scan_plan = uwa_cell_control.object_scan_plan:main',
                                       'object_scan_bootstrap = uwa_cell_control.object_scan_bootstrap:main',
+                                      'scan_separation = uwa_cell_control.scan_separation:main',
                                       'wrist_hd_service = uwa_cell_control.wrist_hd_service:main']})

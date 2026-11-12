@@ -378,6 +378,56 @@ def groups_from_pairs(arms, pairs):
     return [g for g in groups if not any(set(g) < set(other) for other in groups)]
 
 
+def parallel_review_schedule(plan, phases, arms):
+    """Reorder only phase-independent arm chains; retain every unproven order.
+
+    The source has contiguous per-arm blocks. For any unproven pair, its earlier
+    entire chain still finishes before the later starts. Thus the stationary
+    state assumed by its original path checks is retained. Other pairs have a
+    continuous arbitrary-progress separation proof. No trajectory is changed.
+    """
+    batches = []
+    for scope in ('initial', 'extra'):
+        indexed = [(i, s) for i, s in enumerate(plan['steps']) if
+                   (scope=='initial') == (s['purpose']=='common_object_initial_view')]
+        order = list(dict.fromkeys(s['arm'] for _,s in indexed))
+        run_order = [s['arm'] for k,(_,s) in enumerate(indexed) if k==0 or s['arm']!=indexed[k-1][1]['arm']]
+        if run_order != order:
+            raise ValueError('Parallel review requires contiguous original arm blocks')
+        chains = {rid: [i for i,s in indexed if s['arm']==rid] for rid in order}
+        safe = {frozenset((p['a'], p['b'])) for p in phases[scope]['pairs']
+                if p['phase_independent_separation_proven']}
+        dependencies = {rid: set() for rid in order}
+        for a,b in combinations(order, 2):
+            if frozenset((a,b)) not in safe:
+                dependencies[b].add(a)
+        completed = set()
+        while len(completed)<len(order):
+            ready = [rid for rid in order if rid not in completed and dependencies[rid]<=completed]
+            if not ready:
+                raise ValueError('No acyclic parallel review order')
+            for round_index in range(max(len(chains[rid]) for rid in ready)):
+                indices = [chains[rid][round_index] for rid in ready if round_index<len(chains[rid])]
+                batches.append(dict(phase=scope, source_step_indices=indices,
+                                    arms=[plan['steps'][i]['arm'] for i in indices],
+                                    motion_duration_s=max(plan['steps'][i]['points'][-1]['time'] for i in indices),
+                                    all_arms_standstill_barrier_after=True,
+                                    capture_after=(scope=='extra' or
+                                        ((completed | set(ready))==set(order) and
+                                         round_index==max(len(chains[rid]) for rid in ready)-1))))
+            completed.update(ready)
+    serial = sum(s['points'][-1]['time'] for s in plan['steps'])
+    parallel = sum(batch['motion_duration_s'] for batch in batches)
+    return dict(purpose='parallel_scan_review_only', executable=False, hardware_execution_authorized=False,
+                path_points_changed=False, batches=batches, serial_motion_s=serial,
+                proposed_motion_s=parallel, motion_time_reduction_percent=100*(1-parallel/serial),
+                camera_and_settle_times_included=False,
+                prerequisites=['Exact source trajectories, frozen collision geometry and modeled gripper defaults.',
+                               'All four initial paths finish before any extra view begins.',
+                               'Retain original order for every pair without a separation proof.',
+                               'Fresh real states/model review and existing monitored stop handling before hardware use.'])
+
+
 def analyze(plan, description, defaults, clearance=.02):
     if not np.isfinite(clearance) or clearance <= 0:
         raise ValueError('Clearance must be finite and positive')
@@ -436,6 +486,7 @@ def analyze(plan, description, defaults, clearance=.02):
             all_parallel_motion_lower_bound_s=max(durations.values()),
             arms={rid: {key:value for key,value in entry.items() if key not in
                         ('min','max','sampled_min','sampled_max','high_witness','low_witness','xyz_hull','body_hulls')} for rid,entry in swept.items()})
+    result['parallel_review'] = parallel_review_schedule(plan, result['phases'], arms)
     return result
 
 
@@ -444,13 +495,29 @@ def markdown(result):
              'Offline-Modellprüfung; keine reale Bewegung oder allgemeine Arbeitsraumfreigabe.', '',
              f"Geforderter Abstand zwischen den Hüllen: {result['required_interarm_clearance_m']*1000:g} mm.", '']
     for name, phase in result['phases'].items():
-        lines += [f'## {name}', '', '| Paar | Überschreitung A/B, obere Schranke | Abstand der Projektionen, untere Schranke | Unabhängig vom Zeitversatz getrennt |',
+        lines += [f'## {name}', '', '| Paar | Mittellinien-Überschreitung A/B (obere Schranke) | Nachgewiesener Abstand (untere Schranke) | Methode |',
                   '|---|---:|---:|---|']
         for p in phase['pairs']:
-            lines.append(f"| {p['a']} / {p['b']} | {p['a_wall_intrusion_bound_m']*1000:.1f} / {p['b_wall_intrusion_bound_m']*1000:.1f} mm | {p['projected_gap_bound_m']*1000:.1f} mm | {'JA (Modell)' if p['phase_independent_separation_proven'] else 'NICHT NACHGEWIESEN'} |")
+            gap=p['projected_gap_bound_m'];method='Basisrichtung'
+            if not p['base_direction_separation_proven']:
+                alt=p.get('alternative_separator',{})
+                if alt.get('proven'):gap=alt['gap_bound_m'];method='Gedrehte räumliche Ebene'
+                elif p.get('bodywise_separation',{}).get('proven'):
+                    gap=p['bodywise_separation']['smallest_proven_gap']['gap_bound_m'];method='Einzelkörper-Hüllen'
+                else:gap=None;method='NICHT NACHGEWIESEN'
+            distance=f'{np.floor(gap*10000)/10:.1f} mm' if gap is not None else 'offen'
+            intrusion_a=np.ceil(p['a_wall_intrusion_bound_m']*10000)/10
+            intrusion_b=np.ceil(p['b_wall_intrusion_bound_m']*10000)/10
+            lines.append(f"| {p['a']} / {p['b']} | {intrusion_a:.1f} / {intrusion_b:.1f} mm | {distance} | {method} |")
         lines += ['', f"Kandidatengruppen: {phase['candidate_parallel_groups']}", '',
                   'Überlappende Projektionen beweisen keine Kollision. Gruppen sind noch keine ausführbare neue Reihenfolge.', '']
-    lines += ['## Grenzen', ''] + ['- ' + value for value in result['limitations']]
+    schedule=result['parallel_review']
+    lines += ['## Paralleler Prüfablauf', '',
+              f"Reine Fahrzeit: {schedule['serial_motion_s']:.1f} → {schedule['proposed_motion_s']:.1f} s.",
+              'Foto-/Stillstandszeiten nicht enthalten. Keine Ausführungsfreigabe.', '']
+    for index,batch in enumerate(schedule['batches']):
+        lines.append(f"- {index+1}. {batch['phase']}: {', '.join(batch['arms'])}; {batch['motion_duration_s']:.1f} s, danach Stillstandsbarriere.")
+    lines += ['', '## Grenzen', ''] + ['- ' + value for value in result['limitations']]
     return '\n'.join(lines) + '\n'
 
 
@@ -470,6 +537,10 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / 'separation.json').write_text(json.dumps(result, indent=2, allow_nan=False) + '\n')
     (args.output / 'separation.md').write_text(markdown(result))
+    review=dict(result['parallel_review'], source_plan_sha256=result['source_plan_sha256'],
+                source_urdf_sha256=result['source_urdf_sha256'],mesh_sha256=result['mesh_sha256'],
+                required_interarm_clearance_m=result['required_interarm_clearance_m'])
+    (args.output / 'parallel_review.json').write_text(json.dumps(review, indent=2, allow_nan=False)+'\n')
     print(json.dumps({scope:dict(all_four=phase['all_four_phase_independent_separation_proven'],
                                 groups=phase['candidate_parallel_groups']) for scope,phase in result['phases'].items()}), flush=True)
 

@@ -130,6 +130,16 @@
 
 ## Bildbasierte Objektdigitalisierung (2026-11-12)
 
+- Nutzer möchte zur Beschleunigung virtuelle Trennebenen zwischen den Armen und
+  maximale Überschreitungen über ganze Wege prüfen. Ganze Kollisionskörper und
+  Zwischenbewegung einbeziehen; zeitunabhängige Bewegungsräume statt nur gleicher
+  Fortschrittszeiten vergleichen. Ergebnis nur für die exakt geprüften Wege,
+  keine allgemeine Arbeitsraum-/Hardwarefreigabe daraus ableiten.
+- Offline-CLI scan_separation, docs/scan_separation.md: Mittellinienüberschreitung,
+  zusätzliche räumliche Trennung und „nicht nachgewiesen“ unterscheiden. Bei
+  ungeklärten Paaren ursprüngliche Reihenfolge/Stillstand erhalten; keine
+  Kollisionsprüfung oder nativeUR-Sicherheit aus dieser Analyse heraus deaktivieren.
+
 - Nutzer präzisiert den Ablauf: zuerst OAK-Foto, grobe Objektlage/-maße daraus,
   dann UR-Ansichten planen. Aktueller neuer Karton steht **zwischen beiden
   Tischen**, Unterseite auf Tischhöhe; alte rechte-Tisch-Kartonpläne sind dafür

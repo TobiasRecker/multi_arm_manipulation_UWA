@@ -139,3 +139,40 @@ def test_per_body_hulls_can_prove_separation_when_whole_arm_hulls_overlap():
     assert result['proven'] and result['body_pairs_checked']==2
     assert result['smallest_proven_gap']['gap_bound_m']>.8
     assert not bodywise_separator(B,B,.02)['proven']
+
+
+def schedule_input():
+    from itertools import combinations
+    arms=['a','b','c','d']
+    steps=[dict(arm=a,purpose='common_object_initial_view',points=[dict(time=2+i)]) for i,a in enumerate(arms)]
+    for a in arms:
+        steps.extend([dict(arm=a,purpose='additional_object_view',points=[dict(time=1)]),
+                      dict(arm=a,purpose='additional_object_view',points=[dict(time=2)])])
+    pairs=[dict(a=a,b=b,phase_independent_separation_proven=True) for a,b in combinations(arms,2)]
+    extras=deepcopy(pairs)
+    next(p for p in extras if (p['a'],p['b'])==('b','d'))['phase_independent_separation_proven']=False
+    return dict(steps=steps),dict(initial=dict(pairs=pairs),extra=dict(pairs=extras)),arms
+
+
+def test_parallel_review_retains_every_unproven_order_and_every_original_step():
+    from uwa_cell_control.scan_separation import parallel_review_schedule
+    p,phases,arms=schedule_input();original=deepcopy(p)
+    result=parallel_review_schedule(p,phases,arms)
+    batches=result['batches']
+    assert batches[0]['arms']==arms and batches[0]['capture_after']
+    assert batches[1]['arms']==['a','b','c'] and batches[2]['arms']==['a','b','c']
+    assert batches[3]['arms']==batches[4]['arms']==['d']
+    assert sorted(i for b in batches for i in b['source_step_indices'])==list(range(len(p['steps'])))
+    assert p==original and not result['executable'] and not result['path_points_changed']
+    assert result['proposed_motion_s']==11 and result['serial_motion_s']==26
+
+
+def test_serial_initial_groups_capture_only_after_all_initial_arms_finished():
+    from uwa_cell_control.scan_separation import parallel_review_schedule
+    p,phases,arms=schedule_input()
+    for pair in phases['initial']['pairs']:pair['phase_independent_separation_proven']=False
+    batches=parallel_review_schedule(p,phases,arms)['batches']
+    assert [b['capture_after'] for b in batches[:4]]==[False,False,False,True]
+    p['steps'][5],p['steps'][6]=p['steps'][6],p['steps'][5]
+    with pytest.raises(ValueError,match='contiguous'):
+        parallel_review_schedule(p,phases,arms)

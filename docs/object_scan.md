@@ -73,7 +73,7 @@ ros2 run uwa_cell_control object_scan_plan \
 # Bereits gemessener Zustand für reproduzierbare Offline-Prüfung:
 # --snapshot DATEI statt --read-live-state
 
-# Einzelnen Verbindungsweg ausschließlich in RViz ansehen, Domain73:
+# Einzelnen Verbindungsweg ausschließlich in RViz ansehen, Domain74:
 ros2 run uwa_cell_control object_scan_plan \
   --output /absolut/zur/plan --preview-step 0
 ```
@@ -100,6 +100,14 @@ in der Kollisionsszene; ursprüngliche UR-Sicherheit bleibt erhalten.
 `report.json`, `cell.urdf` und `review_step_NNN.json` sind getrennte Prüfartefakte.
 Die RViz-Vorschau zeigt das grobe Objektvolumen orange, keine Hardware-Kommandos.
 Statische Skizze optional mit `tools/preview_object_scan.py --report ... --output ...`.
+
+## Parallele Prüfung der Bewegungsräume
+
+Der neue [Trennwand-/Hüllenbericht](scan_separation.md) betrachtet die vollständigen
+Wege unabhängig vom Zeitversatz. Aktueller Modellbefund: Anfangswege aller vier
+Arme getrennt; bei Zusatzansichten hinteres Paar noch ungeklärt. Der Prüfablauf
+lässt deshalb zunächst LF/LR/RF parallel und anschließend RR fahren. Reine
+Fahrzeit etwa193,5→80,9s; alle Quellwege unverändert. Noch keine Hardwareausführung.
 
 ## Fünf Fotos und Oberfläche
 
