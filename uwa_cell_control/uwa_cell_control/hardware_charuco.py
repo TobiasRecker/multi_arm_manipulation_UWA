@@ -43,7 +43,10 @@ def first_view(model,layout,rid,start,velocity=.05,acceleration=.10):
         try:path=plan_parking(model,layout,rid,start,target=q,velocity=velocity,acceleration=acceleration)
         except ValueError:continue
         path.update(purpose='first ChArUco view',nominal_camera_target_world=target.tolist(),
-                    nominal_optics_used_for='motion design only; no real intrinsic/extrinsic calibration assumed')
+                    nominal_optics_used_for='motion design only; never an observation or fit input',
+                    camera_extrinsics_source=('validated hardware hand-eye' if
+                        'fit' in layout.get('calibration',{}).get('robots',{}).get(rid,{}) else 'nominal'),
+                    camera_model_profile=layout.get('calibration',{}).get('profile_id','nominal'))
         candidates.append(path)
     if not candidates:raise ValueError('No full-cell checked direct path to the first board view')
     return min(candidates,key=lambda p:p['duration'])

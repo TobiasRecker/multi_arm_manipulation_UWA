@@ -44,7 +44,7 @@ from uwa_cell_gazebo.charuco import detect_pose, pose_error, table_board_transfo
 from uwa_cell_gazebo.charuco_check import tf_matrix
 from .model import calibrated_description
 from .planner import PlanningProcess
-from .storage import atomic_json, fingerprint, validate_result
+from .storage import atomic_json, fingerprint, validate_result, profile_directory
 
 PREFIX='/uwa_cell/calibration'
 ACTIVE={'PREPARING','RUNNING','PARKING','POSITIONING','MOVING','SETTLING','CAPTURING','RETURNING','PAUSED','SOLVING','APPLYING'}
@@ -72,6 +72,7 @@ class Backend(Node):
             gripper_joint(rid) for rid in ROBOT_IDS if self.layout['robots'][rid]['tools']['gripper']!='none']
         self.root=Path(self.get_parameter('session_root').value).expanduser().resolve()
         self.root.mkdir(parents=True,exist_ok=True)
+        self.profile_directory=profile_directory(self.root,self.layout)
         self.lockfile=(Path(tempfile.gettempdir())/f'uwa-cell-calibration-{os.getuid()}-64.lock').open('a')
         try:fcntl.flock(self.lockfile,fcntl.LOCK_EX|fcntl.LOCK_NB)
         except BlockingIOError:raise RuntimeError('Another calibration backend owns this cell')
@@ -117,7 +118,7 @@ class Backend(Node):
         self.create_timer(.1,self.publish_status,clock=self.status_clock,callback_group=self.group)
         self.create_timer(.05,self.publish_model,callback_group=self.group)
         self.spawn(self.image_loop);self.spawn(self.watchdog)
-        if (self.root/'profiles/active.json').is_file():
+        if (self.profile_directory/'active.json').is_file():
             self.status('RESTORING',message='Lade gespeichertes kalibriertes Modell')
             self.operation_thread=self.spawn(self.restore_existing)
 
@@ -131,11 +132,11 @@ class Backend(Node):
                 if self.halted():raise InterruptedError('Profile restore stopped')
                 if time.monotonic()>deadline:raise TimeoutError('Start the simulated cell before restoring its calibration profile')
                 time.sleep(.05)
-            profile=json.loads((self.root/'profiles/active.json').read_text())
+            profile=json.loads((self.profile_directory/'active.json').read_text())
             if profile.get('description_fingerprint')!=fingerprint(self.description):raise ValueError('Active profile does not match the current cell')
             self.install_model(profile);self.profile_restored=True
-            self.status('IDLE',active_profile=str(self.root/'profiles/active.json'),message='Gespeichertes kalibriertes Modell aktiv',
-                        **self.result_fields(profile,self.root/'profiles/active.json'))
+            self.status('IDLE',active_profile=str(self.profile_directory/'active.json'),message='Gespeichertes kalibriertes Modell aktiv',
+                        **self.result_fields(profile,self.profile_directory/'active.json'))
         except Exception as error:
             self.status('STOPPED' if self.abort.is_set() else 'ERROR',message=str(error))
             self.get_logger().error(str(error))
@@ -300,7 +301,7 @@ class Backend(Node):
                 expected=render_description(self.layout,directory)[0]
             if fingerprint(expected)!=fingerprint(self.description):
                 raise ValueError('Layout does not match the running cell; restart the cell with this layout')
-            active=self.root/'profiles/active.json'
+            active=self.profile_directory/'active.json'
             if not self.profile_restored:
                 if active.is_file():
                     profile=json.loads(active.read_text())
@@ -715,7 +716,7 @@ class Backend(Node):
             path=Path(request.result_path).resolve()
             profile=json.loads(path.read_text());validate_result(profile)
             if profile.get('description_fingerprint')!=fingerprint(self.description):raise ValueError('Result does not match current cell geometry')
-            active=self.root/'profiles/active.json'
+            active=self.profile_directory/'active.json'
             if active.is_file():
                 previous=json.loads(active.read_text())
                 if previous.get('description_fingerprint')==profile['description_fingerprint']:
@@ -757,7 +758,7 @@ class Backend(Node):
     def apply_work(self,profile,path):
         previous=self.active_description;old_profile=self.state['active_profile']
         try:
-            profiles=self.root/'profiles';profiles.mkdir(exist_ok=True)
+            profiles=self.profile_directory;profiles.mkdir(parents=True,exist_ok=True)
             active=profiles/'active.json'
             saved=json.loads(active.read_text()) if active.is_file() else None
             destination=profiles/((self.session.name+'_' if self.session else '')+uuid.uuid4().hex[:8]+'.json')

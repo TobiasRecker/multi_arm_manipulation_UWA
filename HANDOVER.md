@@ -26,6 +26,56 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 - **Explizit seit 2026-11-09:** Wichtige Ziele, Anforderungen, Entscheidungen und
   Vorlieben parallel in AGENTS-/Handover-Dateien festhalten.
 
+## Gemessene Kalibrierungen gemeinsam übernommen,2026-11-11
+
+- Expliziter Nutzerauftrag: ermittelte Posen/Kalibrierungen dauerhaft speichern
+  und in Simulation, Visualisierung, Kollisionsprüfung und weiteren Verbrauchern
+  verwenden. Kein Bewegungsauftrag. [Bedienung/Umfang](docs/applied_calibrations.md).
+- Installiertes versioniertes Bündel unter
+  `uwa_cell_description/config/calibration/hardware_20261111_v1/`: unveränderte
+  Ergebniskopien, drei Werkskinematiken, CameraInfo-YAMLs, benannte Posen und
+  SHA256-Manifest `profile.json`. Rohbilder/ursprüngliche Ergebnisse erhalten;
+  deren damaliges `activated:false` ist historisch, nicht aktueller Profilstatus.
+- Aktiv: individuelle Kinematik left_rear/right_front/right_rear, Intrinsics
+  beider rechten Kameras(640×480, Rear404/Front435Manual), Rear-Hand-Auge
+  tool0→optical sowie Rear-Basis→Board als Referenzframe. Front-Hand-Auge
+  weiterhin abgelehnt(0,652°>0,5°), keine relative rechte Basispose aktiviert.
+- `cell_layout_calibrated.yaml` ist jetzt Standard, verweist auf die unveränderte
+  zentrale Nominalgeometrie und das Profil. `cell_layout.yaml` bleibt expliziter
+  Nominal-Rückfall. Gemeinsamer Python-Loader im Beschreibungs-Paket wird von
+  Gazebo und Overlay verwendet; MoveIt/Hardwareplanung verwenden denselben
+  Renderpfad. Kein Visualisierungsimport aus Gazebo erforderlich.
+- Neue Aufnahmeplanung verwendet gespeicherte K/D inklusive Verzeichnung und
+  kennzeichnet erforderlichen Fokus; nomineller Rückfall nur ohne passendes
+  Intrinsicsprofil. Keine Übernahme dieser Planungswerte als neue Fit-Beobachtung.
+- Inventar verweist auf archivierte Werksdateien, bytegleich zu den zuvor
+  verwendeten Dateien. Treiber/GUI nicht neu gestartet. Optische TFs/Sensorpose
+  werden geändert, angenäherte Gehäuse-/Greifer-Kollisionskörper nicht aus einem
+  Optikfit versetzt. Welt-/Tisch-/Basisanker, OAK-Pose, Scan und Startgelenke
+  bleiben vorläufig/unverändert. Intrinsics erfordern passenden Fokus/Bildmodus.
+- `named_poses.json`: tatsächliche Park-Snapshots und erste Aufnahme-Snapshots
+  beider rechter Arme, rad/Gelenkidentitäten/Quellenhashes; ursprüngliche
+  Parkzielwinkel zusätzlich erhalten. Keine Live-Hinderniszustände, keine
+  automatischen Fahrten und keine Wiederverwendung alter geprüfter Wege.
+- Zusätzliche Simulationsfits je Messprofil getrennt unter
+  `setup/calibration/profiles/measured_<Profilhash>/`; bisherige ideale
+  `profiles/active.json` bleiben für das Nominalmodell erhalten. Kein alter
+  Simulatorfit überschreibt ungeprüft reale Messwerte.
+- Fünf Pakete gebaut;99 gezielte Offline-/MoveIt-Prüfungen bestanden, einschließlich
+  identischer FK in Simulation/Planung/Overlay. Gespeicherte reale FK-Matrizen
+  sample000 beider rechter Kamerareihen mit neuem Modell exakt reproduziert.
+  Live-Gazebo: neun aktive Controller, fortschreitende Uhr, endliche Gelenke,
+  zwei rechte640×480-Streams, K/D und Rear-Optik-TF passend zum Profil.
+  Simulationsbackend IDLE ohne Aktivierung früherer Idealprofile, alle vier
+  Kameras24 Ecken erkannt. Eigene Headless-Testsimulation und eigener Backend
+  wieder sauber beendet; ursprünglicher inaktiver Simulationszustand erhalten.
+- Nachweise `setup/logs/uwa-calibration-integration-{build,tests}.log`,
+  `uwa-calibration-integration-{live,backend}.json`; kompakter
+  [Prüfbericht](docs/calibration_integration_validation_2026-11-11.json).
+  Keine Hardware-Fahrten/Power/Brake/Play. Die vorhandene J-PARSE-Online-
+  Kollisionsoption bleibt deaktiviert; MoveIt-Modellverbesserung ist kein
+  vollständiger aktiver Online-Zellenschutz und keine absolute Vermessung.
+
 ## Mobiles A4-ChArUco-Board für externe OAK,2026-11-11
 
 - Nutzer besitzt einen am UR montierbaren A4-Holzträger und möchte Papier flach

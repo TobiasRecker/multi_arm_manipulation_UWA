@@ -26,7 +26,9 @@ def test_batch_preserves_roles_checked_samples_and_preview_cannot_execute_as_one
     assert len(plan['segments'])==30 and not plan['automatic_return']
     assert sum(s['role']=='validation' for s in plan['segments'])==6
     assert not json.loads((tmp_path/'plan.json').read_text())['executable']
-    assert plan['planning_only_camera_model']['source'].startswith('nominal')
+    assert plan['planning_only_camera_model']['source'].startswith('validated hardware')
+    assert plan['planning_only_camera_model']['k']==layout['calibration']['robots']['right_rear']['camera']['camera_matrix']
+    assert plan['planning_only_camera_model']['required_focus']==404
     # A resumed sequence reconnects to the outstanding targets from a measured
     # new start, retaining the original sample IDs and validation assignments.
     current=dict(start);current[joint_names('right_rear')[0]]+=.015

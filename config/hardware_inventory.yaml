@@ -14,7 +14,7 @@ robots:
     ip: 192.168.8.169  # User assignment and read-only reachability verified2026-11-11
     ur_type: ur7e
     port_base: 52000
-    kinematics_file: ../../../setup/calibration/hardware_first_view/ur_kinematics/left_rear.yaml
+    kinematics_file: ../uwa_cell_description/config/calibration/hardware_20261111_v1/left_rear_kinematics.yaml
     external_control_program: ''
     compliance_enabled: false
     dashboard_port: 29999
@@ -25,7 +25,7 @@ robots:
     ip: 192.168.8.170
     ur_type: ur5e
     port_base: 54000
-    kinematics_file: ../../../setup/calibration/hardware_first_view/ur_kinematics/right_rear.yaml
+    kinematics_file: ../uwa_cell_description/config/calibration/hardware_20261111_v1/right_rear_kinematics.yaml
     external_control_program: ''
     compliance_enabled: false
     dashboard_port: 29999
@@ -36,7 +36,7 @@ robots:
     ip: 192.168.8.103
     ur_type: ur5e
     port_base: 53000
-    kinematics_file: ../../../setup/calibration/hardware_first_view/ur_kinematics/right_front.yaml
+    kinematics_file: ../uwa_cell_description/config/calibration/hardware_20261111_v1/right_front_kinematics.yaml
     external_control_program: ''
     compliance_enabled: false
     dashboard_port: 29999

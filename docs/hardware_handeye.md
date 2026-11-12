@@ -1,5 +1,10 @@
 # Reale Wrist-Kamera: erste Sicht, Intrinsics und Hand-Auge
 
+**Übernahme2026-11-11:** Auf ausdrücklichen Folgeauftrag sind die gültigen
+Intrinsics beider rechten Kameras und die Rear-Hand-Auge-Kalibrierung im
+[gemeinsamen Modellprofil](applied_calibrations.md) aktiviert. Front-Hand-Auge
+bleibt abgelehnt. Die folgenden Abschlusszustände sind historische Messstände.
+
 Stand2026-11-11. Test ausschließlich **right_rear192.168.8.170**. Vorne rechts
 hält seine Parkpose; linke Arme laut Nutzer nominell Default Home, ohne
 Live-Gelenkdaten. Bestehender Simulationsbackend bleibt Domain64; separates

@@ -10,7 +10,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 import yaml
 
-from .configuration import default_layout_path, load_layout, number, vector
+from .configuration import default_layout_path, nominal_layout_path, load_layout, number, vector
 from .charuco import table_board_transform
 
 MODEL = 'uwa_oak_overview'
@@ -19,7 +19,7 @@ TOPIC = '/uwa_cell/oak_overview/rgb'
 
 
 def camera_config(layout):
-    defaults = yaml.safe_load(default_layout_path().read_text())['overview_camera']
+    defaults = yaml.safe_load(nominal_layout_path().read_text())['overview_camera']
     supplied = layout.get('overview_camera', {})
     if not isinstance(supplied, dict) or set(supplied) - set(defaults):
         raise ValueError('overview_camera must contain only known settings')

@@ -13,12 +13,23 @@ from uwa_cell_calibration.storage import atomic_json
 from .parking import digest,save_plan
 
 
+def planning_camera(layout,rid):
+    camera=layout['robots'][rid]['tools'];width,height=camera['camera_width'],camera['camera_height']
+    measured=layout.get('calibration',{}).get('robots',{}).get(rid,{}).get('camera')
+    if measured:
+        return {'k':measured['camera_matrix'],'d':measured['distortion'],'width':width,'height':height,
+                'required_focus':measured['focus'],'focusAuto':False,
+                'source':'validated hardware intrinsics; planning only, not an input to the new fit',
+                'profile_id':layout['calibration']['profile_id']}
+    focal=width/(2*np.tan(camera['camera_horizontal_fov']/2))
+    return {'k':[[focal,0,width/2],[0,focal,height/2],[0,0,1]],'d':[0.]*5,'width':width,'height':height,
+            'source':'nominal FOV; never passed to intrinsic/hand-eye fit'}
+
+
 def acquisition_plan(model,layout,profiles,rid,start,sources,missing,count,directory,layout_file,progress=lambda p:None,*,view_design='standard'):
     if not 30<=count<=79:raise ValueError('Hardware acquisition supports30–79 new poses (31–80 including initial view)')
     if missing:raise ValueError('Observe or explicitly declare all stationary arm poses before planning')
-    camera=layout['robots'][rid]['tools'];width,height=camera['camera_width'],camera['camera_height']
-    focal=width/(2*np.tan(camera['camera_horizontal_fov']/2))
-    nominal={'k':[[focal,0,width/2],[0,focal,height/2],[0,0,1]],'width':width,'height':height}
+    nominal=planning_camera(layout,rid)
     # This K bounds proposed views only. Real calibration fitting never receives it.
     proposed=generate_plan(model,layout,start,{rid:nominal},[rid],count,progress,view_design=view_design)[rid]
     nominal['view_design']=view_design
@@ -49,7 +60,7 @@ def assemble_plan(model,layout,profiles,rid,start,sources,missing,poses,director
     plan={'schema_version':1,'mode':'hardware','arm':rid,'start':start,'state_sources':sources,
           'segments':segments,'layout':layout,'layout_file':str(Path(layout_file).resolve()),
           'inventory_fingerprint':digest(profiles),'description':model.description,
-          'planning_only_camera_model':dict(nominal,source='nominal FOV; never passed to intrinsic/hand-eye fit'),
+          'planning_only_camera_model':dict({'source':'nominal FOV; never passed to intrinsic/hand-eye fit'},**nominal),
           'new_observations':len(segments),'automatic_return':False,'duration_motion_s':sum(s['points'][-1]['time'] for s in segments)}
     if resume is not None:plan['resume']=resume
     plan['fingerprint']=digest(plan)

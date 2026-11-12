@@ -15,12 +15,14 @@ EMPTY_MODEL='<robot name="no_current_hardware_data"><link name="world"/></robot>
 
 
 def paths():
-    return Path(get_package_share_directory('uwa_cell_description'))/'config/cell_layout.yaml'
+    from uwa_cell_description.configuration import default_layout_path
+    return default_layout_path()
 
 
 def load_inputs(inventory,layout,arms):
     profiles=load_profiles(inventory)
-    data=yaml.safe_load(Path(layout).expanduser().read_text())
+    from uwa_cell_description.configuration import load_layout
+    data=load_layout(layout)
     if not arms or len(arms)!=len(set(arms)) or not set(arms)<=set(ARMS):
         raise ValueError('Measured overlay supports unique right_front/right_rear arm IDs')
     for rid in arms:
@@ -39,6 +41,11 @@ def description(profile,layout,offset=(0.,0.,0.)):
     share=Path(get_package_share_directory('ur_description'));kind=profile['ur_type']
     args={'name':'real_'+rid,'ur_type':kind,'tf_prefix':prefix,'force_abs_paths':'true'}
     if profile['kinematics_file']:args['kinematics_params']=profile['kinematics_file']
+    measured=layout.get('calibration',{}).get('robots',{}).get(rid,{})
+    if measured.get('kinematics_file'):
+        if profile['kinematics_file'] and Path(profile['kinematics_file']).read_bytes()!=Path(measured['kinematics_file']).read_bytes():
+            raise ValueError(f'{rid}: inventory and measured calibration have different kinematics')
+        args['kinematics_params']=measured['kinematics_file']
     robot=ET.fromstring(xacro.process_file(str(share/'urdf/ur.urdf.xacro'),mappings=args).toxml())
     mount=layout['robots'][rid];table=layout['tables'][mount['table']]
     table_frame=prefix+'mount_table';top_frame=prefix+'mount_top'
@@ -53,6 +60,16 @@ def description(profile,layout,offset=(0.,0.,0.)):
     base.find('parent').set('link',top_frame)
     base.find('origin').set('xyz',vector(mount['mount_xyz']))
     base.find('origin').set('rpy',vector(mount['mount_rpy']))
+    # Display measured optical and board frames without relocating provisional bases.
+    if 'fit' in measured:
+        from uwa_cell_description.calibration_profile import origin, rigid
+        for suffix,parent,matrix in [
+                ('wrist_camera_optical_frame',prefix+'tool0',measured['fit']['T_tool0_camera']),
+                ('measured_board_frame',prefix+'base_link',measured['fit']['T_base_board'])]:
+            ET.SubElement(robot,'link',name=prefix+suffix)
+            joint=ET.SubElement(robot,'joint',name=prefix+suffix+'_joint',type='fixed')
+            ET.SubElement(joint,'parent',link=parent);ET.SubElement(joint,'child',link=prefix+suffix)
+            origin(joint,rigid(matrix))
     # Official STL shell meshes have no embedded colours, so measured arms are
     # unambiguously gold/cyan. Kinematics are the unmodified official UR chain.
     for link in robot.findall('link'):

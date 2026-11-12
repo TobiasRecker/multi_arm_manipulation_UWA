@@ -5,6 +5,13 @@ two tables carrying one UR5, one UR7e and two UR5e robots. It starts simulated
 hardware by default. The layout is provisional, not a calibrated digital twin.
 Separate, explicit local hardware preparation is available in the UWA Arms app.
 
+Since2026-11-11, the default model applies the versioned
+[measured calibration bundle](docs/applied_calibrations.md): three individual UR
+factory kinematics, both right-camera intrinsics and rear-right hand-eye optics.
+The original nominal layout remains available. Table/base world poses and the
+OAK pose remain provisional; front hand-eye failed validation and is excluded.
+Named parking/capture joint references are saved without automatic execution.
+
 Project context is maintained in [HANDOVER.md](HANDOVER.md): user goals,
 requirements, preferences, decisions, verified results and open work.
 [AGENTS.md](AGENTS.md) defines the ongoing working and documentation rules.

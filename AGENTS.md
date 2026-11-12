@@ -44,6 +44,13 @@
 - Geometrie, Tischposen, Montageposen und Anfangsstellungen kommen zentral aus
   `uwa_cell_description/config/cell_layout.yaml`; keine parallelen Zahlenkopien
   als zusätzliche Konfigurationsquelle einführen.
+  Nutzerauftrag2026-11-11: gemessene gültige Teilkalibrierungen gemeinsam nutzen.
+  Standard-Loader verwendet `cell_layout_calibrated.yaml` als dünne Referenz auf
+  diese Geometrie plus `config/calibration/hardware_20261111_v1/profile.json`.
+  Rohes Nominalmodell bleibt explizit ladbar. Drei Werkskinematiken, beide rechten
+  Intrinsics und Rear-Hand-Auge verwenden; Front-Hand-Auge bleibt abgelehnt.
+  Posenreferenzen sind keine aktuellen Hinderniszustände/Fahrfreigaben. Keine
+  absolute Basis-/Tischpose aus nur ungefähr bekannter Boardlage ableiten.
 - Weltachsen: X rechts, Y hinten, Z oben. Montageposen beziehen sich auf
   **URDF `base_link`**, nicht auf den um 180° gedrehten UR-`base`-Frame.
 - Die aktuellen Kabelrichtungen und Yaw-Werte aus der Übergabe erhalten.
@@ -133,7 +140,13 @@
   Einzelarmmodus bleibt als Auswahl erhalten; keine automatische Rückfahrt nach Stopp.
 - Übernommene Kalibrierung ausschließlich als versioniertes Profil und separates
   `calibrated/`-TF-/Planungsmodell aktivieren. Physische Gazebo-Montagen und
-  Ground-Truth-Modell erhalten. Keine automatische Rückfahrt nach Stopp/Fehler.
+  Ground-Truth-Modell erhalten. Ergänzung2026-11-11: Nutzer beauftragt explizit
+  die gültigen real gemessenen Teilparameter auch als Simulationsstandard;
+  dies erfolgt über obiges zusätzliches Profil, ohne das Nominalmodell zu ändern.
+  Simulierte Nachkalibrierungen je Modellprofil getrennt speichern, frühere
+  ideale Simulationsfits niemals als reale Messungen laden. Optikfit misst
+  keinen Gehäusekörper: nominelle Kamera-Kollisionskörper nicht daraus versetzen.
+  Keine automatische Rückfahrt nach Stopp/Fehler.
   Sitzungen/Rohbilder unter `$UWA_WS/setup/calibration/` nicht einchecken.
 
 ## Verbindliche Bedienerwartungen

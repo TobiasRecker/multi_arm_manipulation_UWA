@@ -1,5 +1,12 @@
 # RViz: simulated and measured arms together
 
+Since2026-11-11, simulation, measured overlay and MoveIt use the
+[shared measured profile](applied_calibrations.md). The rear measured arm also
+has `real_right_rear_wrist_camera_optical_frame` and
+`real_right_rear_measured_board_frame`. Their world location still depends on
+the provisional base mount; the optical/board relation itself is measured.
+An already running overlay retains its model until its own service is restarted.
+
 The normal **UWA Cell Simulation** app now starts the existing simulated cell
 and adds two measured UR overlays to its RViz configuration:
 

@@ -1,0 +1,152 @@
+{
+  "date": "2026-11-11",
+  "profile_id": "hardware_20261111_v1",
+  "profile_sha256": "c09f62f99a220f36f539b349083beb8e3652caa0ec66d8292b811efba944b7d1",
+  "factory_fk_max_matrix_error_against_recorded_samples": {
+    "right_front": 0.0,
+    "right_rear": 0.0
+  },
+  "live_gazebo": {
+    "images": {
+      "right_front": {
+        "size": [
+          640,
+          480
+        ],
+        "bytes": 921600,
+        "frame": "right_front_wrist_camera_optical_frame"
+      },
+      "right_rear": {
+        "size": [
+          640,
+          480
+        ],
+        "bytes": 921600,
+        "frame": "right_rear_wrist_camera_optical_frame"
+      }
+    },
+    "infos": {
+      "right_front": {
+        "k": [
+          660.8682113447975,
+          0.0,
+          328.43293680350416,
+          0.0,
+          665.5888601543975,
+          176.21885014320674,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "d": [
+          0.08949519055474484,
+          -0.28097245766072954,
+          -0.030286585824989547,
+          0.013513631435391055,
+          0.8891617936719911
+        ],
+        "p": [
+          660.8682250976562,
+          0.0,
+          328.432936668396,
+          0.0,
+          0.0,
+          665.5888366699219,
+          176.21885061264038,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        "frame": "right_front_wrist_camera_optical_frame",
+        "size": [
+          640,
+          480
+        ]
+      },
+      "right_rear": {
+        "k": [
+          659.8003573762145,
+          0.0,
+          317.12287668489074,
+          0.0,
+          664.5067272269469,
+          180.56714803231154,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "d": [
+          0.020091465078847463,
+          0.3475987039060319,
+          -0.02191094349635165,
+          0.004249031611139851,
+          -3.842454949273992
+        ],
+        "p": [
+          659.8003387451172,
+          0.0,
+          317.1228766441345,
+          0.0,
+          0.0,
+          664.5067405700684,
+          180.567147731781,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        "frame": "right_rear_wrist_camera_optical_frame",
+        "size": [
+          640,
+          480
+        ]
+      }
+    },
+    "joint_samples": 71,
+    "clock_range": [
+      132.853,
+      133.132
+    ],
+    "checks": {
+      "clock_advancing": true,
+      "joint_states_finite": true,
+      "nine_controllers_active": true,
+      "right_front_K_matches": true,
+      "right_front_D_matches": true,
+      "right_front_image_received": true,
+      "right_rear_K_matches": true,
+      "right_rear_D_matches": true,
+      "right_rear_image_received": true,
+      "rear_optical_transform_matches": true
+    },
+    "controllers": {
+      "right_rear_gripper_controller": "active",
+      "right_front_gripper_controller": "active",
+      "left_rear_gripper_controller": "active",
+      "left_front_gripper_controller": "active",
+      "right_rear_trajectory_controller": "active",
+      "right_front_trajectory_controller": "active",
+      "left_rear_trajectory_controller": "active",
+      "left_front_trajectory_controller": "active",
+      "joint_state_broadcaster": "active"
+    },
+    "profile_id": "hardware_20261111_v1",
+    "passed": true
+  },
+  "backend_phase": "IDLE",
+  "hardware_motion_sent": false,
+  "test_simulation_stopped": true,
+  "offline_tests_passed": 99,
+  "packages_built": [
+    "uwa_cell_description",
+    "uwa_cell_gazebo",
+    "uwa_cell_visualization",
+    "uwa_cell_control",
+    "uwa_cell_calibration"
+  ],
+  "planning_uses_validated_K_D": true,
+  "online_jog_collision_avoidance_enabled": false
+}

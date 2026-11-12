@@ -78,8 +78,12 @@ def make_model(layout, profiles, directory):
     directory.mkdir(parents=True,exist_ok=True)
     layout = deepcopy(layout)
     for rid, profile in profiles.items():
+        measured = layout.get('calibration', {}).get('robots', {}).get(rid, {})
+        if measured.get('kinematics_file') and profile['kinematics_file']:
+            if Path(measured['kinematics_file']).read_bytes() != Path(profile['kinematics_file']).read_bytes():
+                raise ValueError(f'{rid}: inventory and active calibration use different factory kinematics')
         layout['robots'][rid]['type'] = profile['ur_type']
-        layout['robots'][rid]['kinematics_file'] = profile['kinematics_file']
+        layout['robots'][rid]['kinematics_file'] = measured.get('kinematics_file') or profile['kinematics_file']
     description = render_description(layout, directory)[0]
     return CollisionModel(description, Path(directory)/'moveit'), layout
 

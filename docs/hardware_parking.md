@@ -1,5 +1,11 @@
 # Wartepose vor der Kamerakalibrierung
 
+**Modellstand2026-11-11:** Neue Pläne verwenden standardmäßig das
+[gemeinsame Messprofil](applied_calibrations.md), einschließlich individueller
+Werkskinematiken. Gespeicherte Parkziele sind benannte Referenzen; alte Wege
+mit altem Inventar-/Layoutfingerprint werden nicht wiederverwendet. Vor einem
+neuen Weg aktuelle Zustände und das aktuelle Kollisionsmodell verwenden.
+
 Stand2026-11-10. Ein generisches Werkzeug parkt **genau einen ausgewählten Arm**;
 erster Hardwarekandidat ist **right_front =192.168.8.103**. Beide linken Arme
 stehen laut Nutzer bereits aufrecht in Default Home. Das ist als nominelle

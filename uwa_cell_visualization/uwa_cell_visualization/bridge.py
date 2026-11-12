@@ -85,6 +85,10 @@ class MeasuredOverlay:
                          'frame_prefix':'real_'+rid+'_','error':errors.get(rid,''),
                          'freshness_basis':'ROS message receipt, not independent RTDE sensor freshness',
                          'mount_calibrated':False,'model_visible':fresh}
+            measured=self.layout.get('calibration',{}).get('robots',{}).get(rid,{})
+            status[rid]['calibration_profile']=self.layout.get('calibration',{}).get('profile_id','nominal')
+            status[rid]['camera_extrinsics_calibrated']='fit' in measured
+            status[rid]['intrinsics_calibrated']='camera' in measured
             mount=self.layout['robots'][rid];table=self.layout['tables'][mount['table']]
             marker=Marker();marker.header.frame_id='world';marker.header.stamp=stamp
             marker.ns='measured_data_status';marker.id=index;marker.type=Marker.TEXT_VIEW_FACING

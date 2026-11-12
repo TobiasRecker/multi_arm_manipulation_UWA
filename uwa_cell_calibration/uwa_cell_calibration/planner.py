@@ -84,7 +84,7 @@ def generate_plan(model, layout, start, matrices, ids, count, progress=lambda va
             target = np.eye(4)
             target[:3,:3] = np.column_stack([x,np.cross(z,x),z]) @ Rotation.from_euler('z', (roll-.5)*np.radians(50 if wide else 40)).as_matrix()
             target[:3,3] = eye
-            k = np.asarray(matrices[rid]['k'])
+            k = np.asarray(matrices[rid]['k'],float)
             width,height=matrices[rid]['width'],matrices[rid]['height']
             if wide:
                 # Shift the projected board across the image instead of always
@@ -98,9 +98,12 @@ def generate_plan(model, layout, start, matrices, ids, count, progress=lambda va
             corners = np.array([[-margin,-margin,0],[bw+margin,-margin,0],
                                 [bw+margin,bh+margin,0],[-margin,bh+margin,0]])
             points = corners @ board_camera[:3,:3].T+board_camera[:3,3]
-            projection = points @ k.T
-            pixels = projection[:,:2]/projection[:,2:]
-            if np.any(points[:,2] <= .1) or not np.all((pixels > [12,12]) & (pixels < [width-12,height-12])):
+            if np.any(points[:,2] <= .1):
+                rejected += 1
+                continue
+            pixels = cv2.projectPoints(points,np.zeros(3),np.zeros(3),k,
+                                       np.asarray(matrices[rid].get('d',[0.]*5),float))[0].reshape(-1,2)
+            if not np.isfinite(pixels).all() or not np.all((pixels > [12,12]) & (pixels < [width-12,height-12])):
                 rejected += 1
                 continue
             def residual(q):

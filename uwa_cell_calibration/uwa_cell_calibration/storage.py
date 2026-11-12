@@ -6,6 +6,14 @@ import xml.etree.ElementTree as ET
 import numpy as np
 
 
+def profile_directory(root, layout):
+    """Keep earlier nominal-simulator fits separate from the measured cell."""
+    directory = Path(root)/'profiles'
+    if layout.get('calibration'):
+        directory = directory/('measured_'+layout['calibration']['sha256'][:16])
+    return directory
+
+
 def atomic_json(path, data):
     path=Path(path)
     path.parent.mkdir(parents=True,exist_ok=True)
