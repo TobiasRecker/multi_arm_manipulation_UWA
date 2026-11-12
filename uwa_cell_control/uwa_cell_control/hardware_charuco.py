@@ -78,6 +78,9 @@ def calibrate_intrinsics(records,*,focus,image_size):
     train=[r for r in records if r['role']=='fit'];validation=[r for r in records if r['role']=='validation']
     if len(train)<20 or len(validation)<6:raise ValueError('Need >=20 fitting and >=6 independent validation views')
     if len({r['pixel_sha256'] for r in records})!=len(records):raise ValueError('Repeated image payloads do not count as new views')
+    source=records[0].get('capture_source',{'kind':'http_vga'})
+    if any(r.get('capture_source',{'kind':'http_vga'})!=source for r in records):
+        raise ValueError('Image source/color pipeline changed; do not mix HD and VGA observations')
     for r in records:
         if r['camera_settings']['focusAuto'] or r['camera_settings']['focus']!=focus:
             raise ValueError('Focus changed; do not mix intrinsic profiles')

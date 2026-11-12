@@ -140,7 +140,7 @@ def acquire(args):
     from .park_arm import node_for,JointObserver
     from .parking import make_model
     from .handeye_hardware import capture_observation
-    from .wrist_camera import WristCamera
+    from .wrist_hd import make_camera
     plan=json.loads(Path(args.batch).read_text());profiles=load_profiles(args.inventory);rid=plan['arm']
     directory=Path(args.session).resolve();metadata=json.loads((directory/'session.json').read_text())
     if metadata['robot_id']!=rid or metadata['mode']!='hardware':raise ValueError('Wrong image session')
@@ -158,7 +158,7 @@ def acquire(args):
                 if max(abs(q-plan['start'][j]) for q,j in zip(current[r]['positions'],joint_names(r)))>.01:
                     raise ValueError(r+': start changed; regenerate acquisition plan')
         def guard():observer.guard(plan,require_program_link=True)
-        guard();camera=WristCamera(profiles[rid]['ip'])
+        guard();camera=make_camera(profiles[rid]['ip'],node,metadata=metadata,rid=rid)
         first=json.loads((directory/'records/sample_000.json').read_text())
         settings=camera.settings()
         if settings['focusAuto'] or settings['focus']!=first['camera_settings']['focus']:
@@ -194,7 +194,7 @@ def acquire(args):
             if max(abs(np.array(observer.received[rid]['positions'])-segment['target']))>.03:
                 raise ValueError('Goal error exceeds0.03rad')
             record=capture_observation(camera,node,observer,model,layout,rid,directory/'records',
-                                       segment['sample_id'],segment['role'])
+                                       segment['sample_id'],segment['role'],capture_guard=guard)
             guard()
             print(json.dumps({'phase':'CAPTURED','sample_id':segment['sample_id'],
                               'corners':record['corners'],'role':record['role']}),flush=True)

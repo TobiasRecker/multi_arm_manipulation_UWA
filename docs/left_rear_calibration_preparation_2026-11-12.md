@@ -4,6 +4,45 @@ Stand2026-11-12. Ziel **left_rear=192.168.8.169**, konfigurierter UR7e,
 Seriennummer20265701623. Individuelle Werkskinematik bereits im gemeinsamen
 Messprofil vorhanden. Vorherige rechte Kalibrierergebnisse bleiben erhalten.
 
+## Aktueller Wiedereinstieg nach erneuter Prüfung
+
+**Verbindung bestätigt:** ros.urp über MATCH erfolgreich gestartet,
+`robot_program_running=true`, Safety NORMAL, alle vier linken Motioncontroller
+inaktiv. Hinten rechts jetzt RUNNING mit echten Gelenkwerten. Vorne rechts
+bleibt für die parallele Kameraarbeit ausgeschaltet; seine gemeldeten nicht-null
+Winkel wurden über einen unabhängigen reinen RTDE-Leseclient gegengeprüft
+(maximale Differenz4,5e−16rad), ohne Power-/Programm-/Kamerazustand zu ändern.
+
+Frischer Plan **`approach_ready/plan.json`**,34,173s,343 Kollisionssamples,
+vollständige MoveIt-Szene und aktuelle gemeldete Gelenke; links vorne bleibt die
+vom Nutzer bestätigte nominelle Home-Angabe. `--check-only` erfolgreich.
+RViz-Animation offen in Domain68; **noch keine Fahrfreigabe und keine Fahrziele**.
+Kamera endet nominell bei Welt[-0,45;0,28;1,453]m, etwa55cm über dem Board.
+Nach Prüfung/Freigabe nur diese erste Pose anfahren, echtes Boardbild/Fokus
+prüfen und erst danach eine ganze Messreihe vorbereiten.
+
+### Verbindungsfehler eingegrenzt
+
+Der alte, seit dem Vortag laufende linke Manager hatte8998 offene Dateideskriptoren,
+davon8967Sockets. Der Scriptserver protokollierte tatsächlich eintreffende
+Verbindungen, verwarf aber deren FD8997/8998 wegen `FD_SETSIZE=1024`.
+Damit war die URCap-Konfiguration nicht als Ursache belegt; vorherige
+Konfigurationsfragen und fehlgeschlagene Startversuche unten sind Historie.
+
+Nur den anhand PID/Argumenten/Prozessgruppe geprüften Links-Launcher nach
+bestätigter Inaktivität sauber beendet und left_rear neu gestartet. Neuer
+Manager48FDs, anschließender vorhandener MATCH-Start erfolgreich, External
+Control true. Beide rechten Manageridentitäten unverändert. Die Ursache des
+FD-Wachstums selbst ist noch nicht abschließend bestimmt; kein allgemeiner
+Socketfehlerfix oder Langzeitnachweis behauptet. Logs/FD-Vergleich und
+`after-driver-restart.json` unter `preparation/`.
+
+Der neue linke Treiber läuft separat im Benutzerdienst
+`uwa-left-rear-calibration-driver`; vorhandene GUIs können ihn weiterverwenden.
+Keine Schutzstoppquittierung, keine Trajektorie und keine Kameraparameteränderung.
+
+Die folgenden Abschnitte beschreiben den vorherigen Vorbereitungs-/Diagnosestand.
+
 ## Nachgewiesen
 
 - Dashboard und reines RTDE-Lesen erreichbar; Seriennummer/Software5.25.0.130258
@@ -23,7 +62,7 @@ Messprofil vorhanden. Vorherige rechte Kalibrierergebnisse bleiben erhalten.
   links hinten offline geprüft, rechte Arme unverändert.25 passende Tests
   bestanden, einschließlich CLI-Auswahl und Lyrical-Startup-Warnpfaden.
 
-## Noch offen
+## Historische offene Verbindung vor dem Links-Neustart
 
 `ros.urp` wurde geladen und meldete zwischenzeitlich nativ **PLAYING**; dabei wurde
 `/programs/tobias.installation` mitgeladen. **External Control ist nicht bestätigt**:

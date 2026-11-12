@@ -1,6 +1,6 @@
 # Kalibrierung links hinten vorbereiten
 
-- Status: **Software/Entwurf vorbereitet; aktive URCap-Konfiguration und rechte Hindernisstellungen offen**,2026-11-12, Hauptagent.
+- Status: **erste konkrete Aufnahmefahrt vom Nutzer freigegeben; Ausführung/Bildprüfung in Arbeit**,2026-11-12, Hauptagent.
 - Nutzer hat left_rear eingerichtet; Auftrag: Erreichbarkeit prüfen und
   Kalibrierung vorbereiten. Keine neue reale Fahrfreigabe ableiten.
 - Ziel192.168.8.169, External Control PC192.168.8.209/Port52002, Domain66.
@@ -38,3 +38,28 @@
 - Letzter Snapshot während der erbetenen Pendantprüfung: left_rear RUNNING/
   Local/STOPPED ros.urp, beide rechten POWER_OFF/Local. Keine erneuten
   Programmstartversuche, solange der Nutzer die aktive Konfiguration prüft.
+
+- Nutzer bestätigt URCap-Einstellungen und bittet um Wiederholung. Recheck01:
+  left_rear RUNNING/NORMAL/Remote/STOPPED ros.urp, rechte Rear jetztRUNNING/
+  NORMAL/Remote mit plausiblen Winkeln. Front weiterPOWER_OFF/Local mit
+  gemeldeten nicht-null Gelenken; separate front-wrist-hd-ssh-Arbeit erhalten,
+  keine Kamera-/Power-/Programmänderungen vorne rechts.
+
+- Recheck-Ursache im Treiberlog nachgewiesen: linker Manager260072 belegt8998
+  FDs(davon8967Sockets); Scriptserver verwirft neu eintreffende Verbindungen
+  wegen FD_SETSIZE1024. Kein erneuter URCap-Fehler behaupten. Geplant: nur
+  verifizierten Links-Launcher260016 nach Inaktivprüfung sauber ersetzen,
+  rechte Manager18298/18299 und parallele Front-Kameraarbeit unverändert.
+- Erfolgreich: nur Links-Launcher sauber ersetzt, neuer Dienst
+  uwa-left-rear-calibration-driver, Manager48FDs. MATCH-Start Exit0,
+  ExternalControl=true/SafetyNORMAL/vier Motioncontroller inaktiv. Rechte
+  Manageridentitäten identisch; Ursache FD-Wachstum selbst noch nicht bestimmt.
+- Frischer approach_ready-Plan34,173s und --check-only bestanden, RViz Domain68
+  offen. Rechtes Front-RTDE als Ausgabe unabhängig mitROS gegengeprüft, gleiche
+  Winkel trotzPOWER_OFF, keine Frontzustände geändert. Keine Fahrziele.
+- Als Nächstes konkrete erste Vorschau/Freiraum freigeben lassen, danach nur
+  erste Ansicht und Bild-/Fokusprüfung. Ganze Reihe noch nicht geplant/gestartet.
+
+- Nutzer gibt genau approach_ready/f6296105… für links hinten ausdrücklich frei:
+  Vorschau passt, Fahrbereich frei, erste Pose anfahren. Keine Freigabe einer
+  ganzen Reihe. approval unter preparation/first-view-approval.json gesichert.

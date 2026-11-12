@@ -117,7 +117,7 @@ it sends no robot-motion commands. HTTP images remain640×480.
 The same window now provides exposure time in microseconds, gain, Auto exposure
 with EV correction and LED controls. The [native-resolution attempt and verified
 brightness tests](docs/wrist_resolution_exposure_2026-11-10.md) record the limits:
-no full-resolution photo obtained yet; the user's manual focus was restored.
+no full-resolution photo was obtained in that earlier attempt; the user's manual focus was restored.
 The [subsequent UCC4.1.0 archive comparison](docs/wrist_ucc4_analysis_2026-11-10.md)
 confirms an internal HD capture path, but no verified simple full-resolution
 download or reason to upgrade yet. The archive was not installed during that analysis on2026-11-10.
@@ -131,6 +131,12 @@ record the verified original stick image and matching4.1.0/VSL2.0.0 files now
 written to the USB root. All303 package files passed SHA256 readback after
 remounting; the stick was safely unmounted. The user subsequently confirmed
 that the recovery worked.
+On2026-11-12 a [native5MP front-camera photo](docs/wrist_native_photo_2026-11-12.md)
+was obtained through authorized SSH and direct V4L2 capture: **2592×1944**, with
+JPEG decoding and checksum verified. This briefly stops only the Vision service;
+normal preview and original settings were restored. The direct JPEG has a green
+cast; color quality and a reusable capture tool still need work. Existing VGA
+intrinsics do not automatically calibrate this mode.
 The automatic calibration backend below remains simulation-only.
 
 The workspace is expected at `~/UWA_ws`; set `UWA_WS` before sourcing the helper

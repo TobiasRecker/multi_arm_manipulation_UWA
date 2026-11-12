@@ -26,62 +26,76 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 - **Explizit seit 2026-11-09:** Wichtige Ziele, Anforderungen, Entscheidungen und
   Vorlieben parallel in AGENTS-/Handover-Dateien festhalten.
 
-## Vollauflösung Front-Wrist nach Update erneut prüfen,2026-11-12
+## Links hinten: Verbindung bestätigt, erste Aufnahmevorschau bereit,2026-11-12
 
-- Nutzer beauftragt erneuten nativen Vollauflösungstest an right_front192.168.8.103
-  und bietet legitimen temporären SSH-Zugang. Keine Zugangsdaten dokumentieren.
-- Erste lesende Abfrage bestätigt tatsächlich UCC4.1.0.164735/CQ0-1.4.0,
-  uniqueCamId01D10E1900090912,Normal. HTTP-Vorschau weiterhin640×480.
-  Fokus435/Manual,60000µs/Manual,Gain16; Auto-LED/0. Vollständige Originalwerte
-  und Vorher-JPEG in setup/calibration/wrist_hd/right_front_20261112/ gesichert.
-- SSH-Port22 antwortetConnection refused; keine Kennwortprüfung oder Anmeldung
-  möglich. Nutzer um Aktivierung unter Settings/Security/Secure Shell gebeten.
-  Neue Kamera-API/GetCameraList/GetCameraSettingsDetails nur lesend gesichert.
-  Bislang keine Kamera-/Roboterparameter oder Dienste verändert, kein HD-Nachweis.
-- Eigene Aufgabe work/front-wrist-hd-ssh.md; parallele aktive left-rear-
-  Kalibrierungsvorbereitung erhalten. Nächster Schritt nach SSH-Aktivierung:
-  UVC-Modi/Tools/Kamerakonfiguration gezielt lesen und native Aufnahme prüfen,
-  bei Änderungen vorher/nachher Einstellungen vergleichen und wiederherstellen.
+- Nutzer beauftragt Vorbereitung left_rear192.168.8.169 und ausdrücklich
+  Remote-Einschalten/Bremsenlösen/Programmstart über vorhandenen MATCH-Ablauf.
+  Linkes40mm-A3-Tischboard(IDs0–16) und links vorne aufrechtes Home unverändert
+  bestätigt. Mobile38mm-A4-Vorlage ist hierfür nicht das Ziel.
+- Native Verbindung/Wrist-HTTP640×480 nachgewiesen; drei unterschiedliche Bilder,
+  Fokus439Auto/Belichtung33333µsAuto/Gain16 nur gelesen. Aktuell noch kein Board
+  im Bild; passende feste Optik nach erster tatsächlich erreichter Sicht prüfen.
+- Hardware-CLI für alle vier Arm-IDs erweitert,25 gezielte Tests inkl. linker
+  MoveIt-/IK-Sweeps und zwei Startup-Warnpfade. MATCH-Startup `.warn`→`.warning`
+  für Lyrical korrigiert. Individuelle gespeicherte UR7e-Werkskinematik genutzt.
+- Wiederholte Startfehler schließlich lokalisiert: alter linker Manager8998FDs,
+  davon8967Sockets. Scriptserver verwarf tatsächlich eingehende Verbindungen
+  mit FD8997/8998 wegen FD_SETSIZE1024. Kein URCap-Konfigurationsfehler als
+  Ursache behaupten; ursprüngliche PLAYING/Link-false-Diagnose ist überholt.
+- Nur geprüften linken Launcher nach bestätigter Inaktivität sauber ersetzt,
+  neuer Benutzerdienst `uwa-left-rear-calibration-driver`, neuer Manager48FDs.
+  MATCH-Start jetzt Exit0 und tatsächlicher `robot_program_running=true`,
+  Safety NORMAL, vier Motioncontroller inaktiv. Rechte Manageridentitäten
+  unverändert, parallele Front-Kameraarbeit erhalten. FD-Wachstumsursache noch
+  ungeklärt; Neustart beseitigt konkreten Zustand, kein Langzeitfix nachgewiesen.
+- Hinten rechts jetzt RUNNING mit plausiblen Livewinkeln. Front bleibtPOWER_OFF/
+  Local, nicht-null gemeldete Winkel unabhängig per reinem RTDE gegengeprüft
+  (max4,5e−16rad Unterschied). Keine Power-/Programm-/Kameraänderung vorne rechts.
+  Linke Home-Hindernispose weiterhin Nutzerangabe, keine Encodermessung.
+- Frische erste Sicht `setup/calibration/hardware_handeye/left_rear_20261112/
+  approach_ready/plan.json`:34,173s, vollständiger MoveIt-Sweep, `--check-only`
+  bestanden; RViz-Vorschau Domain68 offen. Nominelle Kamera[-0,45;0,28;1,453]m,
+  etwa55cm über linkem Board. **Noch keine Fahrfreigabe/keine Fahrziele.**
+- Erst konkrete Vorschau/Fahrbereich freigeben, erste Pose ausführen und echtes
+  Board-/Fokusbild prüfen. Vorgesehen41 Ansichten(33Fit/8vorabPrüfung), wide;
+  ganze Reihe erst danach planen/freigeben. Keine Rückfahrt oder Profilaktivierung
+  aus dieser Vorbereitung ableiten. Frühere reine Entwurfsvorschau bleibt
+  nicht ausführbar und wurde nicht ausgeführt.
+- Diagnose/Snapshots/aktueller Ablauf unter .../preparation/;
+  [Wiedereinstieg](docs/left_rear_calibration_preparation_2026-11-12.md),
+  Arbeitsstatus work/left-rear-calibration-preparation.md. Bisherige Messprofile
+  und rechte Hardwaretreiber erhalten, neuer linker Dienst bleibt bereit.
 
-## Kalibrierung links hinten vorbereitet,2026-11-12
+## Natives5MP-Foto Front-Wrist erfolgreich,2026-11-12
 
-- Auftrag: left_rear erreichen und Kalibrierung vorbereiten. Nutzer bestätigt
-  linkes A3-Tischboard40mm ungefähr an Modellposition und links vorne weiter
-  aufrecht Home. Eigenes mobiles38mm-A4-Board hierfür nicht verwenden.
-- left_rear192.168.8.169 erreichbar, gleiche Seriennummer20265701623 und
-  Software5.25.0.130258. Nutzer beauftragt ausdrücklich Remote-Einschalten,
-  Bremsenlösen und Programmstart über vorhandenen MATCH-Treiber. MATCH-Prepare
-  erreicht RUNNING/NORMAL; keine Fahrziele und keine Schutzquittierung.
-- ros.urp nativ geladen/PLAYING, aktive tobias.installation. External Control
-  noch **false**, keine eingehende Verbindung an52001–52004, alle Listener
-  vorhanden. PC weiterhin209/enp87s0. Nutzer um Prüfung der aktiven Installation
-  Host209/Port52002 und tatsächlich ausgeführten External-Control-Knoten gebeten.
-  Spätester Lesestand während der Pendantprüfung: links hinten RUNNING/Local/
-  STOPPED ros.urp, beide rechten POWER_OFF/Local; keine neuen Startversuche
-  während dieser Konfigurationsprüfung. final-readiness.json ist maßgeblich.
-- Kamera4242 erreichbar,640×480, drei unterschiedliche Bildpayloads; Fokus439Auto,
-  Belichtung33333µsAuto/Gain16 gelesen, nichts an Kamera geschrieben. Aktuelle
-  Sicht erkennt0 linke Ecken; erste Boardansicht/Fokus noch zu prüfen.
-- Hardware-CLI jetzt alle vier Arm-IDs, linkes Board automatisch je Tisch.
-  Individuelle gespeicherte Werkskinematik verwendet. Entwurf erster Weg34,1s
-  mit tatsächlichem linken Start und historischem rechten Entwurf; ausdrücklich
-  **nicht ausführbar**, beide rechten Hinderniszustände noch unbestätigt.
-  Hinten rechts Local/POWER_OFF/Nullwinkel: Nutzer um Remote/Einschalten zum
-  Lesen gebeten. Linke Home-Angabe weiterhin Nutzerangabe, kein Encoderbeweis.
-- Vorbereitetes Design41 Gesamtansichten(33Fit/8Prüfung), wide, eigene linke
-  Intrinsics; noch keine Messreihe oder echte Armfahrt begonnen. Sobald Zustände
-  geklärt: frische vollständige Kollisionsplanung/Vorschau, konkrete erste
-  Fahrfreigabe, echtes Board-/Fokusbild, erst danach ganze Reihe planen.
-- Tatsächlichen MATCH-Lyrical-Fehler behoben: Startup-Skript `.warn`→`.warning`;
-  zwei betroffene Warnpfade offline abgesichert. Insgesamt25 gezielte Tests
-  bestanden. Programm-Ladetimeout3s trennte ROS-Dashboard-Client; native längere
-  Ladeantwort und Play-Antwort separat gesichert, External-Link nicht behauptet.
-- Ursprüngliche rechte/linke Besitzer-GUIs und drei Treiber erhalten; eigenes
-  zusätzliches Beobachterfenster ohne Treiberbesitz wieder geschlossen.
-  Daten/Logs unter `setup/calibration/hardware_handeye/left_rear_20261112/`;
-  [konkreter Wiedereinstieg](docs/left_rear_calibration_preparation_2026-11-12.md),
-  Arbeitsstatus `work/left-rear-calibration-preparation.md`. Bestehende Messprofile
-  nicht verändert; weitere Hardwarefahrt noch nicht freigegeben.
+- Nutzer beauftragt erneuten Vollauflösungstest right_front192.168.8.103 und
+  stellt legitimen temporären SSH-Zugang bereit. Zugangsdaten nicht speichern.
+  Nach Aktivierung des SSH-Diensts Anmeldung erfolgreich, Sitzung danach beendet.
+- Tatsächlich UCC4.1.0.164735/CQ0-1.4.0,uniqueCamId01D10E1900090912.
+  HTTP-Vorschau640×480; direktes V4L2-Gerät bietet MJPEG2592×1944 an.
+- **Native Datei2592×1944/5038848Pixel/332800Bytes** per V4L2-MMAP-Aufnahme
+  auf Controller erzeugt und perSCP heruntergeladen, lokal decodiert/Größe und
+  SHA256 bestätigt. Kein Upsampling, kein Barcode-/SaveImage-/FTP-Programm.
+  Datei setup/calibration/wrist_hd/right_front_20261112/controller-artifacts/
+  native-2592x1944.jpg; [Prüfbericht](docs/wrist_native_photo_2026-11-12.md).
+- Nur Kamera-Vision-Dienst über seinen vorhandenen runit-Supervisor kurz
+  gestoppt/gestartet. Erster Versuch Gerätnochbusy, zweiter mit begrenztem
+  Freigabe-Retry erfolgreich. Keine Roboterprogramme, Motion, UR-/ROS-Treiber
+  oder Simulationen angefasst. Kamera-Konfigurationsdateien unverändert.
+- Früher automatischer Restore zu früh während Initialisierung fehlgeschlagen;
+  anschließend im tatsächlichen Normal vom PC vollständig wiederhergestellt.
+  Alle Originalfelder forceRefresh-identisch(Fokus435Manual/60000µsManual/
+  Gain16/AutoLED0). final-restoration.json ist abschließender Nachweis; frühe
+  fehlgeschlagene Rohberichte separat erhalten. AutoLED-Setter meldet teilweise
+  Fehler15 trotz angewandtem Wert, Rücklesen entscheidend. Normaldienst und
+  reguläre640×480-Vorschau wiederhergestellt.
+- **Grünstich im direkten JPEG**, Farbwiedergabe/Weißabgleich noch zu qualifizieren.
+  Bestehendes640×480-Intrinsicsprofil nicht als5MP-Kalibrierung verwenden.
+  Native Aufnahme bewiesen, kein fertiges allgemeines GUI-Aufnahmewerkzeug und
+  kein isolierter Nachweis, dass erst das4.1-Update5MP ermöglicht hätte.
+- Eigene Aufgabe work/front-wrist-hd-ssh.md abgeschlossen; parallele aktive
+  left-rear-Kalibrierungsvorbereitung erhalten. Bild-/Herstellerdaten bleiben
+  außerhalb Git unter setup/calibration/wrist_hd/right_front_20261112/.
 
 ## Gemessene Kalibrierungen gemeinsam übernommen,2026-11-11
 

@@ -21,6 +21,7 @@ from .park_arm import JointObserver,node_for
 from .parking import complete_state,digest,manual_states,make_model,save_plan
 from .hardware_charuco import first_view,observe,calibrate_intrinsics
 from .wrist_camera import WristCamera,save_snapshot
+from .wrist_hd import make_camera
 
 
 def read_state(node,profiles,args):
@@ -82,7 +83,7 @@ def plan_series(args):
         node.destroy_node();rclpy.shutdown()
 
 
-def capture_observation(camera,node,observer,model,layout,rid,directory,sample_id,role,*,freshness_timeout=6.):
+def capture_observation(camera,node,observer,model,layout,rid,directory,sample_id,role,*,freshness_timeout=6.,capture_guard=None):
     """Conservative stationary interval plus changed decoded image payloads.
 
     Exposure timestamp is unavailable. Record that limitation explicitly rather
@@ -96,6 +97,7 @@ def capture_observation(camera,node,observer,model,layout,rid,directory,sample_i
     if rid not in expected:raise ValueError('Live robot state missing')
     baseline=np.array(expected[rid]['positions']);names=joint_names(rid)
     def stationary():
+        if capture_guard is not None:capture_guard()
         record=observer.received.get(rid)
         if not record or time.monotonic()-record['received_monotonic']>.5:
             raise ValueError('Joint telemetry stale while taking image')
@@ -103,23 +105,42 @@ def capture_observation(camera,node,observer,model,layout,rid,directory,sample_i
             raise ValueError('Robot moved during image capture; discard observation')
     settings=camera.settings()
     if settings['focusAuto']:raise ValueError('Set a fixed manual focus before intrinsic/hand-eye acquisition')
-    hashes=[];receipt=[];frame=None;jpeg=None
-    end=time.monotonic()+freshness_timeout
-    while time.monotonic()<end:
+    hashes=[];receipt=[];frame=None;jpeg=None;detection=None;selected=0
+    if hasattr(camera,'capture_burst'):
+        # The service client spins joint/safety subscriptions throughout its
+        # camera-only transaction and waits for restoration even after motion.
+        burst=camera.capture_burst(stationary)
+        candidates=[]
+        for index,data in enumerate(burst):
+            image=cv2.imdecode(np.frombuffer(data,np.uint8),cv2.IMREAD_COLOR)
+            if image is None:raise ValueError('JPEG decode failed')
+            hashes.append(hashlib.sha256(image.tobytes()).hexdigest())
+            receipt.append(datetime.now(timezone.utc).isoformat())
+            found=observe(image,layout['charuco'],layout['robots'][rid]['table'])
+            sharp=float(cv2.Laplacian(cv2.cvtColor(image,cv2.COLOR_BGR2GRAY),cv2.CV_64F).var())
+            candidates.append((found['corners'],sharp,index,data,image,found))
+        if not candidates:raise ValueError('HD service returned no frames')
+        _,_,selected,jpeg,frame,detection=max(candidates,key=lambda item:item[:2])
         observer.sample(.15);stationary()
-        jpeg=camera.image();receipt.append(datetime.now(timezone.utc).isoformat())
-        frame=cv2.imdecode(np.frombuffer(jpeg,np.uint8),cv2.IMREAD_COLOR)
-        if frame is None:raise ValueError('JPEG decode failed')
-        hashes.append(hashlib.sha256(frame.tobytes()).hexdigest())
-        observer.sample(.15);stationary()
-        if len(hashes)>=3 and len(set(hashes))>=2:break
+    else:
+        end=time.monotonic()+freshness_timeout
+        while time.monotonic()<end:
+            observer.sample(.15);stationary()
+            jpeg=camera.image();receipt.append(datetime.now(timezone.utc).isoformat())
+            frame=cv2.imdecode(np.frombuffer(jpeg,np.uint8),cv2.IMREAD_COLOR)
+            if frame is None:raise ValueError('JPEG decode failed')
+            hashes.append(hashlib.sha256(frame.tobytes()).hexdigest())
+            observer.sample(.15);stationary()
+            if len(hashes)>=3 and len(set(hashes))>=2:break
+        selected=len(hashes)-1
     if len(set(hashes))<2:raise ValueError('Image payload did not update; freshness is unverified, observation rejected')
     after=camera.settings()
     protected=['focus','focusAuto','pan','tilt','zoom','exposureAuto','lightingMode','lightingValue']
     if not settings.get('exposureAuto'):protected+=['exposure','gain']
     if any(after.get(k)!=settings.get(k) for k in protected):
         raise ValueError('Focus, image geometry or manual capture settings changed during capture')
-    table=layout['robots'][rid]['table'];detection=observe(frame,layout['charuco'],table)
+    table=layout['robots'][rid]['table']
+    if detection is None:detection=observe(frame,layout['charuco'],table)
     save_snapshot(directory,sample_id,jpeg,settings,dimensions=detection['image_size'])
     # save_snapshot writes diagnostics; replace metadata with complete observation.
     annotated=detection.pop('annotated');cv2.imwrite(str(directory/(sample_id+'_annotated.jpg')),annotated)
@@ -130,11 +151,13 @@ def capture_observation(camera,node,observer,model,layout,rid,directory,sample_i
     tool=Chain(model.description,rid+'_base_link',rid+'_tool0').forward(positions)
     record={'sample_id':sample_id,'robot_id':rid,'role':role,'accepted':True,
         **detection,'joint_names':names,'positions':q,'T_base_tool0':tool.tolist(),
-        'camera_settings':settings,'camera_settings_after':after,'pixel_sha256':hashes[-1],
-        'image':sample_id+'.jpg','receipt_utc':receipt[-1],
+        'camera_settings':settings,'camera_settings_after':after,'pixel_sha256':hashes[selected],
+        'capture_source':getattr(camera,'capture_source',{'kind':'http_vga'}),
+        'native_burst':getattr(camera,'last_burst',None),
+        'image':sample_id+'.jpg','receipt_utc':receipt[selected],
         'freshness':{'decoded_payload_changes':len(set(hashes)),'http_samples':len(hashes),
             'stationary_joint_tolerance_rad':.002,'sensor_exposure_timestamp_available':False,
-            'association':'HTTP frames received inside stationary interval; no hardware timestamp guarantee'}}
+            'association':'Frames acquired/received inside monitored stationary interval; no exposure timestamp guarantee'}}
     atomic_json(output,record)
     return record
 
@@ -155,12 +178,16 @@ def capture(args):
                 'kinematics_sha256':hashlib.sha256(Path(profiles[rid]['kinematics_file']).read_bytes()).hexdigest()
                     if profiles[rid]['kinematics_file'] else None,
                 'kinematics_file':profiles[rid]['kinematics_file']}
+        camera=make_camera(profiles[rid]['ip'],node,args,rid=rid)
+        info['capture_source']=getattr(camera,'capture_source',{'kind':'http_vga'})
         if (directory/'session.json').exists():
             old=json.loads((directory/'session.json').read_text())
             if any(old.get(k)!=info[k] for k in ('robot_id','camera_ip','layout_fingerprint','kinematics_sha256')):
                 raise ValueError('Robot/camera/model changed; start a new acquisition session')
+            if old.get('capture_source',{'kind':'http_vga'})!=info['capture_source']:
+                raise ValueError('Image source changed; start a separate HD/VGA session')
         else:atomic_json(directory/'session.json',info)
-        record=capture_observation(WristCamera(profiles[rid]['ip']),node,observer,model,layout,rid,
+        record=capture_observation(camera,node,observer,model,layout,rid,
             directory/'records',args.sample_id,args.role)
         print(json.dumps({k:record[k] for k in ('sample_id','corners','image_size','freshness')},indent=2))
     finally:
@@ -192,7 +219,7 @@ def fit(args):
             camera_matrix=intrinsics['camera_matrix'],distortion=intrinsics['distortion']))
     result=solve_session({rid:handeye})
     result.update(mode='hardware',session_dir=str(directory.resolve()),intrinsics_file='intrinsics.json',
-        timing_limitations='Stationary HTTP capture; sensor exposure timestamps unavailable',
+        timing_limitations='Monitored stationary image capture; sensor exposure timestamps unavailable',
         activated=False)
     try:validate_result(result)
     except ValueError as error:
@@ -222,6 +249,8 @@ def main():
             if command=='resume-series':
                 p.add_argument('batch');p.add_argument('--session',required=True)
         else:
+            p.add_argument('--camera-source',choices=['http_vga','wrist_hd_service'],default=None)
+            p.add_argument('--hd-service',default=None,help='Override the selected arm HD service name')
             p.add_argument('--session',required=True);p.add_argument('--sample-id',required=True)
             p.add_argument('--role',choices=['fit','validation'],required=True)
     p=sub.add_parser('fit');p.add_argument('session');p.add_argument('--intrinsics-only',action='store_true')
