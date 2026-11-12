@@ -53,7 +53,8 @@ def main():
                 window.grab().save(str(rig.session / 'live-after.png'))
                 window.pause.click()
                 state.update(phase='paused', deadline=time.monotonic() + 35)
-            elif phase == 'paused' and not window.worker.live and rig.preview.child.poll() is not None:
+            elif (phase == 'paused' and not window.worker.live and rig.preview.child.poll() is not None
+                  and window.action.text().startswith('PAUSED')):
                 with (ws / 'setup/oak4/photos/.capture.lock').open('a') as lock:
                     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
                     report['preview_lock_released'] = True

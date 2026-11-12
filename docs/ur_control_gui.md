@@ -194,3 +194,22 @@ RTDE-Client/Feldbus belegt. Hardware unconfigured,keinROS-JointState undkeine
 Motioncontroller; `ros.urp` geladen,aberSTOPPED. Feldbusstatus amPendant noch
 zuprüfen. KeineFahrt/Power/Brake/Play/Safety-Quittierung durchdiesenCheck.
 Diagnose: `setup/logs/left-front-ros-readiness-20261112/`.
+
+### Nach EtherNet/IP-Deaktivierung
+
+Nutzer meldet EtherNet/IP deaktiviert und Installation gespeichert. Neuer
+LF-Treiberstart erfolgreich: Hardwareactive,Werkskinematik geprüft,alleBroadcaster
+aktiv,Motioncontroller geladen/inactive. 20sROS-Probe2320Samples bei124,95Hz,
+max334,5msEmpfangslücke. Der alteRTDE-speed_slider_mask-Fehleristbehoben.
+`ros.urp` zuletztnochSTOPPED;ExternalControlamPendant starten undReverse-
+Verbindung prüfen,bevorSteuerfähigkeit/Bewegungserfolg behauptetwird. KeineFahrt
+in diesemDiagnoseauftrag. AktuelleNachweise imSetup-Logverzeichnis oben.
+
+### Abschließend External Control verbunden
+
+Nach Nutzerstart vonros.urp:PLAYING/running:true,ROSrobot_program_running=true,
+Reverse51001 undTrajectory-/Command51003/51004verbunden. Treiber15:54:46:
+`Robot connected to reverse interface. Ready to receive control commands.`
+NeunControllergeprüft,fünfBroadcasteractive/vierMotioncontrollerinactive.
+Steuerverbindungdamitbereit;nochkeineTrajektorie/Bewegungausgeführt. Nachweise
+`setup/logs/left-front-ros-readiness-20261112/external-control-*/`.

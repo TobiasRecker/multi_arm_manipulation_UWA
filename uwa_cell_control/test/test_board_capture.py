@@ -56,6 +56,7 @@ def rig(tmp_path, failing=None):
     r.session = tmp_path
     r.board_config = config()
     r.fixed_settings = {}
+    r.telemetry = lambda: dict(arms={}, complete=False)
     r.busy = threading.Lock()
     calls = []
     r.preview = SimpleNamespace(stop=lambda: calls.append('stop'),
@@ -98,3 +99,24 @@ def test_capture_reentry_is_rejected_without_changing_existing_transaction(tmp_p
     with pytest.raises(RuntimeError, match='already running'):
         r.capture_all()
     assert calls == [] and r.busy.locked()
+
+
+def test_stop_waits_for_sdk_lock_after_wrapper_exit(tmp_path, monkeypatch):
+    from uwa_cell_control import board_capture as module
+    from uwa_cell_control.board_capture import OakPreview
+    (tmp_path / 'setup/oak4/photos').mkdir(parents=True)
+    preview = OakPreview(tmp_path, {}, tmp_path / 'preview')
+    polls = iter([None, None])
+    preview.child = SimpleNamespace(pid=12345, poll=lambda: next(polls), wait=lambda **k: 0)
+    locked = [True, True, False]
+    events = []
+    def flock(file, flags):
+        if flags == module.fcntl.LOCK_EX | module.fcntl.LOCK_NB and locked.pop(0):
+            events.append('busy')
+            raise BlockingIOError()
+        events.append('released')
+    monkeypatch.setattr(module.fcntl, 'flock', flock)
+    monkeypatch.setattr(module.os, 'killpg', lambda *args: events.append('signal own process group'))
+    monkeypatch.setattr(module.time, 'sleep', lambda _: None)
+    preview.stop()
+    assert events == ['signal own process group', 'busy', 'busy', 'released', 'released']

@@ -5,7 +5,56 @@ Diese Datei fasst die bisherigen Gespräche und die überprüfte Implementierung
 zusammen. Sie soll bei weiterer Arbeit mitgepflegt werden, nicht als unveränderlicher
 Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [README.md](README.md).
 
-## Links vorne: ROS-Steuerbereitschaft erneut geprüft,2026-11-12
+## Links vorne: External-Control-Verbindung bestätigt,2026-11-12
+
+- Nutzer startetros.urp amUR5. JetztDashboardPLAYING/running:true,RobotmodeRUNNING,
+  SafetymodeNORMAL. ROSrobot_program_running=true,Hardwareactive,frische6Gelenke
+  rund123Hz im10s-Prüffenster(1230Samples,max331msHostlücke).
+- KonkreteReverse-Verbindung192.168.8.209:51001↔192.168.8.2 aufgebaut;Trajectory-
+  undCommandkanal51003/51004ebenfallsESTAB. NativeTreibermeldung15:54:46:
+  Robot connected to reverse interface. Ready to receive control commands.
+- ImProgrammstartfenster15:54:37ersteVerbindung/15:54:43Drop/15:54:46Neuaufbau;
+  Benutzerstartphase,nichtalsbewiesenerunerklärterDauerausfallausgeben. Bei
+  nachfolgendenChecks keinneuerAbbruchgesehen,keinLangzeitnachweis.
+- Alle9ControllerunabhängigperROSListControllersnachgewiesen:5Broadcasteractive,
+ 4Motioncontrollerinactive. ErsterasynchronerListencheckliefertebinnen10skeine
+  Antwort;separaterCLI-Serviceaufruferfolgreich. FollowJointTrajectory-Schnitt-
+  stellenbeiderTrajektoriencontroller vorhanden. KeineControlleraktivierung,
+  keinFahrziel/Power/Brake/Play/SafetyresetdurchdiesenCheck.
+- Ergebnis: **ROS-Steuerverbindung bereit**,tatsächlicheTrajektorienausführung
+  nochnichtgetestet. FrühereRTDE-BlockadedurchEtherNet/IP-Deaktivierungbehoben.
+  Quelle `setup/logs/left-front-ros-readiness-20261112/external-control-155746/`.
+
+
+## Links vorne: RTDE-Blockade nach EtherNet/IP-Aus behoben,2026-11-12
+
+- Nutzer meldet EtherNet/IP deaktiviert/Installation gespeichert. Nur eigenen
+  uwa-left-front-hardware-driver neu gestartet. Laufzeit-KillSignal konnte per
+  systemctlset-propertynichtgeändertwerden;normalerNeustart dennochsoforterfolgreich,
+  keineSource-/Servicekonfiguration dafür verändert.
+- UR5/Serial2017356443/PolyScope3.15.8.106339: Hardware **active**,RTDE125Hz,
+  Werkskinematikcheck erfolgreich; speed_slider_mask-Konflikt nichtmehrvorhanden.
+  Alle5Broadcaster aktiv,4Motioncontroller ordnungsgemäß geladen/inactive.
+  Reverse/Script/Trajectory/Command-Listener51001–51004 offen.
+- ROS-Stabilitätsprobe20s:2320gültige6-Gelenk-Samples,124,95Hz innerhalbempfangener
+  Zeitspanne,max334,5msLücke,Streuungmax0,000144rad. Keinefehlenden/nichtendlichen
+  Gelenkwerte;keinenBewegungs-/Langzeitrobustheitsnachweis darausableiten.
+- Historisch vor manuellem Programmstart: NativeRUNNING/NORMAL,ros.urp geladen,
+  aber **STOPPED**;nochkeineReverse-
+  Verbindung undkeinBewegungstest. Nutzergebeten,ExternalControl ros.urp am
+  Pendant laufenlassen(Host192.168.8.209/Port51002),danachSteuerverbindungprüfen.
+  KeinePower/Brake/Play/Fahrziele/Safetyquittierung durchdiesenCheck.
+- Nachweise `setup/logs/left-front-ros-readiness-20261112/ethernetip-off-155447/`.
+  Andere3Roboter-,Kamera-/RVizdiensteerhalten;paralleleDrei-Kamera-Arbeitunverändert.
+
+
+## Historisch: Links vorne vor EtherNet/IP-Deaktivierung,2026-11-12
+
+- Nachtrag vom Nutzer: **EtherNet/IP am linken vorderen UR5 ist aktiviert**.
+  Damit konkrete, zur RTDE-IN_USE-Meldung passende Feldbuskonfiguration bestätigt;
+  tatsächlicher Registerbesitz noch nicht separat ausgelesen. Nutzer gebeten,
+  EtherNet/IP bei fehlender SPS-Nutzung zu deaktivieren und Installation zu
+  speichern. Später vom Nutzer deaktiviert; positiver neuer ROS-Check im aktuellen Abschnitt oben.
 
 - Nutzer bittet zuprüfen,obUR5links vorne inzwischen perROS steuerbar ist.
   Identität192.168.8.2/Serial2017356443 bestätigt; PolyScope3.15.8.106339 im
@@ -26,6 +75,59 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   NachBeseitigungInputbesitz Treibererneutinitialisieren,danachExternalControl
   prüfen. EinSTOPPEDProgramm allein erklärtkeinenRTDE-IN_USE-Konflikt.
 
+
+## Drei-Kamera-GUI für mobiles A4-Board,2026-11-12
+
+- Nutzer bestätigt mobilesA4-Board IDs75–91 für beide rechtenWristkameras und
+  OAK. NeueenglischeApp **UWA Camera Capture**, StartmenüeintragundLauncher
+  `scripts/camera_capture.sh`; Bedienung `docs/three_camera_capture.md`.
+- Readinesslesend: beideRechtsarme aktuelleJointStates, SafetyNORMAL,
+  External-Control verbunden, Bewegungscontrollerinaktiv. KeineArmfahrt,
+  Power-/Bremsen-/Programmaktion. ParallelaufgabeLinksFront unverändertlassen.
+- DreiVorschauen mitMarker-/Eckenzahl,Empfangsalter,STALE/PAUSED/SNAPSHOT.
+  Sichtbarkeitsbanner >=4Previewecken jeKamera; dasistkeineKalibriergüte.
+  Capture-All-Button mitRECEIVED/RUNNING/DONE/FAILED undLaufzeit. Native
+  Wrist2592×1944 + OAK8000×6000 Einzelbild übervorhandeneFotopfade; Quick
+  optionalWristVGA. Originale,Annotationen,metrischeBoardkorrespondenzen,
+  physischeKameraID/Fokus,Readback,Hash undZeitfenster jeunveränderlichemSet.
+- Fokusprofil config/three_camera_capture.yaml: RF435,RR388,OAK116manual.
+  Wristoriginale vorhergesichert,beiFensterschließen strengwiederhergestellt.
+  RR-HD388 hatnochkeinevalidiertenIntrinsics; VGA-/HD-/Fokusprofilenichtmischen.
+  KeineFits/Kalibrieraktivierung. Hostzeiten sindkeineBelichtungszeiten;
+  BoardbisDONEstillhalten,keineHardware-Synchronisierungbehaupten.
+- OAKVorschau2000×1500/2fps,voller4:3-Bildausschnitt,5sAE-Einlauf. VorFoto
+  nurdieseSDK-Pipelinebeenden,Dateisperrfreigabeabwarten: oakctl-Wrapper kann
+  vorherenden. PausegibtOAKfürTiefentoolfrei,keinefremdenDiensteabgeschossen.
+- LegacyUCC1.11.1-Restore imvorhandenenWristworkerrepariert: ROI-Korrektur
+  nachgemessenerAbweichung,begrenzteIterationen/Koordinaten,temporärerAFbei
+  manuellemROI nötig,LegacyLEDmapping; amEndealleOriginalkonfigfelder exakt
+  (automatischeAusgabefelder nurbeiaktivemAutomatikmodusausgenommen).
+  RealAF-/ManualnativePASS; frühereFehlberichtebleibenunverändert. Erste
+  überbelichteteRear-HTTP-Aufnahme durchneuenBelichtungstriggerkorrigiert.
+- ErstesnativeDreierset
+  `setup/calibration/three_camera_20261112/first_sets/20261112_154033_06fc8276/set_154037_784566/`:
+  OAK24/RR24/RF8von24Ecken. VorneBoardobenabgeschnitten; Bildergesichert,
+  Setabsichtlichall_usable=false. MobilesBoardinFrontbildmitteausrichten;
+  keinezusätzlicheArmbewegung beauftragtoder ausgeführt.
+- EchterGUI-AbnahmelaufPASS:
+  `setup/calibration/three_camera_20261112/gui_check/20261112_154921_20ecc2ad/gui-check.json`.
+  DreiaktuelleVorschauen,Buttonklick+nativesDreierset,Live-Rückkehr,
+  PausemitnachgewiesenerDateisperrfreigabe,Originalfokus-RestorePASS.
+  Screenshotslive-before/after.png; erneutRF8/RR24/OAK24nativeEcken.
+  FrüherefehlgeschlageneAbnahmeläufenichtgelöscht (Freigaberaceaufgedeckt).
+- ZusätzlichlesendeDomain66-Telemetrie vor/nachneuenFotosets gespeichert,
+  fehlendeSamplesexplizitmarkiert; EndpointdifferenzistkeinDurchgehend-
+  Stillstandsnachweis. LiveProbe beiderRechtsarmePASS unter
+  setup/calibration/three_camera_20261112/telemetry-check/. KeineROS-Writer.
+- Build uwa_cell_control PASS,30gezielteTestsPASS (Detektionsidentität,
+  Teilansicht,Datenfehler,Setfehler,SDK-Sperrrace,QtKlick/STALE/Snapshot,
+  vollständigerLegacyRestore undbestehendeOAK-Transaktionsgrenzen).
+- InstallierterStartmenüeintrag tatsächlichpergioinpersistenterBenutzersitzung
+  geöffnet: temporärerDienst uwa-camera-capture (ExitType=cgroup), Session
+  setup/calibration/three_camera_mobile/20261112_155233_897f400a/.
+  GUI-/SDK-Prozesse aktiv,frische2000×1500-Frames,Fokus116readbackbestätigt.
+  BeimnormalenFensterschließenwirdOriginalfokuswiederhergestellt. Laufende
+  PreviewbelegtOAKexklusiv; fürTiefen-/andereFotoaufträge **Pause live view**.
 
 ## HQ-Tiefenaufnahme als RViz-Punktwolke,2026-11-12
 

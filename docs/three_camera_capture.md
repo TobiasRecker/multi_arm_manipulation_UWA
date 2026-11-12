@@ -75,6 +75,10 @@ setup/calibration/three_camera_mobile/<session>/
 
 Records include SHA256, original image sizes, mobile corner IDs/pixels/object
 points in metres, focus/settings, camera identity, and request/completion windows.
+The manifest also retains read-only domain66 joint samples before/after capture
+(including names, sample times and endpoint differences). Missing telemetry is
+labelled; photos can still be useful for camera-to-camera calibration. Endpoint
+agreement does not prove that an arm was stationary throughout every exposure.
 OAK metadata additionally records actual device sequence/time, exposure and lens
 position. Original OAK files remain under `setup/oak4/photos/`; the set contains
 an independent image copy. No private pictures enter Git.
@@ -115,3 +119,10 @@ OAK24/24, right-rear24/24, right-front8/24: front mobile board clipped at the im
 edge. All images saved successfully, but **not a complete shared calibration view**.
 Reposition the mobile board within the shared field of view using the live app;
 no automatic arm repositioning is part of this tool.
+
+Installed GUI acceptance passed with real live views, a native three-camera
+button capture, preview restart, pause with verified SDK lock release and final
+wrist focus restoration. Evidence and screenshots:
+`setup/calibration/three_camera_20261112/gui_check/20261112_154921_20ecc2ad/`.
+Thirty focused automated tests passed, including stale/snapshot UI feedback,
+foreign-board rejection and the delayed SDK-lock release regression.

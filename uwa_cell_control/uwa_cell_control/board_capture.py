@@ -215,6 +215,42 @@ class CaptureRig:
     def wrist(self, name):
         return WristCamera(self.inventory['robots'][name]['ip'])
 
+    def telemetry(self):
+        """Read-only hardware joint samples, never start a driver or a writer."""
+        context = node = executor = observer = None
+        try:
+            import rclpy
+            from rclpy.context import Context
+            from rclpy.executors import SingleThreadedExecutor
+            from rclpy.signals import SignalHandlerOptions
+            from match_ur_hardware.profiles import load_profiles
+            from .park_arm import JointObserver
+            context = Context()
+            rclpy.init(args=[], context=context, domain_id=66, signal_handler_options=SignalHandlerOptions.NO)
+            node = rclpy.create_node('uwa_camera_capture_observer', context=context)
+            profiles = load_profiles(self.ws / 'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml')
+            observer = JointObserver(node, profiles, CAMERAS[:2], 'hardware')
+            executor = SingleThreadedExecutor(context=context)
+            executor.add_node(node)
+            deadline = time.monotonic() + 2
+            while time.monotonic() < deadline:
+                executor.spin_once(timeout_sec=.05)
+            arms = {n: dict(value, joint_names=profiles[n]['joint_names']) for n, value in observer.received.items()
+                    if time.monotonic() - value['received_monotonic'] < .5}
+            return dict(recorded_at=utc(), arms=arms, safety_modes=dict(observer.safety_modes),
+                        domain=66, complete=len(arms) == 2, source='read-only ROS JointState subscriptions')
+        except Exception as error:
+            return dict(recorded_at=utc(), arms={}, complete=False, error=str(error))
+        finally:
+            if executor:
+                executor.shutdown()
+            if observer:
+                observer.close()
+            if node:
+                node.destroy_node()
+            if context:
+                context.try_shutdown()
+
     def capture_one(self, name, directory, native=True):
         directory.mkdir()
         started = utc()
@@ -279,6 +315,7 @@ class CaptureRig:
         report['optical_profiles'] = dict(wrist=self.fixed_settings, oak_manual_focus=self.preview.focus)
         try:
             self.preview.stop()
+            report['telemetry_before'] = self.telemetry()
             with ThreadPoolExecutor(max_workers=3) as pool:
                 futures = {pool.submit(self.capture_one, name, directory / name, native): name for name in CAMERAS}
                 for future in as_completed(futures):
@@ -287,6 +324,14 @@ class CaptureRig:
                         report['cameras'][name] = future.result()
                     except Exception as error:
                         report['cameras'][name] = dict(success=False, error=str(error))
+            report['telemetry_after'] = self.telemetry()
+            report['endpoint_joint_delta_rad'] = {}
+            for name in CAMERAS[:2]:
+                before = report['telemetry_before']['arms'].get(name)
+                after = report['telemetry_after']['arms'].get(name)
+                if before and after:
+                    report['endpoint_joint_delta_rad'][name] = float(np.max(np.abs(
+                        np.asarray(before['positions']) - np.asarray(after['positions']))))
         except Exception as error:
             report['error'] = str(error)
         finally:
