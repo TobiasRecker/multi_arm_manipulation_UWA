@@ -108,7 +108,7 @@ von Gazebo64 und OAK65. Mock kann dadurch keine realen Manager bedienen.
 | hinten rechts | 192.168.8.170 | 54002 |
 | vorne rechts | 192.168.8.103 | 53002 |
 | links hinten | 192.168.8.169 | 52002 |
-| links vorne | unbekannt | 51002 |
+| links vorne | 192.168.8.2 | 51002 |
 
 External-Control-URCap benötigt die aktuelle PC-IP (Ethernet192.168.8.209)
 und den passenden Script-sender-Port. Pro Arm folgen Reverse/Script/Trajectory/
@@ -184,3 +184,13 @@ Remote-Umschaltung erfolgt am Pendant.
 Nachweise: `setup/logs/uwa-left-rear-driver/report.json`, `joint-angles.png`,
 `prepare.png`, `external-control-result.json`, `gui-status-confirmed.json`; GUI-/Treiberlogs in der dort genannten Sitzung. Werkskinematik-
 Auslesen: `setup/logs/uwa-left-rear-factory-kinematics.log`.
+
+## Left front: ROS-Prüfung2026-11-12
+
+UR5/Serial2017356443,PolyScope3.15.8.106339. Netzwerk und reineOutput-only-
+RTDE-Telemetrie funktionieren (71Samples/7s). ROS-Hardwareinitialisierung nach
+gezieltemTreiberneustart weiter abgewiesen: `speed_slider_mask` von anderem
+RTDE-Client/Feldbus belegt. Hardware unconfigured,keinROS-JointState undkeine
+Motioncontroller; `ros.urp` geladen,aberSTOPPED. Feldbusstatus amPendant noch
+zuprüfen. KeineFahrt/Power/Brake/Play/Safety-Quittierung durchdiesenCheck.
+Diagnose: `setup/logs/left-front-ros-readiness-20261112/`.

@@ -5,6 +5,28 @@ Diese Datei fasst die bisherigen Gespräche und die überprüfte Implementierung
 zusammen. Sie soll bei weiterer Arbeit mitgepflegt werden, nicht als unveränderlicher
 Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [README.md](README.md).
 
+## Links vorne: ROS-Steuerbereitschaft erneut geprüft,2026-11-12
+
+- Nutzer bittet zuprüfen,obUR5links vorne inzwischen perROS steuerbar ist.
+  Identität192.168.8.2/Serial2017356443 bestätigt; PolyScope3.15.8.106339 im
+  Inventar aktualisiert. NativeRUNNING/NORMAL,ros.urp geladen,aberSTOPPED.
+- AlteFehlinitialisierung des eigenen uwa-left-front-hardware-driver bestätigt;
+  gezielterNeustart. AlterDienst brauchte90sSystemd-Stopp,letzterRSP perTimeout
+  beendet; fremdeDiensteunverändert. NeuerStart erneutdreimal RTDE-IN_USE:
+  speed_slider_mask vonanderemClient/Feldbusbelegt. Hardwareunconfigured,
+  keinJointState/Broadcaster,keineMotioncontroller/Reverse-/Scriptlistener.
+- Lokalkein konkurrierenderTCP-Client nach192.168.8.2:30004 gesehen. Tatsächlicher
+  Besitzer nichtbewiesen; Nutzer perFrage umEtherNet/IP-/PROFINET-Status gebeten.
+  KeineFeldbus-/Safety-/Inputrecipeänderung,keinePower/Brake/Play/Fahrziele.
+- Output-only-Gegentest mit vorhandenemReadOnlyStream ohneInputrecipe/Writer:
+ 71Samples/7s,6echteWinkel,qd0,Robotmode7/Safetymode1. SomitlesbareNetzwerk-
+  telemetrie; ROS-Steuerfähigkeit aktuellweiterverneint,keinBewegungstest.
+- Diagnose/JSONs/neuerStartlog/ReadOnlyNachweis unter
+  `setup/logs/left-front-ros-readiness-20261112/153340/`.
+  NachBeseitigungInputbesitz Treibererneutinitialisieren,danachExternalControl
+  prüfen. EinSTOPPEDProgramm allein erklärtkeinenRTDE-IN_USE-Konflikt.
+
+
 ## HQ-Tiefenaufnahme als RViz-Punktwolke,2026-11-12
 
 - Nutzer bittet nach HQ-Tiefenmodus um sichtbare RViz-Anzeige. Vorhandene

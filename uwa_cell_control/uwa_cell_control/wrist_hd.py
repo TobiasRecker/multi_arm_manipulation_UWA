@@ -149,6 +149,15 @@ class NativeCapture:
         self.ssh.run('rm -rf -- ' + shlex.quote(remote), timeout=5)
         return result
 
+    def restore_configuration(self, original):
+        """Camera-only, fully verified restore, also after a temporary focus lock."""
+        self.bootstrap()
+        script = ('import sys,json;sys.path.insert(0,' + repr(self.remote) + ');'
+                  'import wrist_worker as w;original=json.load(sys.stdin);'
+                  'service,_=w.service_for_vision();print(json.dumps(w.restore(service,original)))')
+        return json.loads(self.ssh.run('python -c ' + shlex.quote(script),
+                                      data=json.dumps(original).encode(), timeout=40))
+
 
 class HDCamera(WristCamera):
     """ROS service client that keeps calibration joint monitoring spinning."""

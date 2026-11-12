@@ -1,5 +1,21 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Gemeinsame mobile Board-Aufnahme (2026-11-12)
+
+- Nutzer bestätigt mobilesA4-Board IDs75–91 für rechteWristkameras+OAK4.
+  App **UWA Camera Capture**, `scripts/camera_capture.sh`, Anleitung
+  `docs/three_camera_capture.md`. Kamera-only, keine impliziteArmfahrt/Power/Play.
+- Fotos über vorhandenenNative-Wrist-/OAK-Fotopfad, keineHQ-Mittelung eines
+  beweglichenBoards. OAK-SDK-Vorschau vorFoto schließen UND gemeinsame
+  Dateisperrefreigabe abwarten; `oakctl`-Wrapperende allein genügt nicht.
+  Pause gibt nur eigeneVorschau frei, keinefremdenKameraprozesse stoppen.
+- Fokusprofil `config/three_camera_capture.yaml`, Originalsicherung und
+  vollständigerReadback beiWiederherstellung. NativeHD/VGA/Fokusprofiletrennen;
+  RR-HD388 nochkeinevalidiertenIntrinsics. Keine automatischenFits/Aktivierung.
+- Kontrast-/Textfeedback, Live-/Snapshot-/STALE-/Bildaltertrennung. Preview-
+  ErkennungkeinGenauigkeitsnachweis, Dreierfotos nichtbelichtungssynchron.
+  Bilder/Boardkorrespondenzen/Sitzungsberichte nurunter setup/calibration/.
+
 
 ## Vorhandener statischer HQ-Tiefenmodus (2026-11-12)
 

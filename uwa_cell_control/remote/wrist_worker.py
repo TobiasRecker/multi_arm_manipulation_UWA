@@ -110,11 +110,14 @@ def restore(service, original):
     if original.get('exposureAuto'):
         automatic.update(('exposure', 'gain'))
     legacy_led_mapping = None
+    legacy_roi_writes = []
+    roi_keys = ('focusWindowX1', 'focusWindowY1', 'focusWindowX2', 'focusWindowY2')
+    requested_roi = {k: original[k] for k in roi_keys if k in original}
     for attempt in range(21):
         actual = settings()
         differences = {k: [v, actual.get(k)] for k, v in original.items()
                        if k not in automatic and actual.get(k) != v}
-        if attempt == 0 and 'lightingMode' in differences and original['lightingMode'] in (0, 1):
+        if attempt in (0, 3, 6, 9, 12, 15, 18) and 'lightingMode' in differences and original['lightingMode'] in (0, 1):
             version = request('/hello').get('version', '')
             # Measured on these exact legacy branches: setter0 reads back1,
             # setter1 reads back0. Never assume this for untested firmware.
@@ -127,7 +130,35 @@ def restore(service, original):
                     'all_original_fields_match': actual == original,
                     'all_configuration_fields_match': True,
                     'legacy_led_write_value': legacy_led_mapping,
+                    'legacy_roi_corrections': legacy_roi_writes,
                     'automatic_output_fields': sorted(automatic)}
+        # UCC1.11.1 reports a shifted focus ROI after restarting visionserver.
+        # Correct only measured coordinate errors, with bounded feedback; all
+        # original fields still have to pass the full readback above. No guessed
+        # constant offset and no relaxed acceptance of a changed ROI.
+        if attempt in (2, 5, 8, 11) and any(k in differences for k in roi_keys):
+            version = request('/hello').get('version', '')
+            if version.startswith('UCC-1.11.1.'):
+                change = {'focusAuto': True}
+                for k in roi_keys:
+                    if k not in original or k not in actual:
+                        continue
+                    delta = original[k] - actual[k]
+                    if actual.get('focusAuto'):
+                        requested_roi[k] += delta
+                    limit = 640 if 'X' in k else 480
+                    if abs(delta) > 64 or not 0 <= requested_roi[k] < limit:
+                        raise RuntimeError('Legacy autofocus ROI correction outside bounded range')
+                    change[k] = requested_roi[k]
+                if 'lightingMode' in differences and original['lightingMode'] in (0, 1):
+                    change['lightingMode'] = 1 - original['lightingMode']
+                responses.append(request('/setcamerasettings?setManualValuesIfModeChanged=true',
+                                         {'cameraSettings': change}))
+                legacy_roi_writes.append(change)
+        if (attempt in (4, 7, 10, 13, 16) and not original.get('focusAuto')
+                and actual.get('focusAuto') and not any(k in differences for k in roi_keys)):
+            responses.append(request('/setcamerasettings?setManualValuesIfModeChanged=true',
+                {'cameraSettings': {'focusAuto': False, 'focus': original['focus']}}))
         if attempt < 20:
             time.sleep(.25)
     raise RuntimeError('Camera restoration readback mismatch: ' + str(differences))
@@ -144,13 +175,15 @@ def capture(directory):
     normal(timeout=4)
     original = settings()
     hello = request('/hello')
-    if hello.get('version', '').startswith('UCC-1.11.1.') and original.get('focusAuto'):
+    if (hello.get('version', '').startswith('UCC-1.11.1.') and original.get('focusAuto')
+            and not all(k in original for k in ('focusWindowX1', 'focusWindowX2',
+                                                'focusWindowY1', 'focusWindowY2'))):
         # Real right-rear tests found accumulating ROI shifts after each native
         # mode/server restart. Do not repeat a known non-restorable transaction.
         report = {'schema_version': 1, 'success': False, 'restore_ok': True,
                   'state_changed': False, 'motion_commands': False,
                   'camera': hello, 'original_settings': original,
-                  'error': 'UCC1.11.1 autofocus ROI restoration is not supported; '
+                  'error': 'UCC1.11.1 autofocus ROI fields are incomplete; '
                            'no camera mode/service changes made. Use a verified '
                            'manual-focus profile or update and retest the URCap.'}
         save(directory + '/original-settings.json', original)

@@ -156,6 +156,53 @@ def test_known_legacy_autofocus_roi_failure_declines_before_any_mode_change(tmp_
     assert 'autofocus ROI' in result['error']
 
 
+@pytest.mark.parametrize('auto', [True, False])
+def test_legacy_roi_feedback_restores_full_configuration_with_real_readback(monkeypatch, auto):
+    m = worker()
+    original = dict(focus=435, focusAuto=auto, exposure=60000, exposureAuto=False,
+        gain=16, lightingMode=0, lightingValue=0, focusWindowX1=158,
+        focusWindowY1=102, focusWindowX2=450, focusWindowY2=339)
+    actual = dict(original, focusWindowX1=165, focusWindowY1=134)
+    def request(path, data=None):
+        if path == '/hello':
+            return {'version': 'UCC-1.11.1.10337'}
+        change = data['cameraSettings']
+        if 'focusAuto' in change:
+            actual['focusAuto'] = change['focusAuto']
+            actual['lightingMode'] = 1
+        for key, value in change.items():
+            if key.startswith('focusWindow'):
+                if actual['focusAuto']:
+                    actual[key] = value - (16 if key == 'focusWindowY1' else 0)
+            else:
+                actual[key] = value
+        if 'lightingMode' in change:
+            actual['lightingMode'] = 1 - change['lightingMode']
+        return {'status': 'succeeded'}
+    monkeypatch.setattr(m, 'normal', lambda **k: None)
+    monkeypatch.setattr(m.subprocess, 'check_call', lambda *a, **k: 0)
+    monkeypatch.setattr(m, 'settings', lambda: dict(actual))
+    monkeypatch.setattr(m, 'request', request)
+    monkeypatch.setattr(m.time, 'sleep', lambda _: None)
+    restored = m.restore('/camera/only', original)
+    assert restored['all_configuration_fields_match']
+    assert restored['settings'] == original and restored['legacy_roi_corrections']
+
+
+def test_legacy_roi_feedback_cannot_accept_unbounded_or_ignored_coordinate_changes(monkeypatch):
+    m = worker()
+    original = dict(focus=435, focusAuto=True, exposure=60000, exposureAuto=False,
+        gain=16, lightingMode=0, lightingValue=0, focusWindowX1=158,
+        focusWindowY1=102, focusWindowX2=450, focusWindowY2=339)
+    monkeypatch.setattr(m, 'normal', lambda **k: None)
+    monkeypatch.setattr(m.subprocess, 'check_call', lambda *a, **k: 0)
+    monkeypatch.setattr(m, 'settings', lambda: dict(original, focusWindowY1=300))
+    monkeypatch.setattr(m, 'request', lambda *a, **k: {'version': 'UCC-1.11.1.10337'})
+    monkeypatch.setattr(m.time, 'sleep', lambda _: None)
+    with pytest.raises(RuntimeError, match='bounded range'):
+        m.restore('/camera/only', original)
+
+
 class BurstCamera:
     capture_source=SOURCE
     last_burst={'transport':'native_v4l2_mjpeg'}

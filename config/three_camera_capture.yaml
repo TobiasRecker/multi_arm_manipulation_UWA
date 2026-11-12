@@ -1,0 +1,8 @@
+schema: 1
+# Repeatable acquisition profile, NOT an intrinsics calibration.
+# right_front matches the active native-HD focus; right_rear native-HD
+# intrinsics still need their own validation. Never reuse its VGA K blindly.
+wrist_manual_focus:
+  right_front: 435
+  right_rear: 388
+oak_manual_focus: 116

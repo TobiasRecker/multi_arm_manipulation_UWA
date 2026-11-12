@@ -13,7 +13,7 @@ robots:
     dashboard_port: 29999
     serial_number: '2017356443'
     dashboard_model: UR5
-    polyscope_version: 3.15.1.106171
+    polyscope_version: 3.15.8.106339  # Dashboard readback2026-11-12, ROS readiness check
   left_rear:
     ip: 192.168.8.169  # User assignment and read-only reachability verified2026-11-11
     ur_type: ur7e

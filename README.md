@@ -1,5 +1,10 @@
 # UWA four-arm laboratory cell
 
+**UWA Camera Capture** shows mobile-A4-board visibility from both right wrist
+cameras and OAK4, with a single button for native photographs. Open it from the
+application menu or run `bash src/multi_arm_manipulation_UWA/scripts/camera_capture.sh`.
+See [three-camera acquisition, focus and saved datasets](docs/three_camera_capture.md).
+
 Native **48MP Standard/HQ photographs** are available through the reusable
 [OAK4 photo service](../oak_camera_calibration/OAK4_PHOTOS.md), including a CLI
 and `/oak4/photo/capture_hq` (`std_srvs/srv/Trigger`, domain65). HQ uses ISO100,
