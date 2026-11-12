@@ -16,6 +16,28 @@ from uwa_cell_gazebo.charuco import board_image
 from uwa_cell_control.hardware_charuco import calibrate_intrinsics
 
 
+def test_camera_key_reconnects_without_password_but_preserves_host_verification(tmp_path,monkeypatch):
+    from uwa_cell_control.wrist_hd import SSH
+    monkeypatch.setattr(Path,'home',lambda:tmp_path)
+    client=SSH('192.168.8.103',tmp_path/'socket')
+    assert '-i' not in client.base()
+    key=tmp_path/'.ssh/uwa_wrist_camera_ed25519'
+    key.parent.mkdir();key.write_text('test placeholder, not a private key')
+    args=client.base()
+    assert args[args.index('-i')+1]==str(key)
+    assert all(option in args for option in ['IdentitiesOnly=yes','BatchMode=yes',
+                                            'StrictHostKeyChecking=yes','ControlMaster=auto'])
+    trusted=tmp_path/'.ssh/uwa_wrist_known_hosts'
+    trusted.write_text('test host key placeholder')
+    assert 'UserKnownHostsFile='+str(trusted) in client.base()
+    legacy=tmp_path/'.ssh/uwa_wrist_camera_192_168_8_2_rsa'
+    legacy.write_text('test placeholder, not a private key')
+    old=SSH('192.168.8.2',tmp_path/'old_socket').base()
+    assert old[old.index('-i')+1]==str(legacy)
+    assert 'PubkeyAcceptedAlgorithms=+ssh-rsa' in old
+    assert 'PubkeyAcceptedAlgorithms=+ssh-rsa' not in client.base()
+
+
 def make_burst(path, size=(2592, 1944), restored=True, repeated=False):
     path.mkdir(exist_ok=True)
     for i in range(3):

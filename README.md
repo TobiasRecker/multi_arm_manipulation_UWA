@@ -5,6 +5,14 @@ Native **48MP Standard/HQ photographs** are available through the reusable
 and `/oak4/photo/capture_hq` (`std_srvs/srv/Trigger`, domain65). HQ uses ISO100,
 longer exposure and eight averaged frames; files remain under `setup/oak4/photos/`.
 
+The same service supports [static HQ depth snapshots](../oak_camera_calibration/OAK4_DEPTH.md):
+`/oak4/depth/capture_hq` (domain65), native1280×800,16-frame robust fusion,
+validity masks and original millimetre data under `setup/oak4/depth/`.
+Open its camera-local 3D snapshot in RViz with
+`bash src/oak_camera_calibration/tools/oak4_photo.sh view-depth`; acquisition time
+is labelled and the existing cell preview remains separate.
+
+
 ROS 2 **Lyrical**, Ubuntu 26.04 and **Gazebo Jetty**. This repository models
 two tables carrying one UR5, one UR7e and two UR5e robots. It starts simulated
 hardware by default. The layout is provisional, not a calibrated digital twin.
@@ -25,6 +33,10 @@ A [rough real OAK pose and shared-view arm design](docs/oak_pose_and_shared_view
 is available: experimental camera/table registration, collision-checked model
 postures and a separate read-only RViz preview on domain70. These targets have
 not been executed on hardware or made the simulation's default initial poses.
+The subsequent [real three-arm check](docs/shared_view_hardware_2026-11-12.md)
+reached all selected targets and saved native wrist-HD images with24 corners each;
+left front stayed stationary. The OAK simultaneously recognized all three boards.
+Camera SSH now uses persistent keys instead of repeated password prompts.
 
 Project context is maintained in [HANDOVER.md](HANDOVER.md): user goals,
 requirements, preferences, decisions, verified results and open work.

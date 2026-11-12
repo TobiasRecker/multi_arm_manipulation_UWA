@@ -1,5 +1,24 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+
+## Vorhandener statischer HQ-Tiefenmodus (2026-11-12)
+
+- HQ-Snapshot in RViz: `bash src/oak_camera_calibration/tools/oak4_photo.sh view-depth`
+  aus Workspace. Eigene Domain65-Ansicht, Standardwolke optional; Datum/STATIC
+  sichtbar, keine Kameraoffenhaltung und kein world-/Zelltransform. Nur Aufnahmen
+  mit tatsächlicher rektifizierter `projection.K` anzeigen, keine Factory-K raten.
+
+- Für statische Tiefenschnappschüsse den bestehenden Fotodienst verwenden:
+  `bash src/oak_camera_calibration/tools/oak4_photo.sh capture --mode depth_hq`
+  aus Workspace; ROS `/oak4/depth/capture_hq`, Trigger, Domain65/LOCALHOST.
+- Native1280×800-Mono-Stereo,16Frames/Median mit Gültigkeits-/Stabilitätsmasken,
+  keine Lochfüllung, Rohframes/Metadaten in `setup/oak4/depth/`. Belichtung/Gain
+  beider Monos gehalten; RGB-ISO100 nicht als Tiefeneinstellung behaupten.
+- Teilt Kamera-/Transaktionssperre und Dienst `uwa-oak4-photo.service` mit RGB.
+  Kamera/Szene stillhalten, keine Roboterfahrten auslösen. Weniger Streuung ist
+  kein Genauigkeitsnachweis; Maskierung kann die gültige Fläche verringern.
+- Anleitung: OAK-Repo `OAK4_DEPTH.md` (Aufruf/Format/Grenzen/echte Prüfergebnisse).
+
 ## Vorhandener OAK4-HQ-Fotodienst
 
 - Für physische OAK-Fotos den [wiederverwendbaren Fotodienst](../oak_camera_calibration/OAK4_PHOTOS.md)
@@ -120,7 +139,11 @@
 - Simulation isoliert betreiben: Domain 64, lokale Discovery, Partition `uwa_cell_sim`.
   Physisches Inventar getrennt in `config/hardware_inventory.yaml`:
   `right_rear`=192.168.8.170, `right_front`=192.168.8.103,
-  `left_rear`=192.168.8.169 (Nutzerzuordnung/Lesetest2026-11-11), OAK4=192.168.8.238.
+  `left_rear`=192.168.8.169 (Nutzerzuordnung/Lesetest2026-11-11),
+  `left_front`=192.168.8.2 (Nutzerzuordnung/UR5-Identität2026-11-12), OAK4=192.168.8.238.
+  LinksFrontCB3/PolyScope3.15 hat keine e-Serie-Remote-Abfrage; ein unbekannter
+  Dashboardbefehl ist kein Beleg fürLocal. FehlendeURCap/Programmkonfiguration
+  undRTDE-Inputbelegung tatsächlich klären, nicht perUR-Sicherheitsänderung umgehen.
   Nutzerzählung „erster/zweiter“ ist zufällig; nur stabile Arm-IDs verwenden.
   Kabel laut Nutzer am2026-11-10 ersetzt. Roboterrouten geprüft über Ethernet
   enp87s0, PC192.168.8.209. Keine aktive Sonderbehandlung für die frühere
@@ -194,6 +217,12 @@
   keinen Gehäusekörper: nominelle Kamera-Kollisionskörper nicht daraus versetzen.
   Keine automatische Rückfahrt nach Stopp/Fehler.
   Sitzungen/Rohbilder unter `$UWA_WS/setup/calibration/` nicht einchecken.
+
+- Nutzerauftrag2026-11-12: Kamera-SSH ohne wiederholtePasswortdialoge, dedizierte
+  Schlüssel unter~/.ssh; `wrist_hd.SSH` verbindet automatisch mitstriktemHostvertrauen.
+  Drei e-SerieURsEd25519,CB3LinksFront eigenerRSA3072wegenOpenSSH6.0,kompatibler
+  Signaturmodus nurfürdiesenHost. KeineKeys/PasswörterinsGitoderLogs. SSH bleibt
+  aufbeauftragteKameraoperationenbegrenzt,HardwareGUI/ArmsteuerungSSH-frei.
 
 ## Verbindliche Bedienerwartungen
 

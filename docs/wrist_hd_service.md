@@ -21,23 +21,35 @@ ist separat offen. Keine Farbkorrektur oder Skalierung der Messbilder.
 
 ## Start und Foto
 
-Im Workspace-Terminal:
+Seit Nutzerauftrag2026-11-12 ist der schlüsselbasierte Zugriff auf allen vier
+UR-Controllern eingerichtet und mit frischen BatchMode-Verbindungen geprüft.
+Der Fotodienst verbindet bei Bedarf selbst neu; die frühere stündliche manuelle
+Passwortanmeldung ist damit für diesen PC nicht mehr nötig.
+
+- Drei e-Serie-Controller verwenden den dedizierten Ed25519-Kameraschlüssel.
+- Links vorne(CB3/OpenSSH6.0) verwendet einen eigenen RSA3072-Schlüssel;
+  notwendige alteRSA-Signaturkompatibilität gilt nur für diesen explizit
+  provisioniertenHost, nicht allgemein für SSH.
+- Private Schlüssel liegen unter `~/.ssh/uwa_wrist_camera_ed25519` bzw.
+  `~/.ssh/uwa_wrist_camera_192_168_8_2_rsa`, bekannteHostschlüssel dauerhaft in
+  `~/.ssh/uwa_wrist_known_hosts`, jeweils privat und außerhalbGit.
+- Auf den URs wurden nur eigenePublicKeys ergänzt, fremdeSchlüssel erhalten.
+  Die Einträge sind aufPC192.168.8.209 begrenzt; keineWeiterleitungen/PTY.
+  GeänderteHostschlüssel werden weiterhin abgewiesen. KeineKennwörter gespeichert.
+- SSH bleibt auf die ausdrücklich beauftragten Kameraoperationen begrenzt;
+  Hardware-GUI und Armstart bleiben SSH-frei.
+
+Start ohne Passwortdialog:
 
 ```bash
 source src/multi_arm_manipulation_UWA/scripts/control_env.bash
-# Einmal pro SSH-Sitzung; SSH selbst fragt interaktiv nach Authentifizierung:
-ros2 run uwa_cell_control wrist_hd_service --arm right_front --connect
-# Danach eigener Prozess, Domain66. Start löst noch keine Aufnahme aus:
 ros2 run uwa_cell_control wrist_hd_service --arm right_front
 ```
 
-Kein Kennwort als Argument,Umgebungsvariable,ROS-Parameter oder Datei übergeben.
-Verwendet wird ein privater SSH-ControlMaster-Socket unter
-`/tmp/uwa-wrist-hd-<uid>/`,1h ControlPersist bei Inaktivität. Key-/SSH-Agent-
-Authentifizierung ist ebenfalls möglich. `--connect` benötigt ein Terminal.
-Neue Hostschlüssel werden vom normalen SSH-Client beim initialen Connect
-angenommen, spätere Änderungen abgewiesen. Bei abgelaufener SSH-Sitzung erneut
-`--connect` ausführen. Socket/known_hosts sind nur für den lokalen Nutzer lesbar.
+Fallback auf einem noch nicht eingerichteten PC: `--connect` stellt wie bisher
+interaktiv eine temporäre SSH-Sitzung her. Kein Kennwort als Argument,
+Umgebungsvariable, ROS-Parameter oder Datei übergeben. Laufende Multiplex-Sockets
+liegen unter `/tmp/uwa-wrist-hd-<uid>/`; Schlüssel und Hostvertrauen sind dauerhaft.
 
 Aufnahme und Status:
 

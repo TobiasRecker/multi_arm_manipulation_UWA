@@ -31,16 +31,32 @@ class SSH:
     def __init__(self, ip, path):
         self.ip, self.path = ip, Path(path)
 
+    def identity_options(self):
+        legacy = Path.home() / ('.ssh/uwa_wrist_camera_' + self.ip.replace('.', '_') + '_rsa')
+        if legacy.is_file():
+            # Old CB3 OpenSSH6.0 predates Ed25519/RSA-SHA2. Scope compatibility
+            # to the explicitly provisioned controller, never all SSH hosts.
+            return ['-i', str(legacy), '-o', 'IdentitiesOnly=yes',
+                    '-o', 'PubkeyAcceptedAlgorithms=+ssh-rsa']
+        key = Path.home() / '.ssh/uwa_wrist_camera_ed25519'
+        return ['-i', str(key), '-o', 'IdentitiesOnly=yes'] if key.is_file() else []
+
+    def known_hosts(self):
+        durable = Path.home() / '.ssh/uwa_wrist_known_hosts'
+        return durable if durable.is_file() else self.path.parent / 'known_hosts'
+
     def base(self):
-        return ['ssh', '-S', str(self.path), '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5',
-                '-o', 'StrictHostKeyChecking=yes', '-o', 'UserKnownHostsFile=' + str(self.path.parent / 'known_hosts'), 'root@' + self.ip]
+        return ['ssh', *self.identity_options(), '-S', str(self.path),
+                '-o', 'ControlMaster=auto', '-o', 'ControlPersist=3600',
+                '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5',
+                '-o', 'StrictHostKeyChecking=yes', '-o', 'UserKnownHostsFile=' + str(self.known_hosts()), 'root@' + self.ip]
 
     def connect(self):
         # Interactive SSH handles authentication itself. No password argument,
         # environment variable, saved password, or custom authentication script.
-        subprocess.run(['ssh', '-M', '-S', str(self.path), '-o', 'ControlPersist=3600',
+        subprocess.run(['ssh', *self.identity_options(), '-M', '-S', str(self.path), '-o', 'ControlPersist=3600',
                         '-o', 'ConnectTimeout=5', '-o', 'StrictHostKeyChecking=accept-new',
-                        '-o', 'UserKnownHostsFile=' + str(self.path.parent / 'known_hosts'),
+                        '-o', 'UserKnownHostsFile=' + str(self.known_hosts()),
                         '-fNT', 'root@' + self.ip], check=True)
 
     def run(self, command, *, data=None, timeout=100):
@@ -52,9 +68,10 @@ class SSH:
         return result.stdout
 
     def fetch(self, remote, local):
-        subprocess.run(['scp', '-O', '-r', '-o', 'ControlPath=' + str(self.path),
+        subprocess.run(['scp', *self.identity_options(), '-O', '-r', '-o', 'ControlPath=' + str(self.path),
+                        '-o', 'ControlMaster=auto', '-o', 'ControlPersist=3600',
                         '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
-                        '-o', 'UserKnownHostsFile=' + str(self.path.parent / 'known_hosts'), 'root@' + self.ip + ':' + remote, str(local)], check=True,
+                        '-o', 'UserKnownHostsFile=' + str(self.known_hosts()), 'root@' + self.ip + ':' + remote, str(local)], check=True,
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
 
 

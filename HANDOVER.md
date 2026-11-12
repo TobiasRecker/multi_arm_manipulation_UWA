@@ -5,6 +5,94 @@ Diese Datei fasst die bisherigen Gespräche und die überprüfte Implementierung
 zusammen. Sie soll bei weiterer Arbeit mitgepflegt werden, nicht als unveränderlicher
 Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [README.md](README.md).
 
+## HQ-Tiefenaufnahme als RViz-Punktwolke,2026-11-12
+
+- Nutzer bittet nach HQ-Tiefenmodus um sichtbare RViz-Anzeige. Vorhandene
+  Domain70-Designvorschau erhalten; eigene Domain65-Snapshotansicht geöffnet.
+- CLI `bash src/oak_camera_calibration/tools/oak4_photo.sh view-depth`, optional
+  --capture DIR. OAK-Tools oak4_depth_rviz.py/geometry.py, keine ROS-Neubaupflicht.
+  HQ standardmäßig aktiv, Standardwolke optional, klarer STATIC-/Datumshinweis.
+- Frische nativeHQ-Aufnahme: setup/oak4/depth/20261112-145646-depth_hq-437c09ec/.
+  Worker speichert jetzt tatsächliche rektifizierte Frame-K/Größe und Referenz-
+  extrinsics in Metern. K fx=fy800.60913,cx637.89282,cy398.7670 für1280×800.
+  Keine unrektifizierteFactory-K als Ausgabe-K verwendet; alte Aufnahmen ohne
+  projection für3D abgewiesen. SDK-Metadatenquelle im JSON protokolliert.
+- Kamera-lokale PointCloud2,273323HQ-/429717Standardpunkte, EinheitenMeter;
+  TF nur oak4_snapshot_view→oak4_snapshot_rectified_right_optical. Kein world-
+  TF/kein global aktiviertes Kalibrierprofil, keine angenommene Weltregistrierung.
+- Geöffnet per temporäremBenutzerdienst uwa-oak4-depth-rviz; Config/Quelle/Counts
+  unter setup/oak4/rviz/. ROS-Empfang mit endlichen Punkten/korrektemPayload/TF,
+  RViz-Abonnent und GUI GlobalStatusOk nachgewiesen.17TestsPASS, neue bekannte
+  Pixelprojektion/mm→m/Nullwert-/Kalibrierfehlerprüfungen enthalten.
+- Rendererbilder perDesktop-/RViz-Qt-Grab unterWayland nicht zuverlässig prüfbar
+  (schwarz); deshalb kein visueller Screenshot-Nachweis behauptet. Punkte-
+  empfang/GUIstatus sind unabhängig geprüft. Keine fremdenDienste/Roboter geändert.
+
+
+## Statischer HQ-Tiefendienst ergänzt,2026-11-12
+
+- Nutzer fragt nach ähnlichem HQ-Verfahren für Tiefe. Bestehenden Fotodienst
+  erweitert, keine separate permanente Kamera-Pipeline. Neue Trigger-Services
+  `/oak4/depth/capture_{hq,standard,compare}` und `/oak4/depth/status`, Domain65.
+  CLI über oak4_photo.sh capture --mode depth_hq (Standard16Frames).
+- Native1280×800-Stereo/FAST_ACCURACY/SoftwareLR,10fps; Mono-AE nach Einlauf
+  sperren. Keine räumlichen/historischen Softwarefilter, stattdessen zeitlicher
+  Median gültiger Werte, mindestens75% Support/Inlier und MAD-Grenze
+  max10mm/1%Tiefe. Instabile Werte0, keine Lochfüllung. Keine ISO100-Behauptung.
+- Worker/Fusion im OAK-Repo tools/oak4_depth_{capture,fusion}.py, Anleitung
+  OAK4_DEPTH.md. Rohframes/Count-/Inlier-/MAD-/Maskenkarten,16bit-mm-PNGs und
+  Factorybackup unter setup/oak4/depth/. Gleiche Thread-/Dateisperre wie RGB.
+- Installierten Vergleichsservice real PASS geprüft, native1280×800,uint16,
+ 16Frames57–72/1,500s: setup/oak4/depth/20261112-144815-depth_compare-97e070f4/.
+  Standard41,67% gültig, HQ26,87% nach konservativer Aussonderung. Akzeptierter
+  medianer zeitlicherMAD3mm; kein absoluterGenauigkeitsnachweis. AndereArm-
+  arbeit parallel; kein garantierterStillstand/Kamera-Roboter-Zeitsync.
+- Regulärer HQ-Endpunkt ebenfalls real PASS: setup/oak4/depth/20261112-145220-depth_hq-29c6117c/.
+  Status CAPTURING währendAufnahme, parallelesRGB abgewiesen,danachREADY.
+  14automatisierteTestsPASS; intakte16bit-PNGs/NPZ und Supportmasken geprüft.
+- Mono links3000µs/ISO188,rechts3135µs/ISO200 währendBurst konstant. Kein
+  Firmware-/Flash-/Kalibrierprofil-/Roboterkommando. Foto-/Tiefenaufträge exklusiv.
+  Neue Tests für Fusion/ungültigeDaten/Bewegungskanten; bestehende Foto-Sperr-
+  Fehler-/Timeouttests erhalten. Agentenhinweise/README in beiden Repos ergänzt.
+
+
+## Gemeinsame Sichtstellungen real abgeschlossen,2026-11-12
+
+- Nutzer stellt LinksFront vorerst zurück. **NurLR→RR→RF** nacheinander in
+  unveränderte vorgeschlagene Ziele gefahren, danachnative2592×1944-Fotos.
+  LinksFront bekommtkeinZiel; echteWinkelalsHindernisfortlaufendoutput-onlyRTDE
+  überwacht(keineInputs/Writer/URScript),keineerfundeneNull-/Home-Stellung.
+- Alle3Ziele erreicht; Abschluss größteGelenkfehler LR2,78e-5/RR4,56e-5/
+  RF2,82e-5rad. SafetyNORMAL,alleMotioncontrollerinaktiv,keineRückfahrt.
+  NativeIstwinkel/Werkskinematik/volleMoveIt-Zelle,keineDiagonal-Ausnahmen.
+- ErsteRR-Fahrt wegenLF-Datenlücke gecancelt/deaktiviert. 25s/258Pakete danach
+  stabil(max101msLücke),Restwege frischgeprüft,LRalsalreadyAtTargetübersprungen.
+  ReaderverkraftetNichtdaten-/Reconnectpakete,0,5s-Frischeguardunverändert.
+  KeinSchutzreset;UrsacheerstemAussetzernichtabschließendbelegt.
+- Alle3Wrist-Fotos je24Ecken,NativeJPEGsundÜbersicht unter
+  setup/calibration/shared_views_20261112/photos/. LR/RF-DienstaufnahmenPASS
+  nachfrischemTelemetrieeinlesennachblockierendemHTTP. RRNativeBildvorhanden,
+  DienstRestorefehlgeschlagen(ROI): ausdrücklichdiagnostisch/keineFitbeobachtung.
+- RR-Konfiguration anschließendaufursprünglicheWertezurückgeführt: gemessenen
+ 16pxY-Schreiboffset undLegacyLED-Codierung kompensiert; tatsächlicherReadback
+  allerKonfigurationsfelderidentisch,Normal. AlteFehlberichteunverändert,
+  automatischerLegacyDienstdamitnichtallgemeinalsrepariertausgeben.
+- NeuesOAK-HQ-FotoalsGegensicht:alle3Boards gleichzeitigje17Marker/24Ecken.
+  Original setup/oak4/photos/20261112-150024-hq-6a5b0dea/,Annotation/Detektion
+  .../shared_views_20261112/oak_post_motion/. KeineOAK-Extrinsicsneuaktiviert.
+- Schlüsselzugangaufallen4URsfrischverifiziert: drei e-SerieEd25519,CB3LF
+  eigenerRSA3072wegenOpenSSH6.0,LegacySignaturnurfürdiesenHost. FremdeKeys
+  erhalten;ZugriffnurPC209,keineWeiterleitungen/PTY. PrivateKeys/Hostvertrauen
+  unter~/.ssh,keinePasswörtergespeichert;Backendreconnectautomatisch.12TestsPASS.
+- LF192.168.8.2/UR5/Serial2017356443,WerkskinematikimInventar. Benutzerhat
+  inzwischenPolyScope3.15.8/ros.urp eingerichtet; nativeSteueranbindungnoch
+  prüfen. EigenerFehlstartDienstuwa-left-front-hardware-driver:Inputbesitz
+  speed_slider_maskwarblockiert,keineLF-Motioncontrolleraktivierung. Ursprünglich
+  Power-on fürIstwinkelohneBrake/Play;späteresRUNNINGvomNutzer,keineeigeneLF-Fahrt.
+- Bericht [reale Sichtstellungen](docs/shared_view_hardware_2026-11-12.md),
+  Arbeitsstatus work/shared-view-hardware-captures.md abgeschlossen; Ergebnis
+  summary.json/manifest.json. Profile/Weltankerunverändert,keinAuto-Rückweg.
+
 ## Wiederverwendbarer OAK4-Fotodienst,2026-11-12
 
 - Nutzer beauftragt nach erfolgreichem Standard/HQ-Vergleich dauerhafte Ablage
