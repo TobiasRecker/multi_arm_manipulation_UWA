@@ -105,6 +105,8 @@ class NativeCapture:
         sources = {n: (self.resources / n).read_bytes() for n in ('wrist_worker.py', 'wrist_capture.c')}
         tag = hashlib.sha256(b''.join(sources.values())).hexdigest()[:16]
         remote = '/tmp/uwa_hd_tools_' + tag
+        if self.remote == remote:
+            return
         self.ssh.run('umask 077; mkdir -p ' + shlex.quote(remote))
         for name, data in sources.items():
             self.ssh.run('umask 077; cat > ' + shlex.quote(remote + '/' + name), data=data)
@@ -113,8 +115,7 @@ class NativeCapture:
         self.remote = remote
 
     def capture(self):
-        if self.remote is None:
-            self.bootstrap()
+        self.bootstrap()
         token = uuid.uuid4().hex
         remote = '/tmp/uwa_hd_' + token
         destination = self.output / token

@@ -120,6 +120,14 @@
   native Foto-Versuche. Helligkeitsänderungen dürfen den Benutzerfokus nicht
   überschreiben. Kameramoduswechsel können Fokus zurücksetzen; sichern und
   ausdrücklich wiederherstellen. Hochskalierung nie als native Auflösung ausgeben.
+  Seit2026-11-12 nativer5MP-ROS-Bilddienst für right_front real geprüft:
+  `docs/wrist_hd_service.md`. SSH bleibt auf diesen ausdrücklich beauftragten
+  Kamerapfad begrenzt; Hardware-GUI/Armsteuerung bleibt SSH-frei. Keine Kennwörter
+  speichern. HD/VGA-/physische Kamera-ID undFokus nicht innerhalb eines Fits
+  mischen,HD-Intrinsics neu schätzen. Empfangszeiten nicht als Belichtungszeiten
+  ausgeben. WährendHD-Transaktion Telemetrie weiterverarbeiten,Originalkamera-
+  zustand/Normal vollständig bestätigen und bei Fehler kein Messbild akzeptieren.
+
   Seit 2026-11-09 ist MoveIt-Kollisionsprüfung für die automatische Kalibrierung
   umgesetzt. Allgemeine kooperative Planung und Hardware-Anbindung bleiben Folgearbeit.
 - Automatische Hand-Auge-Kalibrierung: unbekannte Kameraextrinsics aus mehreren

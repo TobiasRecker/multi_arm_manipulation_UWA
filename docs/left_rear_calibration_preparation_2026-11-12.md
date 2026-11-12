@@ -4,7 +4,39 @@ Stand2026-11-12. Ziel **left_rear=192.168.8.169**, konfigurierter UR7e,
 Seriennummer20265701623. Individuelle Werkskinematik bereits im gemeinsamen
 Messprofil vorhanden. Vorherige rechte Kalibrierergebnisse bleiben erhalten.
 
-## Aktueller Wiedereinstieg nach erneuter Prüfung
+## Erste Pose erreicht und echtes Board geprüft
+
+Nach ausdrücklicher Nutzerfreigabe für genau `approach_ready/plan.json` wurde
+die34,173s-Bewegung ausschließlich links hinten ausgeführt. Native Action
+erfolgreich(Result0); unmittelbarer größter Zielwinkel-Fehler0,0000158rad,
+späterer Stillstandssnapshot0,0000513rad. Safety NORMAL, External Control true,
+gemeldete Gelenkgeschwindigkeiten null. Skalierter JTC hält die erreichte Pose;
+andere linke Bewegungscontroller inaktiv, keine automatische Rückfahrt.
+Front-Endvergleich0rad, Rear-Endvergleich0,0000246rad gegenüber Wegstart;
+dies sind Endvergleiche, keine kontinuierlich gemessenen Maximalwerte.
+
+Fünf echte640×480-Bilder gelesen: das erste während Fokus-Einschwingen noch
+unscharf, danach **viermal17/17 Marker und24/24 ChArUco-Ecken**, korrekte
+linke IDs0–16. Sichtprüfung: gesamtes Muster im Bild, keine Musterverdeckung
+im geprüften Bild. Fünf unterschiedliche decodierte Payloads. Autofokus-
+Readback danach406Auto, Belichtung33333µsAuto/Gain16. Keine Kamerawerte
+geschrieben. Diese Bilder sind **Diagnose, noch keine Fit-/Prüfaufnahmen**.
+
+Artefakte `first_view_inspection/{inspection.json,frame_04.jpg,
+frame_04_annotated.jpg}` sowie `preparation/first-view-{approval,execution.log,
+completion.json}`. Eigene erledigte Domain68-Weganimation beendet; Hardware-
+GUIs/drei Treiber bleiben erhalten. Das Log enthält nichtfatale
+ROS-typesupport-Meldungen; tatsächliches Action-Ergebnis/Endwinkel separat geprüft.
+
+Zusätzlich **nur geplant**: `batch_plan/batch.json`,40 weitere Ansichten mit
+8 vorab bestimmten Prüfrollen, damit später41 Gesamtansichten/33Fit/8Prüfung.
+Reine Bewegungsdauer709,57s, zusätzlich Stillstands-/Aufnahmezeiten. Noch keine
+Reihe freigegeben/ausgeführt, kein sample000 und kein Intrinsics-/Hand-Auge-Fit.
+Vor Messaufnahmen Fokus/Belichtung passend fixieren, sample000 stationär
+erfassen und dann gesamte Folge per `run-series --check-only` sowie Vorschau
+prüfen. Neue gesamte Fahrfolge erst nach eigener konkreter Freigabe ausführen.
+
+## Vorbereitungsnachweis vor der ersten ausgeführten Fahrt
 
 **Verbindung bestätigt:** ros.urp über MATCH erfolgreich gestartet,
 `robot_program_running=true`, Safety NORMAL, alle vier linken Motioncontroller
@@ -16,10 +48,10 @@ Winkel wurden über einen unabhängigen reinen RTDE-Leseclient gegengeprüft
 Frischer Plan **`approach_ready/plan.json`**,34,173s,343 Kollisionssamples,
 vollständige MoveIt-Szene und aktuelle gemeldete Gelenke; links vorne bleibt die
 vom Nutzer bestätigte nominelle Home-Angabe. `--check-only` erfolgreich.
-RViz-Animation offen in Domain68; **noch keine Fahrfreigabe und keine Fahrziele**.
+RViz-Animation war in Domain68 offen; die anschließend freigegebene erste Fahrt
+und Bildprüfung sind im aktuellen Abschnitt oben dokumentiert.
 Kamera endet nominell bei Welt[-0,45;0,28;1,453]m, etwa55cm über dem Board.
-Nach Prüfung/Freigabe nur diese erste Pose anfahren, echtes Boardbild/Fokus
-prüfen und erst danach eine ganze Messreihe vorbereiten.
+Die damalige Freigabe galt nur der ersten Pose und Bildprüfung, keiner ganzen Reihe.
 
 ### Verbindungsfehler eingegrenzt
 

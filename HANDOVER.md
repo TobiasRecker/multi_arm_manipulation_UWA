@@ -1,6 +1,6 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
-Stand der Zusammenfassung: **2026-11-11**, Zeitzone Australia/Perth.
+Stand der Zusammenfassung: **2026-11-12**, Zeitzone Australia/Perth.
 Diese Datei fasst die bisherigen Gespräche und die überprüfte Implementierung
 zusammen. Sie soll bei weiterer Arbeit mitgepflegt werden, nicht als unveränderlicher
 Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [README.md](README.md).
@@ -26,7 +26,30 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 - **Explizit seit 2026-11-09:** Wichtige Ziele, Anforderungen, Entscheidungen und
   Vorlieben parallel in AGENTS-/Handover-Dateien festhalten.
 
-## Links hinten: Verbindung bestätigt, erste Aufnahmevorschau bereit,2026-11-12
+## Links hinten: erste Aufnahmefahrt und Bildprüfung erfolgreich,2026-11-12
+
+- Aktueller Abschluss nach Nutzerfreigabe „Vorschau passt, Fahrbereich frei –
+  erste Pose anfahren“: genau `approach_ready/plan.json`(f6296105…) ausgeführt,
+ 34,173s, native Action erfolgreich/Result0, unmittelbarer größter Zielwinkel-
+  Fehler0,0000158rad; späterer Stillstandssnapshot0,0000513rad. NativeSafetyNORMAL,
+  ExternalControltrue, velocities0; skalierter JTC hält die erreichte linke Pose,
+  andere linke Bewegungscontroller inaktiv. Keine Rückfahrt oder anderen Armziele.
+- Front-Endvergleich0rad, Rear-Endvergleich0,0000246rad zum Wegstart, keine
+  kontinuierlichen Maximalwerte behaupten. Erledigte eigene Domain68-Animation
+  geschlossen, Hardware-GUIs/drei Treiber erhalten.
+- Wirkliches640×480-Bild: erstes AF-Übergangsbild unscharf, danach viermal
+  alle17 Marker/24 Ecken links(IDs0–16), Muster vollständig/unverdeckt im
+  geprüften Bild. Fünf unterschiedliche Payloads, Fokus406Auto/33333µsAuto/Gain16
+  nur gelesen, keine Kameraparameter geschrieben. Inspektionsbilder sind keine
+  Fit-/Prüfaufnahmen; noch kein sample000/Kalibrierfit/aktives linkes Profil.
+- Zusätzlich nur geplant:40 Zusatzansichten in `left_rear_20261112/batch_plan/`,
+ 8 unabhängige Prüfrollen, später41 Gesamtansichten/33Fit/8Prüfung. Reine
+  Bewegungsdauer709,57s plus Stillstand/Aufnahme. Keine ganze Folge freigegeben
+  oder gestartet; nächste Stufe feste Optik/sample000/Gesamtcheck/Vorschau und
+  neue konkrete Freigabe. `first_view_inspection/inspection.json` und
+  `preparation/first-view-completion.json` halten aktuellen Stand fest.
+
+### Vorherige Vorbereitung und Verbindungsdiagnose
 
 - Nutzer beauftragt Vorbereitung left_rear192.168.8.169 und ausdrücklich
   Remote-Einschalten/Bremsenlösen/Programmstart über vorhandenen MATCH-Ablauf.
@@ -52,10 +75,11 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   Local, nicht-null gemeldete Winkel unabhängig per reinem RTDE gegengeprüft
   (max4,5e−16rad Unterschied). Keine Power-/Programm-/Kameraänderung vorne rechts.
   Linke Home-Hindernispose weiterhin Nutzerangabe, keine Encodermessung.
-- Frische erste Sicht `setup/calibration/hardware_handeye/left_rear_20261112/
+- Damals frische erste Sicht `setup/calibration/hardware_handeye/left_rear_20261112/
   approach_ready/plan.json`:34,173s, vollständiger MoveIt-Sweep, `--check-only`
   bestanden; RViz-Vorschau Domain68 offen. Nominelle Kamera[-0,45;0,28;1,453]m,
-  etwa55cm über linkem Board. **Noch keine Fahrfreigabe/keine Fahrziele.**
+  etwa55cm über linkem Board. Diese erste Fahrt ist inzwischen wie oben
+  dokumentiert ausdrücklich freigegeben und erfolgreich abgeschlossen.
 - Erst konkrete Vorschau/Fahrbereich freigeben, erste Pose ausführen und echtes
   Board-/Fokusbild prüfen. Vorgesehen41 Ansichten(33Fit/8vorabPrüfung), wide;
   ganze Reihe erst danach planen/freigeben. Keine Rückfahrt oder Profilaktivierung
@@ -65,6 +89,41 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   [Wiedereinstieg](docs/left_rear_calibration_preparation_2026-11-12.md),
   Arbeitsstatus work/left-rear-calibration-preparation.md. Bisherige Messprofile
   und rechte Hardwaretreiber erhalten, neuer linker Dienst bleibt bereit.
+
+## HD-Bilddienst für neue Hardwarekalibrierung,2026-11-12
+
+- Nutzer möchte nativen5MP-Aufnahmeweg als Dienst für erneute Kalibrierung und
+  fragt nach Grünstich. Auf echtem Foto24 ChArUco-Ecken; Farbbild/Graubild
+  identische IDs/Pixelkoordinaten. Farbstich allein somit hier kein Erkennungs-
+  hindernis, neue Geometrie-/Genauigkeitsaussage erst nach unabhängiger Prüfung.
+- Neuer ROS-Dienst `wrist_hd_service`,HardwareDomain66,
+  `/uwa_hardware/right_front/wrist_camera_hd/{capture,status}`(std_srvs/Trigger),
+  dazu `image/compressed`. Drei native2592×1944-JPEGs pro Trigger mit Settings,
+  Gerätezeiten/Sequenz im Capturelog,Schärfe-/Clippingwerten,Prüfsummen.
+  Kamera-/ROS-Empfangszeit nicht als synchronen Belichtungszeitpunkt ausgeben.
+- Nur real ermittelten Kamera-Vision-runit-Dienst kurz freigeben, temporäres
+  V4L2-C-Werkzeug,Normal abwarten und alle ursprünglichen Parameter forceRefresh
+  vergleichen. Unabhängiger Remote-Watchdog bei Verbindungs-/Prozessverlust.
+  Keine Kennwörter im Code/Parametern/Dateien; private SSH-ControlMaster-Sitzung.
+- Hardwareaufnahme `--camera-source wrist_hd_service` integriert. Client spinnt
+  Telemetrie während RPC, behält Stillstands-/Guardfehler und wartet vor Fehler-
+  weitergabe auf erfolgten Restore. Eckenzahl/Schärfe wählen bestes Burstbild.
+  Eigene neue HD-Sitzung, kein HD/VGA-/Kamera-ID-Wechsel. Neuer Intrinsicsfit
+  ausschließlich aus HD-Trainingsdaten; reservierte Prüfbilder bleiben getrennt.
+- **Reale Service-/Clientprobe bestanden:**3×2592×1944,je24 Ecken,16,04s,
+  502 Monitorhook-Aufrufe,max32,8ms Abstand; Status weiter CAPTURING erreichbar,
+  zweite Aufnahme abgewiesen. Kein echter Bewegungs-/Stopptest daraus ableiten.
+  Alle Originalsettings wieder identisch, normaler Kameradienst wieder aktiv.
+  Vorangehendes reines Discoveryproblem vor Kameraänderung behoben; Log erhalten.
+- Paket gebaut,29 gezielte Offline-Tests bestanden (u.a.Nativegröße,Framewechsel,
+  Restorefehler/Erholung,Mode-/Identitätsmix,runit-Zuordnung und transienter
+  Bewegungsfehler bis Restore abwarten). Nachweise setup/logs/uwa-wrist-hd-*.log,
+  uwa-wrist-hd-live-adapter.json; Rohbilder in dessen Burstverzeichnis.
+- Dienst/SSH-Sitzung fürright_front aktuell offen,keine neue Kalibrierfahrt
+  gestartet. Noch keine40–50-Posen-HD-Reihe/HD-Genauigkeit nachgewiesen.
+  Andere Kameras über diesen Dienst ungetestet. Pro Stellung rund16s Zusatzzeit,
+  reguläre URCap-Vorschau dabei kurz unterbrochen,Grünstich weiter sichtbar.
+  [Start/Bedienung/HD-Sitzung](docs/wrist_hd_service.md),work/wrist-hd-service.md.
 
 ## Natives5MP-Foto Front-Wrist erfolgreich,2026-11-12
 

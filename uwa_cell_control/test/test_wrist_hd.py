@@ -1,0 +1,181 @@
+"""Native-size, rollback and calibration source boundary regressions."""
+import importlib.util
+import json
+from pathlib import Path
+from types import SimpleNamespace
+import time
+
+import cv2
+import numpy as np
+import pytest
+
+from uwa_cell_control.wrist_hd import SOURCE, validate_burst, make_camera
+from uwa_cell_control.handeye_hardware import capture_observation
+from uwa_cell_gazebo.configuration import load_layout
+from uwa_cell_gazebo.charuco import board_image
+from uwa_cell_control.hardware_charuco import calibrate_intrinsics
+
+
+def make_burst(path, size=(2592, 1944), restored=True, repeated=False):
+    path.mkdir(exist_ok=True)
+    for i in range(3):
+        im = np.zeros((size[1], size[0], 3), np.uint8)
+        im[:10, :10] = 80 if repeated else 40 + 60*i
+        cv2.imwrite(str(path / f'frame_{i:03d}.jpg'), im)
+    report = {'success': True, 'restore_ok': restored, 'transport': 'native_v4l2_mjpeg',
+              'requested_size': [2592,1944], 'frames': [f'frame_{i:03d}.jpg' for i in range(3)]}
+    (path/'report.json').write_text(json.dumps(report))
+
+
+def test_burst_requires_native_pixels_changed_payloads_and_confirmed_restore(tmp_path):
+    good=tmp_path/'good';make_burst(good)
+    result=validate_burst(good,'192.168.8.103')
+    assert result['image_size']==[2592,1944] and len(result['frames_metadata'])==3
+    for name,kwargs,error in [('vga',{'size':(640,480)},'2592'),
+                              ('bad_restore',{'restored':False},'restoration'),
+                              ('cached',{'repeated':True},'did not change')]:
+        p=tmp_path/name;make_burst(p,**kwargs)
+        with pytest.raises(ValueError,match=error):validate_burst(p,'192.168.8.103')
+
+
+def worker():
+    path=Path(__file__).resolve().parents[1]/'remote/wrist_worker.py'
+    spec=importlib.util.spec_from_file_location('remote_hd_worker_test',path)
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    return module
+
+
+def test_restore_waits_for_normal_and_uses_actual_readback_after_led_error(monkeypatch):
+    m=worker();calls=[];phases=iter(['Initial','Normal'])
+    original={'focus':435,'focusAuto':False,'exposure':60000,'exposureAuto':False,
+              'gain':16,'lightingMode':0,'lightingValue':0}
+    def request(path,data=None):
+        calls.append(path)
+        if path=='/status':return {'status':'succeeded','current state':next(phases)}
+        if path.startswith('/set'):return {'status':'failed','code':15}
+        return {'status':'succeeded','cameraSettings':dict(original)}
+    monkeypatch.setattr(m,'request',request);monkeypatch.setattr(m.time,'sleep',lambda _:None)
+    monkeypatch.setattr(m.subprocess,'check_call',lambda *a,**k:0)
+    assert m.restore('/exact/camera/service',original)['all_original_fields_match']
+    assert calls[:2]==['/status','/status']
+    monkeypatch.setattr(m,'normal',lambda **k:None)
+    monkeypatch.setattr(m,'settings',lambda:dict(original,focus=404))
+    with pytest.raises(RuntimeError,match='readback mismatch'):m.restore('/exact/camera/service',original)
+
+
+def test_native_failure_still_restores_camera_and_reports_failure(tmp_path,monkeypatch):
+    m=worker();restored=[]
+    monkeypatch.setattr(m,'normal',lambda **k:None)
+    monkeypatch.setattr(m,'settings',lambda:{'focus':435})
+    monkeypatch.setattr(m,'request',lambda *a,**k:{'status':'succeeded'})
+    monkeypatch.setattr(m,'service_for_vision',lambda:('/only/vision/service',123))
+    monkeypatch.setattr(m.os,'fork',lambda:987654)
+    monkeypatch.setattr(m.os,'waitpid',lambda *a:(987654,0))
+    monkeypatch.setattr(m.os,'write',lambda *a:1)
+    monkeypatch.setattr(m.subprocess,'check_call',lambda *a,**k:0)
+    class Failed:
+        pid=999999
+        def __init__(self,args,stdout,stderr):stdout.write('Native capture failure\n')
+        def wait(self):return 1
+    monkeypatch.setattr(m.subprocess,'Popen',Failed)
+    monkeypatch.setattr(m,'restore',lambda service,original:restored.append(service) or {'settings':original})
+    result=m.capture(str(tmp_path/'request'))
+    assert not result['success'] and result['restore_ok']
+    assert restored==['/only/vision/service']
+
+
+class BurstCamera:
+    capture_source=SOURCE
+    last_burst={'transport':'native_v4l2_mjpeg'}
+    def settings(self):return {'focus':435,'focusAuto':False,'exposureAuto':False,'exposure':60000,'gain':16}
+    def capture_burst(self,monitor):
+        output=[]
+        for i in range(3):
+            monitor()
+            im=cv2.cvtColor(board_image(load_layout()['charuco'],'right'),cv2.COLOR_GRAY2BGR)
+            im[:8,:8]=30+i*40
+            if i==2:im=cv2.GaussianBlur(im,(9,9),3)
+            output.append(cv2.imencode('.jpg',im)[1].tobytes())
+        return output
+
+
+class Observer:
+    def __init__(self):self.received={}
+    def sample(self,timeout):
+        self.received={'right_rear':{'positions':[0.]*6,'received_monotonic':time.monotonic()}}
+        return self.received
+
+
+DESCRIPTION='''<robot name="hd_test"><link name="right_rear_base_link"/>
+<link name="right_rear_tool0"/><joint name="mount" type="fixed">
+<parent link="right_rear_base_link"/><child link="right_rear_tool0"/></joint></robot>'''
+
+
+def test_hd_observation_keeps_monitoring_and_selects_valid_sharp_frame(tmp_path):
+    calls=[]
+    r=capture_observation(BurstCamera(),None,Observer(),SimpleNamespace(description=DESCRIPTION),
+        load_layout(),'right_rear',tmp_path,'sample_000','fit',capture_guard=lambda:calls.append(1))
+    assert r['accepted'] and r['corners']==24 and r['capture_source']==SOURCE
+    assert r['native_burst']['transport']=='native_v4l2_mjpeg'
+    assert len(calls)>=3 and r['freshness']['decoded_payload_changes']==3
+    assert not r['freshness']['sensor_exposure_timestamp_available']
+
+
+def test_source_change_rejected_before_ros_or_fit():
+    with pytest.raises(ValueError,match='Cannot change'):
+        make_camera('192.168.8.103',None,SimpleNamespace(camera_source='wrist_hd_service'),
+                    metadata={'capture_source':{'kind':'http_vga'}})
+    records=[]
+    for i in range(26):
+        records.append({'role':'fit' if i<20 else 'validation','pixel_sha256':str(i),
+                        'capture_source':SOURCE if i==0 else {'kind':'http_vga'}})
+    with pytest.raises(ValueError,match='pipeline changed'):
+        calibrate_intrinsics(records,focus=435,image_size=[2592,1944])
+
+
+def test_hd_client_waits_for_service_restore_after_transient_motion(monkeypatch):
+    import rclpy
+    from uwa_cell_control.wrist_hd import HDCamera
+    counter=[0]
+    class Future:
+        def done(self):return counter[0]>=5
+        def result(self):return SimpleNamespace(success=True,message='{}')
+    client=SimpleNamespace(wait_for_service=lambda **k:True,call_async=lambda req:Future())
+    camera=HDCamera.__new__(HDCamera);camera.client=client;camera.node=None;camera.timeout=2
+    monkeypatch.setattr(rclpy,'spin_once',lambda *a,**k:counter.__setitem__(0,counter[0]+1))
+    def monitor():
+        if counter[0]==2:raise ValueError('Robot moved during HD capture')
+    with pytest.raises(ValueError,match='Robot moved'):
+        camera.capture_burst(monitor)
+    assert counter[0]==5  # Waited for transaction/restore, even after motion went away.
+
+
+def test_service_discovery_uses_runsv_actual_cwd_and_checks_wrapper(monkeypatch):
+    import io
+    m=worker()
+    files={'/proc/123/cmdline':b'./visionserver\0--portnum\04242\0',
+           '/proc/123/stat':'123 (visionserver) S 234 0',
+           '/proc/234/cmdline':b'/bin/bash\0/ur/camera/vision_server.sh\0',
+           '/proc/234/stat':'234 (bash) S 345 0',
+           '/proc/345/cmdline':b'runsv\0bundle@camera\0',
+           '/ur/camera/service/run':'exec "/ur/camera/vision_server.sh"\n'}
+    # Avoid octal escape ambiguity in the synthetic proc command line.
+    files['/proc/123/cmdline']=b'./visionserver\0--portnum\0'+b'4242\0'
+    def op(path,mode='r'):
+        if path not in files:raise IOError(path)
+        data=files[path]
+        return io.BytesIO(data) if 'b' in mode else io.StringIO(data)
+    monkeypatch.setattr(m,'open',op,raising=False)
+    monkeypatch.setattr(m.glob,'glob',lambda pattern:['/proc/123'])
+    monkeypatch.setattr(m.os,'readlink',lambda path:'/ur/camera/service')
+    assert m.service_for_vision()==('/ur/camera/service',123)
+    files['/ur/camera/service/run']='exec /ur/robot_control.sh\n'
+    with pytest.raises(RuntimeError,match='Cannot uniquely'):m.service_for_vision()
+
+
+def test_hd_fit_rejects_physical_camera_swap():
+    records=[{'role':'fit' if i<20 else 'validation','pixel_sha256':str(i),
+              'capture_source':SOURCE,'native_burst':{'camera':{'uniqueCamId':'A' if i<25 else 'B'}}}
+             for i in range(26)]
+    with pytest.raises(ValueError,match='identity changed'):
+        calibrate_intrinsics(records,focus=435,image_size=[2592,1944])

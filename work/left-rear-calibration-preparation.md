@@ -1,6 +1,6 @@
 # Kalibrierung links hinten vorbereiten
 
-- Status: **erste konkrete Aufnahmefahrt vom Nutzer freigegeben; Ausführung/Bildprüfung in Arbeit**,2026-11-12, Hauptagent.
+- Status: **freigegebene Erstpose und Bildprüfung abgeschlossen; Folgeansichten nur geplant**,2026-11-12, Hauptagent.
 - Nutzer hat left_rear eingerichtet; Auftrag: Erreichbarkeit prüfen und
   Kalibrierung vorbereiten. Keine neue reale Fahrfreigabe ableiten.
 - Ziel192.168.8.169, External Control PC192.168.8.209/Port52002, Domain66.
@@ -63,3 +63,15 @@
 - Nutzer gibt genau approach_ready/f6296105… für links hinten ausdrücklich frei:
   Vorschau passt, Fahrbereich frei, erste Pose anfahren. Keine Freigabe einer
   ganzen Reihe. approval unter preparation/first-view-approval.json gesichert.
+- Erste34,173s-Fahrt erfolgreich, ActionResult0, unmittelbarer maxZielwinkel-
+  Fehler0,0000158rad; späterer Snapshot0,0000513rad. NativeSafetyNORMAL,
+  ExternalControltrue, velocities0; linker skalierterJTC hält. Front-Endvergleich
+ 0rad, Rear-Endvergleich0,0000246rad. Keine Rückfahrt oder weiteren Armziele.
+- Echte erste Bilder: initialer Autofokus-Übergang unscharf, danach viermal
+ 17Marker/24Ecken links IDs0–16. Vollständiges unverdecktes Muster im geprüften
+  Bild, fünf unterschiedliche Payloads, Fokus406Auto/33333µsAuto/Gain16 gelesen;
+  keine Kamerawerte geschrieben und keine Kalibrieraufnahme als sample000 erzeugt.
+- Folgeplan batch_plan/batch.json mit40 Zusatzansichten/8vorabPrüfrollen erzeugt,
+ 709,57s reine Bewegungszeit. Nur Planung, keine ganze Reihe freigegeben/gestartet.
+  Nächste Stufe: feste passende Optik, sample000, Gesamtcheck/-vorschau und eigene
+  konkrete Freigabe der neuen Folge. Erledigte eigene RViz-Animation geschlossen.

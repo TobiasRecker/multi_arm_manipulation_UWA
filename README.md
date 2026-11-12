@@ -135,8 +135,12 @@ On2026-11-12 a [native5MP front-camera photo](docs/wrist_native_photo_2026-11-12
 was obtained through authorized SSH and direct V4L2 capture: **2592×1944**, with
 JPEG decoding and checksum verified. This briefly stops only the Vision service;
 normal preview and original settings were restored. The direct JPEG has a green
-cast; color quality and a reusable capture tool still need work. Existing VGA
-intrinsics do not automatically calibrate this mode.
+cast; color quality remains separate. A [ROS HD capture service](docs/wrist_hd_service.md)
+now supplies three native frames per request and integrates with the hardware
+calibration CLI via `--camera-source wrist_hd_service`. A real front-camera
+request passed with24 detected corners per frame and restored settings; the
+new full HD calibration sequence has not yet been run. Existing VGA intrinsics
+do not automatically calibrate this mode.
 The automatic calibration backend below remains simulation-only.
 
 The workspace is expected at `~/UWA_ws`; set `UWA_WS` before sourcing the helper

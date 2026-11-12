@@ -45,7 +45,7 @@ def main():
 
     def snapshot(request, response):
         response.success = True
-        response.message = json.dumps(state)
+        response.message = json.dumps(dict(state))
         return response
 
     def take(request, response):
@@ -54,6 +54,7 @@ def main():
             response.message = 'Another HD transaction is active'
             return response
         try:
+            state.pop('error', None)
             state['phase'] = 'CAPTURING'
             result = capture.capture()
             path = Path(result['directory']) / result['frames_metadata'][-1]['image']

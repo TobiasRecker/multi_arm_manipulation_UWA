@@ -81,6 +81,10 @@ def calibrate_intrinsics(records,*,focus,image_size):
     source=records[0].get('capture_source',{'kind':'http_vga'})
     if any(r.get('capture_source',{'kind':'http_vga'})!=source for r in records):
         raise ValueError('Image source/color pipeline changed; do not mix HD and VGA observations')
+    if source.get('kind')=='wrist_hd_service':
+        identities={r.get('native_burst',{}).get('camera',{}).get('uniqueCamId') for r in records}
+        if len(identities)!=1 or not next(iter(identities)):
+            raise ValueError('HD camera identity changed or missing')
     for r in records:
         if r['camera_settings']['focusAuto'] or r['camera_settings']['focus']!=focus:
             raise ValueError('Focus changed; do not mix intrinsic profiles')

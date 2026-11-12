@@ -75,7 +75,8 @@ def service_for_vision():
             sa = open(sup + '/cmdline', 'rb').read().decode('utf-8').split('\0')
             if os.path.basename(sa[0]) != 'runsv' or not sa[1]:
                 continue
-            service = os.path.realpath(os.path.join(os.readlink(sup + '/cwd'), sa[1]))
+            # runsv chdirs into its service before spawning the wrapper.
+            service = os.path.realpath(os.readlink(sup + '/cwd'))
             run = open(service + '/run').read()
             if scripts[0] not in run:
                 continue
