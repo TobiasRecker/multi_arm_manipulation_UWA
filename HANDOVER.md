@@ -26,7 +26,70 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
 - **Explizit seit 2026-11-09:** Wichtige Ziele, Anforderungen, Entscheidungen und
   Vorlieben parallel in AGENTS-/Handover-Dateien festhalten.
 
-## Links hinten: erste Aufnahmefahrt und Bildprüfung erfolgreich,2026-11-12
+## Front-HD-Reihe gestartet, diagonale Unabhängigkeit,2026-11-12
+
+- Neueste Nutzerkorrektur hebt vorherige Reihenfolge„erstlinks fertig“ auf:
+  diagonal könnenRoboter laut Nutzer physisch nicht zusammenreichen. Dies
+  ist eine **Nutzerangabe**,keine gemessene Reichweiten-/Basiskalibrierung.
+  Neue Hardwarebatches benennen unabhängig bewegbaren diagonalen Partner;
+  nur Inter-Roboter-Kollisionen dieses Paars und dessen Stillstandsabhängigkeit
+  entfallen. Selbst-/Tisch-/Werkzeug-/andereArmkollisionen undUR-Safety bleiben.
+- Für Frontrechts ist `independent_diagonal_arm=left_rear`,für Linksrear die
+  Gegenrichtung. Keine allgemeine Gleich-Tisch-/Nachbararm-Ausnahme zulassen.
+  Prüfung imHardwareplanfingerprint dokumentiert.26 gezielte Tests undBuild
+  bestanden; keine Änderung ursprünglicher Ziele/Prüfrollen oder Fitlogik.
+- Benutzerauftrag40HD-Gesamtstellungen mit32Fit/8Prüfung. sample000 akzeptiert,
+  39zusätzlichewide-Ziele/535,5sBewegung. AktuellerBatch6c70b73a… mit neuer
+  diagonalerRegel nach tatsächlichen Livezuständen komplett nachgeprüft.
+  RechteRear-Telemetrie war kurz beim vom anderen Agenten erledigten Neustart
+  weg,danach wieder da; Frontstart erst nach erfolgreichemVollcheck.
+- **Frontreihe jetzt gestartet**,keine Wartepflicht auf Linksabschluss mehr.
+  Datensatz setup/calibration/hardware_handeye/right_front_hd_20261112/.
+  Autorisierung/Startmarker inpreparation/,GUI zeigtFortschritt/rotesSTOP.
+  Nur Frontziele gesendet, native Stopps canceln; kein Auto-Reset/Rückweg.
+- Front übernativeDashboard eingeschaltet/Brake/ros.urp gestartet, vorher
+  alterMotioncontrollerdeaktiviert. FehlenderDashboardROSClient separat
+  wiederhergestellt,STOPService verfügbar. KeineFronttreiberneustarts.
+  Kamera435Manual/60000µs/Gain16,HD2592×1944. Noch kein40erErgebnis behaupten.
+  EigeneDokumentation work/front-hd-calibration-40.md, Laufprotokoll im dortigen
+  GUI-Sitzungsverzeichnis; ursprünglicheVGA-Sitzungen/Profile erhalten.
+
+## Links hinten: zwölf Restansichten nach Schutzstopp,2026-11-12
+
+- Nutzer beauftragt nach erfolgreicher Erstpose ausdrücklich die vorbereitete
+  Messreihe. Freigegebener Batch850765e9… unverändert:40 Zusatzansichten,
+  später41 Gesamtbilder/33Fit/8vorher reservierte Prüfungen. Gesamtvorschau vor Erststart geprüft,
+  vollständiger --check-only bestanden. Ausschließlich left_rear bewegt.
+- Optik406Manual/33333µsManual/Gain16 fixiert, Originaleinstellungen vorher
+  gespeichert, viermal24Ecken bestätigt. sample000 mit24Ecken akzeptiert,
+  HTTP-VGA640×480 als eigene Quelle; keine HD-/rechten Intrinsics übernommen.
+- Start/Aufnahmefortschritt unter left_rear_20261112/preparation/series-run.log,
+  Quellen/Liveprefix unter records/. UWA-Arms-Beobachter mit nurleft_rear
+  ausgewählt für STOP geöffnet. Mid-Series22/22 verschiedene Bilder/konstante
+  Optik, linker Treiber weiterhin48FDs. Noch keine Fit-/Ergebnisfreigabe behaupten.
+- Nach kompletter Aufnahme automatische unabhängige Intrinsics-/Hand-Auge-
+  Auswertung; native Stopps abbrechen/canceln, kein Auto-Reset/Rückweg.
+
+### Unterbrechung und freigegebene Fortsetzung
+
+- Bei sample029 nativer C159A5/Wrist3;29 gültige Bilder(23Fit/6Prüfung),
+  zwölf Originalziele offen. Eigene Action gecancelt und alle linken
+  Motioncontroller inaktiv bestätigt. Kein Schutzreset oder automatische Rückfahrt.
+- RTDE nur lesend: zunächst0kg/CoG[0,0,0]. Nutzer meldet Ursache behoben;
+  danach1kg/CoG[0,0,0],NORMAL/PLAYING/ExternalControltrue. Keine Werkzeugmasse
+  vom Agenten geraten/gesetzt. Fokus406Manual/33333µs/Gain16 unverändert.
+- Aktuelle Telemetrie aller drei vernetzten Arme erneut gelesen. Restziele mit
+  Original-IDs/Prüfrollen werden vor Fortsetzung von jetziger Stellung neu gegen
+  die ganze Szene verbunden/geprüft. Vorhandene Serienfreigabe bleibt gültig.
+- Separater unveränderlicher29er-Diagnosedatensatz unter partial_29_analysis:
+  Intrinsics-Prüfung0,140px,Hand-Auge-Prüfung0,253px,Boardstreuung0,652mm/0,165°.
+  Profil bleibt abgelehnt/inaktiv, weil29<30 Mindestbilder; keine Grenzwertänderung.
+  Dies ist kein Abschluss der41er-Reihe. Front-HD-Aufgabe wartet weiter.
+- Restbatchf1801646…: zwölf unveränderte Originalziele/Rollen,204,84s Bewegung,
+  vollständiger --check-only bestanden und Fortsetzung gestartet.
+  Fortschritt preparation/resume-run.log, keine automatische Rückfahrt.
+
+### Abgeschlossene Erstpose und Bildprüfung
 
 - Aktueller Abschluss nach Nutzerfreigabe „Vorschau passt, Fahrbereich frei –
   erste Pose anfahren“: genau `approach_ready/plan.json`(f6296105…) ausgeführt,
@@ -44,9 +107,9 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   Fit-/Prüfaufnahmen; noch kein sample000/Kalibrierfit/aktives linkes Profil.
 - Zusätzlich nur geplant:40 Zusatzansichten in `left_rear_20261112/batch_plan/`,
  8 unabhängige Prüfrollen, später41 Gesamtansichten/33Fit/8Prüfung. Reine
-  Bewegungsdauer709,57s plus Stillstand/Aufnahme. Keine ganze Folge freigegeben
-  oder gestartet; nächste Stufe feste Optik/sample000/Gesamtcheck/Vorschau und
-  neue konkrete Freigabe. `first_view_inspection/inspection.json` und
+  Bewegungsdauer709,57s plus Stillstand/Aufnahme. Damals noch keine ganze Folge freigegeben
+  oder gestartet; diese Vorbereitung ist durch die oben dokumentierte Serienfreigabe
+  und tatsächliche Aufnahme überholt. `first_view_inspection/inspection.json` und
   `preparation/first-view-completion.json` halten aktuellen Stand fest.
 
 ### Vorherige Vorbereitung und Verbindungsdiagnose
@@ -1560,3 +1623,9 @@ aktiv; separate MuR-Simulation inaktiv. Vor weiterer Prozessarbeit neu prüfen.
 Die Liste beschreibt offene Arbeitspakete, keinen Auftrag, sie ohne weitere
 fachliche Abstimmung sofort alle umzusetzen. Aktuelle Konfigurationswerte und
 Bedienung haben Vorrang vor überholten Gesprächsständen.
+
+- Fortsetzungsstart vor jeder Bewegung abgelehnt: hinten rechte Live-Telemetrie
+  verloren. Dessen ursprünglicherManager18298 stürzte nach PrimaryClient-Pipeline-
+  Überlauf mitExit−11 ab; zwischenzeitlich auchDashboard nicht erreichbar, danach
+  RUNNING/NORMAL/Remote/STOPPED. Nur rechten Rear-Treiber für Zustandsmessung
+  wieder starten, keine Power-/Play-/Armziele; anschließend Vollcheck wiederholen.

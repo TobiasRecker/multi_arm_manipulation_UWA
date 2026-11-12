@@ -12,6 +12,7 @@ import numpy as np
 
 from match_ur_hardware.profiles import load_profiles
 from uwa_cell_gazebo.configuration import ROBOT_IDS, load_layout, joint_names, default_layout_path
+from .hardware_parallel import independent_arm
 from .parking import (complete_state, digest, make_model, manual_states, plan_parking,
                       save_plan, validate_artifact)
 
@@ -67,7 +68,9 @@ class JointObserver:
             raise RuntimeError(f'{moving}: native UR safety stop/mode {safety}; cancel trajectory')
         if require_program_link and self.mode=='hardware' and self.program_running.get(moving) is not True:
             raise RuntimeError(moving+': native External Control link not confirmed; no calibration trajectory')
+        diagonal=independent_arm(plan)
         for rid in self.profiles:
+            if rid==diagonal:continue
             if plan['state_sources'][rid] in ('manual_pendant','user_nominal_home'):continue
             record=self.received.get(rid)
             if not record or now-record['received_monotonic']>.5:

@@ -135,3 +135,19 @@ Fehler verwirft die Messung; vor Fortsetzung tatsächlichen Normalzustand prüfe
   ursprüngliches Fehlerlog bleibt erhalten.
 
 Ausgangspunkt: [einmaliger nativer Foto-Nachweis](wrist_native_photo_2026-11-12.md).
+
+## Konkret gestarteter40erFrontlauf2026-11-12
+
+Nutzer beauftragt40Gesamtstellungen(32Fit/8vorabPrüfung). NeueSitzung
+`setup/calibration/hardware_handeye/right_front_hd_20261112/`:sample000HD
+mit24Ecken akzeptiert,39 weitereStellungen geplant undnachVollcheckgestartet.
+NeuesteKorrektur erlaubt diagonalen Parallelbetrieb: Frontrechts mussnichtauf
+Linksrear warten. Genau diesesPaarkeine gegenseitigeKollisions-/Stillstands-
+abhängigkeit; andereKollisionen/Arme/Tabellen undnativeSafety bleiben geprüft.
+GeometrischeNicht-Erreichbarkeit ist hierbei Nutzerangabe,nichtMessnachweis.
+
+Batch6c70b73a… in`final_plan/`,festeZiele/32-8-Rollen unter
+`preparation/fixed-goals-and-roles.json`,Operatoranweisung/Startmarker und
+Fortschritt in`preparation/`. EigenesUWA-Fenster zeigtFortschritt undSTOP;
+Schließen/STOP beendetden eigenenRunnerauchwährendHD-Warten. KeineAktivierung
+desneuenKalibrierprofilsautomatisch,nachvollständigerReiheunabhängigerFit.

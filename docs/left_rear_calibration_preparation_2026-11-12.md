@@ -4,6 +4,29 @@ Stand2026-11-12. Ziel **left_rear=192.168.8.169**, konfigurierter UR7e,
 Seriennummer20265701623. Individuelle Werkskinematik bereits im gemeinsamen
 Messprofil vorhanden. Vorherige rechte Kalibrierergebnisse bleiben erhalten.
 
+## Aktueller Stand: Restreihe läuft
+
+Die vollständige41er-Reihe wurde ausdrücklich beauftragt. Nach29 akzeptierten
+Aufnahmen wurde bei sample029 ein nativer C159A5 ausgelöst; die eigene Action
+wurde gecancelt, alle linken Motioncontroller wurden inaktiv bestätigt. Kein
+automatisches Quittieren und keine Rückfahrt. Rein lesend war die Nutzlast0kg.
+
+Nach Nutzermeldung „habe ich gefixt“:1kg/CoG[0,0,0],NORMAL/PLAYING/External
+Control und aktuelle Zustände aller drei vernetzten Arme bestätigt. Fokus406
+Manual, Belichtung33333µsManual/Gain16 unverändert. Kein Werkzeugwert vom
+Agenten gesetzt. Die zwölf fehlenden Originalziele samt Prüfrollen wurden aus
+der aktuellen Stellung erneut verbunden und vollständig kollisionsgeprüft:
+`resume_after_payload/batch.json`,f1801646…;204,84s reine Bewegung.
+Die vorhandene Freigabe gilt für diese unveränderten Ziele; Restreihe gestartet.
+
+Die29 gesicherten Bilder bleiben unverändert. Ein separater Diagnosefit ergab
+0,140px Intrinsics- und0,253px Hand-Auge-Prüffehler, ist aber wegen29<30
+Mindestbildern ausdrücklich nicht aktivierbar. Endergebnis erst nach vollständiger
+Reihe und unabhängiger Auswertung. Daten unter
+`setup/calibration/hardware_handeye/left_rear_20261112/`,Fortschritt in
+`preparation/resume-run.log`. Andere Arme bleiben stationär; keine automatische
+Rückfahrt oder Profilaktivierung. Vorbereitungsabschnitte unten sind Historie.
+
 ## Erste Pose erreicht und echtes Board geprüft
 
 Nach ausdrücklicher Nutzerfreigabe für genau `approach_ready/plan.json` wurde
@@ -28,9 +51,9 @@ completion.json}`. Eigene erledigte Domain68-Weganimation beendet; Hardware-
 GUIs/drei Treiber bleiben erhalten. Das Log enthält nichtfatale
 ROS-typesupport-Meldungen; tatsächliches Action-Ergebnis/Endwinkel separat geprüft.
 
-Zusätzlich **nur geplant**: `batch_plan/batch.json`,40 weitere Ansichten mit
+Damals zusätzlich **nur geplant**: `batch_plan/batch.json`,40 weitere Ansichten mit
 8 vorab bestimmten Prüfrollen, damit später41 Gesamtansichten/33Fit/8Prüfung.
-Reine Bewegungsdauer709,57s, zusätzlich Stillstands-/Aufnahmezeiten. Noch keine
+Reine Bewegungsdauer709,57s, zusätzlich Stillstands-/Aufnahmezeiten. Zu diesem damaligen Zeitpunkt noch keine
 Reihe freigegeben/ausgeführt, kein sample000 und kein Intrinsics-/Hand-Auge-Fit.
 Vor Messaufnahmen Fokus/Belichtung passend fixieren, sample000 stationär
 erfassen und dann gesamte Folge per `run-series --check-only` sowie Vorschau
@@ -163,3 +186,9 @@ Danach geladenen Pfad geprüft, Clientverbindung erneut aufgebaut und den vom
 Nutzer beauftragten Play-Befehl nativ bestätigt(`Starting program`). Das ist
 kein Nachweis des weiterhin fehlenden External-Control-Links. Keine pauschalen
 Treiber-/ROS-Neustarts und keine Schutzstoppquittierung ausgeführt.
+
+- Fortsetzungsstart vor jeder Bewegung abgelehnt: hinten rechte Live-Telemetrie
+  verloren. Dessen ursprünglicherManager18298 stürzte nach PrimaryClient-Pipeline-
+  Überlauf mitExit−11 ab; zwischenzeitlich auchDashboard nicht erreichbar, danach
+  RUNNING/NORMAL/Remote/STOPPED. Nur rechten Rear-Treiber für Zustandsmessung
+  wieder starten, keine Power-/Play-/Armziele; anschließend Vollcheck wiederholen.

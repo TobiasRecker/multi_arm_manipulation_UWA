@@ -1,6 +1,6 @@
 # Kalibrierung links hinten vorbereiten
 
-- Status: **freigegebene Erstpose und Bildprüfung abgeschlossen; Folgeansichten nur geplant**,2026-11-12, Hauptagent.
+- Status: **neun Restansichten mit freigegebener Diagonalregel werden geprüft**,2026-11-12, Hauptagent.
 - Nutzer hat left_rear eingerichtet; Auftrag: Erreichbarkeit prüfen und
   Kalibrierung vorbereiten. Keine neue reale Fahrfreigabe ableiten.
 - Ziel192.168.8.169, External Control PC192.168.8.209/Port52002, Domain66.
@@ -75,3 +75,45 @@
  709,57s reine Bewegungszeit. Nur Planung, keine ganze Reihe freigegeben/gestartet.
   Nächste Stufe: feste passende Optik, sample000, Gesamtcheck/-vorschau und eigene
   konkrete Freigabe der neuen Folge. Erledigte eigene RViz-Animation geschlossen.
+
+- Nutzer beauftragt jetzt ausdrücklich Durchführung der vorbereiteten Messreihe.
+  Serienfreigabe für batch_plan-Fingerprint unter preparation/series-approval.json
+  gesichert. Fokus/Belichtung fixieren, sample000, vollständiger Check und
+  Gesamtvorschau vor realem Start; nur left_rear bewegen, native Stopps erhalten.
+
+- Erste Messaufnahme sample000 mit24Ecken,640×480,406Manual/33333µsManual/
+  Gain16 akzeptiert. Vollständiger --check-only für40 Zusatzsegmente bestanden,
+  Gesamtvorschau geöffnet; Nutzerfreigabe für genau den vorbereiteten Batch
+  bereits vorhanden. Keine weitere Bestätigung für denselben Plan verlangen.
+
+- Optik406Manual/33333µsManual/Gain16 fixiert und viermal24Ecken geprüft.
+  sample000 akzeptiert,40Segmente-Gesamtcheck bestanden, Gesamtvorschau offen.
+  Genau der freigegebene Batch850765e9… läuft mit HTTP-VGA links hinten,
+  explizites UWA-Arms-STOP-Fenster nurleft_rear geöffnet. Keine anderen Armziele,
+  kein Auto-Reset oder Rückweg; danach unabhängige Intrinsics-/Hand-Auge-Auswertung.
+
+- Unterbrechung bei sample029 durch nativen C159A5;29 Bilder(23Fit/6Prüfung)
+  gesichert, Goal gecancelt und alle linken Motioncontroller inaktiv bestätigt.
+  Rein lesendes RTDE bestätigte0kg/CoG[0,0,0]. Keine automatische Quittierung.
+- Nutzer meldet Ursache behoben. Recheck:1kg/CoG[0,0,0],NORMAL/PLAYING/Linktrue,
+  vollständige frische dreiArm-Telemetrie; Fokus406Manual/33333µs/Gain16 erhalten.
+  Nur zwölf fehlende Originalziele neu verbinden/prüfen; rechte Front-HD-Reihe
+  bleibt bis Linksabschluss stationär. Kein Dienstneustart vorgesehen.
+- Separater29er-Diagnosefit: Intrinsics-Prüfung0,140px,Hand-Auge0,253px,
+  Boardstreuung0,652mm/0,165°. Keine Aktivierung:29<30 Mindestansichten.
+
+- Fortsetzungsstart vor jeder Bewegung abgelehnt: hinten rechte Live-Telemetrie
+  verloren. Dessen ursprünglicherManager18298 stürzte nach PrimaryClient-Pipeline-
+  Überlauf mitExit−11 ab; zwischenzeitlich auchDashboard nicht erreichbar, danach
+  RUNNING/NORMAL/Remote/STOPPED. Nur rechten Rear-Treiber für Zustandsmessung
+  wieder starten, keine Power-/Play-/Armziele; anschließend Vollcheck wiederholen.
+
+- RechterRear-Treiber als uwa-right-rear-calibration-observer wieder aktiv,
+  ohnePower/Play/Armziele; vollständigeTelemetrie und erneuter --check-only
+  bestanden. Fortsetzung in resume-run-after-observer.log läuft;sample029
+  mit24Ecken akzeptiert. Ausschließlich linkeBewegung.
+
+-32 Bilder gesichert(sample000–031), Abbruch vor sample032 wegenFrontbewegung.
+  AktuelleAGENTS-Nutzerkorrektur erlaubt unabhängigesDiagonalpaarLR↔RF.
+  Neue Restplanung resume_diagonal mit denselben neunOriginalzielen/-rollen,
+ 102,51s Bewegung; neue Diagonaltests2/2 bestanden. Keine Fremdprozesse stoppen.

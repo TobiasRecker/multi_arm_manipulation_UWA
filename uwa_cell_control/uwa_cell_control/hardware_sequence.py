@@ -11,6 +11,7 @@ from uwa_cell_gazebo.configuration import joint_names
 from uwa_cell_calibration.planner import generate_plan,timed_path
 from uwa_cell_calibration.storage import atomic_json
 from .parking import digest,save_plan
+from .hardware_parallel import DIAGONAL,independent_arm,configure_model
 
 
 def planning_camera(layout,rid):
@@ -29,6 +30,7 @@ def planning_camera(layout,rid):
 def acquisition_plan(model,layout,profiles,rid,start,sources,missing,count,directory,layout_file,progress=lambda p:None,*,view_design='standard'):
     if not 30<=count<=79:raise ValueError('Hardware acquisition supports30–79 new poses (31–80 including initial view)')
     if missing:raise ValueError('Observe or explicitly declare all stationary arm poses before planning')
+    configure_model(model,rid,DIAGONAL[rid])
     nominal=planning_camera(layout,rid)
     # This K bounds proposed views only. Real calibration fitting never receives it.
     proposed=generate_plan(model,layout,start,{rid:nominal},[rid],count,progress,view_design=view_design)[rid]
@@ -39,6 +41,7 @@ def acquisition_plan(model,layout,profiles,rid,start,sources,missing,count,direc
 
 def assemble_plan(model,layout,profiles,rid,start,sources,missing,poses,directory,layout_file,nominal,*,resume=None):
     if not poses:raise ValueError('No outstanding acquisition views')
+    configure_model(model,rid,DIAGONAL[rid])
     state=dict(start);segments=[];combined=[];tool_path=[];offset=0.
     from uwa_cell_gazebo.charuco_views import Chain
     tool=Chain(model.description,'world',rid+'_tool0')
@@ -61,6 +64,8 @@ def assemble_plan(model,layout,profiles,rid,start,sources,missing,poses,director
           'segments':segments,'layout':layout,'layout_file':str(Path(layout_file).resolve()),
           'inventory_fingerprint':digest(profiles),'description':model.description,
           'planning_only_camera_model':dict({'source':'nominal FOV; never passed to intrinsic/hand-eye fit'},**nominal),
+          'independent_diagonal_arm':DIAGONAL[rid],
+          'diagonal_policy_source':'User physical reach statement and authorization2026-11-12; not measured geometry',
           'new_observations':len(segments),'automatic_return':False,'duration_motion_s':sum(s['points'][-1]['time'] for s in segments)}
     if resume is not None:plan['resume']=resume
     plan['fingerprint']=digest(plan)
@@ -122,6 +127,7 @@ def validate_resume_records(plan,session):
 
 
 def validate_batch(plan,profiles,current_layout):
+    independent_arm(plan)
     value=dict(plan);fingerprint=value.pop('fingerprint',None)
     if fingerprint!=digest(value):raise ValueError('Acquisition plan changed')
     if plan.get('mode')!='hardware' or plan.get('schema_version')!=1:raise ValueError('Wrong acquisition mode/schema')
@@ -149,10 +155,13 @@ def acquire(args):
     try:
         model,layout=make_model(load_layout(plan['layout_file']),profiles,directory/'acquisition_model')
         validate_batch(plan,profiles,layout)
+        diagonal=independent_arm(plan)
+        if diagonal:configure_model(model,rid,diagonal)
         validate_resume_records(plan,directory)
         validate_session_model(metadata,rid,profiles[rid],layout)
         current=observer.sample()
         for r,s in plan['state_sources'].items():
+            if r==diagonal:continue
             if s=='live_joint_states':
                 if r not in current:raise ValueError(r+': no live joint data')
                 if max(abs(q-plan['start'][j]) for q,j in zip(current[r]['positions'],joint_names(r)))>.01:
@@ -168,7 +177,8 @@ def acquire(args):
                 raise ValueError('Existing observation; create a new reviewed acquisition instead of overwriting')
         if getattr(args,'check_only',False):
             state=dict(plan['start'])
-            for r,record in observer.received.items():state.update(zip(joint_names(r),record['positions']))
+            for r,record in observer.received.items():
+                if r!=diagonal:state.update(zip(joint_names(r),record['positions']))
             for segment in plan['segments']:
                 for point in segment['points']:
                     state.update(zip(joint_names(rid),point['positions']))
@@ -179,7 +189,8 @@ def acquire(args):
         for segment in plan['segments']:
             observer.sample(.2);guard()
             live=dict(plan['start'])
-            for r,record in observer.received.items():live.update(zip(joint_names(r),record['positions']))
+            for r,record in observer.received.items():
+                if r!=diagonal:live.update(zip(joint_names(r),record['positions']))
             q0=[live[j] for j in joint_names(rid)]
             if max(abs(np.array(q0)-segment['points'][0]['positions']))>.01:
                 raise ValueError('Segment start changed; stop without an unchecked connection')

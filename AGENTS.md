@@ -146,6 +146,16 @@
   beauftragt. Dafür bei erreichbarem Remote-UR keinen unnötigen manuellen
   Pendantstart verlangen. Dies ist keine Freigabe neuer Arm-Fahrziele. Local-
   Umschaltung/fehlende aktive URCap-Konfiguration nicht vom PC umgehen.
+- Nutzerkorrektur2026-11-12: diagonale reale Arme dürfen unabhängig parallel
+  arbeiten; Front-HD muss nicht auf links hinten warten. Nutzerangabe zur
+  physischen Zelle: diagonal reicht die Reichweite nicht zum Berühren. Dies
+  ist eine Bedienerangabe, keine gemessene geometrische Kalibrierung. Neue
+  Hardware-Messbatches benennen genau `independent_diagonal_arm` und nehmen
+  nur dieses Roboterpaar aus MoveIt-Kollisions-/Stillstandsabhängigkeiten aus.
+  Paare: left_rear↔right_front bzw.left_front↔right_rear. Selbst-,Tisch-,Greifer-,
+  Kamera- und andereArmkollisionen bleiben geprüft, gleichseitiger Tischpartner
+  bleibt stationär überwacht. NativeUR-Safety/STOP unverändert. Vorige pauschale
+  Einarm-/„erstlinks fertig“-Reihenfolge ist für diagonalePaare damit überholt.
 - Genehmigte Bedienung: eigene Qt-GUI für die Kalibrierung mit Vorbereitung,
   Start, Pause/Fortsetzen, jederzeit erreichbarem Stopp und explizitem Übernehmen.
   rqt bleibt die manuelle Zellsteuerung. Seit dem Folgeauftrag vom 2026-11-09

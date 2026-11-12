@@ -67,8 +67,8 @@ stationary ChArUco observations, and fits intrinsics before the existing
 hand-eye solver. See [hardware camera calibration](docs/hardware_handeye.md).
 It now accepts all four arm IDs. The
 [left-rear preparation status](docs/left_rear_calibration_preparation_2026-11-12.md)
-records connectivity, board choice and the remaining External-Control/obstacle-
-state checks before any first real left-rear calibration move.
+records the completed first move, fixed VGA optics and the resumed41-view
+series after a native protective stop.
 Its results are not automatically activated; the Gazebo backend remains separate.
 The first real rear-right series completed on2026-11-11:41 views,33 fitting and8
 held out; intrinsics and hand-eye validation passed. Results and remaining
