@@ -72,6 +72,22 @@ verwendet die IP aus dem zentralen Inventar. Links hinten ist vollständig getes
 wird im getesteten alten Autofokusmodus wegen fehlgeschlagenem ROI-Restore
 konservativ vor weiteren Kameraänderungen abgewiesen.
 
+## CB3 vorne links
+
+Der 32-Bit-CB3 `left_front` hat keinen Compiler auf dem Controller. Vom PC aus
+startet `python3 scripts/left_front_wrist_hd.py` nach Laden von
+`scripts/control_env.bash` denselben Kamera-ROS-Dienst mit einem Python-2.7-
+V4L2-Helfer. Der Helfer liegt nur temporär auf dem Controller; der Dienst
+verwendet die bestehenden kameragebundenen SSH-Schlüssel. Ein bereits laufender
+Dienst derselben Kamera darf nicht doppelt gestartet werden.
+
+Am Gerät `028E1F350009061C` waren am 2026-11-12 drei unterschiedliche native
+2592 × 1944 JPEGs im Burst dekodierbar. Fokus 245 manuell, Belichtung 60.590 µs,
+Gain 19 wurden in den behaltenen Frames zurückgelesen. Der normale VGA-Modus
+und sämtliche ursprünglichen Kameraeinstellungen wurden danach verifiziert.
+Für die neue Kalibrierung `--arm left_front --camera-source wrist_hd_service
+--require-native-controls` und ein eigenes Sitzungsverzeichnis verwenden.
+
 ## Eigene HD-Kalibriersitzung
 
 Das vorhandene Hardwarewerkzeug unterstützt jetzt eine explizite Bildquelle:

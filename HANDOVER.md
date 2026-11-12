@@ -5,6 +5,67 @@ Diese Datei fasst die bisherigen Gespräche und die überprüfte Implementierung
 zusammen. Sie soll bei weiterer Arbeit mitgepflegt werden, nicht als unveränderlicher
 Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [README.md](README.md).
 
+## Native HD-Intrinsics hinten rechts – laufende Reihe,2026-11-12
+
+- Nutzer beauftragt neueHD-Intrinsics für right_rear. Eigenes2592×1944-Profil
+  bei388Manual, passend zu bisherigenDreierfotos; rechtes festes40mm-A3-Board
+  IDs50–66. Nutzerbestätigt unverändertesBoard und entfernt mobilesA4/Verdeckung.
+- Sitzung setup/calibration/hardware_handeye/right_rear_hd_20261112/,
+  geplant41Ansichten (33Fit/8vorabPrüfung), reineFahrt490,25s. EigeneVorschau
+  Domain72,45°lokalesPlanungsfenster gegenKabelwicklungen. AlleVerbindungen
+  MoveIt-geprüft, keineRückfahrt, nurRR-Ziele. DiagonalerLF nach bestehender
+  Nutzerregel separatbeweglich; übrigeChecks/nativesSafety unverändert.
+- KonkreteFreigabe "Vorschau passt, Fahrbereich und Kabel frei – Reihe starten"
+  in operator_approval.json, Fingerprintdesreviewed_series/batch.json
+  19d68cdeb45acc0a0f8278c494156bb780da0385309902e8d555f54d7770e651.
+- ErstaufnahmePASS:24Ecken,3verschiedenenativeFrames, Fokus388/Auto0 und
+  Belichtung63410/Gain19Manual durchV4L2anbeidenbehaltenenBurstendenbestätigt.
+  Readbacks/Normal/gesamteOriginalkonfiguration strengbestätigt. Verdeckte
+  Erstversuchsdiagnose archiviert, fehlerhafteFrameskeinMessdatensatz.
+- NativeKamerapfad wartet tatsächlichenVisionPID-Exit, begrenzteS_FMT-Busy/EIO-
+  WiederholungmitVersuchslogs; verwirftungültigeJPEGsinnerhalbbegrenzterWarmup-
+  Schleife, PC-Decodierung/nativesFormat/geändertePixelbleibenzwingend.
+  StandaloneFocusRestore teilt dieselbeRemote-Transaktionssperre, darfkeine
+  fremdeNativeAufnahmeunterbrechen. KeineFirmware-/UR-Treiber-/Safetyänderung.
+- MATCHPlay-Verifikationshelfer meldetfehlendenROSprogram_running-Service;
+  unabhängignativPLAYING/Remote/NORMALundExternalControllinktruebestätigt.
+  NichtunnötigProgrammneustarten. ErsterReihenstart brachvorFahrzielab
+  (späteActionregistrierung); früheActionClient-RegistrierungvorMoveItund
+  WiederverwendungproBatch beheben dies. Guards/Cancel/Deaktivierung erhalten.
+- LÄUFT: Execsession1925, Log setup/logs/uwa-right-rear-hd-acquisition-early-action.log.
+  Zuletzt6/41gültigeBilder mitje24Ecken; Fahrt/HD-Aufnahmefunktionieren.
+  EigeneVorschau nachStartgeschlossen, andereVorschauen/Diensteerhalten.
+- Abschlussauftrag: reineIntrinsics-Auswertung, Qualitätswerte/Prüfansichten
+  transparent berichten; keineHand-Auge-/globaleProfilübernahmeausdiesemAuftrag.
+  NachMessende nurRRMotioncontrollerdeaktivieren, keineautomatischeRückfahrt.
+  Anleitung docs/right_rear_hd_intrinsics_2026-11-12.md. MomentstandkeinAbschluss.
+
+## Links vorne: native HD-Reihe vorbereitet, 2026-11-12
+
+- Nutzer beauftragt separate HD-Kalibrierung. Am CB3 i686 ohne GCC wurden
+  native 2592 × 1944 MJPEGs über den neuen 32-Bit-Aufnahmehelfer nachgewiesen.
+  Kamera `028E1F350009061C`; Sensorwerte während der Bilder: Fokus 245 manuell,
+  Belichtung 60.590 µs, Gain 19. Rückstellung auf 640 × 480 und vollständigen
+  ursprünglichen Kameraeinstellungen einschließlich `Normal` bestätigt.
+- ROS-Dienst `/uwa_hardware/left_front/wrist_camera_hd/capture` mit
+  `scripts/left_front_wrist_hd.py`; erstes HD-Messbild im Stillstand akzeptiert,
+  alle 24 ChArUco-Ecken. Getrennte Sitzung
+  `setup/calibration/hardware_handeye/left_front_hd_20261112/`.
+- 40 weitere Ansichten aus der aktuellen Pose in umgekehrter VGA-Reihenfolge
+  neu geplant, 3.607 Punkte gegen die ganze Zelle geprüft, `--check-only`
+  bestanden. 33 Fit / 8 unabhängige Prüfung insgesamt vorgesehen. RViz-Vorschau
+  auf isolierter Domain 69. Die neue reale Serie wurde danach separat
+  freigegeben. Siehe
+  [Arbeitsstand](work/left-front-hd-calibration.md).
+- Folgefreigabe für genau diese Serie erhalten und frisch revidiert. Fünf
+  Bilder mit jeweils 24 Ecken vollständig gesichert. Beim fünften Fahrabschnitt
+  erkannte der Stillstandsguard die separat gestartete Reihe hinten rechts.
+  Eigener LF-Controller nach Abbruch nachweislich inaktiv, UR-Safety NORMAL,
+  External Control verbunden. Kein Schutzstopp und keine Rückfahrt. LF wartet
+  auf RR-Abschluss; der verbliebene Weg beginnt auf der schon freigegebenen
+  Strecke. Passiver Dienst prüft ihn mit Live-Stellungen nach RR-Ende; keine
+  autonome Fahrfortsetzung im Hintergrund. HD-Fit weiterhin offen.
+
 ## Links vorne: Kamera und relative Basislage kalibriert,2026-11-12
 
 - Nutzer hat die vollständige Serie freigegeben. 40 weitere Bilder erfolgreich
@@ -489,6 +550,33 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   sichtbarerRenderbeleggewertet. Bericht [OAK-CAD](docs/oak_camera_cad.md),
   Vorschau output/images/oak4_cad_tripod_preview.png; Nachweise
   setup/models/oak4-pro/live/ unduwa-oak-cad-{build,tests,live}.log.
+
+## Karton nur aus Farbbildern alsCAD rekonstruiert,2026-11-12
+
+- Nutzer beauftragt erste Pipeline zumDigitalisieren einfacherObjekte; Beispiel
+  realerKarton aufTisch aus dreiFarbbildern. NativeDreieraufnahme17:09Perth,
+  OAK8000×6000/beideWrist2592×1944, all_captured:true, Restore bestätigt.
+  KeineTiefe, Armfahrt oderProfiländerung.
+- OffenerKarton mit3Fächern rekonstruiert: ca.524×102×100mm Außenmaße,
+  Trennwände ca172/347mm abLängsanfang. Wand/Boden/Trennwand2,5mmangenommen.
+  Labels/Klammern/Faltungen/Verformungen nichtrekonstruiert; keineabsolute
+  Genauigkeitbestätigt. Gegenmessung stehtaus.
+- Maßstab aus rechtem40mm-Tischboard; neu geschätzteBild-Boardposen aus20
+  OAK-/28Front-ArUco-Markerecken. OAKFactory14K/D116 undFront-HD-K/D435;
+  Rear-HD388 mangelsMatchingK/D nurSichtprüfung. KeineHand-Auge-/FK-/Welt-
+  Extrinsics imGeometriefit, keineLive-Gelenke erfunden (CaptureTelemetriefehlte).
+- AssistiertesWerkzeug `ros2 run uwa_cell_control digitize_box`: Aufnahme
+  vorbereiten/Intrinsics einfrieren, expliziteEckpunktdatei, robuster6Parameter-
+  Fit+Trennwände, Overlays undAnnotationssensitivität. Keineallgemeineautomatische
+  Segmentierung oderarbiträreOberflächenrekonstruktion behaupten.
+- STEPmm/STLm/SCADmm unter setup/digitization/carton_20261112/result_v1/cad/,
+  gültigerSolid/STEP-Rückimportmaße/geschlossenesSTL undrechtshändigerPoseexport
+  geprüft.6SyntheticTestsPASS,Control-Paketgebaut,CLIinstalliert,Vorschaugeprüft.
+- FinaleFit-RMSbei1800px:OAK5,41px/Front6,60px; keineunabhängigeValidierung.
+  Zufalls-Annotationssensitivität umfasstnichtKalibrier-/Druck-/Modellfehler.
+- Bericht [Objektdigitalisierung](docs/object_digitization.md), Vorschau
+  output/images/carton_digitization_preview.png. Rohdaten/Hashmanifest/Overlays
+  undKameraprofile untersetup/digitization/carton_20261112/, Logs uwa-carton-*.
 
 ## Nutzerziele und Vorlieben
 

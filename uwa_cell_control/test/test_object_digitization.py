@@ -41,6 +41,14 @@ def test_missing_native_calibration_and_degenerate_views_are_rejected():
     with pytest.raises(ValueError,match='Degenerate views'):solve(cameras,annotations,sensitivity_draws=0)
 
 
+def test_metric_result_is_invariant_to_resolution_when_intrinsics_match():
+    expected,cameras,annotations=data()
+    camera=cameras['b'];matrix=np.asarray(camera['K']);matrix[:2]*=4.05
+    camera['K']=matrix.tolist();camera['observation']['image_size']=[5184,3888]
+    result=solve(cameras,annotations,sensitivity_draws=0)
+    np.testing.assert_allclose(result['parameters_board_m_rad'],expected,atol=1e-7)
+
+
 def test_export_frame_is_rigid_right_handed_and_matches_fitted_vertices():
     parameters,_,_=data();pose=object_pose(parameters);points=vertices(parameters)
     np.testing.assert_allclose(pose[:3,:3].T@pose[:3,:3],np.eye(3),atol=1e-12)

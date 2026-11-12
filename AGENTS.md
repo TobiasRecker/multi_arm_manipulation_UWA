@@ -80,6 +80,20 @@
   kein RAW und kein Ersatz einer fokusgebundenen Kamerakalibrierung. Exklusiven
   Kamerazugriff beachten, keine fremden Live-/ROS-Dienste automatisch stoppen.
 
+## Bildbasierte Objektdigitalisierung (2026-11-12)
+
+- Erste assistierte Pipeline `digitize_box`, Anleitung docs/object_digitization.md.
+  Gespeicherte Dreier-Farbfotos, sichtbares metrischesTischboard, passendeK/D,
+  explizite geprüfte Eckpunkte und parametrischer Geometriefit. KeineTiefe beim
+  Auftrag „nur Bilder“ hinzunehmen, keineArmfahrt alleinfürDigitalisierung.
+- Intrinsics müssen zu Kamera/Fokus/Bildgröße passen; aktuell Rear-HD388 im
+  ersten Kartonversuch nur visuell geprüft. Boardpose jeBild neu schätzen;
+  keine ungemessenen alten Roboter-/Weltposen als Aufnahmezustand verwenden.
+- Verdeckte Details/Wandstärken alsAnnäherung kennzeichnen; Bildfitresiduen
+  und reineAnnotationssensitivität nicht als absolute Genauigkeit ausgeben.
+  STEPmm/STLm unterscheiden, Exportframe rechtshändig+Zoben. Keine automatische
+  Kollisions-/Kalibrierprofilaktivierung; Rohbilder/Sitzungen nurunter setup/.
+
 ## Vor der Arbeit
 
 - [ACTIVE_WORK.md](ACTIVE_WORK.md) und aktive Einträge unter `work/` lesen.
@@ -224,6 +238,8 @@
   mischen,HD-Intrinsics neu schätzen. Empfangszeiten nicht als Belichtungszeiten
   ausgeben. WährendHD-Transaktion Telemetrie weiterverarbeiten,Originalkamera-
   zustand/Normal vollständig bestätigen und bei Fehler kein Messbild akzeptieren.
+  CB3 vorne links: nativen i686-Kameradienst gemäß `docs/wrist_hd_service.md`
+  starten; tatsächliche Sensorwerte während der HD-Bursts verifizieren.
 
   Seit 2026-11-09 ist MoveIt-Kollisionsprüfung für die automatische Kalibrierung
   umgesetzt. Allgemeine kooperative Planung und Hardware-Anbindung bleiben Folgearbeit.

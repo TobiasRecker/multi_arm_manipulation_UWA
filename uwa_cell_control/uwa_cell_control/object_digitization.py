@@ -182,6 +182,8 @@ def solve(cameras,annotations,*,sensitivity_draws=80):
     if fractions!=sorted(fractions):raise ValueError('Divider positions must be ordered')
     thickness=float(annotations.get('assumed_wall_thickness_m',.0025))
     if not 0<thickness<min(fit.x[3:])/4:raise ValueError('Invalid assumed wall thickness')
+    if fractions and min(np.diff([0.,*fractions,1.]))*fit.x[3]<=2*thickness:
+        raise ValueError('Divider material overlaps an adjacent divider or end wall')
     per_camera={}
     for name in selected:
         one=least_squares(lambda p:(project(vertices(p)[observations[name]['ids']],cameras[name],width)-

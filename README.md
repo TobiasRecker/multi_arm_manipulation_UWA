@@ -54,6 +54,15 @@ requirements, preferences, decisions, verified results and open work.
 [ACTIVE_WORK.md](ACTIVE_WORK.md) explains task-specific status files under `work/`
 for agents sharing this checkout; read active entries before editing or restarting services.
 
+## Image-to-CAD prototype
+
+A first [assisted object-digitization pipeline](docs/object_digitization.md)
+reconstructs an open three-compartment carton from saved colour photographs.
+It uses a visible metric board and matching camera intrinsics, explicit image
+landmarks, robust box fitting and STEP/STL/editable-SCAD export. No depth data
+or robot motion. The first estimate is approximately524×102×100mm; wall
+thickness is assumed. This is a geometric approximation, not validated metrology.
+
 ## OAK camera CAD and tripod
 
 The overview camera now uses the supplied OAK-4-Pro CAD model in **Gazebo and

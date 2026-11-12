@@ -166,7 +166,15 @@ def acquire(args):
     plan=json.loads(Path(args.batch).read_text());profiles=load_profiles(args.inventory);rid=plan['arm']
     directory=Path(args.session).resolve();metadata=json.loads((directory/'session.json').read_text())
     if metadata['robot_id']!=rid or metadata['mode']!='hardware':raise ValueError('Wrong image session')
-    node=node_for('hardware');completed=False;motion_started=False
+    node=node_for('hardware');completed=False;motion_started=False;trajectory_client=None
+    if not getattr(args,'check_only',False):
+        # Register the endpoint before MoveIt creates its C++ scene/logger and
+        # before the first spin; late-created actions can fail discovery on this
+        # Lyrical installation. Own one client for the whole batch.
+        from rclpy.action import ActionClient
+        from control_msgs.action import FollowJointTrajectory
+        trajectory_client=ActionClient(node,FollowJointTrajectory,
+            profiles[rid]['namespace']+'/scaled_joint_trajectory_controller/follow_joint_trajectory')
     observer=JointObserver(node,profiles,[r for r,s in plan['state_sources'].items() if s=='live_joint_states'],'hardware')
     try:
         model,layout=make_model(load_layout(plan['layout_file']),profiles,directory/'acquisition_model')
@@ -205,6 +213,11 @@ def acquire(args):
             print(json.dumps({'success':True,'check_only':True,'segments':len(plan['segments']),
                               'fingerprint':plan['fingerprint']}),flush=True)
             completed=True;return
+        deadline=time.monotonic()+30
+        while not trajectory_client.server_is_ready():
+            rclpy.spin_once(node,timeout_sec=.03);guard()
+            if time.monotonic()>deadline:
+                raise RuntimeError('Native trajectory endpoint unavailable before controller activation')
         for segment in plan['segments']:
             observer.sample(.2);guard()
             live=dict(plan['start'])
@@ -219,7 +232,8 @@ def acquire(args):
             observer.sample(.2);guard()
             print(json.dumps({'phase':'MOVING','sample_id':segment['sample_id'],'role':segment['role']}),flush=True)
             motion_started=True
-            execute_trajectory(node,profiles[rid],segment['points'],mock=False,guard=guard)
+            execute_trajectory(node,profiles[rid],segment['points'],mock=False,guard=guard,
+                               action_client=trajectory_client)
             observer.sample(.4);guard()
             if max(abs(np.array(observer.received[rid]['positions'])-segment['target']))>.03:
                 raise ValueError('Goal error exceeds0.03rad')
@@ -234,4 +248,5 @@ def acquire(args):
         if not completed and motion_started:
             try:switch(node,profiles[rid])
             except Exception as error:print('Could not confirm controller deactivation: '+str(error),flush=True)
+        if trajectory_client is not None:trajectory_client.destroy()
         observer.close();node.destroy_node();rclpy.shutdown()
