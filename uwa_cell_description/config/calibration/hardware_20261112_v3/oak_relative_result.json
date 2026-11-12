@@ -1,0 +1,384 @@
+{
+  "schema": 1,
+  "diagnostic_only": true,
+  "passed": false,
+  "calibration_applied": false,
+  "status": "exploratory_relative_pose_not_validated_calibration",
+  "transform_convention": "T_A_B maps points from B into A",
+  "T_oak_optical_right_front_optical": [
+    [
+      -0.20751126534025288,
+      0.702883398622477,
+      0.6803631403139087,
+      -0.7130620533488765
+    ],
+    [
+      -0.6561829839661977,
+      -0.6158362724590903,
+      0.436084369218744,
+      -0.01428112931528668
+    ],
+    [
+      0.7255087637720884,
+      -0.35595029634010583,
+      0.5890130900288096,
+      0.646168843145078
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "optimizer": {
+    "training_count": 3,
+    "normalization": "pixel residual / mean focal length; soft_l1 scale0.0005",
+    "optimizer_message": "Both `ftol` and `xtol` termination conditions are satisfied.",
+    "optimizer_evaluations": 13,
+    "angular_residual_rms_mrad": 0.20874644644322168
+  },
+  "per_view": [
+    {
+      "set_id": "set_155744_489852",
+      "role": "low_corner_diagnostic",
+      "errors": {
+        "oak4": {
+          "cross_camera_rms_px": 13.281516439930943,
+          "cross_camera_rms_mrad": 2.2279372126630768,
+          "local_pnp_rms_px": 1.0831835889305002
+        },
+        "right_front": {
+          "cross_camera_rms_px": 16.390763327824153,
+          "cross_camera_rms_mrad": 6.15953885210563,
+          "local_pnp_rms_px": 0.9486326409504898
+        }
+      },
+      "independent_T_oak_front": [
+        [
+          -0.20968119580914335,
+          0.6910715415519967,
+          0.6917036363797682,
+          -0.7234816214692266
+        ],
+        [
+          -0.668550537123112,
+          -0.617554165852121,
+          0.41432720348908963,
+          0.0025836925165845237
+        ],
+        [
+          0.7134942014035194,
+          -0.37556221414785323,
+          0.5915057462678753,
+          0.6449048453251297
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "relative_translation_difference_mm": 19.86422174977437,
+      "relative_rotation_difference_deg": 1.5360151399595272,
+      "board_normal_in_oak": [
+        -0.015256678575505857,
+        0.8324448939626907,
+        0.5538977633772212
+      ],
+      "board_center_in_oak_m": [
+        -0.34153074576993914,
+        0.4516115342987924,
+        1.0165999116385505
+      ]
+    },
+    {
+      "set_id": "set_155905_367552",
+      "role": "fit",
+      "errors": {
+        "oak4": {
+          "cross_camera_rms_px": 3.7066979185219093,
+          "cross_camera_rms_mrad": 0.6217882021323364,
+          "local_pnp_rms_px": 1.476497801680575
+        },
+        "right_front": {
+          "cross_camera_rms_px": 3.920070289009107,
+          "cross_camera_rms_mrad": 1.4731361050859526,
+          "local_pnp_rms_px": 0.7972514025577699
+        }
+      },
+      "independent_T_oak_front": [
+        [
+          -0.20651516579892304,
+          0.6996999505116716,
+          0.6839382030191088,
+          -0.7169603466995813
+        ],
+        [
+          -0.6563068540261376,
+          -0.6174914532798242,
+          0.4335500184346495,
+          -0.01225322243958138
+        ],
+        [
+          0.7256809213789195,
+          -0.3593386764326034,
+          0.5867392231360599,
+          0.6486605891535047
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "relative_translation_difference_mm": 5.051524078453156,
+      "relative_rotation_difference_deg": 0.28581022742766754,
+      "board_normal_in_oak": [
+        -0.015485899621976093,
+        0.8381298053568523,
+        0.5452509663314529
+      ],
+      "board_center_in_oak_m": [
+        -0.20533086182508864,
+        0.34314961374109093,
+        1.179994130635649
+      ]
+    },
+    {
+      "set_id": "set_160342_276120",
+      "role": "fit",
+      "errors": {
+        "oak4": {
+          "cross_camera_rms_px": 14.503876606529035,
+          "cross_camera_rms_mrad": 2.432984709668252,
+          "local_pnp_rms_px": 1.4477796854687093
+        },
+        "right_front": {
+          "cross_camera_rms_px": 2.4115260274227794,
+          "cross_camera_rms_mrad": 0.9062352961658184,
+          "local_pnp_rms_px": 0.7782081516979884
+        }
+      },
+      "independent_T_oak_front": [
+        [
+          -0.21044081792903682,
+          0.7056758953759691,
+          0.6765620391617332,
+          -0.7068536518633064
+        ],
+        [
+          -0.6586824402991862,
+          -0.6137399015138203,
+          0.4352709226807089,
+          -0.0125594317869403
+        ],
+        [
+          0.7223933173769447,
+          -0.35404076597918915,
+          0.5939722476968115,
+          0.6424388273442455
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "relative_translation_difference_mm": 7.444562395440289,
+      "relative_rotation_difference_deg": 0.36254752647704436,
+      "board_normal_in_oak": [
+        -0.012528661843041494,
+        0.8389922142935153,
+        0.5439991700244466
+      ],
+      "board_center_in_oak_m": [
+        0.013571878253864716,
+        0.3380007232544253,
+        1.1905545901570387
+      ]
+    },
+    {
+      "set_id": "set_161147_003313",
+      "role": "fit",
+      "errors": {
+        "oak4": {
+          "cross_camera_rms_px": 2.1707436658657904,
+          "cross_camera_rms_mrad": 0.3641361748267507,
+          "local_pnp_rms_px": 1.4229270500819733
+        },
+        "right_front": {
+          "cross_camera_rms_px": 1.7314260039141438,
+          "cross_camera_rms_mrad": 0.6506582718177102,
+          "local_pnp_rms_px": 0.7420427345489351
+        }
+      },
+      "independent_T_oak_front": [
+        [
+          -0.20774215396504825,
+          0.7037321885972094,
+          0.6794146040512699,
+          -0.7118437168254327
+        ],
+        [
+          -0.6545961821756877,
+          -0.6161385366020914,
+          0.43803783169361893,
+          -0.016285102780443844
+        ],
+        [
+          0.7268748418723653,
+          -0.3537432832521562,
+          0.5886583506644656,
+          0.6458277229990579
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "relative_translation_difference_mm": 2.3699401864671668,
+      "relative_rotation_difference_deg": 0.15671060651735008,
+      "board_normal_in_oak": [
+        -0.03005678073292342,
+        0.7549330028317087,
+        0.6551127774417717
+      ],
+      "board_center_in_oak_m": [
+        -0.09108191689753761,
+        0.25550226748401594,
+        1.2691299186850742
+      ]
+    },
+    {
+      "set_id": "set_161246_375370",
+      "role": "validation",
+      "errors": {
+        "oak4": {
+          "cross_camera_rms_px": 10.291900782853007,
+          "cross_camera_rms_mrad": 1.726437553035449,
+          "local_pnp_rms_px": 1.3544044154843449
+        },
+        "right_front": {
+          "cross_camera_rms_px": 8.004217189759908,
+          "cross_camera_rms_mrad": 3.0079310996654294,
+          "local_pnp_rms_px": 0.9035354585529158
+        }
+      },
+      "independent_T_oak_front": [
+        [
+          -0.20809884787878385,
+          0.7019542203330084,
+          0.6811425269855063,
+          -0.7149278620100453
+        ],
+        [
+          -0.6514391627494512,
+          -0.6189264922680565,
+          0.43881318850400763,
+          -0.018937696914669178
+        ],
+        [
+          0.7296039245699114,
+          -0.3524063985307843,
+          0.5860783595448182,
+          0.6431515989323556
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "relative_translation_difference_mm": 5.8539411003970985,
+      "relative_rotation_difference_deg": 0.3606865579931347,
+      "board_normal_in_oak": [
+        -0.12064714789065906,
+        0.8309290633436215,
+        0.5431400900290287
+      ],
+      "board_center_in_oak_m": [
+        -0.17840561241053202,
+        0.2749048177376991,
+        1.2327073854038235
+      ]
+    },
+    {
+      "set_id": "set_161434_714495",
+      "role": "validation",
+      "errors": {
+        "oak4": {
+          "cross_camera_rms_px": 6.5255609741596,
+          "cross_camera_rms_mrad": 1.0946445907428084,
+          "local_pnp_rms_px": 1.0797476339722913
+        },
+        "right_front": {
+          "cross_camera_rms_px": 1.276244908068117,
+          "cross_camera_rms_mrad": 0.4796042709434382,
+          "local_pnp_rms_px": 0.7490252514501596
+        }
+      },
+      "independent_T_oak_front": [
+        [
+          -0.20593778475496935,
+          0.7017705743717088,
+          0.6819880422384385,
+          -0.713574417153979
+        ],
+        [
+          -0.6490100037805425,
+          -0.6195428241012133,
+          0.4415344880045874,
+          -0.019823786644546454
+        ],
+        [
+          0.7323767089435572,
+          -0.35168842751886925,
+          0.5830433998822976,
+          0.6510388561038161
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "relative_translation_difference_mm": 7.395984934858394,
+      "relative_rotation_difference_deg": 0.576128352442805,
+      "board_normal_in_oak": [
+        -0.048895865916594214,
+        0.5127970683430902,
+        0.8571163054072641
+      ],
+      "board_center_in_oak_m": [
+        -0.12933313983555472,
+        0.18726248436109658,
+        1.2992838294588152
+      ]
+    }
+  ],
+  "diversity": {
+    "board_normal_max_separation_deg": 26.218481909377438,
+    "board_center_extent_in_oak_m": [
+      0.21890274007895336,
+      0.15588712937999435,
+      0.1192896988231662
+    ]
+  },
+  "limitations": [
+    "Only three training and two held-out views",
+    "Front intrinsics explicitly adopted below automatic quality threshold",
+    "OAK factory intrinsics are not independent validation of this image pipeline",
+    "Right-rear native-HD388 intrinsics missing: no rear extrinsic fit attempted",
+    "Wrist native sensor focus/exposure readback unavailable during burst",
+    "Photos not exposure synchronized; within-set board motion not excluded",
+    "No absolute world/table/base mounting calibration, no hardware accuracy claim"
+  ]
+}

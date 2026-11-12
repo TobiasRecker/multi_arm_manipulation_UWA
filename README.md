@@ -4,6 +4,9 @@
 cameras and OAK4, with a single button for native photographs. Open it from the
 application menu or run `bash src/multi_arm_manipulation_UWA/scripts/camera_capture.sh`.
 See [three-camera acquisition, focus and saved datasets](docs/three_camera_capture.md).
+The [first six-set offline evaluation](docs/three_camera_photo_evaluation_2026-11-12.md)
+contains a diagnostic OAK/front-wrist pose estimate and explains the remaining
+intrinsics and independent-validation limits. No calibration is activated by it.
 
 Native **48MP Standard/HQ photographs** are available through the reusable
 [OAK4 photo service](../oak_camera_calibration/OAK4_PHOTOS.md), including a CLI

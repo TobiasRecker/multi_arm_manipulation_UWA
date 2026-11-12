@@ -5,6 +5,76 @@ Diese Datei fasst die bisherigen Gespräche und die überprüfte Implementierung
 zusammen. Sie soll bei weiterer Arbeit mitgepflegt werden, nicht als unveränderlicher
 Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [README.md](README.md).
 
+## Sechs mobile Drei-Kamera-Fotosets offline ausgewertet,2026-11-12
+
+- Nutzer bittet um Einschätzung seiner bisherigen Fotos, nach PC-Absturz
+  fortgesetzt. Nur lokale Dateien verwendet, keine Kamera-/ROS-Dienststarts,
+  keine Roboterkommandos und kein aktives Kalibrierprofil geändert. Parallel
+  laufende LinksFront-Vorbereitung unverändert erhalten.
+- Benutzer-Session three_camera_mobile/20261112_155233_897f400a enthält6Sets/
+  18nativeOriginale. Alle Bild-SHA256 stimmen mit den Manifesten überein.
+  5Sets haben >=12Ecken in allen3Kameras,3Sets alle72Ecken. ErsteTeilansicht
+  15:57:44 separatdiagnostisch; kein nachträgliches Entfernen nach Fitfehler.
+- Feste Rollen vor Posenfit gespeichert:15:59:05/16:03:42/16:11:47 Training,
+  16:12:46/16:14:34 unabhängige Prüfung. Front-HD435 mit ausdrücklich bereits
+  akzeptiertem Untergrenzenprofil und OAK-Factory8K/Fokus116 festgehalten.
+  Keine hochskalierte Rear-VGA-Matrix: Rear-HD388 weiter ungeprüft, kein Fit.
+- Neuer reinlokaler Python-Modul board_photo_evaluation: PnP-Initialisierung
+  jeBild ohneNominal-/GT-Posen, gemeinsamer robuster relativer OAK↔Front-Fit
+  mit brennweitennormierten Bildresiduen. Resultat ausdrücklich diagnostisch,
+  passed:false,calibration_applied:false; keinTF/keineWelt-/Tischkalibrierung.
+- Zwei Prüfansichten: Unterschiede unabhängiger relativer PnP-Pose zum Fit
+  5,85/7,40mm und0,361/0,576°. OAK-Kreuzprojektions-RMS10,29/6,53px,
+  Front8,00/1,28px. Interne Konsistenz, keine vermessene Hardwaregenauigkeit.
+- Zusätzlich erste/letzte native Burstbilder neu detektiert: mediane
+  Eckenverschiebung0,056–0,157px, Maximum0,456px über ca.0,13s. Kein auffälliger
+  Kurzzeitbewegungshinweis, kein Synchronitäts-/Dauerstillstandsnachweis.
+  Gelenk-Endpunkte proSetmax0,000105rad auseinander. Optik-Readbacks sind
+  kein zusätzlicher Sensor-Fokusnachweis während nativem Burst.
+- Fünf gute Boardnormalen ca.26,2° gespreizt, Boardmittenbereich22×16×12cm
+  im vorläufigen OAK-Frame. Sichtfeldabdeckung weiterhin begrenzt, vor allem
+  OAK. Mehr verschieden geneigte/verschobene/entfernte Ansichten sinnvoll,
+  etwa15–20zusätzliche als praktischer Zielwert; keine Garantie durch Anzahl.
+- Ergebnisse setup/calibration/three_camera_evaluation_20261112/diagnostic_v1/
+  (protocol/result/image-audit.json,coverage.png),all_sets.jpg im Elternordner.
+  Bericht docs/three_camera_photo_evaluation_2026-11-12.md; 5synthetischeTests
+  PASS für Transformationsrichtung, unabhängige Prüfung, Geometrie-/Hashfehler.
+
+## Links vorne: Kamera-/Basis-Kalibrierung vorbereitet,2026-11-12
+
+- Nach PC-Absturz und Neustart16:17: alle vier URs RUNNING/NORMAL, ros.urp STOPPED.
+  Vier flüchtige ROS-Hardwaretreiber mit inaktiven Bewegungscontrollern neu gestartet.
+  Nach längerem DDS-Einlesen echte Gelenkstellungen aller vier Arme verfügbar.
+  Aktueller Plan `preparation/first_view_rechecked/plan.json`: 53.0s,
+  532 Kollisionssamples, voller Check-only bestanden.
+  Fingerprint `9ad63ff3dd6c4da5fc9cf8666ec77fa6457b8d399179b7da5e1002a4379ecff0`; alte Vor-Absturz-Pläne nicht ausführen.
+  Eigene Vorschau auf Domain68 wieder geöffnet. Vor realer erster Fahrt fehlen
+  erneutes External Control links vorne und konkrete Freigabe des gezeigten Wegs.
+  Keine Fahr-/Power-/Brake-/Play-Befehle gesendet.
+
+- NeuerNutzerauftrag: Position undKamera des jetztROS-erreichbarenUR5links vorne
+  kalibrieren. Nutzerbestätigt linkes40mm-A3-Board seitLeftRear-Kalibrierung
+  unverändertbefestigt. DamitspäterLF-Basis relativLR aus gemeinsamemT_base_board
+  bestimmbar; keineabsoluteWelt-/Tischanker-Vermessung darausbehaupten.
+- KameraHTTP640×480funktioniert,StatusNormal. Erstbildstarküberbelichtet,kein
+  Board/keineBewegung. Kamera-only-AE-Trigger liefertbrauchbaresaktuellesBild
+  vomBoden/Pendant. Triggerstellt exposureAuto vontrueauffalse; Originalsettings
+  gesichertundvorFahrtfreigabewiederzurückgeschrieben,Readbackprotokolliert.
+- NativeHD-Probe vorModuswechselgestoppt: alterCB3 i686/32bit hat kein gcc/cc,
+  vorhandenerNativeCapture.bootstrap kannC-Helfernichtbauen. KeinKamera-/UR-
+  Dienst/OSupdate,keinKalibrierfit;VGA-Pfadfunktioniert. KompatiblerHD-Helfer
+  bleibtbeiBedarfvorzubereiten,kein2592×1944-Erfolg fürLF behauptet.
+- KonkretererstergerechneterWeg53,0s/531Kollisionssamples,max0,005radSampling,
+ 0,05rad/s/0,10rad/s². Alle4Armefrischliveerfasst,volleMoveIt-ZellemitLF-
+  Werkskinematik,keineDiagonal-Ausnahme. Zielkamera nominell[-.45,-.28,1.453]m.
+  park_arm execute --check-only PASS,keinFahrzielgesendet.
+- Artefakte setup/calibration/hardware_handeye/left_front_20261112/preparation/,
+  first_view/plan.json Fingerprint4c734fab2a835ba373d04acb71a1af748a66c8ac4dc14d4f0bae5fbe9ee7f456.
+  EigeneDomain68-RViz-Animationuwa-left-front-calibration-preview geöffnet.
+  ErsteFahrt wartetzurSichtprüfung aufkonkreteFreigabe. AndereArme/KameraGUI
+  undbestehendeKalibrierprofileerhalten;keineAufnahmefolge/Fit/Aktivierung.
+
+
 ## Links vorne: External-Control-Verbindung bestätigt,2026-11-12
 
 - Nutzer startetros.urp amUR5. JetztDashboardPLAYING/running:true,RobotmodeRUNNING,

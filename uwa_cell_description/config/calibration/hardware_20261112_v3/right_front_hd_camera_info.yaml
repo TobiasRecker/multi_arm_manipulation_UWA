@@ -1,0 +1,60 @@
+image_width: 2592
+image_height: 1944
+camera_name: right_front_wrist_native_hd
+camera_matrix:
+  rows: 3
+  cols: 3
+  data:
+  - 2658.058908008819
+  - 0.0
+  - 1324.3121763897502
+  - 0.0
+  - 2664.0159165443188
+  - 785.6836223846248
+  - 0.0
+  - 0.0
+  - 1.0
+distortion_model: plumb_bob
+distortion_coefficients:
+  rows: 1
+  cols: 5
+  data:
+  - 0.08882803057152604
+  - -0.12465061700119384
+  - -0.021686422244469924
+  - 0.012446872871723127
+  - -0.6125663292920678
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data:
+  - 1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+projection_matrix:
+  rows: 3
+  cols: 4
+  data:
+  - 2658.058908008819
+  - 0.0
+  - 1324.3121763897502
+  - 0.0
+  - 0.0
+  - 2664.0159165443188
+  - 785.6836223846248
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  - 0.0
+focus: 435
+focus_auto: false
+capture_source: native_v4l2_mjpeg
+quality_passed: false
+acceptance: explicit user adoption below thresholds

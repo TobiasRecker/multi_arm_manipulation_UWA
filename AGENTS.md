@@ -1,5 +1,16 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Neue Kalibrierung links vorne (2026-11-12)
+
+- Nutzer beauftragt eigene Kamerakalibrierung und Position des UR5left_front.
+  Linkes40mm-A3-Board lautNutzer seitLeftRear-Kalibrierung unverändertbefestigt;
+  relativeLF/LR-Basislage daraus bestimmbar, absoluteWeltankerweiterunvermessen.
+- Vorbereitung/Status: work/left-front-calibration.md, Messdaten getrennt unter
+  setup/calibration/hardware_handeye/left_front_20261112/. FremdeK/D undalte
+  Links-Home-Annahmen nicht verwenden; alle4Arme liefern jetztLive-Gelenke.
+- CB3links vorne i686/32bit ohnegcc: vorhandenernativerHD-Bootstrap scheitert
+  vorKameramodusänderung; funktionierendeHTTP-VGA vonungeprüftemHD unterscheiden.
+
 ## Gemeinsame mobile Board-Aufnahme (2026-11-12)
 
 - Nutzer bestätigt mobilesA4-Board IDs75–91 für rechteWristkameras+OAK4.
