@@ -23,6 +23,7 @@ setup(
         'charuco_check = uwa_cell_gazebo.charuco_check:main',
         'prepare_charuco_views = uwa_cell_gazebo.charuco_views:main',
         'oak_overview = uwa_cell_gazebo.overview_node:main',
+        'scene_assets = uwa_cell_gazebo.scene_assets_node:main',
         'overview_coverage = uwa_cell_gazebo.overview:main',
         'overview_check = uwa_cell_gazebo.overview_check:main',
     ]},

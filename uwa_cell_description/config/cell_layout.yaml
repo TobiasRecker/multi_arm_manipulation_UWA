@@ -105,6 +105,13 @@ robots:
     mount_rpy: [0.0, 0.0, 1.5707963267948966]
     initial_positions: [0.414452354372, -1.217913680412, -1.937577321053, -0.603514076241, 1.226379855048, 0.235292530833]
     kinematics_file: null
+# Image-derived asset pose relative to the printed right board. Visual only:
+# does not change physics/MoveIt obstacles during the ongoing planner comparison.
+scene_objects:
+  - id: avocado_carton
+    asset: carton_avocado_v1
+    enabled: true
+    anchor_frame: right_charuco
 scan:
   source: ~/GoogleDrive/UWA/UR Setup.ply
   # Coarse tabletop fit, 2026-11-09; NOT a measured calibration.

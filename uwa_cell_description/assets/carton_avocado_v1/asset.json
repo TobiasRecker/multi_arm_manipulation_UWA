@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "asset_id": "carton_avocado_v1",
+  "title": "Open avocado carton",
+  "version": 1,
+  "units": "m",
+  "up_axis": "Z",
+  "visual_mesh": "carton.dae",
+  "preview_mesh": "carton.glb",
+  "solid_mesh": "carton.stl",
+  "cad_mm": "carton.step",
+  "dimensions_m": [
+    0.4040377352558782,
+    0.34232575250557695,
+    0.16331085642446724
+  ],
+  "triangle_count": 292,
+  "reference_pose": {
+    "frame": "right_charuco",
+    "T_frame_object": [
+      [
+        0.006274720363889061,
+        -0.9999803137484032,
+        0.0,
+        -0.15305312880190047
+      ],
+      [
+        -0.9999803137484032,
+        -0.006274720363889061,
+        0.0,
+        0.29640839378898737
+      ],
+      [
+        0.0,
+        0.0,
+        -1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ]
+  },
+  "quality": {
+    "status": "image_based_estimate",
+    "measured_accuracy_validated": false,
+    "wall_thickness_m": 0.0025,
+    "wall_thickness_measured": false
+  },
+  "use": "visual_only; not automatically a planning or physics obstacle",
+  "provenance": {
+    "date": "2026-11-13",
+    "source": "UWA four-arm/OAK image-only scan",
+    "source_model_sha256": "fa2ce10a352777fc9e141f3eb6dfa002e8a68a2346c0c2936a6a3cb2ff865d4a",
+    "source_export_sha256": "c7c55701921ba82a5e35942e409cf97fddcbcd8a24542c57a7889217a1fde2ed",
+    "dataset_sha256": "9ac7980be8bbba6fc36af61ebeda353fdef3a30b76e87c6ba5790b347fe8fbc6"
+  },
+  "files": {
+    "carton.dae": "ec6b9fd80a606b056107fb3e3e39dd30ed4fe566f385dcc68d277acf472e40ce",
+    "carton.glb": "81b30775f0dcf877c11482fa56234078738677e154d83ccc675f947c62580571",
+    "carton.step": "466e42e57e186a06aa15ace0a96f253f024c57b127686b8985e1507f97dd2123",
+    "carton.stl": "89e3dc62a8285e5aa45efa41168f786923a24476259797d98ee3f11cb8ac1df4",
+    "textures/part_1.jpg": "6fe04f4c89148254ab6fa033b94945905f330be758fc3f2a5ee34cd882675457",
+    "textures/part_2.jpg": "75a396c3885d4cbf530bd16ce8d0ee35b204261f68d54bd27e67f6bdb65847c6",
+    "textures/part_3.jpg": "28538b486c40b55df7abd0bb0df8ef23aa714c2ee29b058d0b3939b5c9254652",
+    "textures/part_4.jpg": "f235a742c92784837cdaaa5ce98f7b6047e64f91aad39db5bec6b02c6b0f2c6c"
+  }
+}

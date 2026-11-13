@@ -35,8 +35,11 @@ instead; do not start a second guard beside the managed service.
 
 The geometric process publishes `/uwa_cell/collision_guard/decision`,
 `/uwa_cell/collision_guard/diagnostics` and MarkerArray
-`/uwa_cell/collision_guard/markers`. Add the markers in RViz with fixed frame
-`world`. The independent supervisor publishes
+`/uwa_cell/collision_guard/markers`. The standard cell RViz configuration includes
+this display (fixed frame `world`). An already-open RViz can add this MarkerArray
+with reliable/volatile QoS. Surface-nearest points, pair distances, data ages,
+large text states and a permanent provisional-anchor notice accompany spheres.
+The independent supervisor publishes
 `/uwa_cell/collision_supervisor/status`. Text states accompany colors.
 An explicit arm stop is available at
 `/uwa_cell/collision_supervisor/<robot_id>/stop` (`std_srvs/Trigger`).

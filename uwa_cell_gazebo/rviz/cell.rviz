@@ -63,10 +63,26 @@ Visualization Manager:
       Name: Mount and robot frames
       Enabled: false
     - Class: rviz_default_plugins/MarkerArray
+      Name: COLLISION GUARD - SIMULATION spheres / distance / state
+      Enabled: true
+      Topic:
+        Value: /uwa_cell/collision_guard/markers
+        Reliability Policy: Reliable
+        Durability Policy: Volatile
+        Depth: 1
+    - Class: rviz_default_plugins/MarkerArray
       Name: OAK overview camera and frustum
       Enabled: true
       Topic:
         Value: /uwa_cell/oak_overview/markers
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+        Depth: 1
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Reconstructed objects - photo textures (approximate)
+      Enabled: true
+      Topic:
+        Value: /uwa_cell/scene_assets/markers
         Reliability Policy: Reliable
         Durability Policy: Transient Local
         Depth: 1

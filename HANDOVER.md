@@ -52,12 +52,14 @@
   je Arm, gemeinsame Zielauflösung/MoveIt-FCL-Prüfung/Quintik-Zeitparametrierung,
   native OMPL-RRTConnect und CF-inspirierte Offline-Rollouts ohne RRT-Fallback.
   Anleitung docs/four_arm_motion.md; Arbeit work/four-arm-collision-planning.md.
-- Paket gebaut,47Offlineprüfungen bestanden (neue Oberflächenmarkerprüfung
-  danach ergänzt, abschließender Build folgt). Gazebo-Wristfahrt0,04rad
-  bestanden. Live-Stoppprüfungv2 bestanden:
+- Paket gebaut,48Offlineprüfungen bestanden (CTest zusätzlich3Wrapper,
+  zusammen51/0Fehler). Gazebo-Wristfahrt0,04rad
+  bestanden. Live-Stoppprüfung der Protokollv2-Version bestanden:
   nurLF/RF stoppen/LRerreichtZiel, Topic-/Reaktivierungssperre, Mehrfachfehler,
-  Datenverlust und Wächterausfall/Wiederkehr verriegelt. Fehler→Stillstand118ms,
-  Wächterverlust→Halteverriegelung450ms; Simulation, keine reale Stoppreserve.
+  Datenverlust und Wächterausfall/Wiederkehr verriegelt. Fehler→Stillstand125ms,
+  Wächterverlust→Halteverriegelung419ms; Teilreset/WeiterfahrtRR bei fehlendem
+  LF-Zustand bestanden. setup/logs/uwa-motion-live-guard-check-final.json.
+  Simulation, keine reale Stoppreserve.
 - Endgültiges Offlinevergleichssetv4 komplett300Versuche: RRT102/125,
   zirkulare Felder115/125 gültige Zielversuche erfolgreich, je25ungültige
   Ziele verworfen. Kreuzungen3/25gegen15/25; Kugelbahnüberschneidung jetzt
@@ -78,7 +80,8 @@
 - Auditkorrektur in Protokollv2: Paarlease im Supervisor begrenzt die Dauer
   einer alten geometrischen Freigabe anhand ihrer verbleibenden Abstandsreserve,
   statt stets400ms Heartbeat auszuschöpfen. Monotonzeit enthält Transportalter,
-  20ms Pollintervall abgezogen. Installierte Abschluss-Liveprüfung noch offen.
+  20ms Pollintervall abgezogen. Protokollv2-Liveprüfung bestanden; zusätzlicher
+  Test der besonders knappen Paarlease im Testfixture ergänzt, noch auszuführen.
   Ein früherer Live-Stoppversuch scheiterte an unerwartetem zusätzlichen Hold;
   Rohdaten erhalten, instrumentierter Wiederholungslaufv2 vollständig PASS.
 - Gemeinsame Simulation einmal für Plugin-Erkennung neu gestartet; vorherige

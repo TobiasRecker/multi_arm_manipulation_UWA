@@ -15,11 +15,12 @@
 
 ## Zwischenstand
 
-- Paket gebaut,45Offline-Tests PASS (vor neuer Paarlease-Prüfung). Native RRT-Schrittweite0,15rad statt
+- Paket gebaut,48Offline-Tests PASS (CTest51 einschließlich3Wrapper). Native RRT-Schrittweite0,15rad statt
   ungeeigneter automatischer Extent-Skalierung. Frühe Entwicklungsdaten erhalten.
-- Live-Gazebo-Stoppcheckv2 PASS: Paarstopp mit unabhängiger Weiterfahrt,
+- Live-Gazebo-Stoppcheck mit Protokollv2 PASS: Paarstopp mit unabhängiger Weiterfahrt,
   Topic-/Reaktivierungssperre, Mehrfachfehler, Zustandsverlust, Wächterausfall
-  und verriegelte Wiederkehr.118ms Fehler→Stillstand,450ms Watchdog→Hold.
+  und verriegelte Wiederkehr.125ms Fehler→Stillstand,419ms Watchdog→Hold.
+  Teilreset/WeiterfahrtRR bei fehlendemLF-Zustand ebenfalls PASS.
 - Vergleichv4 mit300Versuchen abgeschlossen; fünf neue Nachbarfälle mit
   nachgewiesener Kugelbahnüberschneidung, tatsächlichen Meshkontakt separat
   gespeichert. RRT102/125 gültige Zielversuche erfolgreich,CF115/125;
@@ -36,4 +37,5 @@
 - Auditkorrektur: näherungsabhängige Paarlease im unabhängigen Supervisor;
   letzter Abstand darf nicht unbesehen400ms Wächterausfall überbrücken.
   Hashgebundenes Protokollv2, Monotonzeit/Transportalter und20ms Pollreserve.
-  Abschluss-Livetest/Build und endgültige Auswertung noch offen.
+  Protokollv2-Livetest PASS, gezielter besonders knapper Lease-Test ergänzt;
+  endgültige Auswertung und Vollständigkeit der Gazebo-Ausführung noch offen.

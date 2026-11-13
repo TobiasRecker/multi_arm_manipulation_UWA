@@ -86,6 +86,7 @@ class CollisionGuard(Node):
         self.sequence += 1
         status.update(instance=self.instance, sequence=self.sequence, pairs=self.pairs,
                       model_signature=self.signature,model_match=self.model_match,
+                      model_uncertainty='SIMULATION: world/table anchors provisional; no measured real stop reserve',
                       guard_config_signature=guard_signature(self.cfg),schema_version=1,
                       evaluated_monotonic_s=now,
                       source_time_s=self.get_clock().now().nanoseconds/1e9,
@@ -100,6 +101,10 @@ class CollisionGuard(Node):
 
     def show(self, world, status):
         markers=[Marker(action=Marker.DELETEALL)]; stamp=self.get_clock().now().to_msg(); number=0
+        notice=Marker();notice.header.frame_id='world';notice.ns='model_uncertainty';notice.id=0;notice.type=Marker.TEXT_VIEW_FACING
+        notice.pose.orientation.w=1.;notice.pose.position.z=2.4;notice.scale.z=.08
+        notice.color.r=notice.color.g=notice.color.b=notice.color.a=1.
+        notice.text='SIMULATION · WORLD/TABLE ANCHORS PROVISIONAL';markers.append(notice)
         for rid in self.names:
             if rid in world:continue
             label=Marker();label.header.frame_id=rid+'_base_link';label.ns='unknown';label.id=number;number+=1

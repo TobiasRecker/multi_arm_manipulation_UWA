@@ -78,6 +78,12 @@ def setup(context):
         def overview_after_cell(event, ctx):
             return [overview] if event.returncode == 0 else []
         actions.append(RegisterEventHandler(OnProcessExit(target_action=spawn,on_exit=overview_after_cell)))
+    if layout.get('scene_objects'):
+        assets = Node(package='uwa_cell_gazebo', executable='scene_assets',
+                      parameters=[{'layout': layout_path, 'use_sim_time': True}], output='screen')
+        def assets_after_cell(event, ctx):
+            return [assets] if event.returncode == 0 else []
+        actions.append(RegisterEventHandler(OnProcessExit(target_action=spawn,on_exit=assets_after_cell)))
     if enabled(context, 'gui'):
         # The gz-sim-main wrapper leaves its GUI child behind on SIGINT on this
         # Jetty installation. Launch the packaged client directly instead.

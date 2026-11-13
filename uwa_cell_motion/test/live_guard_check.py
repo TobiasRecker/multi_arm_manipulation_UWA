@@ -126,7 +126,9 @@ def check(output,own_supervisor=False):
             node.wait(lambda:node.guard['state']=='STATE STALE' and set(node.supervisor['held_arms'])=={'left_front','right_front','left_rear'},3.)
             results['lost_state_neighbor_scope']=True
             dump(flags,{});reset()
-            dump(flags,dict(close_clear_pairs=[0]));wait_seconds(.3)
+            dump(flags,dict(close_clear_pairs=[0]))
+            node.wait(lambda:bool(node.guard.get('pairs')) and
+                abs(node.guard['pairs'][0]['clearance_m']-node.guard['pairs'][0]['threshold_m']-.001)<1e-8,2.)
             assert not node.supervisor['blocked_arms']
             began=time.monotonic();child.send_signal(signal.SIGSTOP)
             node.wait(lambda:set(node.supervisor['held_arms'])=={'left_front','right_front'},.3)

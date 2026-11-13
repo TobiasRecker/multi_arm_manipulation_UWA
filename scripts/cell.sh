@@ -48,7 +48,19 @@ case "$operation" in
       --property=TimeoutStopSec=15 --property=KillSignal=SIGINT --property=KillMode=mixed \
       /usr/bin/bash "$script_dir/start_scan.sh" "$@"
     ;;
+  assets)
+    if systemctl --user is-active --quiet uwa-cell-assets; then
+      echo 'UWA scene assets are already running. Reload: /uwa_cell/scene_assets/reload'
+      exit 0
+    fi
+    systemd-run --user --unit=uwa-cell-assets --collect \
+      --property=TimeoutStopSec=15 --property=KillSignal=SIGINT --property=KillMode=mixed \
+      /usr/bin/bash "$script_dir/start_assets.sh" "$@"
+    ;;
   stop)
+    if systemctl --user is-active --quiet uwa-cell-assets; then
+      systemctl --user stop uwa-cell-assets
+    fi
     if systemctl --user is-active --quiet uwa-cell-hardware-overlay; then
       systemctl --user stop uwa-cell-hardware-overlay
     fi
@@ -68,5 +80,5 @@ case "$operation" in
     ;;
   status) systemctl --user status uwa-cell-sim --no-pager ;;
   logs) journalctl --user -u uwa-cell-sim -f ;;
-  *) echo "Usage: bash $0 {start [launch arguments...]|rviz|twin [launch arguments...]|scan [layout.yaml]|stop|status|logs}" >&2; exit 2 ;;
+  *) echo "Usage: bash $0 {start [launch arguments...]|rviz|twin [launch arguments...]|assets|scan [layout.yaml]|stop|status|logs}" >&2; exit 2 ;;
 esac
