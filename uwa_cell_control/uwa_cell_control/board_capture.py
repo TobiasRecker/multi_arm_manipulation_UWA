@@ -423,8 +423,8 @@ class CaptureRig:
         return record
 
     def capture_monitor(self, directory):
-        from .capture_telemetry import CaptureMonitor
-        return CaptureMonitor(self.ws, directory, self.wrist_cameras)
+        from .capture_telemetry import ProcessCaptureMonitor
+        return ProcessCaptureMonitor(self.ws, directory, self.wrist_cameras)
 
     def capture_all(self, native=True, resume_preview=False):
         if not self.busy.acquire(blocking=False):

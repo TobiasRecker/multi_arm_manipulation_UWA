@@ -1,7 +1,9 @@
 # Objektaufnahme: OAK zuerst, dann vier Wrist-Kameras
 
-Stand: 12.11.2026. Erste Softwarestufe implementiert und offline geprüft.
-**Keine reale Scan-Fahrfolge und kein kompletter Fünfkamera-Scan ausgeführt.**
+Stand: 13.11.2026. Die reale parallele Fahrt mit fünf Stellungen je Arm wurde
+inzwischen ausgeführt. 20 Wrist-HD-Ansichten und vier native OAK-Fotos sind
+bestätigt; die letzte OAK-Aufnahme fehlt. [Ergebnis und aktueller Haltstand](parallel_object_scan.md).
+Der folgende Nachweis vom12.11. beschreibt die frühere Offline-Vorbereitung.
 
 ## Ablauf
 

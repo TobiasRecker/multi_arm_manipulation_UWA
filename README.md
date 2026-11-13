@@ -78,11 +78,12 @@ A [virtual-wall and swept-volume analysis](docs/scan_separation.md) now derives 
 parallel review schedule from the unchanged scan paths. It retains the original
 order for pairs without a separation proof and feeds the separate hardware runner.
 A separately tested [hardware parallel runner and STOP window](docs/parallel_object_scan.md)
-completed the first simultaneous hardware approach on 2026-11-13. Four wrist-HD
-views show the carton. The scan stopped during acquisition following a GUI-heartbeat
-loss and OAK failure; all controllers are inactive and the four extra rounds remain.
-Camera work is now isolated in a separate process and tested while stationary;
-the OAK connection still needs attention. No automatic restart.
+reached all five planned postures per robot on 2026-11-13. The checked dataset
+contains 20 wrist-HD views and four native OAK photographs; only the final OAK
+image is missing. All arms are stationary with motion controllers inactive.
+Camera work and stationarity recording now run in separate processes from the
+motion guard. The OAK pipeline failure recurred; an official OS update is staged
+locally and awaits approval. No automatic restart or return motion.
 
 
 ## OAK camera CAD and tripod

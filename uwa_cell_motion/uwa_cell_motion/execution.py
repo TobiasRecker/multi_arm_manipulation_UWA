@@ -22,6 +22,7 @@ from std_srvs.srv import Trigger
 from control_msgs.action import FollowJointTrajectory
 from trajectory_msgs.msg import JointTrajectoryPoint
 from controller_manager_msgs.srv import SwitchController,ListControllers
+from action_msgs.msg import GoalStatus
 
 from .common import ROBOT_IDS,PAIRS,config,all_names,joint_names,load_layout,default_layout_path,dump,simulation_only,guard_signature
 from .supervisor import hold_name
@@ -29,10 +30,12 @@ from .supervisor import hold_name
 
 class MotionClient(Node):
     def __init__(self,layout_path=None):
+        simulation_only()
         super().__init__('ptp_execution',namespace='/uwa_cell')
         self.set_parameters([rclpy.parameter.Parameter('use_sim_time',value=True)])
         self.names=all_names(load_layout(layout_path or default_layout_path()))
         self.positions={};self.velocities={};self.received=-float('inf');self.stamp=-float('inf')
+        self.source_advanced=-float('inf');self.clock_reversed=False
         self.guard=None;self.supervisor=None;self.guard_received=-float('inf');self.supervisor_received=-float('inf')
         self.handles={};self.pending={};self.owned=set()
         self.live_signature=None;self.minimum_clearance=float('inf')
@@ -48,7 +51,10 @@ class MotionClient(Node):
     def joints(self,msg):
         q=dict(zip(msg.name,msg.position));v=dict(zip(msg.name,msg.velocity));required={j for n in self.names.values() for j in n}
         if required<=q.keys() and required<=v.keys() and np.isfinite([q[j] for j in required]+[v[j] for j in required]).all():
-            self.positions=q;self.velocities=v;self.received=time.monotonic();self.stamp=msg.header.stamp.sec+msg.header.stamp.nanosec/1e9
+            now=time.monotonic();stamp=msg.header.stamp.sec+msg.header.stamp.nanosec/1e9
+            if stamp>self.stamp:self.source_advanced=now
+            elif stamp<self.stamp:self.clock_reversed=True
+            self.positions=q;self.velocities=v;self.received=now;self.stamp=stamp
 
     def guard_message(self,msg):
         self.guard=json.loads(msg.data);self.guard_received=time.monotonic()
@@ -72,13 +78,24 @@ class MotionClient(Node):
         # Offline model/check work can occupy this client between phases. Drain
         # queued telemetry before judging freshness; the guard itself runs in
         # a separate continuously spinning process.
-        for _ in range(20):rclpy.spin_once(self,timeout_sec=0.)
-        now=time.monotonic();source=self.get_clock().now().nanoseconds/1e9
-        if now-self.received>.15 or not -.02<=source-self.stamp<=.15:raise RuntimeError('STATE STALE')
-        if now-self.guard_received>.4 or now-self.supervisor_received>.4:raise RuntimeError('GUARD/SUPERVISOR LOST')
+        deadline=time.monotonic()+.15
+        while True:
+            for _ in range(20):rclpy.spin_once(self,timeout_sec=0.)
+            now=time.monotonic();source=self.get_clock().now().nanoseconds/1e9
+            if self.clock_reversed:raise RuntimeError('Simulation clock/state epoch changed; regenerate the plan')
+            state_fresh=now-self.received<=.15 and now-self.source_advanced<=.15 and -.02<=source-self.stamp<=.15
+            guard_fresh=now-self.guard_received<=.4 and now-self.supervisor_received<=.4
+            if state_fresh and guard_fresh:return
+            if now>=deadline:
+                if not state_fresh:raise RuntimeError(f'STATE STALE: receive age={now-self.received:.3f}s, source age={source-self.stamp:.3f}s')
+                raise RuntimeError('GUARD/SUPERVISOR LOST')
+            # No new command is sent while the client catches up. The separate
+            # geometric guard and resource watchdog continue uninterrupted.
+            rclpy.spin_once(self,timeout_sec=.002)
 
     def connect(self,guard=True):
-        self.wait(lambda:bool(self.positions) and (not guard or self.guard is not None and self.supervisor is not None and self.live_signature is not None),timeout=12.)
+        self.wait(lambda:bool(self.positions) and (not guard or self.guard is not None and self.supervisor is not None
+                  and self.live_signature is not None and self.get_clock().now().nanoseconds>0),timeout=12.)
         if guard:self.health()
         if guard:
             for client in (self.switch_client,self.list_client):
@@ -156,9 +173,10 @@ class MotionClient(Node):
                     continue
                 if future is None or not future.done():finished=False;continue
                 response=future.result()
-                if response.result.error_code!=FollowJointTrajectory.Result.SUCCESSFUL:raise RuntimeError(rid+': '+response.result.error_string)
+                if response.status!=GoalStatus.STATUS_SUCCEEDED or response.result.error_code!=FollowJointTrajectory.Result.SUCCESSFUL:
+                    raise RuntimeError(rid+': trajectory cancelled, preempted or failed: '+response.result.error_string)
                 error=max(abs(self.positions[j]-targets[rid][i]) for i,j in enumerate(joint_names(rid)))
-                if error>.001:finished=False
+                if error>cfg['goal_tolerance_rad']:finished=False
             if finished and len(results)==len(arms):break
             if time.monotonic()>deadline:raise TimeoutError('Measured phase progress timed out')
         return new_stops
@@ -206,7 +224,7 @@ def execute(plan,output,restore_start=False):
     own_context=not rclpy.ok()
     if own_context:rclpy.init()
     client=MotionClient(plan.get('layout_path'));result=dict(success=False,guard_stops=0,phase_count=0)
-    started=time.monotonic()
+    result['stage']='CONNECT';started=time.monotonic()
     try:
         client.connect();cfg=plan['config']
         with tempfile.TemporaryDirectory(prefix='uwa-execute-') as directory:
@@ -218,6 +236,7 @@ def execute(plan,output,restore_start=False):
             if any(status.get('guard_config_signature')!=guard_signature(cfg) for status in (client.guard,client.supervisor)):
                 raise ValueError('Plan/guard/hold operating bounds differ')
             request=plan['request'];selected=request['selected']
+            result['stage']='PREPARATION'
             if restore_start:
                 # Reposition in simulation through the same planner and guard,
                 # never teleport/reset the Gazebo entity to a benchmark start.
@@ -225,18 +244,24 @@ def execute(plan,output,restore_start=False):
                     if max(abs(client.positions[j]-request['start'][j]) for j in joint_names(r))>.001}
                 if reposition_goals:
                     reposition=problem.normalize(dict(start=dict(client.positions),goals=reposition_goals))
-                    preparation=problem.plan(reposition,'rrtconnect',0,normalized=True)
+                    problem.cfg=dict(cfg,planning_budget_s=60.)  # setup is outside the10s comparison budget
+                    try:preparation=problem.plan(reposition,'rrtconnect',0,normalized=True)
+                    finally:problem.cfg=cfg
+                    preparation_file=Path(output).parent/'preparation'/Path(output).name
+                    dump(preparation_file,preparation);result['preparation_plan_file']=str(preparation_file)
                     if not preparation['success']:raise RuntimeError('Benchmark start reposition failed: '+preparation.get('error',''))
                     _follow(problem,client,preparation,result)
             if max(abs(client.positions[j]-request['start'][j]) for n in problem.names.values() for j in n)>.002:
                 raise ValueError('Live start differs from checked plan; generate a fresh plan')
             result['setup_wall_s']=time.monotonic()-started;motion_started=time.monotonic();sim_started=client.get_clock().now().nanoseconds/1e9
+            result['stage']='EXECUTION'
             result['preparation_phase_count']=result['phase_count'];result['phase_count']=0;client.minimum_clearance=float('inf')
             _follow(problem,client,plan,result)
             result.update(success=not result['stopped_arms'],actual_wall_s=time.monotonic()-motion_started,
                           actual_simulation_s=client.get_clock().now().nanoseconds/1e9-sim_started,
                           minimum_observed_sphere_clearance_m=client.minimum_clearance if np.isfinite(client.minimum_clearance) else None,
                           final_positions=dict(client.positions))
+            if result['success']:result['stage']='COMPLETE'
     except BaseException as error:
         result['error']=str(error)
         import traceback
@@ -263,7 +288,7 @@ def _follow(problem,client,plan,result):
             result['stopped_arms']=sorted(stopped)
             if not active:break
             error=max(abs(client.positions[j]-desired[j]) for r in active for j in joint_names(r))
-            if error<=.001:break
+            if error<=problem.cfg['goal_tolerance_rad']:break
             targets,unsafe=safe_targets(problem,client,desired,active)
             if targets is None:
                 # Preserve independent remaining arms when only some paths
@@ -307,7 +332,10 @@ def stop_all():
         since=None;end=time.monotonic()+5.
         while time.monotonic()<end:
             rclpy.spin_once(client,timeout_sec=.02)
-            quiet=(time.monotonic()-client.received<.15 and max(abs(v) for v in client.velocities.values())<.003)
+            quiet=(time.monotonic()-client.received<.15 and time.monotonic()-client.source_advanced<.15
+                   and client.get_clock().now().nanoseconds>0 and
+                   -.02<=client.get_clock().now().nanoseconds/1e9-client.stamp<=.15 and
+                   max(abs(v) for v in client.velocities.values())<.003)
             if quiet:
                 if since is None:since=time.monotonic()
                 if time.monotonic()-since>=.3:return 'STOPPED: four resource holds active; measured standstill confirmed'

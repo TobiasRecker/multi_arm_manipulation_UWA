@@ -163,3 +163,79 @@ class CaptureMonitor:
         report['joint_samples'] = 'joint_samples.jsonl'
         (self.directory / 'stationarity.json').write_text(json.dumps(report, indent=2, allow_nan=False) + '\n')
         return report
+
+
+class ProcessCaptureMonitor:
+    """Keep raw telemetry/audit independent of image decoding and detector GIL."""
+    def __init__(self, workspace, directory, arms):
+        import subprocess
+        import sys
+        self.directory = Path(directory)
+        self.ready_path = self.directory/'audit_ready.json'
+        self.error_path = self.directory/'audit_error.json'
+        self.finish_path = self.directory/'audit_finish'
+        self.log = (self.directory/'audit_worker.log').open('w')
+        self.child = subprocess.Popen([sys.executable, '-m', __name__,
+            '--workspace', str(workspace), '--directory', str(directory),
+            '--arms', ','.join(arms)], stdout=self.log, stderr=subprocess.STDOUT,
+            start_new_session=True)
+
+    def wait_still(self, timeout=5.):
+        deadline = time.monotonic()+timeout+5  # Includes interpreter/ROS discovery startup.
+        while time.monotonic()<deadline:
+            if self.error_path.exists():
+                raise RuntimeError(json.loads(self.error_path.read_text())['error'])
+            if self.ready_path.exists():
+                return
+            if self.child.poll() is not None:
+                raise RuntimeError('Independent telemetry worker exited before settling')
+            time.sleep(.025)
+        raise RuntimeError('Independent stationary telemetry unavailable; no photos requested')
+
+    def finish(self):
+        import subprocess
+        self.finish_path.touch()
+        try:
+            self.child.wait(timeout=5.)
+        except subprocess.TimeoutExpired:
+            # This process owns subscriptions/files only, never robot commands.
+            self.child.terminate()
+            try:self.child.wait(timeout=2.)
+            except subprocess.TimeoutExpired:
+                self.child.kill();self.child.wait()
+            raise RuntimeError('Independent telemetry worker did not finish')
+        finally:
+            self.log.close()
+        report_path = self.directory/'stationarity.json'
+        if self.child.returncode or self.error_path.exists() or not report_path.exists():
+            raise RuntimeError('Independent telemetry audit failed; see audit_worker.log')
+        report = json.loads(report_path.read_text())
+        report['observer_isolation'] = 'separate read-only process, independent of image work'
+        return report
+
+
+def monitor_main():
+    import argparse
+    parser = argparse.ArgumentParser(description='Read-only independent photo stationarity audit')
+    parser.add_argument('--workspace', required=True, type=Path)
+    parser.add_argument('--directory', required=True, type=Path)
+    parser.add_argument('--arms', required=True)
+    args = parser.parse_args()
+    monitor = None
+    try:
+        monitor = CaptureMonitor(args.workspace, args.directory, args.arms.split(','))
+        monitor.wait_still()
+        (args.directory/'audit_ready.json').write_text(json.dumps(dict(ready=True, armed_monotonic=time.monotonic())))
+        while not (args.directory/'audit_finish').exists():
+            if not monitor.thread.is_alive():
+                raise RuntimeError('Independent telemetry observer thread failed')
+            time.sleep(.02)
+    except BaseException as error:
+        (args.directory/'audit_error.json').write_text(json.dumps(dict(error=str(error))))
+        raise
+    finally:
+        if monitor is not None:monitor.finish()
+
+
+if __name__ == '__main__':
+    monitor_main()

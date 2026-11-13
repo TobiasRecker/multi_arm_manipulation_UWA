@@ -3,7 +3,8 @@
 Stand: 12.11.2026. Nutzerziel: ein Objekt in einem gemeinsamen Tischbereich mit
 vier Wrist-Kameras und OAK fotografieren, optional mit zusätzlichen Ansichten
 nach kleinen Kamerabewegungen. Konzept und Literaturbewertung. Die erste Implementierung ist inzwischen unter
-[OAK zuerst und Fünfkamera-Aufnahme](object_scan.md) dokumentiert; noch keine reale Scan-Fahrt.
+[OAK zuerst und Fünfkamera-Aufnahme](object_scan.md) dokumentiert. Am13.11. erreichten alle vier Arme ihre fünf realen Scanstellungen;
+24/25 Bilder sind bestätigt. [Ergebnis und Grenzen](parallel_object_scan.md).
 
 ## Nutzen und gemeinsame Sicht
 

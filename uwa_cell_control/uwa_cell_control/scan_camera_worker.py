@@ -62,6 +62,8 @@ class CameraProcess:
 
 def serve(workspace, output, ipc):
     from .board_capture import CaptureRig, FIVE_CAMERAS
+    import cv2
+    cv2.setNumThreads(2)  # Bound image-analysis CPU fan-out beside native UR loops.
     workspace, output, ipc = Path(workspace), Path(output), Path(ipc)
     rig = CaptureRig(workspace, output, cameras=FIVE_CAMERAS,
         optics_path=workspace/'src/multi_arm_manipulation_UWA/config/digitization/five_camera_capture.yaml', board='both')

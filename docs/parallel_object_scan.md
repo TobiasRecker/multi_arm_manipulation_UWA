@@ -1,40 +1,41 @@
 # Vierarm-Objektscan: realer Runner und aktueller Startstand
 
-Stand:13.11.2026. Nutzer beauftragt echte parallele Ausführung und bestätigt
-Nothalt-Bediener, Remote-Control sowie unveränderten/freien Aufbau.
+Stand: 13.11.2026. Alle vier Arme haben jeweils die fünf geplanten Stellungen
+erreicht. **24 von 25 Bildern sind bestätigt; die letzte OAK-Aufnahme fehlt.**
+Alle Arme stehen, Fahrcontroller sind inaktiv, keine automatische Rückfahrt.
 
-**Erste parallele Anfahrt aller vier Arme erfolgreich erreicht. Scan danach
-angehalten; vier Zusatzrunden noch offen.** Keine automatische Wiederaufnahme.
+## Ergebnis und aktueller Stand
 
-## Aktueller Stand und Blocker
+- Nach ausdrücklicher Nutzerfreigabe Restwege ab Runde2 erneut vollständig
+  live, per Quellhash, Modell und Kollision geprüft. Runden2–5 parallel gefahren,
+  letzte Zielstellungen um12:48:07 AWST erreicht. Bestehender Trennnachweis
+  einschließlich Trackingreserve blieb unverändert.
+- Datenindex: `setup/digitization/four_arm_scan_20261113/scan_dataset_partial.json`.
+  Ein gültiger initialer Fünfersatz nach OAK-Neustart, drei vollständige weitere
+  Fünfersätze sowie vier Wrist-Fotos an der letzten Stellung. 20 Wrist-Ansichten,
+  vier native8K-OAK-Bilder und 21 verschiedene Kamerastandpunkte. Bildhashes,
+  native Größen, gemessene Gelenke, Sollpose und Stillstand geprüft. Mindestens
+  12 Boardecken je Wrist-Bild; keine neue metrische Genauigkeitsfreigabe.
+- Letzte Aufnahme nach abgeschlossener Fahrt wegen Telemetrielücke angehalten.
+  Tatsächlicher Stillstand bestätigt; 2,18-s-PC-Treiberzyklus protokolliert.
+  Beide linken External-Control-Programme stehen auf STOPPED und bleiben so;
+  Kamerawiederholungen starteten weder Programme noch Armziele.
+- Kameraarbeit in eigenem Prozess. Auch die Stillstandsaufzeichnung wurde in
+  einen eigenen read-only Prozess verlegt, nachdem Bildarbeit den bisherigen
+  Audit-Thread ausgebremst hatte. Realer Fototest und GIL-Blocktest bestanden,
+  ursprüngliche Frische-/Driftgrenzen erhalten. Planungsobjekt vor Fotoarbeit
+  freigegeben, OpenCV auf zwei Threads begrenzt. 87 gezielte Tests PASS.
+- Neuer Audit bestätigt die letzten vier Wrist-Fotos. OAK scheitert wieder beim
+  Pipeline-Start. Frühere Fehlversuche bleiben ungültig; nur passende gültige
+  Einzelbilder sind im partiellen Datenindex ausgewählt. Alle ursprünglichen
+  Wrist-Konfigurationen einschließlich Autofokus-ROIs restauriert.
+- Offizielles Kamera-OS1.47 lokal heruntergeladen und gegen Hersteller-MD5
+  geprüft; Werkskalibrierung gesichert. Kein Update ausgeführt. Die dauerhafte
+  Kamera-OS-Änderung mit Neustart wartet auf ausdrückliche Freigabe.
 
-- Vier RTDE-Treiber nach Netzverlust gezielt wiederhergestellt. Neue immutable
-  Plan-/Proofkette mit aktuellen Gelenken und OAK-Grobgeometrie geprüft.
-- run02:11:46:50–11:48:06AWST alle4Ziele erreicht; anschließend Fahrcontroller
-  inaktiv und Stillstand bestätigt. NativeWrist-Fotos: Objekt sichtbar und
-  12/20/16/12Boardecken. OAK-Pipeline scheitert weiter intermittierend.
--11:49:10 während Aufnahme GUI-Heartbeat verloren: überwachter Stopp, Stillstand
-  bestätigt, keine Zusatzfahrt/automatische Rückfahrt. Erstes Fünferset insgesamt
-  fehlgeschlagen, einschließlich Telemetrielücken; keine Qualitätsflags umgeschrieben.
-- Kameraarbeit jetzt eigener Prozess `scan_camera_worker`, getrennt vom
-  ROS-Bewegungswächter. Echter stationärer Retest:4Wrist-HD-Fotos und
-  StillstandsauditPASS; maximaleParent-Spinpause18,2ms. OAK wieder fehlgeschlagen.
-  Alle vier Kamera-Konfigurationen einschließlich Autofokus-ROIs restauriert.
-- GUI-Doppelstart gesperrt, SIGTERM-Ende geprüft. Ein Stoppfenster zeigt HALTED;
-  kein Fahrbackend aktiv. Ursache des früheren Heartbeatverlusts nicht endgültig
-  belegt, Bild-/SDK-Arbeit kann künftig die ROS-Python-Ausführung nicht mitblockieren.
-- Entscheidung offen: OAK zuerst stabilisieren oder vier Rest-Wrist-Runden mit
-  vorhandenem OAK-Foto als ausdrücklich zeitlich separater Referenz. Keine
-  weiteren Fahrten bis zur bewussten Auswahl/Fortsetzung.
-
-Rohdaten/Prüfungen: `setup/digitization/four_arm_scan_20261113/`, insbesondere
-`run02/`, `isolated_camera_preflight/result.json`, `full_camera_restore/` und
-`gui_signal_shutdown.json`. Die neueren Wrist-Fotos sind stationär bestätigt;
-das alte fehlgeschlagene Set bleibt als Diagnose erhalten.
-
-Spätere Fortsetzung kann `--start-round 2` verwenden; Startgelenke müssen exakt
-zu den ursprünglichen nächsten Pfaden passen. Es gibt keine Überblendungsfahrt.
-Quellhash, Modell, Kollisionen und Livezustand werden weiterhin neu geprüft.
+Rohdaten: run03_rest/, last_round_stationary_retry_v2/, scan_dataset_partial.json
+unter `setup/digitization/four_arm_scan_20261113/`. OAK-Updateplan unter
+`setup/oak4/stability_20261113/ota/update_plan.json`.
 
 Historischer Ausfall am12.11.:
 

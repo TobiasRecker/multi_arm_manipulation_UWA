@@ -91,6 +91,9 @@ def benchmark(problem,suite,output,limit=None,seeds=5,execute=False):
                 if path.exists():
                     previous=json.loads(path.read_text())
                     if previous.get('model_signature')!=problem.signature:raise ValueError('Existing result has a different model')
+                    if (previous.get('method')!=method or previous.get('seed')!=seed or
+                            request is not None and (previous.get('request')!=request or previous.get('config')!=problem.cfg)):
+                        raise ValueError('Cached result has different goals, start, configuration or seed; use a fresh output directory')
                     result=previous
                 elif normalization_error:
                     result=dict(success=False,error=normalization_error,planning_time_s=0.,method=method,seed=seed,model_signature=problem.signature)
@@ -124,6 +127,15 @@ def summarize(results):
 
 
 def replay_comparison(directory,limit=None):
+    import rclpy
+    owns_context=not rclpy.ok()
+    if owns_context:rclpy.init()
+    try:return _replay_comparison(directory,limit)
+    finally:
+        if owns_context:rclpy.shutdown()
+
+
+def _replay_comparison(directory,limit=None):
     """Execute unique successful trajectories; explicitly link identical repeats.
 
     Seeds test planning variability. Exact duplicate geometric/timed requests
@@ -131,6 +143,8 @@ def replay_comparison(directory,limit=None):
     """
     from .execution import execute
     directory=Path(directory);groups={};records=[]
+    if not json.loads((directory/'summary.json').read_text()).get('complete'):
+        raise ValueError('Complete offline comparison required before replay')
     for path in sorted(directory.glob('*.json')):
         value=json.loads(path.read_text())
         if 'case_id' not in value or 'method' not in value:continue
@@ -151,6 +165,7 @@ def replay_comparison(directory,limit=None):
             dump(path,value)
         completed+=1
         summary=json.loads((directory/'summary.json').read_text());summary.update(summarize([r for _,r in records]))
+        summary['execution_requested']=True
         summary['execution_summary']=dict(unique_trajectories=len(groups),completed_unique=completed,
             successes_unique=sum(json.loads(p.read_text()).get('success',False) for p in execution_directory.glob('*.json')),
             elapsed_wall_s=time.monotonic()-started,complete=completed==len(groups),exact_duplicates_share_record=True)

@@ -111,6 +111,17 @@ def test_fixed_neighbor_cases_really_intersect_sphere_paths(problem):
                    for u in np.linspace(.05,.95,19))
 
 
+def test_comparison_cache_cannot_reuse_a_different_goal(problem,tmp_path):
+    from uwa_cell_motion.benchmark import benchmark
+    from uwa_cell_motion.common import dump
+    request=simple(problem);old=problem.plan(request,'rrtconnect',0)
+    dump(tmp_path/'free_01-0-rrtconnect.json',old)
+    request['goals']['left_front'][-1]+=.01
+    suite=dict(model_signature=problem.signature,mesh_sha256=problem.spheres.geometry.assets,seeds=[0],
+        cases=[dict(id='free_01',category='free',request=request,expected_unreachable=False)])
+    with pytest.raises(ValueError,match='Cached result'):benchmark(problem,suite,tmp_path,seeds=1)
+
+
 def test_shared_timing_respects_limits_and_full_cell(problem):
     request=problem.normalize(simple(problem));q0=[request['start'][j] for j in request['joint_names']]
     trajectory=problem.time_parameterize(request,[q0,request['target']]);points=trajectory['points']

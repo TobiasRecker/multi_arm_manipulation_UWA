@@ -25,7 +25,8 @@ def config(path=None):
 
 
 def simulation_only():
-    if os.environ.get('ROS_DOMAIN_ID') != '64' or os.environ.get('GZ_PARTITION') != 'uwa_cell_sim':
+    if (os.environ.get('ROS_DOMAIN_ID') != '64' or os.environ.get('GZ_PARTITION') != 'uwa_cell_sim'
+            or os.environ.get('ROS_AUTOMATIC_DISCOVERY_RANGE')!='LOCALHOST'):
         raise RuntimeError('Simulation only: source scripts/env.bash (domain64, uwa_cell_sim)')
 
 

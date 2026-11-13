@@ -3,7 +3,8 @@
 Starts its own geometric guard fixture against the real simulated JointStates.
 Only this fixture alters reported clearances/freshness. No fault-injection
 interface is exposed by the installed production nodes. Existing supervisor
-and four loaded hold controllers are required. Leaves all arms held on exit.
+and four loaded hold controllers are required, or use --own-supervisor after
+stopping motion.sh. Leaves all arms held on exit.
 """
 import argparse
 import json
@@ -47,15 +48,23 @@ def fixture(path):
     finally:node.destroy_node();rclpy.shutdown()
 
 
-def check(output):
+def check(output,own_supervisor=False):
     simulation_only();cfg=config();results={};rclpy.init();node=MotionClient()
     trace=[]
     node.create_subscription(String,'/uwa_cell/collision_guard/decision',lambda msg:trace.append(json.loads(msg.data)),10)
-    child=None
+    child=None;supervisor_child=None
     with tempfile.TemporaryDirectory(prefix='uwa-guard-live-') as directory:
         flags=Path(directory)/'faults.json';dump(flags,{})
         log=open(Path(output).with_suffix('.fixture.log'),'w')
         try:
+            if own_supervisor:
+                node.connect(guard=False)
+                if any(name in ('collision_guard','collision_supervisor') and namespace=='/uwa_cell'
+                       for name,namespace in node.get_node_names_and_namespaces()):
+                    raise RuntimeError('Stop the existing motion service before --own-supervisor')
+                from ament_index_python.packages import get_package_prefix
+                executable=Path(get_package_prefix('uwa_cell_motion'))/'lib/uwa_cell_motion/cell_motion'
+                supervisor_child=subprocess.Popen([str(executable),'supervisor'],stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
             child=subprocess.Popen([sys.executable,__file__,'--fixture',str(flags)],stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
             node.connect()
             node.wait(lambda:set(node.supervisor['held_arms'])==set(ROBOT_IDS),5.)
@@ -138,13 +147,17 @@ def check(output):
                 child.send_signal(signal.SIGCONT);child.send_signal(signal.SIGINT)
                 try:child.wait(timeout=5.)
                 except subprocess.TimeoutExpired:child.kill();child.wait()
+            if supervisor_child:
+                supervisor_child.send_signal(signal.SIGINT)
+                try:supervisor_child.wait(timeout=5.)
+                except subprocess.TimeoutExpired:supervisor_child.kill();supervisor_child.wait()
             dump(output,results);node.destroy_node();rclpy.shutdown();log.close()
     if not results['success']:raise SystemExit(1)
 
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--fixture');parser.add_argument('--output')
+    parser=argparse.ArgumentParser();parser.add_argument('--fixture');parser.add_argument('--output');parser.add_argument('--own-supervisor',action='store_true')
     args=parser.parse_args()
     if args.fixture:fixture(args.fixture)
-    elif args.output:check(args.output)
+    elif args.output:check(args.output,args.own_supervisor)
     else:parser.error('--output required')

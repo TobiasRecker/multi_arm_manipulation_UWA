@@ -69,6 +69,14 @@ def test_future_source_stamp_refused(cfg):
     assert core.evaluate(pairs(),1,1)['state']=='STATE STALE'
 
 
+def test_rewound_arm_epoch_latches_its_neighbors_and_keeps_cause(cfg):
+    core=GuardState(cfg);fresh(core,1)
+    core.receive('left_front',np.zeros(7),np.zeros(7),.9,1.01)
+    status=core.evaluate(pairs(),1.01,1.01)
+    assert set(status['blocked_arms'])=={'left_front','right_front','left_rear'}
+    assert any(c['reason']=='CLOCK RESET' for c in status['latched_causes'])
+
+
 def test_reset_requires_stationary_history_and_hysteresis(cfg):
     core=GuardState(cfg);fresh(core,1);core.evaluate(pairs(.01),1,1)
     assert not core.reset(pairs(),1,1)[0]

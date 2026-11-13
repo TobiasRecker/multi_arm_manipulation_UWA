@@ -34,12 +34,14 @@ class CollisionGuard(Node):
         self.core = GuardState(cfg); self.cfg = cfg; self.pairs = []; self.positions = {}
         self.instance = str(uuid.uuid4()); self.sequence = 0
         self.previous_blocked=set()
+        self.supervisor_status={}
         self.publisher = self.create_publisher(String, '~/decision', 10)
         self.markers = self.create_publisher(MarkerArray, '~/markers', 1)
         self.diagnostics = self.create_publisher(DiagnosticArray, '~/diagnostics', 10)
         self.create_subscription(JointState, '/uwa_cell/joint_states', self.receive, qos_profile_sensor_data)
         self.create_subscription(String,'/uwa_cell/robot_description',self.description_message,
             QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL,reliability=ReliabilityPolicy.RELIABLE))
+        self.create_subscription(String,'/uwa_cell/collision_supervisor/status',self.supervisor_message,10)
         self.create_service(Trigger, '~/reset', self.reset)
         self.create_timer(1/cfg['rate_hz'], self.tick, clock=self.get_clock())
         self.get_logger().info('RUNNING: four neighbor pairs,10Hz; reset is explicit; simulation only')
@@ -56,6 +58,10 @@ class CollisionGuard(Node):
     def description_message(self,msg):
         try:self.model_match=collision_signature(msg.data)==self.signature
         except Exception:self.model_match=False
+
+    def supervisor_message(self,msg):
+        try:self.supervisor_status=json.loads(msg.data)
+        except (ValueError,TypeError):pass
 
     def geometry(self, now):
         velocities = {r: self.core.records[r]['v'] for r in self.core.records}
@@ -89,7 +95,7 @@ class CollisionGuard(Node):
             level=DiagnosticStatus.OK if status['state']=='CLEAR' else DiagnosticStatus.ERROR,
             message=status['state'], values=[KeyValue(key='blocked_arms',value=','.join(status['blocked_arms']))])
         diag.status=[item]; self.diagnostics.publish(diag)
-        if world is not None: self.show(world, status)
+        self.show(world or {}, status)
 
     def show(self, world, status):
         markers=[Marker(action=Marker.DELETEALL)]; stamp=self.get_clock().now().to_msg(); number=0
@@ -97,10 +103,10 @@ class CollisionGuard(Node):
             if rid in world:continue
             label=Marker();label.header.frame_id=rid+'_base_link';label.ns='unknown';label.id=number;number+=1
             label.type=Marker.TEXT_VIEW_FACING;label.pose.orientation.w=1.;label.pose.position.z=.8;label.scale.z=.09
-            label.color.r=label.color.g=label.color.b=label.color.a=1.;label.text=rid+' STATE STALE — NO JOINTS'
+            label.color.r=label.color.g=label.color.b=label.color.a=1.;label.text=rid+' STATE UNAVAILABLE'
             markers.append(label)
         for rid, centres in world.items():
-            blocked=rid in status['blocked_arms']
+            blocked=rid in status['blocked_arms'] or rid in self.supervisor_status.get('blocked_arms',[])
             for centre, radius in zip(centres, self.model.radii[rid]):
                 marker=Marker(); marker.header.frame_id='world'; marker.header.stamp=stamp
                 marker.ns=rid; marker.id=number; number+=1; marker.type=Marker.SPHERE
@@ -113,7 +119,19 @@ class CollisionGuard(Node):
             label.pose.position=Point(x=float(centres[0,0]),y=float(centres[0,1]),z=1.7)
             label.pose.orientation.w=1.; label.scale.z=.10
             label.color.r=label.color.g=label.color.b=label.color.a=1.
-            label.text=rid+' '+(status['state'] if blocked else 'CLEAR'); markers.append(label)
+            if rid in status['blocked_arms']:state=status['state']
+            elif blocked:
+                state='STOPPED (HOLD)' if rid in self.supervisor_status.get('held_arms',[]) and self.core.stationary(rid,time.monotonic()) else 'STOPPING (HOLD)'
+            else:state='CLEAR'
+            record=self.core.records[rid];age=1000*(time.monotonic()-record['received'])
+            source_age=1000*(self.get_clock().now().nanoseconds/1e9-record['stamp'])
+            label.text=f'{rid} {state}\ndata {age:.0f}ms / source {source_age:.0f}ms'; markers.append(label)
+        if status['state']!='CLEAR' or self.supervisor_status.get('blocked_arms'):
+            alert=Marker();alert.header.frame_id='world';alert.ns='alert';alert.id=0;alert.type=Marker.TEXT_VIEW_FACING
+            alert.pose.orientation.w=1.;alert.pose.position.z=2.2;alert.scale.z=.12
+            alert.color.r=alert.color.g=alert.color.b=alert.color.a=1.
+            state=status['state'] if status['state']!='CLEAR' else self.supervisor_status.get('state','HOLD')
+            alert.text='COLLISION GUARD: '+state;markers.append(alert)
         for pair in self.pairs:
             line=Marker(); line.header.frame_id='world'; line.ns='nearest'; line.id=number; number+=1
             line.type=Marker.LINE_LIST; line.pose.orientation.w=1.; line.scale.x=.012

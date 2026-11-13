@@ -30,54 +30,44 @@
   Gelenke gesichert und identisch zu den konfigurierten Anfangsstellungen.
   Reale Scan-/Kamera-/Treiberarbeit anderer Aufgabe erhalten.
 
-## Vierarm-Scan: erste reale Anfahrt, anschließend angehalten, 2026-11-13
+## Vierarm-Scan: fünf Stellungen erreicht, 24/25 Bilder bestätigt, 2026-11-13
 
-- Nutzer bestätigt Remote-Control, Anwesenheit am Nothalt, unveränderten Karton/
-  Tischaufbau sowie freie Fahrbereiche/Kabel. Alle vier Dashboards erreichbar.
-  Vier RTDE-Reader waren nach Netzausfall ausgefallen, lieferten Cachewerte;
-  Launches gezielt ersetzt. LF-Controller inaktiv nachgeladen, LR/RR ros.urp
-  über MATCH verbunden, RF nach echtem NORMAL/Remote-Check über Dashboard
-  stop/play. Keine Power-/Brake-Aktion oder Safety-Quittierung.
-- Frisches OAK-Prüffoto:8000×6000/Fokus116, assistierte Grobmaße43,3×34,3×16,2cm.
-  RechteBoard-PnP1,83px; scheinbare Referenzdifferenz zum12.11.1,77mm/0,34°
-  einschließlich PnP-Unsicherheit. Erfolg11:12 und11:45; wiederholte spätere
-  OAK-Pipeline-Starts mit SDK-Pingverlust/FW-crash/Device-not-found fehlgeschlagen.
-  Kein manueller Gerätereset oder Firmwareflash; Ursache weiter offen.
-- Neue immutable Plan-/Proofkette:20Wege/fünfRunden, alle4parallel geprüft,
- 50mmRestabstand inklusive±0,005radKorridor; kleinsteModelluntergrenze339,89mm.
-  Vollständiger neuer Live-/Modell-/Kollisionscheck vor Start bestanden.
-- run01 vor Bewegung am Kamera-Fokus/LED-Check abgebrochen. Fokuspfad schreibt
-  nun nur Fokus+korrektenManaged-LED-Setter, CB3 nutzt denselben erprobten32bit-
-  Helfer wie sein Service. Autofokus-ROI wird ohne Visionneustart mit begrenztem
-  gemeinsamem Koordinatenfeedback vollständig restauriert; keine gelockerten
-  Prüfgrenzen. Vier Originalkonfigurationen nach realen Tests bestätigt.
-- **run02: erste vier Ziele parallel erreicht**, Fahrt11:46:50–11:48:06AWST.
-  Fahrcontroller danach inaktiv. Erste Wrist-HD-Bilder zeigen Karton und
- 12/20/16/12ChArUco-Ecken. OAK-Aufnahme gescheitert; um11:49:10 GUI-Heartbeat-
-  Verlust, überwachter Stopp und echter Stillstand bestätigt. Keine Zusatzfahrt,
-  kein Rückfahrziel, keine automatische Wiederaufnahme. Gesamter Bildsatz wegen
-  OAK-Fehler und Telemetrielücken nicht als gültiges Fünferset freigegeben.
-- Kameraarbeit jetzt eigener `scan_camera_worker`-Prozess; ROS-Wächter bleibt
-  unabhängig. Echter stationärer Retest: alle4Wrist-HD-Fotos/StillstandsauditPASS,
-  längste gemessene Parent-Spinpause18,2ms, OAK weiter fehlgeschlagen. Alle vier
-  Originalkonfigurationen danach bestätigt. Das behebt die beobachtete Kopplung;
-  genaue Ursache des früheren Heartbeatverlusts bleibt nicht abschließend belegt.
-- GUI: Singleton, sauberes SIGINT/SIGTERM-Ende statt weiterlaufendem Qt-Fenster
-  mit ungültigem ROS-Kontext; Doppelstart und echter Signalabschluss geprüft.
-  Aktuell ein neues Fenster mit HALTED-Text, kein Bewegungsbackend aktiv.
-- `--start-round 2` für spätere ausdrücklich ausgelöste Fortsetzung vorbereitet:
-  exakt ursprüngliche nächste Pfadanfänge, keine Überblendung/Initialfahrt.
-  Ursprüngliche Hash-/Modell-/Live-/Stillstandsprüfungen bleiben erforderlich.
-- Nutzerentscheidung angefragt: erst OAK stabilisieren oder vier verbleibende
-  Wrist-Runden mit schon vorhandenem OAK-Bild als zeitlich separater Referenz.
-  Bis dahin keine weiteren Fahrten. Bisher kein vollständiger Fünfrundenscan.
-- Artefakte unter `setup/digitization/four_arm_scan_20261113/`: plan_wall60_reserves,
-  separation50_tracking005, run02, isolated_camera_preflight, Kamera-/GUI-/Testlogs.
-  Aktueller Bedien-/Startstand: docs/parallel_object_scan.md.
-
-
-- Abschließende68gezielteTestsPASS; letzte echte Prüfung alle4RUNNING/NORMAL,
-  ExternalControlverbunden, Stillstandbestätigt, sämtlicheFahrcontrollerinaktiv.
+- Nutzer erlaubte nach OAK-Prüfung ausdrücklich die Fortsetzung. Alle vier Arme
+  haben ihre fünf geplanten Stellungen erreicht; Restfahrt 12:45:43–12:48:07 AWST.
+  Neue Live-/Hash-/Modell-/Kollisionsprüfung vor der Fortsetzung bestanden.
+  Bewegungsräume waren einschließlich Trackingreserve mit mindestens 339,89 mm
+  Modellabstand getrennt. Keine native Sicherheitsfunktion verändert/quittiert.
+- Gültiger Datenindex: `setup/digitization/four_arm_scan_20261113/scan_dataset_partial.json`.
+  Alle 20 Wrist-Ansichten plus vier OAK-Fotos, 21 verschiedene Kamerastandpunkte.
+  Native 2592×1944 bzw. 8000×6000, feste Foki, Bildhashes, Sollpose/Stillstand und
+  mindestens 12 Boardecken je Wrist-Bild geprüft. Vorschau `scan_overview.jpg`.
+  Es fehlt nur die letzte OAK-Aufnahme; kein vollständiges 25-Bilder-PASS behaupten.
+  Geometrische Rekonstruktionsgenauigkeit ist noch nicht ausgewertet.
+- Initialstellung aus gültigem stationärem Fünferset nach Nutzer-OAK-Neustart
+  übernommen, nicht aus dem fehlgeschlagenen run02. Runde 2–4 aus run03_rest.
+  Letzte vier Wrist-Bilder aus last_round_stationary_retry_v2 mit gültigem Audit.
+  Fehlerhafte Versuche und ihre Qualitätsflags unverändert erhalten.
+- Letzte Fahrt war bereits abgeschlossen, als Telemetrie während der Aufnahme
+  ausblieb. Wächter bestätigte Stopp/Stillstand. PC-Treiber protokollierte einen
+  2,18-s-Zyklus; Speicherengpässe wurden beobachtet, genaue Ursache offen.
+  Beide linken External-Control-Programme stehen auf STOPPED und wurden für die
+  Kamera-Wiederholungen nicht gestartet. Letzte Prüfung: alle vier RUNNING/NORMAL,
+  tatsächlicher Stillstand, sämtliche Fahrcontroller inaktiv. Kein Rückfahrziel.
+- Bewegungswächter, Kameraarbeit und Stillstandsaufzeichnung jetzt in getrennten
+  Prozessen. Audit-Thread im Bildprozess hatte trotz frischer Parent-Telemetrie
+  Lücken; eigener read-only Audit-Prozess besteht echten Fototest und GIL-Blocktest.
+  Frische-/Bewegungsgrenzen unverändert. CV-Threads auf zwei begrenzt und temporäres
+  Planungsobjekt vor Fotoarbeit nicht weitergehalten. 87 gezielte Tests PASS.
+- OAK nach vom Nutzer bestätigtem Neustart zunächst neun native Fotos fehlerfrei,
+  später erneut Pipeline-Startfehler. SDK3.11 isoliert verglichen: kein Bild,
+  kein Produktivwechsel. Aktuell SDK3.12 / Kamera-OS1.32.1 unverändert.
+- Offizielles OAK-OS1.47-Paket vollständig lokal vorbereitet: Hersteller-MD5
+  stimmt, SHA256 `c0de519ab273a8dac1a327cc639316b5dcf22f4b38972d069bd973b579989639`.
+  Frische Werkskalibrierung gesichert, exakt gleich zur Sicherung vom12.11.
+  **Noch kein OS-Update; Freigabe für dauerhafte Kamera-OS-Änderung mit Neustart
+  ausstehend.** Plan/Paket unter setup/oak4/stability_20261113/ota/.
+- Bedienung und Grenzen: docs/parallel_object_scan.md; OAK-Diagnose im OAK-Repo
+  OAK4_STABILITY_2026-11-13.md. Keine weitere Armbewegung für diesen Auftrag nötig.
 
 ## Schnellere HD-Fotos und nutzungsabhängige LEDs,2026-11-12
 

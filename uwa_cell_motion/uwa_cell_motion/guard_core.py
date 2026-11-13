@@ -24,7 +24,9 @@ class GuardState:
         if source_stamp > self.last_stamp.get(rid, -np.inf):
             self.last_source_advance[rid] = now
         elif source_stamp < self.last_stamp.get(rid, -np.inf):
-            self.latched.add(rid)  # clock reset invalidates trajectories
+            affected=sorted({r for pair in PAIRS if rid in pair for r in pair})
+            self.latched.update(affected)
+            self.causes.append(dict(arms=affected,reason='CLOCK RESET',source_time_s=source_stamp))
         self.last_stamp[rid] = source_stamp
         self.records[rid] = dict(q=q, v=v, received=now, stamp=source_stamp)
         history = self.history.setdefault(rid, [])
@@ -55,7 +57,12 @@ class GuardState:
                 faults.append(dict(arms=[rid],reason='SPEED LIMIT'))
         for a, b in PAIRS:
             if not self.fresh(a, now, source_now) or not self.fresh(b, now, source_now):
-                faults.append(dict(arms=[a, b], reason='STATE STALE'))
+                detail={}
+                for rid in (a,b):
+                    record=self.records.get(rid)
+                    detail[rid]=None if record is None else dict(receive_age_s=now-record['received'],
+                        source_age_s=source_now-record['stamp'],source_advance_age_s=now-self.last_source_advance.get(rid,now))
+                faults.append(dict(arms=[a, b], reason='STATE STALE',state_detail=detail))
         for pair in pairs:
             if not np.isfinite([pair['clearance_m'], pair['threshold_m']]).all() or pair['clearance_m'] <= pair['threshold_m']:
                 faults.append(dict(arms=pair['arms'], reason='DISTANCE'))

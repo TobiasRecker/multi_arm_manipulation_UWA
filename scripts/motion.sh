@@ -7,7 +7,7 @@ if (($#)); then shift; fi
 case "$operation" in
   start)
     if systemctl --user is-active --quiet uwa-cell-motion; then
-      echo 'RUNNING: simulation collision guard already active';exit 0
+      echo 'SERVICE ACTIVE: inspect guard/supervisor status for CLEAR, STOPPED or STATE STALE';exit 0
     fi
     systemd-run --user --unit=uwa-cell-motion --collect \
       --property=TimeoutStopSec=15 --property=KillSignal=SIGINT --property=KillMode=mixed \

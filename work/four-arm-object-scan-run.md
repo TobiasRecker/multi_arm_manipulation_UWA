@@ -1,6 +1,6 @@
 # Erster realer Scan mit vier parallelen Armen
 
-- Status: **angehalten; Nutzer wählt OAK-Stabilisierung ohne weitere Armbewegungen**, 2026-11-13, Hauptagent Digitalisierung.
+- Status: **alle fünf Stellungen erreicht; 24/25 Bilder bestätigt, OAK-Update vorbereitet**, 2026-11-13, Hauptagent Digitalisierung.
 - Nutzer beauftragt Durchführung mit allen Robotern parallel und bleibt am
   physischen Nothalt. Das ist die Freigabe zur Vorbereitung/Ausführung eines
   tatsächlich kollisionsgeprüften Ablaufs; ungeklärte hintere Zusatzpfade nicht
@@ -133,3 +133,35 @@
 
 - Nutzer wählt ausdrücklich: zuerst OAK stabilisieren, keine weiteren
   Armbewegungen. Neuer Diagnoseeintrag work/oak-connection-stabilization.md.
+
+- Nach Nutzer-OAK-Neustart9nativeOAK-Aufnahmen und2vollständige stationäre
+  Fünfkamera-SätzePASS, Watchdog/Stillstand stabil. Originalkameraeinstellungen
+  restauriert. Neue ausdrücklicheAnweisung: beiOAK-PASS weitermachen.
+- Fortsetzung ab originalerRunde2 vorbereitet, keineInitial-/Überblendungsfahrt.
+  VorStart erneuter Live-/Quell-/Modell-/Kollisionscheck; Bereiche/Simulation
+  desanderenAgenten unverändert. Bewegung wird vorBefehlen angekündigt.
+
+- run03_rest: alleRestzieleRunde2–5parallel erreicht, Runden2–4vollständige
+  FünfersetsPASS. LetzteAufnahme trotzallerBilder wegenTelemetriestalegestoppt;
+  Stillstand bestätigt. LF-Treiberzyklus2,18s undMemory-Pressure protokolliert,
+  linkeExternalControlProgrammeSTOPPED/NORMAL. KeineweitereFahrt/Programmstart.
+- Kamerawiederholung an Endstellungen: Parentwächterdurchgehendfrisch, jedoch
+  bisheriger Audit-Thread imBildprozess mit Lücken. Failed-SetsbleibenFAIL.
+  Auditjetzt eigenerreadonlyProzess; GIL-Block-/WorkerfehlerregressionenPASS,
+  zusammen30gezielteTestsPASS. CV-Threadsauf2begrenzt, temporäresPlanungsmodell
+  vorBildarbeitfreigegeben. Originalschwellenunverändert.
+- Weitere ausschließlichstationäreWiederholung in last_round_stationary_retry_v2/;
+  keinFahrbackend, linkeProgrammebleibengestoppt. DanachDatenindexfinalisieren.
+
+- Unabhängiger Audit-Prozess realPASS: letzte4Wrist-Bilder mitgültigemStillstand,
+  OAK beimPipeline-Start erneutfehlgeschlagen. KeinFehlflagumgeschrieben.
+- Datensatzindex scan_dataset_partial.json: alle20Wrist-Ansichten und4OAK-Fotos,
+  21verschiedeneKamerastandpunkte. Alle5Posensätze mitSollvergleich/Hash/Bildgröße
+  geprüft; einzigletztesOAK-Fotofehlt. Vorschau scan_overview.jpg.
+- OAKSDK3.11isoliertversucht, keinGerätezugriff/keinBild; produktiverSDK3.12
+  unverändert. OffiziellesOS1.47-OTA vollständig lokalvorbereitet, Hersteller-
+  MD5passt, SHA256c0de519ab273a8dac1a327cc639316b5dcf22f4b38972d069bd973b579989639.
+  FrischeWerkskalibrierung gesichert/identisch. KeinUpdateausgeführt; explizite
+  Freigabe fürdauerhafteKamera-OS-Änderung mitNeustart ausstehend.
+- Abschließende87gezielteTestsPASS. KeineweiterenArmziele. LetzteDashboards
+  alleRUNNING/NORMAL, Fahrcontrollerinaktiv; beidelinkenProgrammeSTOPPEDbelassen.

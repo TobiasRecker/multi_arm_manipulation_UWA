@@ -94,7 +94,9 @@ class Supervisor(Node):
         return response
 
     def stop_arm(self,rid,response):
-        with self.lock:self.core.blocked.add(rid);self.core.reason='STOP REQUESTED'
+        with self.lock:
+            self.core.pending_reset=None  # a new STOP wins over an in-flight reset
+            self.core.blocked.add(rid);self.core.reason='STOP REQUESTED'
         response.success=True;response.message=rid+': STOP RECEIVED; standstill not yet confirmed'
         return response
 

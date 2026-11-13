@@ -442,6 +442,9 @@ def main():
                     state=dict(step['start'],**dict(zip(joint_names(step['arm']),point['positions'])))
                     if not model.check(state)[0]:raise RuntimeError('Fresh full-cell source-path check failed')
             runner.wait_ready(expected)
+        # Mesh/FCL planning state is no longer needed during native image work.
+        # Release it before the 48-MP decoder/detector allocates its buffers.
+        del model
         (args.output/'source_manifest.json').write_text(json.dumps(dict(plan=str(args.plan.resolve()),
             inventory_fingerprint=digest(profiles),
             plan_sha256=hashlib.sha256(args.plan.read_bytes()).hexdigest(),analysis=str(args.analysis.resolve()),
