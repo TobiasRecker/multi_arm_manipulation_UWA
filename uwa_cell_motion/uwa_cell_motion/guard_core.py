@@ -8,6 +8,7 @@ class GuardState:
         self.cfg = cfg
         self.latched = set()
         self.reset_sequence = 0
+        self.reset_arms = []
         self.records = {}
         self.history = {}
         self.last_stamp = {}
@@ -67,13 +68,20 @@ class GuardState:
         state = 'STATE STALE' if any(f['reason']=='STATE STALE' for f in faults) else (
             'STOPPED' if stopped and self.latched else 'STOPPING' if self.latched else 'CLEAR')
         return dict(state=state, blocked_arms=sorted(self.latched), faults=faults,latched_causes=list(self.causes),
-                    standstill_confirmed=bool(self.latched and stopped), reset_sequence=self.reset_sequence)
+                    standstill_confirmed=bool(self.latched and stopped), reset_sequence=self.reset_sequence,reset_arms=list(self.reset_arms))
 
     def reset(self, pairs, now, source_now):
         self.evaluate(pairs, now, source_now)
-        if self.last_faults or any(not self.stationary(r, now) for r in self.records):
-            return False, 'Reset refused: fresh clear geometry and confirmed standstill required'
-        if any(p['clearance_m'] <= p['threshold_m']+self.cfg['reset_hysteresis_m'] for p in pairs):
-            return False, 'Reset refused: clearance hysteresis not reached'
-        self.latched.clear(); self.causes.clear(); self.reset_sequence += 1
-        return True, 'Reset accepted; motion remains inactive. Submit a newly checked plan explicitly.'
+        eligible=[]
+        faulted={r for fault in self.last_faults for r in fault['arms']}
+        for rid in {r for pair in PAIRS for r in pair}:
+            neighbors={r for pair in PAIRS if rid in pair for r in pair}
+            relevant=[p for p in pairs if rid in p['arms']]
+            if (rid not in faulted and all(self.fresh(r,now,source_now) for r in neighbors)
+                    and self.stationary(rid,now) and len(relevant)==2 and
+                    all(p['clearance_m']>p['threshold_m']+self.cfg['reset_hysteresis_m'] for p in relevant)):
+                eligible.append(rid)
+        if not eligible:return False,'Reset refused: fresh clear geometry, hysteresis and confirmed standstill required'
+        self.latched.difference_update(eligible);self.reset_arms=sorted(eligible);self.reset_sequence+=1
+        self.causes=[c for c in self.causes if set(c['arms'])&self.latched]
+        return True,'Reset accepted for '+', '.join(self.reset_arms)+'; motion remains inactive. Remaining holds: '+(', '.join(sorted(self.latched)) or 'none')

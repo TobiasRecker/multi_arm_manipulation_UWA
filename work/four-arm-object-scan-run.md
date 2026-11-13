@@ -1,6 +1,6 @@
 # Erster realer Scan mit vier parallelen Armen
 
-- Status: **angehalten; OAK-Fehler, wartet auf bewusste Fortsetzungsentscheidung**, 2026-11-13, Hauptagent Digitalisierung.
+- Status: **angehalten; Nutzer wählt OAK-Stabilisierung ohne weitere Armbewegungen**, 2026-11-13, Hauptagent Digitalisierung.
 - Nutzer beauftragt Durchführung mit allen Robotern parallel und bleibt am
   physischen Nothalt. Das ist die Freigabe zur Vorbereitung/Ausführung eines
   tatsächlich kollisionsgeprüften Ablaufs; ungeklärte hintere Zusatzpfade nicht
@@ -130,3 +130,6 @@
 
 - Abschließende68gezielteTestsPASS; letzte echte Prüfung alle4RUNNING/NORMAL,
   ExternalControlverbunden, Stillstandbestätigt, sämtlicheFahrcontrollerinaktiv.
+
+- Nutzer wählt ausdrücklich: zuerst OAK stabilisieren, keine weiteren
+  Armbewegungen. Neuer Diagnoseeintrag work/oak-connection-stabilization.md.

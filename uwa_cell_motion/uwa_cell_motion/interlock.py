@@ -21,8 +21,10 @@ class Interlock:
         self.last=decision; self.received=now
         self.blocked.update(decision['blocked_arms'])
         if (self.pending_reset and self.pending_reset[0]==decision['instance'] and
-                decision['reset_sequence']>self.pending_reset[1] and not decision['blocked_arms']):
-            self.blocked.clear(); self.pending_reset=None; self.reason='CLEAR'
+                decision['reset_sequence']>self.pending_reset[1]):
+            released=decision.get('reset_arms',list(ROBOT_IDS) if not decision['blocked_arms'] else [])
+            self.blocked.difference_update(set(released)-set(decision['blocked_arms']))
+            self.pending_reset=None; self.reason='CLEAR' if not self.blocked else 'PARTIAL RESET: remaining holds latched'
         if decision['blocked_arms']:self.reason=decision['state']
         return True
 

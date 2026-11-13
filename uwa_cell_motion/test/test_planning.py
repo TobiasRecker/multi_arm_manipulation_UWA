@@ -80,6 +80,37 @@ def test_expired_edge_budget_returns_no_success(problem):
     assert not problem.edge(r,a,r['target'],deadline=0.)
 
 
+def test_waiting_coordinator_produces_checked_stationary_arm_phases(problem):
+    import time
+    r=simple(problem);rid='right_front'
+    r['goals'][rid]=[r['start'][j]+(.03 if j.endswith('wrist_3_joint') else 0) for j in joint_names(rid)]
+    r=problem.normalize(r);path=problem.serial_direct(r,time.monotonic()+2.)
+    assert path and len(path)==3
+    assert np.allclose(path[0][6:],path[1][6:])
+    assert np.allclose(path[-1],r['target'])
+    assert all(problem.edge(r,a,b) for a,b in zip(path,path[1:]))
+
+
+def test_fixed_suite_has_30_balanced_bound_cases(problem):
+    import json
+    from collections import Counter
+    suite=json.loads((Path(__file__).parents[1]/'config/benchmark_suite_20261113.json').read_text())
+    assert suite['model_signature']==problem.signature
+    assert len(suite['cases'])==30 and set(Counter(c['category'] for c in suite['cases']).values())=={5}
+
+
+def test_fixed_neighbor_cases_really_intersect_sphere_paths(problem):
+    import json
+    suite=json.loads((Path(__file__).parents[1]/'config/benchmark_suite_20261113.json').read_text())
+    for case in suite['cases']:
+        if case['category']!='neighbor_crossing':continue
+        request=problem.normalize(case['request']);a,b=request['selected']
+        q0=np.asarray([request['start'][j] for j in request['joint_names']]);q1=np.asarray(request['target'])
+        assert problem.check(request,q0) and problem.check(request,q1)
+        assert any(problem.spheres.nearest(problem.spheres.world(problem.state(request,q0+u*(q1-q0))),a,b)['clearance_m']<=0
+                   for u in np.linspace(.05,.95,19))
+
+
 def test_shared_timing_respects_limits_and_full_cell(problem):
     request=problem.normalize(simple(problem));q0=[request['start'][j] for j in request['joint_names']]
     trajectory=problem.time_parameterize(request,[q0,request['target']]);points=trajectory['points']

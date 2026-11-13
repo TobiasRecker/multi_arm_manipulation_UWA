@@ -15,8 +15,9 @@ from action_msgs.srv import CancelGoal
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
 import yaml
+from rcl_interfaces.srv import GetParameters
 
-from .common import ROBOT_IDS, all_names, load_layout, default_layout_path, simulation_only
+from .common import ROBOT_IDS, all_names, load_layout, default_layout_path, simulation_only,guard_signature
 from .interlock import Interlock
 
 
@@ -56,10 +57,23 @@ class Supervisor(Node):
                     '-c','/uwa_cell/controller_manager','--inactive','--param-file',str(path),
                     '--ros-args','-r','__ns:=/uwa_cell'],capture_output=True,text=True,timeout=45)
                 if result.returncode:raise RuntimeError(result.stdout+'\n'+result.stderr)
+                client=self.create_client(GetParameters,'/uwa_cell/'+hold_name(rid)+'/get_parameters')
+                try:
+                    if not client.wait_for_service(timeout_sec=3.):raise RuntimeError('Hold parameter service unavailable')
+                    request=GetParameters.Request();request.names=['deceleration','joints'];future=client.call_async(request)
+                    rclpy.spin_until_future_complete(self,future,timeout_sec=3.)
+                    if not future.done():raise RuntimeError('Hold parameter readback timed out')
+                    values=future.result().values
+                    if abs(values[0].double_value-self.cfg['braking_acceleration_rad_s2'])>1e-10 or list(values[1].string_array_value)!=self.names[rid]:
+                        raise RuntimeError('Loaded hold configuration differs; explicitly reload controllers before arming')
+                finally:self.destroy_client(client)
 
     def receive(self,msg):
         try:
             value=json.loads(msg.data)
+            if value.get('guard_config_signature')!=guard_signature(self.cfg):
+                with self.lock:self.core.blocked.update(ROBOT_IDS);self.core.reason='CONFIG MISMATCH'
+                return
             with self.lock:self.core.receive(value,time.monotonic())
         except (ValueError,KeyError,TypeError):pass
 
@@ -120,6 +134,7 @@ class Supervisor(Node):
                 self.pending_switch=self.switch_client.call_async(request)
             held={r for r in ROBOT_IDS if hold_name(r) in active}
             status=dict(state=self.core.reason,blocked_arms=sorted(blocked),held_arms=sorted(held),
+                        guard_config_signature=guard_signature(self.cfg),schema_version=1,
                         interlock_confirmed=blocked<=held,controller_error=self.last_error,
                         guard_age_s=None if self.core.last is None else time.monotonic()-self.core.received)
             self.publisher.publish(String(data=json.dumps(status)))

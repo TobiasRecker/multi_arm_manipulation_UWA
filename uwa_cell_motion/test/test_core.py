@@ -144,6 +144,24 @@ def test_unconfirmed_model_blocks_all_arms(cfg):
     assert set(core.evaluate(pairs(),1,1)['blocked_arms'])==set(ROBOT_IDS)
 
 
+def test_missing_front_left_does_not_prevent_independent_rear_right_reset(cfg):
+    core=GuardState(cfg)
+    for t in np.linspace(1,1.4,9):
+        for r in ROBOT_IDS:
+            if r!='left_front':core.receive(r,np.zeros(7),np.zeros(7),float(t),float(t))
+    available=[p for p in pairs() if 'left_front' not in p['arms']]
+    assert core.reset(available,1.4,1.4)[0]
+    assert core.reset_arms==['right_rear']
+    assert core.latched=={'left_front','right_front','left_rear'}
+
+
+def test_partial_reset_preserves_other_interlocks():
+    core=Interlock(.4);core.receive(decision(),1);core.request_reset(1)
+    value=decision(2,blocked=['left_front','right_front','left_rear'],reset=1);value['reset_arms']=['right_rear']
+    core.receive(value,1.1)
+    assert core.blocked=={'left_front','right_front','left_rear'}
+
+
 def test_command_entrypoint_refuses_other_domains(monkeypatch):
     monkeypatch.setenv('ROS_DOMAIN_ID','66');monkeypatch.setenv('GZ_PARTITION','uwa_cell_sim')
     with pytest.raises(RuntimeError):simulation_only()

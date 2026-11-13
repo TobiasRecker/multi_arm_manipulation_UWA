@@ -16,7 +16,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 
-from .common import ROBOT_IDS, all_names, model_context, simulation_only
+from .common import ROBOT_IDS, all_names, model_context, simulation_only,guard_signature
 from .geometry import SphereModel
 from .guard_core import GuardState
 from uwa_cell_control.parallel_scan import collision_signature
@@ -80,6 +80,7 @@ class CollisionGuard(Node):
         self.sequence += 1
         status.update(instance=self.instance, sequence=self.sequence, pairs=self.pairs,
                       model_signature=self.signature,model_match=self.model_match,
+                      guard_config_signature=guard_signature(self.cfg),schema_version=1,
                       source_time_s=self.get_clock().now().nanoseconds/1e9,
                       state_ages_s={r: now-self.core.records[r]['received'] for r in self.core.records})
         self.publisher.publish(String(data=json.dumps(status, allow_nan=False)))

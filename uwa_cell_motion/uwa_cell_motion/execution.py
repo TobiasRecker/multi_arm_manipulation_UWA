@@ -23,7 +23,7 @@ from control_msgs.action import FollowJointTrajectory
 from trajectory_msgs.msg import JointTrajectoryPoint
 from controller_manager_msgs.srv import SwitchController,ListControllers
 
-from .common import ROBOT_IDS,PAIRS,config,all_names,joint_names,load_layout,default_layout_path,dump,simulation_only
+from .common import ROBOT_IDS,PAIRS,config,all_names,joint_names,load_layout,default_layout_path,dump,simulation_only,guard_signature
 from .supervisor import hold_name
 
 
@@ -215,14 +215,19 @@ def execute(plan,output,restore_start=False):
                 raise ValueError('Model/meshes changed since planning')
             if client.live_signature!=problem.signature or client.guard.get('model_signature',problem.signature)!=problem.signature:
                 raise ValueError('Running Gazebo/guard model differs from the checked plan')
+            if any(status.get('guard_config_signature')!=guard_signature(cfg) for status in (client.guard,client.supervisor)):
+                raise ValueError('Plan/guard/hold operating bounds differ')
             request=plan['request'];selected=request['selected']
             if restore_start:
                 # Reposition in simulation through the same planner and guard,
                 # never teleport/reset the Gazebo entity to a benchmark start.
-                reposition=problem.normalize(dict(start=dict(client.positions),goals={r:[request['start'][j] for j in joint_names(r)] for r in ROBOT_IDS}))
-                preparation=problem.plan(reposition,'rrtconnect',0,normalized=True)
-                if not preparation['success']:raise RuntimeError('Benchmark start reposition failed: '+preparation.get('error',''))
-                _follow(problem,client,preparation,result)
+                reposition_goals={r:[request['start'][j] for j in joint_names(r)] for r in ROBOT_IDS
+                    if max(abs(client.positions[j]-request['start'][j]) for j in joint_names(r))>.001}
+                if reposition_goals:
+                    reposition=problem.normalize(dict(start=dict(client.positions),goals=reposition_goals))
+                    preparation=problem.plan(reposition,'rrtconnect',0,normalized=True)
+                    if not preparation['success']:raise RuntimeError('Benchmark start reposition failed: '+preparation.get('error',''))
+                    _follow(problem,client,preparation,result)
             if max(abs(client.positions[j]-request['start'][j]) for n in problem.names.values() for j in n)>.002:
                 raise ValueError('Live start differs from checked plan; generate a fresh plan')
             result['setup_wall_s']=time.monotonic()-started;motion_started=time.monotonic();sim_started=client.get_clock().now().nanoseconds/1e9
@@ -288,4 +293,24 @@ def reset():
         response=client.service(Trigger,'/uwa_cell/collision_supervisor/reset',Trigger.Request())
         if not response.success:raise RuntimeError(response.message)
         return response.message
+    finally:client.destroy_node();rclpy.shutdown()
+
+
+def stop_all():
+    simulation_only();rclpy.init();client=MotionClient()
+    try:
+        client.connect(guard=False)
+        for rid in ROBOT_IDS:
+            answer=client.service(Trigger,'/uwa_cell/collision_supervisor/'+rid+'/stop',Trigger.Request())
+            if not answer.success:raise RuntimeError(answer.message)
+        client.wait(lambda:client.supervisor is not None and set(client.supervisor['held_arms'])==set(ROBOT_IDS),5.)
+        since=None;end=time.monotonic()+5.
+        while time.monotonic()<end:
+            rclpy.spin_once(client,timeout_sec=.02)
+            quiet=(time.monotonic()-client.received<.15 and max(abs(v) for v in client.velocities.values())<.003)
+            if quiet:
+                if since is None:since=time.monotonic()
+                if time.monotonic()-since>=.3:return 'STOPPED: four resource holds active; measured standstill confirmed'
+            else:since=None
+        raise RuntimeError('STOP_UNCONFIRMED: hold resources requested, fresh standstill not confirmed')
     finally:client.destroy_node();rclpy.shutdown()

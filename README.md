@@ -433,12 +433,22 @@ calibrate rigid camera mounts separately, then estimate changing table relations
 
 ## Move the arms
 
+For the new **simulation-only four-arm collision guard and PTP comparison**,
+see [the motion guide](docs/four_arm_motion.md). It provides a10Hz neighbor-pair
+sphere guard with latched per-arm resource holds, independent watchdog,
+RRTConnect and an independent circular-field baseline. Planning, preview and
+execution are separate commands; starting the guard explicitly stops the
+simulated arms until a stationary reset. Hardware stopping is not implemented
+by this research package.
+
 Select `/uwa_cell/controller_manager` and one of the four trajectory
 controllers in the **rqt Joint Trajectory Controller** window. Enable control
 and adjust joint targets conservatively. This is direct joint control, not
 collision-free path planning. Tables/robot links have collision geometry;
 The automatic calibration below uses its own collision-checked MoveIt model.
-General multi-arm coordination and real-cell synchronization are future work.
+The new motion package adds experimental multi-arm PTP coordination in
+simulation; production coordination and real-cell synchronization remain work
+for a later hardware stage.
 
 Each arm has six uniquely prefixed joints. Its native ROS action is:
 
