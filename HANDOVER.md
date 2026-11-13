@@ -1,5 +1,23 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Schnellere Digitalisierung: Bestandsprüfung und Umsetzungskonzept, 2026-11-13
+
+- Nutzer möchte weniger Wartezeit und niedrigeren Reasoning-Aufwand bei
+  möglichst gleicher Qualität/Sicherheit. Noch keine Modelleinstellung geändert.
+- Bestandsprüfung: Aufnahme/Optik/Fit/Export/Prüfung teilweise wiederverwendbar;
+  Formbeschreibung, Bildzuordnung und Texturflächen noch objektspezifisch.
+  Erfolgreiches PTFE-Fünferset laut Manifest44,34s, ohne Vorbereitung/Restore,
+  Fehlversuch und nachfolgende Entwicklungszeit; vollständiges Timing fehlt.
+- Geplant: Runner mit festen Daten-/Qualitätsverträgen, konfigurierbare Kasten-
+  und Plattenvorlagen, Wiederaufnahme, kompakte Statusausgabe, kurze Skill für
+  schnellen Agenten; gezielte Fachbearbeitung bei unbekannter Form/Fehlern.
+  Geometrie/Darstellung/Tracking/Manipulation getrennt bewerten.
+- Abnahme zuerst auf gespeicherten Karton-/PTFE-Daten plus Fehlerfällen,
+  anschließend Vergleich der Reasoning-Stufen und neues Objekt ohne neue
+  Objektskripte. Keine Laufzeit-/Genauigkeitsgarantie vor dieser Messung.
+- Diese Runde nur Konzept/Dokumentation, keine Implementierung, Kameraaktion,
+  Armfahrt oder Dienständerung. Plan docs/digitization_pipeline_plan.md.
+
 ## PTFE-L-Konstruktion aufgenommen und als Asset exportiert, 2026-11-13
 
 - Separater Nutzerauftrag: neues Objekt mit vier Wristkameras und OAK aufnehmen,

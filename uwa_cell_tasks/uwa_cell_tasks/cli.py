@@ -21,6 +21,7 @@ def main():
     p.add_argument('--namespace',default='/uwa_grasp_validation');p.add_argument('--layout',type=Path)
     p.add_argument('--reference',type=Path,required=True)
     p=sub.add_parser('bridge');p.add_argument('--namespace',required=True);p.add_argument('--world',required=True)
+    p=sub.add_parser('camera');p.add_argument('--namespace',required=True);p.add_argument('--scene',type=Path,required=True)
     p=sub.add_parser('guard');p.add_argument('--scene',type=Path,required=True);p.add_argument('--layout',type=Path,required=True)
     p=sub.add_parser('supervisor');p.add_argument('--layout',type=Path,required=True)
     args,ros_args=parser.parse_known_args()
@@ -77,6 +78,9 @@ def main():
         elif args.command=='bridge':
             from .bridge import TelemetryBridge
             node=TelemetryBridge(args.namespace,args.world);rclpy.spin(node)
+        elif args.command=='camera':
+            from .bridge import ImageCapture
+            node=ImageCapture(args.namespace,args.scene);rclpy.spin(node)
         elif args.command=='guard':
             from .guard import TaskGuard
             node=TaskGuard(args.scene,layout);rclpy.spin(node)

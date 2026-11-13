@@ -30,6 +30,7 @@ from action_msgs.msg import GoalStatus
 
 from .common import ROBOT_IDS,PAIRS,config,all_names,joint_names,load_layout,default_layout_path,dump,simulation_only,guard_signature
 from .supervisor import hold_name
+from uwa_cell_control.parallel_scan import collision_signature
 
 
 @contextmanager
@@ -96,7 +97,6 @@ class MotionClient(Node):
         if self.guard.get('pairs'):self.minimum_clearance=min(self.minimum_clearance,*(p['clearance_m'] for p in self.guard['pairs']))
 
     def description_message(self,msg):
-        from uwa_cell_control.parallel_scan import collision_signature
         self.live_signature=collision_signature(msg.data)
 
     def supervisor_message(self,msg):

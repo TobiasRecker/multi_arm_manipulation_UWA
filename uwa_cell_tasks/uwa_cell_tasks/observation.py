@@ -13,29 +13,25 @@ from .core import ARMS,CAMERAS,seal,write_json
 def observe(sim,description,reference,directory):
     directory=Path(directory);directory.mkdir(parents=True,exist_ok=True)
     sim.wait(lambda:all(abs(sim.v.get(j,1))<.003 for j in sim.q if '_robotiq_' not in j),10.,health=True)
-    baseline=dict(sim.q);records=[];seen={a:None for a in CAMERAS};counts={a:0 for a in CAMERAS}
+    from std_srvs.srv import Trigger
+    baseline=dict(sim.q);records=[]
+    minimum_stamp=sim.now()
     deadline=time.monotonic()+30.
-    while min(counts.values())<3 and time.monotonic()<deadline:
+    while not records and time.monotonic()<deadline:
         sim.health()
         if any(abs(sim.q.get(j,1e9)-q)>.001 for j,q in baseline.items() if '_robotiq_' not in j):
             raise RuntimeError('Arm moved during static image inspection')
-        for arm in CAMERAS:
-            msg=sim.images.get(arm);info=sim.infos.get(arm)
-            if msg is None or info is None or counts[arm]>=3:continue
-            stamp=msg.header.stamp.sec+msg.header.stamp.nanosec/1e9
-            if stamp==seen[arm] or not 0<=sim.now()-stamp<=1.:continue
-            if (msg.header.frame_id!=info.header.frame_id or [msg.width,msg.height]!=[info.width,info.height]
-                    or msg.encoding not in ('rgb8','bgr8')):continue
-            seen[arm]=stamp
-            image=np.frombuffer(msg.data,np.uint8).reshape(msg.height,msg.step)[:,:msg.width*3].reshape(msg.height,msg.width,3)
-            if msg.encoding=='rgb8':image=image[:,:,::-1]
-            path=directory/f'{arm}-{counts[arm]}.npy';np.save(path,image)
-            camera_pose=(json.loads((sim.directory/'scene.json').read_text())['T_world_overview_optical'] if arm=='oak'
-                else Chain(description,'world',msg.header.frame_id).forward(baseline).tolist())
-            records.append(dict(arm=arm,image=str(path.resolve()),K=list(info.k),D=list(info.d),stamp=stamp,T_world_camera=camera_pose,
-                environment='own_gazebo_renderer'))
-            counts[arm]+=1
-        time.sleep(.02)
+        try:batch=json.loads(sim.call('capture',Trigger.Request(),timeout=35.).message)
+        except RuntimeError as error:
+            if 'WAITING for' not in str(error):raise
+            time.sleep(.1);continue
+        if any(r['stamp']<minimum_stamp or not 0<=sim.now()-r['stamp']<=1. for r in batch):
+            time.sleep(.1);continue
+        for record in batch:
+            arm=record['arm']
+            record['T_world_camera']=(json.loads((sim.directory/'scene.json').read_text())['T_world_overview_optical'] if arm=='oak'
+                else Chain(description,'world',arm+'_wrist_camera_optical_frame').forward(baseline).tolist())
+        records=batch
     if not records:raise RuntimeError('No fresh calibrated camera images')
     write_json(directory/'inputs.json',records)
     command=[sys.executable,'-m','uwa_cell_tasks.observation','--inputs',str(directory/'inputs.json'),

@@ -62,6 +62,11 @@ for agents sharing this checkout; read active entries before editing or restarti
 
 ## Image-to-CAD prototype
 
+A [proposed repeatable digitization workflow](docs/digitization_pipeline_plan.md)
+separates tested execution from new geometry development, with configurable
+shape templates and explicit checks for faster operation at lower reasoning
+effort. This is a design proposal; the generic runner is not implemented yet.
+
 A first [assisted object-digitization pipeline](docs/object_digitization.md)
 reconstructs an open three-compartment carton from saved colour photographs.
 It uses a visible metric board and matching camera intrinsics, explicit image

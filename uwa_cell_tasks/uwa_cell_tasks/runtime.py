@@ -24,6 +24,7 @@ from uwa_cell_gazebo.charuco_views import Chain
 from match_cooperative_handling.rigid_object import pose_error,interpolate
 from .core import ARMS,CAMERAS,RunStore,GraspGroup,verify,write_json,seal
 from .planning import TaskProblem,grasp_candidates,plan_approach,object_trajectory
+from .scene import verify_scene
 
 
 class Simulation(Node):
@@ -41,17 +42,14 @@ class Simulation(Node):
         for topic,key in [('collision_guard/decision','guard'),('collision_supervisor/status','supervisor'),
                           ('tasks/contacts','contact'),('tasks/object_truth','object')]:
             self.create_subscription(String,namespace+'/'+topic,lambda msg,k=key:self.message(k,msg),10)
-        for arm in CAMERAS:
-            topic=namespace+('/oak_overview/rgb/' if arm=='oak' else '/'+arm+'/wrist_camera/')
-            self.create_subscription(Image,topic+'image_raw',lambda msg,a=arm:self.image(a,msg),qos_profile_sensor_data)
-            self.create_subscription(CameraInfo,topic+'camera_info',lambda msg,a=arm:self.info(a,msg),qos_profile_sensor_data)
         self.heartbeat_pub=self.create_publisher(String,'tasks/heartbeat',10)
         self.group_pub=self.create_publisher(String,'tasks/group',QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL))
         self.heartbeat_clock=Clock(clock_type=ClockType.STEADY_TIME)
         self.create_timer(.1,self.heartbeat,clock=self.heartbeat_clock)
         self.service_clients={key:self.create_client(kind,namespace+'/'+topic) for key,kind,topic in [
             ('reset',Trigger,'collision_supervisor/reset'),('switch',SwitchController,'controller_manager/switch_controller'),
-            ('list',ListControllers,'controller_manager/list_controllers'),('latch',SetBool,'tasks/grip_latch')]}
+            ('list',ListControllers,'controller_manager/list_controllers'),('latch',SetBool,'tasks/grip_latch'),
+            ('capture',Trigger,'tasks/camera_capture')]}
         for arm in ARMS:self.service_clients['stop_'+arm]=self.create_client(Trigger,namespace+'/collision_supervisor/'+arm+'/stop')
         self.actions={name:ActionClient(self,FollowJointTrajectory,namespace+'/'+name+'/follow_joint_trajectory')
             for name in ['rigid_object_controller']+[a+'_gripper_controller' for a in ARMS]}
@@ -81,7 +79,7 @@ class Simulation(Node):
     def call(self,key,request,timeout=8.):
         client=self.service_clients[key]
         if not client.wait_for_service(timeout_sec=timeout):raise RuntimeError('Missing service '+key)
-        future=client.call_async(request);self.wait(future.done,timeout)
+        future=client.call_async(request);self.wait(future.done,timeout,health=key=='capture')
         result=future.result()
         if hasattr(result,'success') and not result.success:raise RuntimeError(result.message)
         return result
@@ -217,7 +215,7 @@ def run_task(directory,scene_directory,layout_file,namespace,reference):
     directory=Path(directory).resolve();store=RunStore(directory)
     lock=(directory/'runner.lock').open('w');fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
     if store.state['state']!='CREATED':raise RuntimeError('A run is immutable after start; create a new run directory')
-    scene_directory=Path(scene_directory);scene=verify(json.loads((scene_directory/'scene.json').read_text()))
+    scene_directory=Path(scene_directory);scene=verify_scene(scene_directory)
     cfg=scene['cfg'];layout=load_layout(layout_file);description=(scene_directory/'robot.urdf').read_text()
     sim=Simulation(namespace,scene_directory);sim.stop_directory=directory;sim.layout=layout;sim.connect();group=None
     try:
@@ -246,6 +244,10 @@ def run_task(directory,scene_directory,layout_file,namespace,reference):
             if decision in ('observe','replan'):continue
             if decision=='abort':raise RuntimeError('Agent aborted plan')
             verify(plan)
+            verify_scene(scene_directory)
+            import hashlib
+            if any(hashlib.sha256(Path(path).read_bytes()).hexdigest()!=value for path,value in plan['mesh_sha256'].items()):
+                raise RuntimeError('Robot collision mesh changed after review')
             if any(abs(sim.q.get(j,float('inf'))-q)>.002 for j,q in start.items() if j in problem.collision.bounds):
                 raise RuntimeError('Measured start changed after review; regenerate plan')
             latest=observe(sim,description,reference,directory/f'pre-execution-{attempt}')

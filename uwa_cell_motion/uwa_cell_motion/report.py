@@ -64,7 +64,8 @@ def render(directory,output,guard_check=None):
         table.append('<tr><th>'+category+'</th>'+''.join(cells)+'</tr>')
     execution=summary.get('execution_summary',{})
     attempts=[]
-    for path in sorted((directory/'executions').rglob('*.json')):
+    roots=[directory/'executions']+sorted(directory.glob('execution-history-*'))
+    for path in sorted(path for root in roots for path in root.rglob('*.json')):
         value=json.loads(path.read_text())
         if 'phase_count' in value and 'guard_stops' in value:
             attempts.append(dict(record=str(path.relative_to(directory)),success=value['success'],

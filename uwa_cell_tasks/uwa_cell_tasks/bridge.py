@@ -20,6 +20,10 @@ from match_cooperative_handling.rigid_object import rigid
 from scipy.spatial.transform import Rotation
 import numpy as np
 from .core import ARMS
+from pathlib import Path
+from collections import deque
+from std_srvs.srv import Trigger
+import uuid
 
 
 class TelemetryBridge(Node):
@@ -32,12 +36,6 @@ class TelemetryBridge(Node):
         self.subscribe(GzClock,'/world/'+world+'/clock',self.clock_message)
         self.subscribe(Contacts,'/world/'+world+'/model/uwa_grasp_carton/link/body/sensor/carton_contacts/contact',self.contacts_message)
         self.subscribe(Pose_V,'/uwa_grasp_carton/pose',self.pose_message)
-        self.outputs=[]
-        for arm in ARMS+('oak',):
-            for suffix,gz_type,ros_type,convert in [('image_raw',GzImage,Image,image_message),('camera_info',GzInfo,CameraInfo,info_message)]:
-                topic=namespace+('/oak_overview/rgb/' if arm=='oak' else '/'+arm+'/wrist_camera/')+suffix
-                pub=self.create_publisher(ros_type,topic,qos_profile_sensor_data);self.outputs.append(pub)
-                self.subscribe(gz_type,topic,partial(self.camera,pub,convert,arm))
 
     def subscribe(self,kind,topic,callback):
         if not self.transport.subscribe(kind,topic,callback):raise RuntimeError('Subscription failed '+topic)
@@ -72,8 +70,62 @@ class TelemetryBridge(Node):
         self.contact.publish(String(data=json.dumps(dict(pads=pads,supported=support,contacts=records,
             stamp=msg.header.stamp.sec+msg.header.stamp.nsec*1e-9))))
 
-    def camera(self,publisher,convert,arm,msg):
-        if not self.closing:publisher.publish(convert(msg,arm,frame_id='oak_overview_rgb_optical_frame' if arm=='oak' else None))
+    def close(self):
+        self.closing=True
+        for topic in self.topics:self.transport.unsubscribe(topic)
+        self.topics=[]
+
+
+class ImageCapture(Node):
+    """Photo traffic never enters the clock/contact/command Python processes."""
+    def __init__(self,namespace,directory):
+        super().__init__('task_image_capture',namespace=namespace)
+        self.directory=Path(directory)/'captures';self.directory.mkdir(parents=True,exist_ok=True)
+        self.transport=TransportNode();self.lock=Lock();self.topics=[];self.closing=False
+        self.frames={a:deque(maxlen=3) for a in ARMS+('oak',)};self.info={}
+        for arm in self.frames:
+            base=namespace+('/oak_overview/rgb/' if arm=='oak' else '/'+arm+'/wrist_camera/')
+            for suffix,kind,callback in [('image_raw',GzImage,self.image),('camera_info',GzInfo,self.camera_info)]:
+                topic=base+suffix
+                if not self.transport.subscribe(kind,topic,partial(callback,arm)):raise RuntimeError('Camera subscription failed '+topic)
+                self.topics.append(topic)
+        self.create_service(Trigger,'tasks/camera_capture',self.capture)
+
+    def camera_info(self,arm,msg):
+        with self.lock:self.info[arm]=msg
+
+    def image(self,arm,msg):
+        from gz.msgs.image_pb2 import RGB_INT8
+        with self.lock:
+            if self.closing or arm not in self.info or msg.pixel_format_type!=RGB_INT8:return
+            info=self.info[arm]
+            stamp=msg.header.stamp.sec+msg.header.stamp.nsec/1e9
+            if self.frames[arm] and stamp<=self.frames[arm][-1]['stamp']:return
+            if (msg.width,msg.height)!=(info.width,info.height):return
+            # No ROS Image serialization and no image processing here.
+            pixels=np.frombuffer(msg.data,np.uint8).reshape(msg.height,msg.step)[:,:msg.width*3].reshape(msg.height,msg.width,3)
+            self.frames[arm].append(dict(arm=arm,stamp=stamp,K=list(info.intrinsics.k),D=list(info.distortion.k),
+                pixels=pixels,environment='own_gazebo_renderer'))
+
+    def capture(self,req,res):
+        with self.lock:
+            for frames in self.frames.values():frames.clear()
+        deadline=time.monotonic()+30.
+        snapshot=None
+        while time.monotonic()<deadline and not self.closing:
+            with self.lock:
+                if all(len(frames)==3 for frames in self.frames.values()):
+                    snapshot=[dict(frame) for frames in self.frames.values() for frame in frames];break
+            time.sleep(.02)
+        if snapshot is None:
+            res.success=False;res.message='WAITING for three fresh frames per renderer';return res
+        destination=self.directory/uuid.uuid4().hex;destination.mkdir()
+        records=[]
+        for index,frame in enumerate(snapshot):
+            path=destination/f'{frame["arm"]}-{index}.npy'
+            np.save(path,frame.pop('pixels')[:,:,::-1])
+            records.append(dict(frame,image=str(path.resolve())))
+        res.success=True;res.message=json.dumps(records);return res
 
     def close(self):
         self.closing=True

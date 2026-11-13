@@ -178,6 +178,21 @@
 
 ## Bildbasierte Objektdigitalisierung (2026-11-12)
 
+- Nutzerwunsch13.11.: Digitalisierungsdurchlauf deutlich beschleunigen und
+  geringeren Reasoning-Aufwand ermöglichen, geprüfte Qualität/Sicherheit
+  erhalten. Wiederholbare Schritte in Runner/Formvorlagen/Prüfcode kapseln,
+  schnelle Agentenausführung von neuer Geometrie-/Fehlerentwicklung trennen.
+  Konzept docs/digitization_pipeline_plan.md; noch keine Modellumstellung oder
+  Freigabe neuer Hardwarefahrten. Fehler/Tracking-LOST nicht zugunsten Tempo
+  umdeuten; tatsächliche Durchlaufzeit und Qualität vergleichbar messen.
+
+- NVIDIA-Compute seit13.11. ausdrücklich verfügbar: gemeinsame Workstation
+  titanpc/192.168.2.137, aktuell WLAN. Vorhandene Nutzerumgebungen, Dienste,
+  Systempakete und Treiber erhalten; keine Neustarts oder fremde Bereinigung.
+  FoundationPose zunächst in eigenem Ordner/eigener Umgebung auf Datenlaufwerk
+  prüfen, Last und freien Platz beachten. Keine Robotersteuerung über diesen
+  Rechner. Stand und Bedienung in docs/foundationpose_titanpc.md nachführen.
+
 - Weiteres Nutzerobjekt13.11.: L-Konstruktion aus PTFE und Aluminium, eigene
   Asset-ID ptfe_l_assembly_v1. Nutzerangaben20×20mm-Profile/10mm-Platten von
   geschätzten Außenmaßen300×177×181mm unterscheiden. Keine fremde Karton-
@@ -190,9 +205,9 @@
 
 - Nutzerziel13.11.: bekannte Assets mit6DoF-Pose wiederfinden; langsame möglichst
   genaue statische Lokalisierung vor Greifen und schnelle dynamische Verfolgung
-  getrennt anbieten. Zunächst Mini-PC; Nutzer organisiert eventuell später
-  NVIDIA-Compute. Backend austauschbar halten, keine GPU-Anschaffung/Remote-
-  Anbindung oder FoundationPose-Funktionsfähigkeit auf Intel behaupten.
+  getrennt anbieten. CPU-Prototyp auf Mini-PC erhalten; zusätzlicher NVIDIA-
+  Rechner seit13.11. für isolierte Versuche beauftragt (siehe oben). Backend
+  austauschbar halten, keine FoundationPose-Funktionsfähigkeit auf Intel behaupten.
 - CPU-Prototyp uwa_cell_tracking, docs/object_tracking.md: direkte Kamerapose
   im unveränderten Assetframe, keine bekannte Szenen-/Boardpose als Schätzprior.
   VALID ist visuelle Konsistenz, keine Manipulations-/Millimetergenauigkeitsfreigabe.

@@ -124,6 +124,7 @@ def plan_approach(problem, start, candidate, *, seed=0):
         if path is None:raise ValueError(error)
     trajectory=problem.time_parameterize(request,path)
     return seal(dict(schema_version=1,kind='pregrasp',request=request,trajectory=trajectory,
+        mesh_sha256=problem.spheres.geometry.assets,
         model_signature=problem.signature,scene_sha256=problem.scene_record['sha256'],candidate=candidate))
 
 

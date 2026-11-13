@@ -21,14 +21,14 @@ from uwa_cell_calibration.model import CollisionModel
 from uwa_cell_gazebo.charuco_views import Chain
 from .core import ARMS,GraspGroup,verify
 from .planning import actual_names
-from .scene import apply_object
+from .scene import apply_object,verify_scene
 
 
 class TaskGuard(Node):
     def __init__(self,scene_directory,layout_file):
         super().__init__('collision_guard',namespace='/uwa_cell')
         self.set_parameters([rclpy.parameter.Parameter('use_sim_time',value=True)])
-        self.directory=Path(scene_directory);self.scene=verify(json.loads((self.directory/'scene.json').read_text()))
+        self.directory=Path(scene_directory);self.scene=verify_scene(self.directory)
         self.description=(self.directory/'robot.urdf').read_text();self.layout=load_layout(layout_file)
         self.cfg=motion_config();self.names=actual_names(self.description,self.layout)
         self.temp=tempfile.TemporaryDirectory(prefix='uwa-task-guard-')

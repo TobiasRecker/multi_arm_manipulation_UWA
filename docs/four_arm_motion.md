@@ -4,6 +4,14 @@ This first version commands **Gazebo simulation only**, ROS domain64,
 partition `uwa_cell_sim`. It does not start or stop real UR programs.
 The model's physical world/table anchors remain provisional.
 
+For motion comparisons, start the cell with `image_sensors:=false`. This
+omits image rendering while retaining all camera/tool bodies, joints, inertias,
+calibrations and TF, including the OAK visual model. The normal cell default is
+`image_sensors:=true`. High-resolution rendering can freeze simulation time
+long enough to trigger the deliberately unchanged state-freshness limit.
+The current coherent replay series uses the sensor-free mode; earlier attempts
+remain under `execution-history-pre-sensor-free/` with their failure history.
+
 ## Build and arm
 
 From the workspace:

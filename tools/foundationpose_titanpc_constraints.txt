@@ -1,0 +1,8 @@
+# Tested separately from all pre-existing workstation environments.
+torch==2.5.1
+torchvision==0.20.1
+numpy==2.2.6
+kornia==0.7.3
+warp-lang==1.6.2
+pybind11==2.13.6
+setuptools<81

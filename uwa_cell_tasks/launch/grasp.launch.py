@@ -13,10 +13,12 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from uwa_cell_description.configuration import default_layout_path,load_layout,controller_names,joint_names,gripper_joint
 from uwa_cell_tasks.guard import supervisor_remaps
+from uwa_cell_tasks.scene import verify_scene
 
 
 def setup(context):
     directory=Path(LaunchConfiguration('scene').perform(context)).resolve()
+    verify_scene(directory)
     ns=LaunchConfiguration('namespace').perform(context).rstrip('/')
     if not ns.startswith('/') or ns in ('/','/uwa_hardware','/uwa_cell'):raise ValueError('Use an isolated simulation namespace')
     layout_file=LaunchConfiguration('layout').perform(context);layout=load_layout(layout_file)
@@ -55,7 +57,9 @@ def setup(context):
         Node(package='robot_state_publisher',executable='robot_state_publisher',namespace=ns,
             parameters=[dict(robot_description=description,use_sim_time=True)],remappings=clock+[('/tf',ns+'/tf'),('/tf_static',ns+'/tf_static')],output='screen'),
         Node(package='uwa_cell_tasks',executable='cell_task',namespace=ns,
-            arguments=['bridge','--namespace',ns,'--world','uwa_grasp_lab'],output='screen')]
+            arguments=['bridge','--namespace',ns,'--world','uwa_grasp_lab'],output='screen'),
+        Node(package='uwa_cell_tasks',executable='cell_task',namespace=ns,
+            arguments=['camera','--namespace',ns,'--scene',str(directory)],output='screen')]
     sequence=[spawn,carton]
     for name in controller_names(layout)+['rigid_object_controller']+[a+'_collision_hold_controller' for a in layout['robots']]:
         inactive=name=='rigid_object_controller' or name.endswith('_collision_hold_controller')
