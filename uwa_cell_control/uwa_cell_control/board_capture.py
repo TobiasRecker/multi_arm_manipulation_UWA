@@ -18,11 +18,69 @@ import cv2
 import numpy as np
 import yaml
 
-from .wrist_camera import WristCamera
-from .wrist_hd import NativeCapture, SSH, control_path
+from .wrist_camera import WristCamera, settings_differences
+from .wrist_hd import NativeCapture, LeftFrontNativeCapture, SSH, control_path
 
 CAMERAS = ('right_front', 'right_rear', 'oak4')
 FIVE_CAMERAS = ('left_front', 'left_rear', 'right_front', 'right_rear', 'oak4')
+
+
+def write_session_focus(camera, *, focus, auto):
+    """Write only focus and preserve the managed LED setter convention.
+
+    Replaying getter ROI fields changes legacy cameras' coordinate conversion.
+    Focus-only changes must not restart vision or rewrite autofocus ROIs.
+    """
+    from .wrist_activity import directory
+    before = camera.settings(refresh=True)
+    ip = camera.base.split('//')[1].split(':')[0]
+    changes = dict(focus=focus, focusAuto=auto)
+    if (directory(ip) / 'enabled').exists():
+        changes.update(lightingMode=2, lightingValue=before['lightingValue'])
+    camera.request('/setcamerasettings?setManualValuesIfModeChanged=true',
+                   body={'cameraSettings': changes})
+    time.sleep(.5)
+    actual = camera.settings(refresh=True)
+    if actual['focusAuto'] != auto or (not auto and actual['focus'] != focus):
+        raise RuntimeError('Camera focus readback differs from request')
+    return actual
+
+
+def restore_session_focus(camera, original):
+    actual = write_session_focus(camera, focus=original['focus'], auto=original['focusAuto'])
+    roi = ('focusWindowX1', 'focusWindowY1', 'focusWindowX2', 'focusWindowY2')
+    if original['focusAuto'] and all(key in original for key in roi):
+        # Legacy UCC converts getter ROI coordinates on writes. Changing back
+        # to auto can restore its default instead of the saved ROI. Bounded
+        # measured feedback, all ROI coordinates together, avoids that drift.
+        requested = {key: original[key] for key in roi}
+        for key in roi:
+            if actual.get(key) == original[key]:
+                continue
+            target = original[key]
+            limit = 639 if 'X' in key else 479
+            low, high = max(0, target-48), min(limit, target+48)
+            for attempt in range(8):
+                value = (low+high)//2
+                requested[key] = value
+                changes = dict(requested)
+                from .wrist_activity import directory
+                ip = camera.base.split('//')[1].split(':')[0]
+                if (directory(ip) / 'enabled').exists():
+                    changes.update(lightingMode=2, lightingValue=actual['lightingValue'])
+                camera.request('/setcamerasettings?setManualValuesIfModeChanged=true',
+                               body={'cameraSettings': changes})
+                time.sleep(.4)
+                actual = camera.settings(refresh=True)
+                if actual.get(key) == target:
+                    break
+                if actual[key] < target:
+                    low = value+1
+                else:
+                    high = value-1
+                if low > high:
+                    break
+    return actual
 
 
 def reference_board(layout, name):
@@ -211,6 +269,8 @@ class CaptureRig:
 
     def native(self, name, output):
         ip = self.inventory['robots'][name]['ip']
+        if name == 'left_front':
+            return LeftFrontNativeCapture(ip, SSH(ip, control_path(name, ip)), output)
         return NativeCapture(ip, SSH(ip, control_path(name, ip)), output,
             resources=self.ws / 'src/multi_arm_manipulation_UWA/uwa_cell_control/remote')
 
@@ -225,22 +285,15 @@ class CaptureRig:
             target = self.optics['wrist_manual_focus'][name]
             if not original['focusAuto'] and original['focus'] == target:
                 continue
-            camera.request('/setcamerasettings?setManualValuesIfModeChanged=true',
-                body={'cameraSettings': {'focusAuto': False, 'focus': target}})
-            time.sleep(.5)
-            actual = camera.settings(refresh=True)
-            version = camera.request('/hello').get('version', '')
-            if actual['lightingMode'] != original['lightingMode'] and version.startswith('UCC-1.11.1.'):
-                camera.request('/setcamerasettings?setManualValuesIfModeChanged=true',
-                    body={'cameraSettings': {'lightingMode': 1 - original['lightingMode']}})
-                time.sleep(.3)
-                actual = camera.settings(refresh=True)
+            actual = write_session_focus(camera, focus=target, auto=False)
             if actual['focusAuto'] or actual['focus'] != target:
                 raise RuntimeError(name + ': could not confirm fixed focus')
             ignored = {'focusAuto', 'focus'}
             if original.get('exposureAuto'):
                 ignored.update(('exposure', 'gain'))
-            differences = [k for k in original if k not in ignored and original[k] != actual[k]]
+            from .wrist_activity import directory
+            managed = (directory(self.inventory['robots'][name]['ip']) / 'enabled').exists()
+            differences = settings_differences(original, actual, ignored=ignored, managed_led=managed)
             if differences:
                 raise RuntimeError(name + ': focus lock changed other settings: ' + ', '.join(differences))
         self.fixed_settings = {name: self.wrist(name).settings(refresh=True) for name in self.wrist_cameras}
@@ -251,7 +304,18 @@ class CaptureRig:
         for name, original in self.original_settings.items():
             if original['focusAuto'] or original['focus'] != self.optics['wrist_manual_focus'][name]:
                 try:
-                    results[name] = self.native(name, self.session / 'restore').restore_configuration(original)
+                    camera = self.wrist(name)
+                    actual = restore_session_focus(camera, original)
+                    ignored = {'focus'} if original['focusAuto'] else set()
+                    if original.get('exposureAuto'):
+                        ignored.update(('exposure', 'gain'))
+                    from .wrist_activity import directory
+                    managed = (directory(self.inventory['robots'][name]['ip']) / 'enabled').exists()
+                    differences = settings_differences(original, actual, ignored=ignored, managed_led=managed)
+                    if differences:
+                        raise RuntimeError('Focus restoration changed configuration: ' + ', '.join(differences))
+                    results[name] = dict(settings=actual, all_configuration_fields_match=True,
+                        method='HTTP focus-only restoration; no vision restart')
                 except Exception as error:
                     results[name] = {'error': str(error)}
         write_json(self.session / 'focus_restoration.json', results)
@@ -384,14 +448,24 @@ class CaptureRig:
                 monitor = self.capture_monitor(directory)
                 monitor.wait_still()
             report['telemetry_before'] = self.telemetry()
-            with ThreadPoolExecutor(max_workers=len(self.cameras)) as pool:
-                futures = {pool.submit(self.capture_one, name, directory / name, native): name for name in self.cameras}
+            # OAK startup failed under concurrent native wrist transactions.
+            # A stationary five-camera set need not expose simultaneously.
+            deferred_oak = tuple(self.cameras) == FIVE_CAMERAS
+            parallel = [name for name in self.cameras if not (deferred_oak and name == 'oak4')]
+            report['acquisition_order'] = 'parallel wrists, then OAK' if deferred_oak else 'parallel selected cameras'
+            with ThreadPoolExecutor(max_workers=len(parallel)) as pool:
+                futures = {pool.submit(self.capture_one, name, directory / name, native): name for name in parallel}
                 for future in as_completed(futures):
                     name = futures[future]
                     try:
                         report['cameras'][name] = future.result()
                     except Exception as error:
                         report['cameras'][name] = dict(success=False, error=str(error))
+            if deferred_oak:
+                try:
+                    report['cameras']['oak4'] = self.capture_one('oak4', directory / 'oak4', native)
+                except Exception as error:
+                    report['cameras']['oak4'] = dict(success=False, error=str(error))
             report['telemetry_after'] = self.telemetry()
             report['endpoint_joint_delta_rad'] = {}
             for name in self.wrist_cameras:

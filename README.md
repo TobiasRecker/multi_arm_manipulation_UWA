@@ -78,8 +78,8 @@ A [virtual-wall and swept-volume analysis](docs/scan_separation.md) now derives 
 parallel review schedule from the unchanged scan paths. It retains the original
 order for pairs without a separation proof; no hardware execution is enabled.
 A separately tested [hardware parallel runner and STOP window](docs/parallel_object_scan.md)
-are prepared. The requested first real run is pending restoration of the robot
-Ethernet link; no real scan movement has been sent.
+are prepared. Ethernet and all four dashboards are restored on 2026-11-13. The interrupted
+RTDE drivers are being restored before a fresh plan and complete hardware check; no real scan movement has been sent.
 
 ## OAK camera CAD and tripod
 

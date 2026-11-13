@@ -1,10 +1,22 @@
 # Vierarm-Objektscan: realer Runner und aktueller Startstand
 
-Stand:12.11.2026. Nutzer beauftragt ausdrücklich eine echte parallele Ausführung
+Stand:13.11.2026. Nutzer beauftragt ausdrücklich eine echte parallele Ausführung
 und bleibt für den Versuch am physischen Nothalt. **Bisher keine reale Scanbewegung,
-Power-/Brake-/Play-Aktion oder Safety-Quittierung ausgeführt.**
+Power-/Brake-Aktion oder Safety-Quittierung ausgeführt.** Programme zur
+Treiberwiederverbindung wurden am13.11. neu verbunden.
 
 ## Aktueller Blocker
+
+**Update13.11.:** Alle vier Dashboards wieder RUNNING/NORMAL erreichbar.
+Nutzer bestätigt Remote-Control vorne rechts, aktuellen Nothalt-Bediener sowie
+unveränderten Aufbau und freie Fahrbereiche/Kabel. Die vier RTDE-Reader liefen
+nach Netzausfall nicht wieder an; gespeicherte ROS-Werte widersprechen den
+Dashboards. Gezielte Treiberwiederherstellung und neue Planung nötig. Noch
+keine reale Fahrt gestartet. Neue Wege/Trennung und Hardware-Check bestanden;
+Kamera-Fokusvorlauf vor Fahrt abgebrochen und anschließend korrigiert.
+Stationärer Test aller fünf nativen Fotopfade läuft.
+
+Historischer Ausfall am12.11.:
 
 Während der Vorbereitung fiel die Verbindung zum Roboternetz aus:
 `enp87s0` ist DOWN/unavailable, Carrier OFF, keine192.168.8.209-Adresse mehr.

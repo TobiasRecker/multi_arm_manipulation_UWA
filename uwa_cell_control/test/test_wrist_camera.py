@@ -121,3 +121,13 @@ def test_photo_has_receipt_timestamp_and_focus_metadata(camera, tmp_path):
     assert metadata['settings']['focusAuto'] is True
     assert metadata['timestamp_kind'] == 'PC receipt; sensor exposure time unavailable'
     assert len(metadata['sha256']) == 64
+
+
+def test_managed_manual_led_enum_equivalence_never_hides_intensity_or_off_mode():
+    from uwa_cell_control.wrist_camera import settings_differences
+    before=dict(lightingMode=1,lightingValue=0,focus=406)
+    assert not settings_differences(before,dict(before,lightingMode=2),managed_led=True)
+    assert settings_differences(before,dict(before,lightingMode=2))==['lightingMode']
+    assert settings_differences(before,dict(before,lightingMode=0),managed_led=True)==['lightingMode']
+    assert 'lightingValue' in settings_differences(before,dict(before,lightingMode=2,lightingValue=53),managed_led=True)
+    assert 'focus' in settings_differences(before,dict(before,lightingMode=2,focus=405),managed_led=True)

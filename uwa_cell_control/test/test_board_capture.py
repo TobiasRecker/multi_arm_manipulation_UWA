@@ -120,3 +120,57 @@ def test_stop_waits_for_sdk_lock_after_wrapper_exit(tmp_path, monkeypatch):
     monkeypatch.setattr(module.time, 'sleep', lambda _: None)
     preview.stop()
     assert events == ['signal own process group', 'busy', 'busy', 'released', 'released']
+
+
+def test_focus_session_preserves_managed_led_mode_and_restores_without_native_restart(tmp_path, monkeypatch):
+    from uwa_cell_control.wrist_camera import WristCamera
+    from uwa_cell_control.wrist_activity import directory
+    monkeypatch.setenv('UWA_WRIST_ACTIVITY_ROOT', str(tmp_path / 'leases'))
+    folder = directory('192.168.8.169'); folder.mkdir(parents=True); (folder / 'enabled').touch()
+    state = dict(focus=378, focusAuto=True, lightingMode=1, lightingValue=0,
+                 exposureAuto=False, exposure=33333, gain=16, focusWindowX1=165)
+    original = dict(state)
+    client = WristCamera('192.168.8.169')
+    writes = []
+    def request(path, body=None, **kwargs):
+        if body:
+            change = dict(body['cameraSettings']); writes.append(change)
+            # Real UCC getter1 / setter manual2; partial writes reset the mode.
+            state.update(change)
+            state['lightingMode'] = 1 if change.get('lightingMode') == 2 else 0
+        return dict(status='succeeded', cameraSettings=dict(state))
+    client.request = request
+    r = CaptureRig.__new__(CaptureRig)
+    r.session=tmp_path; r.wrist_cameras=('left_rear',); r.original_settings={}; r.fixed_settings={}
+    r.optics={'wrist_manual_focus': {'left_rear':406}}; r.wrist=lambda name:client
+    r.inventory={'robots':{'left_rear':{'ip':'192.168.8.169'}}}
+    r.native=lambda *args: pytest.fail('Focus restoration must not restart vision')
+    monkeypatch.setattr('uwa_cell_control.board_capture.time.sleep', lambda _:None)
+    r.lock_focus()
+    assert state['focus']==406 and not state['focusAuto'] and state['lightingMode']==1
+    r.restore_focus()
+    assert state==original
+    assert all(write['lightingMode']==2 and 'focusWindowX1' not in write for write in writes)
+
+
+def test_autofocus_restore_corrects_converted_roi_with_bounded_joint_writes(tmp_path, monkeypatch):
+    from uwa_cell_control.board_capture import restore_session_focus
+    from uwa_cell_control.wrist_activity import directory
+    monkeypatch.setenv('UWA_WRIST_ACTIVITY_ROOT',str(tmp_path))
+    folder=directory('192.168.8.2');folder.mkdir();(folder/'enabled').touch()
+    original=dict(focus=335,focusAuto=True,lightingMode=1,lightingValue=0,
+                  focusWindowX1=165,focusWindowY1=134,focusWindowX2=450,focusWindowY2=339)
+    state=dict(original,focus=245,focusAuto=False);writes=[]
+    def request(path,body):
+        change=body['cameraSettings'];writes.append(change)
+        state.update(change);state['lightingMode']=1
+        if change.get('focusAuto'):
+            state.update(focusWindowX1=158,focusWindowY1=118)
+        if 'focusWindowX1' in change:
+            assert all(key in change for key in ('focusWindowX1','focusWindowY1','focusWindowX2','focusWindowY2'))
+            state['focusWindowX1']=max(158,change['focusWindowX1']-30)
+            state['focusWindowY1']=max(118,change['focusWindowY1']-12)
+    camera=SimpleNamespace(base='http://192.168.8.2:4242',settings=lambda **kwargs:dict(state),request=request)
+    monkeypatch.setattr('uwa_cell_control.board_capture.time.sleep',lambda _:None)
+    assert restore_session_focus(camera,original)==original
+    assert len(writes)<=17

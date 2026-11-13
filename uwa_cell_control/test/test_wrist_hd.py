@@ -313,3 +313,19 @@ def test_hd_fit_rejects_physical_camera_swap():
              for i in range(26)]
     with pytest.raises(ValueError,match='identity changed'):
         calibrate_intrinsics(records,focus=435,image_size=[2592,1944])
+
+
+def test_left_front_bootstrap_reuses_i686_helper_without_compiler(tmp_path):
+    from uwa_cell_control.wrist_hd import LeftFrontNativeCapture
+    class Remote:
+        def __init__(self):self.calls=[]
+        def run(self, command, **kwargs):self.calls.append((command,kwargs))
+    remote=Remote(); capture=LeftFrontNativeCapture('192.168.8.2',remote,tmp_path)
+    capture.bootstrap()
+    commands=[command for command,_ in remote.calls]
+    assert not any('gcc ' in command for command in commands)
+    assert any('chmod 700 ' in command for command in commands)
+    assert any(b'i686 Linux ABI' in call.get('data',b'') for _,call in remote.calls)
+    assert capture.worker_entrypoint=='wrist_worker_fast.py'
+    count=len(remote.calls);capture.bootstrap();assert len(remote.calls)==count
+    with pytest.raises(ValueError):LeftFrontNativeCapture('192.168.8.170',remote,tmp_path)

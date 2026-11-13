@@ -1,6 +1,6 @@
 # Erster realer Scan mit vier parallelen Armen
 
-- Status: **Software vorbereitet, wartet auf physische Roboternetzverbindung**, 2026-11-12, Hauptagent Digitalisierung.
+- Status: **alle vier erreichbar; RTDE-Treiberwiederherstellung und neue Planung**, 2026-11-13, Hauptagent Digitalisierung.
 - Nutzer beauftragt Durchführung mit allen Robotern parallel und bleibt am
   physischen Nothalt. Das ist die Freigabe zur Vorbereitung/Ausführung eines
   tatsächlich kollisionsgeprüften Ablaufs; ungeklärte hintere Zusatzpfade nicht
@@ -39,3 +39,69 @@
   erneute vier native Fake-UR-Trajektorien, STOP und GUI-Heartbeatverlust PASS,
   eigene Prozesse im finally sauber beendet. Mock-Rohlogs/Erstresultate erhalten.
   34gezielteTestsPASS. Echter Hardwarestart bleibt wegen CarrierOFF offen.
+
+## Wiederaufnahme 2026-11-13
+
+- Nutzer kündigt Wiederherstellung der Verbindung an. Ethernet wieder UP,
+  CarrierON und PC192.168.8.209. Erste echte Dashboard-Abfrage: LF RUNNING/
+  NORMAL/PLAYING; LR und RR RUNNING/NORMAL/ros.urpSTOPPED. RF .103 Timeout.
+- Nur lesende Prüfungen; neue Daten unter setup/digitization/four_arm_scan_20261113/.
+  Keine neue Bewegung/Power/Brake/Play. Alte Quellen nicht überschreiben;
+  vor jeder echten Fahrt frischen vollständigen Zustand und Aufbau prüfen.
+
+- Wiederholte RF-Prüfung:22/29999/30004 NoRouteToHost,ARP FAILED. Andere
+  Dashboards erreichbar, alle4Fahrcontrollerinaktiv; Cache-Joints vonRF zählen
+  nicht als vollständiger Hardwarezustand. Factual question an Nutzer gestellt.
+- Aktueller OAK-Prüffotoversuch13.11. fehlgeschlagen: MessageQueue closed,
+  SDK meldet missed ping/device gone/FW crash. Fehlerdaten vollständig unter
+  setup/oak4/photos/20261113-110935-standard-2810009d/. Kein erfolgreiches Bild,
+  kein Firmwareflash/manuellerReset und keine Roboteraktion. Ursache noch offen.
+
+- Begrenzter zweiter OAK-Versuch erfolgreich: native8000×6000/Fokus116,
+  setup/oak4/photos/20261113-111253-standard-5b8d982b/. Prüfbild durchgesehen,
+  gleicher Karton zwischen den Tischen. Neue assistierte Grobmaße43,3×34,3×16,2cm,
+  rechte Board-PnP1,83px. Scheinbare Referenzänderung gegenüber12.11.
+  1,77mm/0,34°, enthält Bild-/PnP-Unsicherheit; keine vermessene Tischbewegung.
+- RF bleibt nach zweiter Dashboard-/ARP-Prüfung unerreichbar; keine Programme
+  oder Fahrziele gestartet. Volle neue Hardware-Planung wartet auf seinen
+  echten Livezustand und anschließend aktuelle Bediener-/Aufbaubestätigung.
+
+- RF jetzt erreichbar: Dashboard RUNNING/NORMAL/PLAYING, zunächst Local; Nutzer
+  bestätigt Remote-Umstellung, Anwesenheit am Nothalt, unveränderten Aufbau und
+  freie Fahrbereiche/Kabel. Alle vier alten RTDE-Reader melden nach Netzausfall
+  „Background reading is not running“. Gezielter Neustart ausschließlich der
+  vier identifizierten Hardwarelaunches vorgesehen, Fahrcontroller inaktiv.
+
+- Gezielter Neustart der vier alten Launches abgeschlossen, neue PID-/Lognachweise
+  unter four_arm_scan_20261113/new_drivers.json. LF-Fahrcontroller inaktiv
+  nachgeladen. LR/RR ros.urp über MATCH gestartet; RF-SetMode wegen verpasster
+  initialer Modusmeldung abgewiesen, anschließend echte RUNNING/NORMAL/Remote-
+  Lesung und Dashboard stop/play des vorhandenen Programms. Alle4 ROS-Modi7,
+  Safety1, External-Control=true und Stillstand bestätigt. Kein Fahrziel.
+- Neuer OAK-basierter Plan plan_wall60_reserves: alle4 Grundansichten und
+  je4Zusatzansichten,20geprüfteWege; neuer unveränderter Snapshot/Inventarhash.
+  Zeitunabhängiger50mm-Trennnachweis mit±0,005radKorridor läuft.
+
+- Neuer Trennnachweis abgeschlossen: initial/extra/all alle4PASS, kleinste
+  projektive Untergrenze339,89mm nach Polstern, gefordert50mm. FünfRunden,
+  modellierte Bewegungszeit101,16s statt238,92s seriell, Kamera-/Stillstandszeit
+  zusätzlich. Frisches einziges Stopfenster gestartet und Screenshot geprüft.
+  Readiness-Check vor Ausführung läuft; noch keine Armziele.
+
+- run01 vor jeder Fahraktion abgebrochen: LR-Fokus-Teilwrite änderte LED-Modus.
+  Fehlerrestaurierung zeigte zusätzlich LF-gcc-falschenNativeCapture und
+  LR-Autofokus-ROI-Abweichung beim unnötigen Vision-Neustart. AlleArme stehen,
+  keineFahrziele. Bearbeitet: board_capture.py Fokus-/Restorepfad, modularer
+  erprobter CB3-Helfer aus scripts/left_front_wrist_hd.py, gezielteTests.
+
+- Kamera-Fokusvorlauf korrigiert: nur Fokus+expliziterManaged-LED-Setter, keine
+  Rückschreibung alter Getter-ROI-Koordinaten und kein Visionneustart zur
+  Fokusrestaurierung. Erprobter CB3-32bit-Helfer nach wrist_hd.py modularisiert,
+  alter Servicewrapper erhalten.45gezielteKameratestsPASS, danach geänderter
+  Fokus-Teilpfad38TestsPASS. Sandbox-HTTP-Testserver benötigte Hostnetz.
+- Ursprüngliche LF/LR-Autofokus-ROIs vollständig wiederhergestellt, Feldprüfung
+  inklusive LED bestätigt. Alte URCap-ROI-Setter konvertieren Koordinaten und
+  benötigen gemeinsamen begrenzten Suchlauf; Nachweis roi_recovery_bounded.json.
+- Neuer stationärer Fünfkamera-Vorlauf: alle4 festen Foki bestätigt; native
+  Fotos laufen. Noch keine Armziele gesendet. Fremder Agent baut ausschließlich
+  uwa_cell_motion/Simulation; work/four-arm-collision-planning.md gelesen.

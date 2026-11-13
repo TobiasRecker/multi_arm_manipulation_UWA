@@ -171,3 +171,13 @@ def test_camera_failure_before_directory_creation_preserves_set_and_releases_bus
     assert not result['all_captured'] and not r.busy.locked()
     assert Path(result['directory'], 'left_rear/record.json').exists()
     assert result['cameras']['right_front']['success']
+
+
+def test_oak_startup_waits_for_native_wrist_transactions_to_finish(tmp_path):
+    r,_=rig(tmp_path);r.cameras,r.wrist_cameras=FIVE_CAMERAS,FIVE_CAMERAS[:-1]
+    completed=set();capture=r.capture_one
+    def ordered(name,*args):
+        if name=='oak4':assert completed==set(FIVE_CAMERAS[:-1])
+        result=capture(name,*args);completed.add(name);return result
+    r.capture_one=ordered
+    assert r.capture_all()['all_captured']

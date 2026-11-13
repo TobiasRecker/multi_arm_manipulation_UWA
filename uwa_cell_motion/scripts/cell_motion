@@ -1,0 +1,3 @@
+#!/usr/bin/env python3
+from uwa_cell_motion.cli import main
+main()

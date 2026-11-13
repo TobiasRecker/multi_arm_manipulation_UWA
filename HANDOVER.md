@@ -1,5 +1,45 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Wiederaufnahme Vierarm-Scan, 2026-11-13
+
+- Nutzer kündigt Wiederherstellung der Verbindung an. Ethernet enp87s0 wieder
+  UP/CarrierON mit192.168.8.209. Echte Dashboard-Lesung: LF RUNNING/NORMAL und
+  PLAYING ros.urp; LR/RR RUNNING/NORMAL, ros.urp STOPPED. Alle Fahrcontroller
+  inaktiv. Keine Power-/Brake-/Play-/Fahraktion ausgeführt.
+- RF192.168.8.103 ist inzwischen ebenfalls RUNNING/NORMAL/PLAYING erreichbar.
+  Nutzer bestätigt Remote-Control, aktuellen Nothalt-Bediener, unveränderten
+  Aufbau sowie freie Fahrbereiche/Kabel. Die vier alten RTDE-Reader sind nach
+  dem Netzausfall ausgefallen („Background reading is not running“); daher
+  gezielte Treiberwiederherstellung vor frischer Planung. Fahrcontroller inaktiv.
+- OAK-Prüffoto13.11. unvollständig: SDK-Pingverlust/Queue geschlossen und
+  Geräteabsturz gemeldet; Ursache nicht bestätigt. Fehlerartefakte unter
+  setup/oak4/photos/20261113-110935-standard-2810009d/. Kein Foto als gültig
+  übernommen, kein manueller Reset/Flash oder Roboterschreibzugriff.
+- Genau ein OAK-Wiederholungsversuch erfolgreich:8000×6000/Fokus116, neues
+  Prüfbild zeigt weiter denselben Karton. Assistierte Grobmaße43,3×34,3×16,2cm;
+  Board-PnP1,83px, scheinbare Board/OAK-Differenz zum12.11.1,77mm/0,34°
+  einschließlich PnP-Unsicherheit. Kein Nachweis absoluter Lagegenauigkeit.
+  Erfolgsdaten setup/oak4/photos/20261113-111253-standard-5b8d982b/.
+- Neue eindeutige Statusdateien unter setup/digitization/four_arm_scan_20261113/.
+  Aufbau per OAK-Einzelfoto prüfen, alte Quellpläne nicht wieder freigeben.
+  Vor Bewegung frische Planung und aktuelle Bediener-/Aufbaubestätigung.
+
+- Wiederherstellung abgeschlossen: alle4 ROS-RobotMode7/Safety1, ExternalControl
+  verbunden und Stillstand. Vier alte Launches gezielt ersetzt; LF-Controller
+  inaktiv nachgeladen, LR/RR Programme über MATCH, RF nach echtem NORMAL/Remote-
+  Check über Dashboard stop/play verbunden. Noch keine Bewegungsziele.
+- Neue immutable Plan-/Proofkette unter four_arm_scan_20261113/:20Wege,
+  fünfRunden mit allen4parallel, vollständige Kollisionsprüfung und50mm-
+  Trennung bei±0,005radKorridor bestanden; kleinsteModelluntergrenze339,89mm.
+  Einziges frisches Stopfenster geprüft, letzte Hardwareprüfung läuft.
+
+- Erster run01 noch vor Bewegung wegen Kamera-Fokus/LED-Prüfung abgebrochen.
+  Fokuspfad schreibt nun nur Fokus plus korrektenManaged-LED-Setter, restauriert
+  ohne Visionneustart; CB3-Fünfkamera nutzt denselben erprobten32bit-Helfer
+  wie dessen Service.45KameratestsPASS/38nachletztemFokuspfad. AlteLF/LR-ROI
+  nach fehlerhafter Native-Restaurierung vollständig bestätigt wiederhergestellt.
+  Stationärer fünfkameriger Vorlauf vor erneutem Bewegungsstart.
+
 ## Schnellere HD-Fotos und nutzungsabhängige LEDs,2026-11-12
 
 - Nutzerauftrag: HD-Aufnahme beschleunigen ohne wesentliche Qualitätseinbußen,

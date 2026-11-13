@@ -8,6 +8,16 @@ import time
 import urllib.request
 
 
+def settings_differences(before, after, *, ignored=(), managed_led=False):
+    """Compare configuration; leased manual LED readback uses enum1 or enum2."""
+    ignored = set(ignored)
+    if (managed_led and before.get('lightingMode') in (1, 2)
+            and after.get('lightingMode') in (1, 2)
+            and before.get('lightingValue') == after.get('lightingValue')):
+        ignored.add('lightingMode')
+    return [key for key in before if key not in ignored and before[key] != after.get(key)]
+
+
 class CameraError(RuntimeError):
     pass
 
@@ -143,7 +153,8 @@ class WristCamera:
         desired.update(focus=focus, focusAuto=auto)
         from .wrist_activity import directory
         ip = self.base.split('//')[1].split(':')[0]
-        if (directory(ip) / 'enabled').exists():
+        managed = (directory(ip) / 'enabled').exists()
+        if managed:
             # A full focus write contains getter LED mode1. Its setter enum
             # is manual2; preserve the current intensity rather than turning off.
             desired['lightingMode'] = 2
@@ -152,7 +163,10 @@ class WristCamera:
         after = self.settings()
         if after['focusAuto'] != auto or (not auto and after['focus'] != focus):
             raise CameraError(f'Focus readback differs from request: {after}')
-        unrelated = [k for k in before if k not in ('focus', 'focusAuto') and before[k] != after.get(k)]
+        ignored = {'focus', 'focusAuto'}
+        if before.get('exposureAuto'):
+            ignored.update(('exposure', 'gain'))
+        unrelated = settings_differences(before, after, ignored=ignored, managed_led=managed)
         if unrelated:
             raise CameraError('Other camera settings changed during write: ' + ', '.join(unrelated))
         return after

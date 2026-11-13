@@ -1,0 +1,5 @@
+<library path="collision_hold">
+  <class name="uwa_cell_motion/CollisionHold" type="uwa_cell_motion::CollisionHold" base_class_type="controller_interface::ControllerInterface">
+    <description>Simulation position-interface interlock with bounded deceleration and latched resource ownership.</description>
+  </class>
+</library>
