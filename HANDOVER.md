@@ -1,5 +1,33 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## CPU-Objektpose mit statischem und dynamischem Modus, 2026-11-13
+
+- Neuer Nutzerauftrag: bekannte digitalisierte Assets wiederfinden, statisch vor
+  Manipulation Genauigkeit priorisieren, dynamisch Onlinegeschwindigkeit.
+  Nutzerentscheidung: zunächst Intel-Mini-PC; weiterer NVIDIA-Rechner eventuell
+  später, von ihm parallel organisiert. FoundationPose noch nicht installiert.
+- Neues Paket uwa_cell_tracking: assetgebundeneSIFT-/3D-Merkmale ohne bekannte
+  Objekt-/Boardpose, globale/panelweisePnP-Hypothesen,3-Frame-Static mit robustem
+  Fit, dynamischesLK/PnP und Wiederinitialisierung. ROS-Pose/Status/Overlay,
+  expliziteLocalize/Start/Stop-Services; Worker unabhängig vom ROS-Spin.
+- Echte OAK opt-in auf65/LOCALHOST mit bestehender Fotolease. VorhandenerSDK-
+  Previewworker unterstützt zusätzlich1600×1200/10fps und tatsächlichesK/D/
+  SDK-Bildalter; alte2fps-GUI-Vorschau unverändert. Keine Roboteraktionen.
+-6Kernel-/Referenztests und isolierterROS-Replay71 bestanden. Begrenzterrealer
+  OAK-Lauf:188Frames/10,012fps, statischVALID0,42pxRMS/Ergebnisalter1,39s;
+  116OnlineVALID-Ausgaben inca12s, Kernmedian7,53ms, maxSDK-Bildalter128ms.
+  24Boardecken/0,256pxRMS prüfenAusgabeoptik separat, nicht alsTrackerprior.
+  OAK danach geschlossen/Fotosperrefrei. Keine Dienste/Roboter neu gestartet.
+- Grenzen: Objekt stand still; echte Bewegung/Verdeckung/Wiederfinden und
+  absolute Kontrollmaße offen. OAK/RR im finalenBildtest brauchbar; LR/RFLOST.
+  Frühere falsche Entwicklungshypothesen erhalten, keine universelle Freigabe.
+  VALIDbedeutetBildkonsens; manipulation_approved/absolute_accuracy bleibenfalse.
+- AusgabeT_camera_object, keine ungeprüfte Welt-/Basisübernahme. Näherungsmodell
+  und vorläufige Weltkalibrierung begrenzen Genauigkeit. M3T und FoundationPose
+  als späterevergleichbare Backends geprüft, noch nicht angebunden.
+- Bedienung docs/object_tracking.md; Einstieg scripts/object_tracking.sh
+  oak/localize/track/stop/view. Rohdaten setup/tracking/carton_cpu_20261113/.
+
 ## Texturierter Karton als Zell-Asset eingefügt, 2026-11-13
 
 - Nutzer wünscht das fertige Modell als wiederverwendbares Asset und in der

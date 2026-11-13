@@ -423,10 +423,12 @@ def stop_all():
     simulation_only();rclpy.init();client=MotionClient()
     try:
         client.connect(guard=False)
-        for rid in ROBOT_IDS:
-            answer=client.service(Trigger,'/uwa_cell/collision_supervisor/'+rid+'/stop',Trigger.Request())
-            if not answer.success:raise RuntimeError(answer.message)
-        client.wait(lambda:client.supervisor is not None and set(client.supervisor['held_arms'])==set(ROBOT_IDS),5.)
+        # Resource holds remain available if the ROS supervisor has failed.
+        # Reuse the execution abort adapter and verify through the manager,
+        # rather than depending on a possibly absent status publisher.
+        stopped=client.stop(ROBOT_IDS)
+        if not stopped['resource_holds_confirmed']:
+            raise RuntimeError('STOP_UNCONFIRMED: controller resource holds not confirmed')
         since=None;end=time.monotonic()+5.
         while time.monotonic()<end:
             rclpy.spin_once(client,timeout_sec=.02)
@@ -436,7 +438,9 @@ def stop_all():
                    drives_stationary(client))
             if quiet:
                 if since is None:since=time.monotonic()
-                if time.monotonic()-since>=.3:return 'STOPPED: four resource holds active; measured drive standstill confirmed'
+                if time.monotonic()-since>=.3:
+                    message='STOPPED: four resource holds active; measured drive standstill confirmed'
+                    return message if stopped['latches_confirmed'] else message+'; supervisor latch acknowledgement unavailable, resource holds persist'
             else:since=None
         raise RuntimeError('STOP_UNCONFIRMED: hold resources requested, fresh standstill not confirmed')
     finally:client.destroy_node();rclpy.shutdown()

@@ -9,7 +9,7 @@
   <exec_depend>rclpy</exec_depend><exec_depend>match_cooperative_handling</exec_depend>
   <exec_depend>uwa_cell_motion</exec_depend><exec_depend>uwa_cell_tracking</exec_depend>
   <exec_depend>uwa_cell_description</exec_depend><exec_depend>uwa_cell_gazebo</exec_depend>
-  <exec_depend>geometry_msgs</exec_depend><exec_depend>std_msgs</exec_depend><exec_depend>std_srvs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend><exec_depend>std_msgs</exec_depend><depend>std_srvs</depend>
   <exec_depend>sensor_msgs</exec_depend><exec_depend>visualization_msgs</exec_depend>
   <exec_depend>control_msgs</exec_depend><exec_depend>controller_manager_msgs</exec_depend>
   <exec_depend>trajectory_msgs</exec_depend><exec_depend>ros_gz_sim</exec_depend>

@@ -98,6 +98,12 @@ the tables. It loads automatically with the cell; use `cell.sh assets` to add it
 to an already running simulation. It is a static visual, with no new physics
 or planning obstacle.
 
+A first [CPU object-pose tracker](docs/object_tracking.md) now uses these textured
+assets for separate static localization and fast online tracking. The bounded
+real-OAK test received10fps with7.5ms median tracking computation; the object
+remained stationary, so real motion/occlusion and absolute accuracy still need
+validation. Start camera-only: `bash src/multi_arm_manipulation_UWA/scripts/object_tracking.sh oak`.
+
 
 ## OAK camera CAD and tripod
 

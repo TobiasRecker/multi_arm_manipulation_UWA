@@ -178,6 +178,18 @@
 
 ## Bildbasierte Objektdigitalisierung (2026-11-12)
 
+- Nutzerziel13.11.: bekannte Assets mit6DoF-Pose wiederfinden; langsame möglichst
+  genaue statische Lokalisierung vor Greifen und schnelle dynamische Verfolgung
+  getrennt anbieten. Zunächst Mini-PC; Nutzer organisiert eventuell später
+  NVIDIA-Compute. Backend austauschbar halten, keine GPU-Anschaffung/Remote-
+  Anbindung oder FoundationPose-Funktionsfähigkeit auf Intel behaupten.
+- CPU-Prototyp uwa_cell_tracking, docs/object_tracking.md: direkte Kamerapose
+  im unveränderten Assetframe, keine bekannte Szenen-/Boardpose als Schätzprior.
+  VALID ist visuelle Konsistenz, keine Manipulations-/Millimetergenauigkeitsfreigabe.
+  Bildalter/LOST/Mehrdeutigkeit zeigen, bei Verlust keine alte Pose neu publizieren.
+  StatischerBurst setzt Kamera-/Objektruhe voraus. Nur Kameraaktionen, keine
+  automatische Armfahrt oder Wiederaufnahme pausierter Planungsarbeit.
+
 - Nutzerauftrag13.11.: texturierten Karton als wiederverwendbares Asset in der
   virtuellen Zelle an seiner beobachteten Stelle darstellen. Versionierte
   Modell-/Texturdateien unter description/assets, Instanzen zentral in

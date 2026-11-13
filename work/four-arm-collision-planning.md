@@ -45,6 +45,11 @@
   321ms Wächterverlust→Hold; einzelne Beobachtungen, keine garantierte Obergrenze.
   Ressourcen-/Topic-Sperre, unabhängige Weiterfahrt und Teilreset weiterhin PASS.
   Replay nach explizitem Reset fortgesetzt;53automatische Prüfungen bestanden.
+- Startsequenz korrigiert: Steuer-/Resetservices erst nach Controller-
+  Vorbereitung anbieten; frühe Reset-Callbacks dürfen nicht im provisorischen
+  SingleThread-Spin der Parameterabfrage laufen. CLI-Reset wartet auf frische
+  Guard-/Supervisor-Meldungen, ohne vollständige Armzustände zu fordern
+  (Teilreset bleibt möglich). Unmittelbarer Start/Reset/Replay erneut geprüft.
 
 ## Zwischenstand
 
