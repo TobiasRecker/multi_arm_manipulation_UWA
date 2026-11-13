@@ -173,7 +173,7 @@ def add_object_collision(model, target, padding):
     model.scene.apply_collision_object(obj)
 
 
-def candidates_for_arm(model, layout, geometry, start, target, rid, config):
+def candidates_for_arm(model, layout, geometry, start, target, rid, config, wall_check=lambda rid,frames: True):
     names = joint_names(rid)
     q0 = np.array([start[j] for j in names])
     chain = Chain(model.description, 'world', rid + '_wrist_camera_optical_frame')
@@ -181,7 +181,7 @@ def candidates_for_arm(model, layout, geometry, start, target, rid, config):
     azimuth = np.arctan2(*(base - target['centre'])[[1, 0]])
     intrinsic = optics(layout, rid)
     result, reasons = [], dict(ik=0, collision=0, visibility=0, bounds_outside_image=0,
-                              object_occluded=0, reference_not_visible=0)
+                              object_occluded=0, reference_not_visible=0, wall_buffer=0)
     for radius, height, angle, roll in product(config['horizontal_distances_m'], config['heights_above_centre_m'],
                                               config['azimuth_offsets_deg'], config['roll_deg']):
         a = azimuth + np.deg2rad(angle)
@@ -202,6 +202,9 @@ def candidates_for_arm(model, layout, geometry, start, target, rid, config):
                 reasons['collision'] += 1
                 continue
             frames = geometry.frames(state)
+            if not wall_check(rid, frames):
+                reasons['wall_buffer'] += 1
+                continue
             actual = frames[rid + '_wrist_camera_optical_frame']
             view = visibility(geometry, frames, actual, target, intrinsic, [rid + '_wrist_camera_link'])
             if not view['passes']:
@@ -251,14 +254,18 @@ def checked_schedule(model, start, candidates, final_check, *, velocity=.05, acc
     return None
 
 
-def extra_views(model, layout, geometry, state, target, config):
+def extra_views(model, layout, geometry, state, target, config, wall_check=lambda rid,frames: True):
     state = dict(state)
     steps, rejected = [], []
     for rid in ROBOT_IDS:
         names = joint_names(rid)
         chain = Chain(model.description, 'world', rid + '_wrist_camera_optical_frame')
         centre_pose = chain.forward(state)
-        for dx, dy in config['extra_camera_xy_offsets_m']:
+        accepted_count = 0
+        offsets = config['extra_camera_xy_offsets_m'] + config.get('extra_camera_xy_reserve_offsets_m', [])
+        for dx, dy in offsets:
+            if accepted_count >= config.get('target_extra_views_per_arm', len(config['extra_camera_xy_offsets_m'])):
+                break
             desired = look_at(centre_pose[:3, 3] + centre_pose[:3, 0] * dx + centre_pose[:3, 1] * dy,
                               target['centre'], centre_pose[:3, 0])
             seed = [state[j] for j in names]
@@ -269,6 +276,9 @@ def extra_views(model, layout, geometry, state, target, config):
                 continue
             endpoint = dict(state, **dict(zip(names, q)))
             frames = geometry.frames(endpoint)
+            if not wall_check(rid, frames):
+                rejected.append(dict(arm=rid, offset=[dx, dy], reason='per-arm wall buffer'))
+                continue
             actual = frames[rid + '_wrist_camera_optical_frame']
             view = visibility(geometry, frames, actual, target, optics(layout, rid), [rid + '_wrist_camera_link'])
             if not view['passes']:
@@ -282,6 +292,7 @@ def extra_views(model, layout, geometry, state, target, config):
             steps.append(dict(arm=rid, start=dict(state), target=q.tolist(), points=points,
                               camera_world=actual.tolist(), purpose='additional_object_view', offset_camera_xy_m=[dx, dy]))
             state = endpoint
+            accepted_count += 1
     return steps, rejected
 
 
@@ -289,6 +300,24 @@ def plan_scan(layout, model, start, sources, config):
     geometry = VisibilityModel(model.description, ROBOT_IDS)
     target = target_geometry(layout, model.description, config)
     add_object_collision(model, target, config['collision_padding_m'])
+    wall_check = lambda rid,frames: True
+    buffer = float(config.get('per_arm_wall_buffer_m', 0.))
+    if not np.isfinite(buffer) or buffer < 0:
+        raise ValueError('Wall buffer must be finite and nonnegative')
+    if buffer > 0:
+        from .scan_separation import Geometry, pair_planes
+        bodies = Geometry(model.description, {rid: joint_names(rid) for rid in ROBOT_IDS})
+        planes = pair_planes(bodies, start)
+        def wall_check(rid, frames):
+            for plane in planes:
+                if rid not in (plane['a'], plane['b']):
+                    continue
+                sign = 1. if rid == plane['a'] else -1.
+                normal = np.asarray([plane['normal'] * sign])
+                ceiling = plane['offset'] * sign - buffer
+                if any(body.support(frames, normal)[1][0] > ceiling for body in bodies.bodies[rid]):
+                    return False
+            return True
     result = dict(schema=1, purpose='object_scan_review_only', executable=False, hardware_commands=False,
                   created_at=datetime.now(timezone.utc).isoformat(), start=start, state_sources=sources,
                   layout_profile=layout.get('calibration', {}).get('profile_id', 'nominal'),
@@ -305,7 +334,7 @@ def plan_scan(layout, model, start, sources, config):
         return result
     candidates = {}
     for rid in ROBOT_IDS:
-        entries, reasons = candidates_for_arm(model, layout, geometry, start, target, rid, config)
+        entries, reasons = candidates_for_arm(model, layout, geometry, start, target, rid, config, wall_check)
         candidates[rid] = entries
         result['candidates'][rid] = dict(accepted=len(entries), rejected=reasons, entries=entries)
         print(json.dumps(dict(arm=rid, accepted=len(entries), rejected=reasons)), flush=True)
@@ -331,7 +360,7 @@ def plan_scan(layout, model, start, sources, config):
     state, steps = schedule
     result.update(common_view_found=True, paths_checked=True, common_state=state, steps=steps,
                   common_visibility=deepcopy(result['last_combination_visibility']))
-    additional, rejected = extra_views(model, layout, geometry, state, target, config)
+    additional, rejected = extra_views(model, layout, geometry, state, target, config, wall_check)
     result['steps'].extend(additional)
     result['rejected_extra_views'] = rejected
     result['unique_view_count'] = 5 + len(additional)
@@ -406,6 +435,7 @@ def main():
     model, layout = make_model(layout, profiles, args.output / 'model')
     result = plan_scan(layout, model, start, sources, config)
     result.update(snapshot=str(args.snapshot.resolve()), snapshot_sha256=digest(snapshot),
+                  inventory_fingerprint=digest(profiles),
                   config_sha256=digest(config), description_sha256=digest(model.description),
                   snapshot_recorded_at={rid: snapshot['arms'][rid].get('recorded_at') for rid in ROBOT_IDS})
     (args.output / 'report.json').write_text(json.dumps(result, indent=2, allow_nan=False) + '\n')

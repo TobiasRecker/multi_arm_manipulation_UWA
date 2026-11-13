@@ -629,6 +629,30 @@ Abschlussbericht dienen. Arbeitsregeln: [AGENTS.md](AGENTS.md); Bedienung: [READ
   output/images/carton_digitization_preview.png. Rohdaten/Hashmanifest/Overlays
   undKameraprofile untersetup/digitization/carton_20261112/, Logs uwa-carton-*.
 
+## Echter Vierarm-Scan beauftragt, Start wegen Netzverlust offen, 2026-11-12
+
+- Nutzer will Durchführung mit allen4parallel und bleibt amNothalt. Neue Ziele
+  mit60mmTrennwandreserve/Reserveansichten gefunden:4Extras jeArm/21Blickpunkte,
+  allePhasen unabhängiggetrennt mit50mmRestabstand nach±0,005radBahntoleranz.
+  KleinsteModelluntergrenze339,0mm,2400MoveIt-Prüfpunkte. NochkeineArmfahrt.
+- NeuerparallelerRunner+separateStop-GUI, GUI-Verlust/NativeSafety/Korridor/
+  Datenverlust führenzugemeinsamemCancel/Deaktivieren/Stillstandsprüfung.
+  BekannteZielevorWartenaufspäteBestätigungen canceln. ErsteFoto-Runde pausiert
+  zurBildkontrolle,STOPbleibtverriegelt,keineHeimfahrt. KeinPower/Brake/Play imRunner.
+- Build/34TestsPASS. IsolierteDomain75 mitviernativenMock-Controllern: gemeinsam
+  Zielerreichung,STOPwährendFahrtundHeartbeatverlust/Resume-SperrePASS.
+  EigeneMock-Prozessegezieltbeendet. RealeTreiber/Programmeunverändert.
+- Gegen19:35Roboternetz enp87s0DOWN/CarrierOFF/keine8.209-Adresse,alleDashboards
+  timeout. ROSlieferteweiterJoints/RobotMode3,RearSafety9;keineverifizierten
+  aktuellenGerätezustände.BeideFrontwarenvorherbereitsPOWER_OFF. KeinStart/
+  Safetyresetgesendet;NutzerumKabel/Switch/Steuerungengebeten.
+- DeshalbLiveDashboard-HeartbeatzusätzlichzuROSFrischeimplementiert. Reader-
+  Latest-SnapshotwurdebeiStatusabfrageersetzt;StartwerteimPlanerhalten,aber
+  alteSnapshotbindungnunbewusstabgewiesen,vorFahrtneueimmutableLive-Planung.
+- Anleitungdocs/parallel_object_scan.md;Datum/Sitzung
+  setup/digitization/four_arm_scan_20261112/. StopfensterzeigtBLOCKEDNetworkDown,
+  keineBewegungsschnittstellegestartet.KeineechtenScanbilderaufgenommen.
+
 ## Bewegungsraum-/Parallelprüfung der Scanwege, 2026-11-12
 
 - Nutzer will maximale Vorstöße über mittige virtuelle Wände und daraus mehr

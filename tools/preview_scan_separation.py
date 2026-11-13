@@ -40,7 +40,7 @@ def main():
             unique.append(n);tangent=np.array([-n[1],n[0]])
             line=np.array([c-3*tangent,c+3*tangent]);ax.plot(*line.T,'--',color='#747474',linewidth=1,zorder=0)
         for rid,arm in phase['arms'].items():
-            poly=expanded_polygon(arm['xy_hull'],arm['max_interpolation_padding_m']+data['required_interarm_clearance_m']/2)
+            poly=expanded_polygon(arm['xy_hull'],arm.get('max_total_padding_m',arm['max_interpolation_padding_m'])+data['required_interarm_clearance_m']/2)
             ax.add_patch(Polygon(poly,facecolor=colors[rid],edgecolor=colors[rid],alpha=.2,linewidth=2))
             ax.plot(*np.vstack([poly,poly[0]]).T,color=colors[rid],linewidth=1.3)
             middle=poly.mean(axis=0)
@@ -56,7 +56,8 @@ def main():
         status='4 arms: model separation proven' if phase['all_four_phase_independent_separation_proven'] else 'Rear pair: 20 mm clearance not proven'
         ax.text(.5,-.13,status,transform=ax.transAxes,ha='center',weight='bold',fontsize=11)
     fig.suptitle('SCAN SWEEP ENVELOPES — NO HARDWARE MOTION',fontsize=19,weight='bold')
-    fig.text(.035,.035,'XY projection: conservative collision-body envelopes, including interpolation and 10 mm buffer per arm.\n'
+    buffer=data['required_interarm_clearance_m']*500
+    fig.text(.035,.035,f'XY projection: conservative collision-body envelopes, including interpolation/tracking and {buffer:g} mm buffer per arm.\n'
              'Dashed: base-midpoint walls. XY overlap may still be separated in 3D. Frozen provisional model; no general workspace approval.',fontsize=11)
     fig.tight_layout(rect=[0,.12,1,.93]);args.output.parent.mkdir(parents=True,exist_ok=True)
     fig.savefig(args.output,dpi=140);plt.close(fig);print(args.output)

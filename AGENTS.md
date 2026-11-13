@@ -130,6 +130,15 @@
 
 ## Bildbasierte Objektdigitalisierung (2026-11-12)
 
+- Nutzer beauftragt echten Scan mit allen vier Armen parallel und bleibt am
+  Nothalt. Dafür neue besser getrennte Ziele prüfen; die zuvor ungeklärten
+  hinteren Zusatzwege nicht ungeprüft gleichzeitig starten. Runner/GUI:
+  docs/parallel_object_scan.md, scripts/object_scan.sh, keine implizite Power/Play.
+- Nach beobachtetem Ethernet-Linkverlust lieferten Hardware-Broadcaster weiter
+  JointStates aus Cache. Für automatische Hardwarefahrten zusätzlich echte
+  Gerätekommunikation prüfen; ROS-Empfangsfrische allein genügt nicht.
+  Alte/geänderte Originalsnapshots nicht zum Ausführen freigeben, neu planen.
+
 - Nutzer möchte zur Beschleunigung virtuelle Trennebenen zwischen den Armen und
   maximale Überschreitungen über ganze Wege prüfen. Ganze Kollisionskörper und
   Zwischenbewegung einbeziehen; zeitunabhängige Bewegungsräume statt nur gleicher

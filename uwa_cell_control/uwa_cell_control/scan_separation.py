@@ -306,7 +306,7 @@ def bodywise_separator(A, B, clearance):
                 method='every pair of per-collision-body swept hulls separated for arbitrary path progress')
 
 
-def sweep(geometry, plan, planes, scope, defaults):
+def sweep(geometry, plan, planes, scope, defaults, tracking_error_rad=0.):
     directions = np.asarray([p['normal'] for p in planes])
     phase_start = plan['start'] if scope != 'extra' else plan['common_state']
     selected = [(i, step) for i, step in enumerate(plan['steps']) if
@@ -319,7 +319,9 @@ def sweep(geometry, plan, planes, scope, defaults):
         sample_lows, sample_highs = lows.copy(), highs.copy()
         witnesses = [[None] * len(planes) for _ in bodies]
         low_witnesses = [[None] * len(planes) for _ in bodies]
-        body_pad = np.zeros(len(bodies))
+        tracking_pad = np.asarray([sum(body.radii)*tracking_error_rad for body in bodies])
+        body_pad = tracking_pad.copy()
+        motion_pad = np.zeros(len(bodies))
         samples = 0
         xyz = [[] for _ in bodies]
         own = [(i, s) for i, s in selected if s['arm'] == rid]
@@ -346,15 +348,17 @@ def sweep(geometry, plan, planes, scope, defaults):
                     low_witnesses[body_index][plane_index] = dict(step=step_index, point=point_index,
                         link=bodies[body_index].link, collision_index=bodies[body_index].index)
                 sample_lows, sample_highs = np.minimum(sample_lows, lo), np.maximum(sample_highs, hi)
-                lows, highs = np.minimum(lows, lo), np.maximum(highs, hi)
+                lows, highs = np.minimum(lows, lo-tracking_pad[:, None]), np.maximum(highs, hi+tracking_pad[:, None])
                 if previous_q is not None:
                     # On each monotone quintic segment, q=q0+s*dq with one scalar s.
                     # Any intermediate point is at most half a joint-interval from
                     # its nearest endpoint. Bound each body with sum(R_j*|dq_j|)/2.
-                    pad = np.asarray([body.radii @ abs(q-previous_q)/2 for body in bodies])
+                    interpolated = np.asarray([body.radii @ abs(q-previous_q)/2 for body in bodies])
+                    pad = interpolated + tracking_pad
                     lows = np.minimum(lows, np.minimum(previous_lo, lo)-pad[:, None])
                     highs = np.maximum(highs, np.maximum(previous_hi, hi)+pad[:, None])
                     body_pad = np.maximum(body_pad, pad)
+                    motion_pad = np.maximum(motion_pad, interpolated)
                 previous_q, previous_lo, previous_hi = q, lo, hi
                 samples += 1
         body_hulls = [dict(link=body.link, collision_index=body.index, padding_m=float(body_pad[k]),
@@ -363,7 +367,9 @@ def sweep(geometry, plan, planes, scope, defaults):
                           sampled_min=sample_lows.min(axis=0), sampled_max=sample_highs.max(axis=0),
                           high_witness=[witnesses[int(np.argmax(sample_highs[:, k]))][k] for k in range(len(planes))],
                           low_witness=[low_witnesses[int(np.argmin(sample_lows[:, k]))][k] for k in range(len(planes))],
-                          max_interpolation_padding_m=float(body_pad.max()),
+                          max_interpolation_padding_m=float(motion_pad.max()),
+                          max_tracking_padding_m=float(tracking_pad.max()),
+                          max_total_padding_m=float(body_pad.max()),
                           body_count=len(bodies), samples=samples,
                           body_hulls=body_hulls,
                           xyz_hull=hull_xyz(np.concatenate([h['hull'] for h in body_hulls])))
@@ -428,9 +434,11 @@ def parallel_review_schedule(plan, phases, arms):
                                'Fresh real states/model review and existing monitored stop handling before hardware use.'])
 
 
-def analyze(plan, description, defaults, clearance=.02):
+def analyze(plan, description, defaults, clearance=.02, tracking_error_rad=0.):
     if not np.isfinite(clearance) or clearance <= 0:
         raise ValueError('Clearance must be finite and positive')
+    if not np.isfinite(tracking_error_rad) or tracking_error_rad < 0:
+        raise ValueError('Tracking corridor must be finite and nonnegative')
     arms = {rid: joint_names(rid) for rid in ROBOT_IDS}
     validated_steps(plan, arms)
     if plan.get('description_sha256') != digest(description):
@@ -445,6 +453,7 @@ def analyze(plan, description, defaults, clearance=.02):
     result = dict(schema=1, purpose='offline_swept_model_separation', hardware_commands=False,
         hardware_execution_authorized=False, created_at=datetime.now(timezone.utc).isoformat(),
         required_interarm_clearance_m=clearance,
+        joint_tracking_corridor_rad=tracking_error_rad,
         analyzed_geometry='all URDF arm collision bodies: exact directional mesh support and analytic primitives',
         interpolation_bound='sum of downstream-link radius bounds times joint interval / 2; original monotone quintics verified',
         joint_defaults=defaults, mesh_sha256=geometry.assets,
@@ -455,7 +464,7 @@ def analyze(plan, description, defaults, clearance=.02):
                      'Projection overlap means unproven separation, not a detected physical collision.',
                      'Existing self/environment/path checks remain required; no controller or stop policy changed.'], phases={})
     for scope in ('initial', 'extra', 'all'):
-        swept = sweep(geometry, plan, planes, scope, defaults)
+        swept = sweep(geometry, plan, planes, scope, defaults, tracking_error_rad)
         pairs = []
         for index, plane in enumerate(planes):
             a, b = plane['a'], plane['b'];A, B = swept[a], swept[b]
@@ -469,7 +478,7 @@ def analyze(plan, description, defaults, clearance=.02):
             pair['base_direction_separation_proven'] = pair['phase_independent_separation_proven']
             if not pair['phase_independent_separation_proven']:
                 alternative = alternative_separator(A['xyz_hull'], B['xyz_hull'],
-                    A['max_interpolation_padding_m'], B['max_interpolation_padding_m'], clearance)
+                    A['max_total_padding_m'], B['max_total_padding_m'], clearance)
                 pair['alternative_separator'] = alternative
                 pair['phase_independent_separation_proven'] = alternative['proven']
                 if not alternative['proven']:
@@ -526,12 +535,13 @@ def main():
     parser.add_argument('--plan', required=True, type=Path, help='Checked object-scan report.json')
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--clearance-mm', type=float, default=20.)
+    parser.add_argument('--tracking-error-rad', type=float, default=0., help='Bounded deviation from the original joint-space path')
     args = parser.parse_args()
     plan = json.loads(args.plan.read_text())
     description = (args.plan.parent / 'cell.urdf').read_text()
     layout = yaml.safe_load((args.plan.parent / 'model/layout.yaml').read_text())
     defaults = {gripper_joint(rid): layout['robots'][rid]['tools']['gripper_initial_position'] for rid in ROBOT_IDS}
-    result = analyze(plan, description, defaults, args.clearance_mm/1000)
+    result = analyze(plan, description, defaults, args.clearance_mm/1000, args.tracking_error_rad)
     result.update(source_plan=str(args.plan.resolve()), source_plan_sha256=hashlib.sha256(args.plan.read_bytes()).hexdigest(),
                   source_urdf_sha256=hashlib.sha256(description.encode()).hexdigest())
     args.output.mkdir(parents=True, exist_ok=True)

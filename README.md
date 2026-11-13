@@ -77,6 +77,9 @@ Corner selection is assisted; no real scan motion has been executed.
 A [virtual-wall and swept-volume analysis](docs/scan_separation.md) now derives a
 parallel review schedule from the unchanged scan paths. It retains the original
 order for pairs without a separation proof; no hardware execution is enabled.
+A separately tested [hardware parallel runner and STOP window](docs/parallel_object_scan.md)
+are prepared. The requested first real run is pending restoration of the robot
+Ethernet link; no real scan movement has been sent.
 
 ## OAK camera CAD and tripod
 
