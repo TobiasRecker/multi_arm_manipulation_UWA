@@ -59,10 +59,10 @@
   Manueller Nutzungswert standard30%, idle0. Getter-/Setter-LED-Modi sind auf
   diesen UCC-Versionen verschieden; erfolgreiche manuelle Setterantwort und
   tatsächliche Intensität prüfen, Getter1 nicht als Setter1 zurückspielen.
-- Während LR-HD-Reihe bleibt deren Originalpfad eingefroren. Hinterlegter
-  Rollout in setup/wrist_lighting/pending/left_rear.json darf ausschließlich
-  nach abgeschlossenem work/left-rear-hd-intrinsics.md und freiem Kameralock
-  den Kameradienst ersetzen; keine Arm-/Treiber-/Programm-/Bewegungsaktion.
+- LR-Rollout ist abgeschlossen; alle vier Kameras sind in der LED-Nutzungsregel
+  erfasst. Vor Kamera-Dienstwechseln weiterhin fremde Messreihen und freie
+  Nutzungssperren prüfen. Keine Arm-/Treiber-/Programmaktion aus LED-Arbeit.
+  Am13.11. im Leerlauf bei allen vier Kameras LED0 real bestätigt.
   Details docs/wrist_speed_led_2026-11-12.md. Fremde direkte HTTP-/Pendant-
   Clients sind ohne Nutzungsmeldung nicht durch diesen PC erfassbar.
 

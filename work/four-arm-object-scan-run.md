@@ -1,6 +1,6 @@
 # Erster realer Scan mit vier parallelen Armen
 
-- Status: **alle fünf Stellungen erreicht; 24/25 Bilder bestätigt, OAK-Update vorbereitet**, 2026-11-13, Hauptagent Digitalisierung.
+- Status: **abgeschlossen – fünf Stellungen je Arm, 25/25 Bilder bestätigt**, 2026-11-13, Hauptagent Digitalisierung.
 - Nutzer beauftragt Durchführung mit allen Robotern parallel und bleibt am
   physischen Nothalt. Das ist die Freigabe zur Vorbereitung/Ausführung eines
   tatsächlich kollisionsgeprüften Ablaufs; ungeklärte hintere Zusatzpfade nicht
@@ -165,3 +165,12 @@
   Freigabe fürdauerhafteKamera-OS-Änderung mitNeustart ausstehend.
 - Abschließende87gezielteTestsPASS. KeineweiterenArmziele. LetzteDashboards
   alleRUNNING/NORMAL, Fahrcontrollerinaktiv; beidelinkenProgrammeSTOPPEDbelassen.
+
+- Nach ausdrücklich freigegebenem OAK-OTA1.47:15nativeStartzyklen undkompletter
+  letzterFünfkamera-Satz mitisoliertemStillstandsauditPASS. Factoryunverändert.
+  AlleWrist-Originalkonfigurationenrestauriert. KeineweitereArmfahrt.
+- VollständigerIndex scan_dataset.json:25Bilder/21verschiedeneKamerastandpunkte,
+  Hash-/Größen-/Sollposen-/StillstandsprüfungPASS. AlteFehlversuche undpartiellen
+  Index erhalten. Übersichten scan_overview.jpg undscan_all_rounds.jpg.
+- AbschließenderStillstand aller4 bestätigt, alleFahrcontrollerinaktiv,
+  NativeRUNNING/NORMAL. LinkeProgrammeSTOPPEDbelassen. Aufgabeabgeschlossen.

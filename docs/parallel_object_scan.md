@@ -1,41 +1,51 @@
 # Vierarm-Objektscan: realer Runner und aktueller Startstand
 
-Stand: 13.11.2026. Alle vier Arme haben jeweils die fünf geplanten Stellungen
-erreicht. **24 von 25 Bildern sind bestätigt; die letzte OAK-Aufnahme fehlt.**
-Alle Arme stehen, Fahrcontroller sind inaktiv, keine automatische Rückfahrt.
+Stand: 13.11.2026. **Alle fünf Stellungen je Roboter und 25/25 Bilder sind
+abgeschlossen.** Alle Arme stehen; Fahrcontroller sind inaktiv. Keine automatische
+Rückfahrt oder neue Fahrt beim Öffnen des Statusfensters.
 
-## Ergebnis und aktueller Stand
+## Ergebnis
 
-- Nach ausdrücklicher Nutzerfreigabe Restwege ab Runde2 erneut vollständig
-  live, per Quellhash, Modell und Kollision geprüft. Runden2–5 parallel gefahren,
-  letzte Zielstellungen um12:48:07 AWST erreicht. Bestehender Trennnachweis
-  einschließlich Trackingreserve blieb unverändert.
-- Datenindex: `setup/digitization/four_arm_scan_20261113/scan_dataset_partial.json`.
-  Ein gültiger initialer Fünfersatz nach OAK-Neustart, drei vollständige weitere
-  Fünfersätze sowie vier Wrist-Fotos an der letzten Stellung. 20 Wrist-Ansichten,
-  vier native8K-OAK-Bilder und 21 verschiedene Kamerastandpunkte. Bildhashes,
-  native Größen, gemessene Gelenke, Sollpose und Stillstand geprüft. Mindestens
-  12 Boardecken je Wrist-Bild; keine neue metrische Genauigkeitsfreigabe.
-- Letzte Aufnahme nach abgeschlossener Fahrt wegen Telemetrielücke angehalten.
-  Tatsächlicher Stillstand bestätigt; 2,18-s-PC-Treiberzyklus protokolliert.
-  Beide linken External-Control-Programme stehen auf STOPPED und bleiben so;
-  Kamerawiederholungen starteten weder Programme noch Armziele.
-- Kameraarbeit in eigenem Prozess. Auch die Stillstandsaufzeichnung wurde in
-  einen eigenen read-only Prozess verlegt, nachdem Bildarbeit den bisherigen
-  Audit-Thread ausgebremst hatte. Realer Fototest und GIL-Blocktest bestanden,
-  ursprüngliche Frische-/Driftgrenzen erhalten. Planungsobjekt vor Fotoarbeit
-  freigegeben, OpenCV auf zwei Threads begrenzt. 87 gezielte Tests PASS.
-- Neuer Audit bestätigt die letzten vier Wrist-Fotos. OAK scheitert wieder beim
-  Pipeline-Start. Frühere Fehlversuche bleiben ungültig; nur passende gültige
-  Einzelbilder sind im partiellen Datenindex ausgewählt. Alle ursprünglichen
-  Wrist-Konfigurationen einschließlich Autofokus-ROIs restauriert.
-- Offizielles Kamera-OS1.47 lokal heruntergeladen und gegen Hersteller-MD5
-  geprüft; Werkskalibrierung gesichert. Kein Update ausgeführt. Die dauerhafte
-  Kamera-OS-Änderung mit Neustart wartet auf ausdrückliche Freigabe.
+- Index: `setup/digitization/four_arm_scan_20261113/scan_dataset.json`.
+  20 native Wrist-Ansichten2592×1944 und fünf OAK-Fotos8000×6000, zusammen
+  21verschiedene Kamerastandpunkte. Bildhashes, native Größe, fester Fokus,
+  Sollpose und tatsächlicher Stillstand je Gruppe geprüft. Mindestens12ChArUco-
+  Ecken je Wrist-Bild und24je OAK-Foto. Keine metrische Rekonstruktionsfreigabe.
+- Vorschaubilder: scan_overview.jpg und scan_all_rounds.jpg im selben Ordner.
+  Originale und fehlgeschlagene Versuche unverändert erhalten. Der vorherige
+  scan_dataset_partial.json bleibt als historischer Zwischenstand erhalten.
+- Initiale gültige Gruppe nach Nutzer-OAK-Neustart; Runden2–4 aus run03_rest,
+  letzte Gruppe aus last_round_post_os147. Die vier Arme waren für die späteren
+  Foto-Wiederholungen bereits an ihren Endstellungen; keine zusätzliche Fahrt.
 
-Rohdaten: run03_rest/, last_round_stationary_retry_v2/, scan_dataset_partial.json
-unter `setup/digitization/four_arm_scan_20261113/`. OAK-Updateplan unter
-`setup/oak4/stability_20261113/ota/update_plan.json`.
+## OAK-Update und Nachprüfung
+
+Das vom Nutzer ausdrücklich freigegebene Hersteller-OTA1.32.1→1.47.0 wurde
+installiert, Agent0.28.0 und dieselbe Geräte-ID bestätigt. Werkskalibrierung
+vor/nach OTA exakt identisch; SDK3.12 und globale Kalibrierprofile unverändert.
+15direkt aufeinanderfolgende nativeStart-/Fotozyklen bestanden, anschließend
+der komplette letzte Fünfkamera-Satz mit unabhängigem Stillstandsaudit.
+16erfolgreiche OAK-Aufnahmen nach Update sind ein begrenzter Wiederholungsnachweis.
+
+Der Datenindex weist OS1.32.1 für OAK-Gruppen1–4 und1.47.0 für Gruppe5 aus.
+24gemeinsame statischeBoardecken vor/nach OTA verschoben sich um0,52nativePixelRMS;
+das enthält Detektions-/Beleuchtungseinflüsse und ist keine neue Kalibrierung.
+Update-/Paket-/Factory-/Testnachweise: setup/oak4/stability_20261113/ota/.
+
+## Überwachung und Endzustand
+
+Beim ursprünglichen letzten Fotoversuch lösten Telemetrielücken den Stopp aus;
+PC-Treiber protokollierte2,18s Zykluszeit. Nachgewiesene Endstellungen blieben
+erhalten. Fehlgeschlagene Bildsätze wurden nicht nachträglich als PASS markiert.
+Kameraarbeit und read-only Audit laufen nun in eigenen Prozessen, unabhängig
+vom Bewegungswächter. Ursprüngliche Frische-/Driftgrenzen gelten weiter.
+OpenCV-Threads sind begrenzt; das temporäre Planungsobjekt bleibt vor Bildarbeit
+nicht gehalten. 87gezielte Softwaretests bestanden; Hostressourcen und die
+frühere Zyklusverzögerung bleiben für spätere automatische Fahrten relevant.
+
+Letzte Prüfung: alle vier RUNNING/NORMAL, tatsächlicher Stillstand, Fahrcontroller
+inaktiv. Linke Programme STOPPED, rechte PLAYING. OTA und Nachprüfung starteten
+keinen Roboter, lösten keine Bremse und sendeten keine Arm-/Programmaktion.
 
 Historischer Ausfall am12.11.:
 

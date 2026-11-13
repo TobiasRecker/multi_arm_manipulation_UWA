@@ -67,15 +67,17 @@ Eigene Videoclients mit `with camera.activity():` umschließen; einzelne
 `uwa_cell_control` gebaut, keine Roboter-/Simulations-/UR-Treiberneustarts.
 Benutzerdienstquelle `setup/systemd/uwa-wrist-led-policy.service`, verlinkt und
 aktiviert. Originale/Profile/Status: `setup/wrist_lighting/<IP>/{profile,state}.json`.
-Keine Zugangsdaten. Aktiv und real geprüft: **right_front**, **right_rear**, **left_front**.
+Keine Zugangsdaten. Aktiv und real geprüft: **alle vier Wrist-Kameras**.
+Der aufgeschobene left_rear-Rollout wurde am12.11. abgeschlossen; die Jobdatei
+`setup/wrist_lighting/pending/left_rear.json` steht auf `COMPLETE`. Nicht erneut
+in eine laufende Messreihe ausrollen oder Kameradienste dafür neu starten.
 
-**left_rear wartet auf Abschluss seiner laufenden HD-Kalibrierung**. Jobdatei
-`setup/wrist_lighting/pending/left_rear.json`. Der Wächter wartet auf
-`Status: **abgeschlossen...**` in `work/left-rear-hd-intrinsics.md` und eine freie
-native Kamerasperre. Erst danach stoppt er ausschließlich den alten Kameradienst
-`uwa-left-rear-wrist-hd.service`, startet den bereits verlinkten
-`uwa-wrist-hd-left-rear-managed.service` und bestätigt Licht0. Keine Roboteraktion.
-Job erst nach Erfolg `COMPLETE`; Fehler bleiben offen und werden erneut versucht.
+Am13.11. nach erneutem Nutzerhinweis: kein Foto-/Videonutzer aktiv, alle vier
+Nutzungssperren frei; physischer Kamera-Readback jeweils `lightingValue=0`,
+vor und nach explizitem Aus-Befehl. Guardian aktiv/aktiviert. Nachweis unter
+`setup/wrist_lighting/idle_check_20261113/verified_off.json`. Die gespeicherten
+aktiven Nutzungsintensitäten bleiben erhalten, damit das nächste Foto/Video
+wieder beleuchtet wird.
 
 ```bash
 systemctl --user status uwa-wrist-led-policy.service

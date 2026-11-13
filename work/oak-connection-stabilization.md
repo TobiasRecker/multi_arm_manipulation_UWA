@@ -1,6 +1,6 @@
 # OAK-Verbindung stabilisieren
 
-- Status: **erneuter Serienfehler; OS-Update vorbereitet, Freigabe ausstehend**, 2026-11-13, Hauptagent OAK/Scan.
+- Status: **abgeschlossen – OS1.47 installiert, Nachprüfung bestanden**, 2026-11-13, Hauptagent OAK/Scan.
 - Nutzerentscheidung: zuerst OAK-Verbindung stabilisieren; **keine weiteren
   Armbewegungen**. Vierarm-Scan bleibt nach erster Anfahrt angehalten.
 - Bereiche: OAK-Fotodienst/SDK-Worker, Netzwerk-/Geräte-/Prozessdiagnose,
@@ -28,3 +28,18 @@
   update_plan.json/verified_update.jsonuntersetup/oak4/stability_20261113/ota/.
   Kalibrierungsbackupvorhanden, keinUpdatebisherausgeführt. Freigabefür
   dauerhafteOS-Änderung+Neustart anfragen; keineArmkommandosdafür.
+
+- Nutzer bestätigt die angebotene dauerhafte Aktualisierung OS1.32.1→1.47.0
+  ausdrücklich mit „ja bitte“. Lokale Paket-/Identitäts-/Sitzungsprüfung vor
+  Installation, danach Factoryvergleich und native Fotos. Keine Armaktionen.
+
+- Autorisiertes OTA erfolgreich: gleicheKamera1479883285, OS1.47.0/Agent0.28.0,
+  UpdaterExit0. Werkskalibrierungvor/nachherexaktidentisch (SHAa07141cc...).
+  Nachprüfung mit15nativenStartzyklen läuft; nochkeineabschließendeFreigabe.
+
+- Autorisiertes OTA erfolgreich abgeschlossen und nachgeprüft: identische
+  Werkskalibrierung,15native8K-Startzyklen plus vollständigerFünfkamera-SatzPASS.
+ 16OAK-Aufnahmen nachUpdate ohneFehler. KeineRobotermotion/Programmstarts.
+- Vollständiger25-Bilder-Index scan_dataset.json erstellt und Bildhashes,
+  Größen, Sollposen/Stillstand geprüft. UpdateplanstatusCOMPLETE mit
+  update_validation.json. AlleArme stehen, Fahrcontrollerinaktiv.

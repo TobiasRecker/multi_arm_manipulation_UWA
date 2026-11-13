@@ -1,6 +1,6 @@
 # HD-Aufnahmezeit und nutzungsabhängige Wrist-LEDs
 
-- Status: **Implementierung und Prüfungen abgeschlossen; automatischer LR-Rollout wartet auf Reihenabschluss**, 2026-11-12, Hauptagent dieses Gesprächs.
+- Status: **abgeschlossen; LR-Rollout seit12.11. COMPLETE, alle vier Kameras verwaltet**, 2026-11-12, Hauptagent dieses Gesprächs.
 - Nutzerauftrag: HD-Fotoworkflow auf Beschleunigung ohne nennenswerte
   Qualitätseinbußen prüfen/testen; LEDs aller vier Wristkameras ausschließlich
   während Fotoaufnahme oder Videonutzung einschalten.
@@ -56,3 +56,7 @@
 - Andere aktuelle Arbeit: Offline-Analyse `object-scan-swept-volumes` durch
   Digitalisierungsagenten; keine dessen Scanwege/Controller verändert.
 - Doku docs/wrist_speed_led_2026-11-12.md, README/AGENTS/HANDOVER aktualisiert.
+
+- Nachprüfung13.11.: Guardianaktiv, alleNutzungssperrenfrei undalle4LEDs im
+  realenReadback0 (vor/nachAus-Befehl). KeineaktiveKameranutzung, keineArmaktion.
+  NeuerNachweis setup/wrist_lighting/idle_check_20261113/verified_off.json.

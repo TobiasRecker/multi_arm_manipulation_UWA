@@ -1,5 +1,19 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Kamerabeleuchtung im Leerlauf geprüft, 2026-11-13
+
+- Nutzer erinnert nach Scanabschluss an Abschalten der Kamerabeleuchtung bei
+  Nichtbenutzung. Bestehende Regel gilt weiter: erster Foto-/Videonutzer an,
+  letzter Nutzer aus; aktive parallele Nutzer erhalten.
+- Keine laufende Kameranutzung und alle vier Nutzungssperren frei. LED0 bei
+  LF/LR/RF/RR bereits beim ersten Readback, nochmals explizit gesetzt und erneut
+  an der Kamera bestätigt. Automatischer LED-Wächter aktiv/aktiviert; aktive
+  Nutzungsintensitäten der Profile beibehalten. Kein aktueller Abschaltdefekt
+  nachgewiesen, keine Arm-/Treiber-/Programmaktion.
+- Historischen Rolloutstand bereinigt: LR-Job ist seit12.11. COMPLETE; alle vier
+  Kameras verwaltet. Nachweis setup/wrist_lighting/idle_check_20261113/verified_off.json.
+
+
 ## Vierarm-Kollisionswächter und PTP-Vergleich in Arbeit, 2026-11-13
 
 - Neuer Nutzerauftrag/Entscheidungen: unabhängiger10Hz-Kugelwächter für vier
@@ -30,44 +44,48 @@
   Gelenke gesichert und identisch zu den konfigurierten Anfangsstellungen.
   Reale Scan-/Kamera-/Treiberarbeit anderer Aufgabe erhalten.
 
-## Vierarm-Scan: fünf Stellungen erreicht, 24/25 Bilder bestätigt, 2026-11-13
+## Vierarm-Scan und OAK-Update abgeschlossen, 2026-11-13
 
-- Nutzer erlaubte nach OAK-Prüfung ausdrücklich die Fortsetzung. Alle vier Arme
-  haben ihre fünf geplanten Stellungen erreicht; Restfahrt 12:45:43–12:48:07 AWST.
-  Neue Live-/Hash-/Modell-/Kollisionsprüfung vor der Fortsetzung bestanden.
-  Bewegungsräume waren einschließlich Trackingreserve mit mindestens 339,89 mm
-  Modellabstand getrennt. Keine native Sicherheitsfunktion verändert/quittiert.
-- Gültiger Datenindex: `setup/digitization/four_arm_scan_20261113/scan_dataset_partial.json`.
-  Alle 20 Wrist-Ansichten plus vier OAK-Fotos, 21 verschiedene Kamerastandpunkte.
-  Native 2592×1944 bzw. 8000×6000, feste Foki, Bildhashes, Sollpose/Stillstand und
-  mindestens 12 Boardecken je Wrist-Bild geprüft. Vorschau `scan_overview.jpg`.
-  Es fehlt nur die letzte OAK-Aufnahme; kein vollständiges 25-Bilder-PASS behaupten.
-  Geometrische Rekonstruktionsgenauigkeit ist noch nicht ausgewertet.
-- Initialstellung aus gültigem stationärem Fünferset nach Nutzer-OAK-Neustart
-  übernommen, nicht aus dem fehlgeschlagenen run02. Runde 2–4 aus run03_rest.
-  Letzte vier Wrist-Bilder aus last_round_stationary_retry_v2 mit gültigem Audit.
-  Fehlerhafte Versuche und ihre Qualitätsflags unverändert erhalten.
-- Letzte Fahrt war bereits abgeschlossen, als Telemetrie während der Aufnahme
-  ausblieb. Wächter bestätigte Stopp/Stillstand. PC-Treiber protokollierte einen
-  2,18-s-Zyklus; Speicherengpässe wurden beobachtet, genaue Ursache offen.
-  Beide linken External-Control-Programme stehen auf STOPPED und wurden für die
-  Kamera-Wiederholungen nicht gestartet. Letzte Prüfung: alle vier RUNNING/NORMAL,
-  tatsächlicher Stillstand, sämtliche Fahrcontroller inaktiv. Kein Rückfahrziel.
-- Bewegungswächter, Kameraarbeit und Stillstandsaufzeichnung jetzt in getrennten
-  Prozessen. Audit-Thread im Bildprozess hatte trotz frischer Parent-Telemetrie
-  Lücken; eigener read-only Audit-Prozess besteht echten Fototest und GIL-Blocktest.
-  Frische-/Bewegungsgrenzen unverändert. CV-Threads auf zwei begrenzt und temporäres
-  Planungsobjekt vor Fotoarbeit nicht weitergehalten. 87 gezielte Tests PASS.
-- OAK nach vom Nutzer bestätigtem Neustart zunächst neun native Fotos fehlerfrei,
-  später erneut Pipeline-Startfehler. SDK3.11 isoliert verglichen: kein Bild,
-  kein Produktivwechsel. Aktuell SDK3.12 / Kamera-OS1.32.1 unverändert.
-- Offizielles OAK-OS1.47-Paket vollständig lokal vorbereitet: Hersteller-MD5
-  stimmt, SHA256 `c0de519ab273a8dac1a327cc639316b5dcf22f4b38972d069bd973b579989639`.
-  Frische Werkskalibrierung gesichert, exakt gleich zur Sicherung vom12.11.
-  **Noch kein OS-Update; Freigabe für dauerhafte Kamera-OS-Änderung mit Neustart
-  ausstehend.** Plan/Paket unter setup/oak4/stability_20261113/ota/.
-- Bedienung und Grenzen: docs/parallel_object_scan.md; OAK-Diagnose im OAK-Repo
-  OAK4_STABILITY_2026-11-13.md. Keine weitere Armbewegung für diesen Auftrag nötig.
+- Alle vier Arme haben ihre fünf geplanten Stellungen erreicht. Gültiger Index:
+  `setup/digitization/four_arm_scan_20261113/scan_dataset.json` mit **25/25 Fotos**,
+  20 Wrist-Ansichten und fünf OAK-Aufnahmen, 21 verschiedenen Kamerastandpunkten.
+  Native 2592×1944 bzw. 8000×6000, feste Foki, Bildhashes, Sollpose und tatsächlicher
+  Stillstand geprüft. Mindestens12Boardecken je Wrist-Bild,24in jedem OAK-Foto.
+  Bildübersicht `scan_all_rounds.jpg`; metrische Rekonstruktionsgenauigkeit noch
+  nicht ausgewertet. Keine Qualitätsflags früherer Fehlversuche umgeschrieben.
+- OAK nach zunächst erfolgreichem Nutzerneustart erneut Pipeline-Startfehler.
+  Nutzer hat darauf das angebotene OS-Update ausdrücklich mit „ja bitte“ erlaubt.
+  Herstellerpaket erneut SHA256-/Identitäts-geprüft, exklusiver Kamerazugriff,
+  OTA **1.32.1→1.47.0**, Agent **0.28.0**, gleicher OAK4-D R9/1479883285.
+- Werkskalibrierung vor/nach Update exakt gleich: SHA256 a07141cce771738c713df4ef62f3719ed2ede411c556bc920089270cc4689eae.
+  Produktiver SDK bleibt3.12.0; keine Kalibrierprofile/TFs oder Gazebo-Montagen
+  verändert. Quellen/Paket/Updaterlog unter setup/oak4/stability_20261113/ota/.
+- Nach OTA15direkt aufeinanderfolgende native8K-Start-/Fotozyklen bestanden:
+  Fokus116, gleiche Geräte-ID, durchgehend steigende Gerätezeit, verschiedene
+  vollständig dekodierte Bilder. Danach kompletter Fünfkamera-Bildsatz an den
+  bereits erreichten Endstellungen mit unabhängigem Stillstandsaudit PASS.
+  Insgesamt16nativeOAK-Aufnahmen nach Update erfolgreich. Das ist ein begrenzter
+  Wiederholungsnachweis, keine Zusicherung dauerhafter Fehlerfreiheit.
+- Letzte Gruppe ersetzt nur die zuvor fehlgeschlagene letzte Aufnahme. Initiale
+  gültige Gruppe nach Nutzerneustart, Runde2–4 aus run03_rest, Runde5 aus
+  last_round_post_os147. OAK-OS1.32.1 in Gruppen1–4,1.47.0 in Gruppe5 ist im Index
+  ausdrücklich festgehalten. Statisches Board vor/nach OTA:24gemeinsame Ecken,
+ 0,52nativePixelRMS Bildverschiebung; enthält Detektions-/Licht-/Montageeinflüsse,
+  keine neue Genauigkeitskalibrierung.
+- Bewegungswächter, Kameraarbeit und read-only Stillstandsaufzeichnung sind
+  getrennte Prozesse; Frische-/Driftgrenzen unverändert. Bildprozess verwendet
+  zwei OpenCV-Threads, temporäres Planungsobjekt wird vor Fotos nicht gehalten.
+ 87gezielte Softwaretests vor OTA PASS; Firmware zusätzlich real wie oben geprüft.
+- Während des letzten ursprünglichen Fotoversuchs wurden Telemetrielücken und
+  ein2,18-s-PC-Treiberzyklus protokolliert; Stopp/Stillstand bestätigt. Diese
+  Fehlversuche bleiben als Diagnose erhalten. Hostressourcen für spätere
+  automatische Hardwarefahrten weiter beachten; Ursache nicht abschließend belegt.
+- Während OTA und Nachprüfung **keine Arm-, Power-, Brake- oder Programmaktion**.
+  Letzte reale Prüfung: alle vier RUNNING/NORMAL, Stillstand bestätigt,
+  Fahrcontroller inaktiv. Linke External-Control-Programme bleiben STOPPED,
+  rechte PLAYING; kein automatisches Rückfahrziel. Keine weitere Fahrt offen.
+- Abschlussnachweis: setup/oak4/stability_20261113/ota/update_validation.json.
+  Bedienung: docs/parallel_object_scan.md und OAK-Repo OAK4_STABILITY_2026-11-13.md.
 
 ## Schnellere HD-Fotos und nutzungsabhängige LEDs,2026-11-12
 

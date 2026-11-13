@@ -127,12 +127,8 @@ def summarize(results):
 
 
 def replay_comparison(directory,limit=None):
-    import rclpy
-    owns_context=not rclpy.ok()
-    if owns_context:rclpy.init()
-    try:return _replay_comparison(directory,limit)
-    finally:
-        if owns_context:rclpy.shutdown()
+    from .execution import motion_context
+    with motion_context():return _replay_comparison(directory,limit)
 
 
 def _replay_comparison(directory,limit=None):
@@ -153,7 +149,9 @@ def _replay_comparison(directory,limit=None):
             key=sha(json.dumps([value['request']['start'],value['trajectory']],sort_keys=True))
             groups.setdefault(key,[]).append((path,value))
     completed=0;started=time.monotonic();execution_directory=directory/'executions';execution_directory.mkdir(exist_ok=True)
-    ordered=sorted(groups.items(),key=lambda item:item[1][0][1]['trajectory']['duration_s'])
+    rank={name:i for i,name in enumerate(('free','four_arm','tool_passage','blocked_direct','neighbor_crossing'))}
+    ordered=sorted(groups.items(),key=lambda item:(rank[item[1][0][1]['category']],item[1][0][1]['case_id'],
+                                                  item[1][0][1]['trajectory']['duration_s']))
     for key,members in ordered[:limit]:
         output=execution_directory/(key+'.json')
         newly_executed=not output.exists()

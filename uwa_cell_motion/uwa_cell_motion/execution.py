@@ -8,6 +8,9 @@ import json
 from pathlib import Path
 import tempfile
 import time
+import signal
+import threading
+from contextlib import contextmanager
 from itertools import combinations
 
 import numpy as np
@@ -26,6 +29,24 @@ from action_msgs.msg import GoalStatus
 
 from .common import ROBOT_IDS,PAIRS,config,all_names,joint_names,load_layout,default_layout_path,dump,simulation_only,guard_signature
 from .supervisor import hold_name
+
+
+@contextmanager
+def motion_context():
+    """Keep ROS alive for cancellation/holds when the operator interrupts."""
+    owns=not rclpy.ok();previous={}
+    if owns:
+        from rclpy.signals import SignalHandlerOptions
+        rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
+        if threading.current_thread() is threading.main_thread():
+            def interrupted(signum,frame):raise KeyboardInterrupt(f'Signal {signum}')
+            for signum in (signal.SIGINT,signal.SIGTERM,signal.SIGHUP):
+                previous[signum]=signal.getsignal(signum);signal.signal(signum,interrupted)
+    try:yield
+    finally:
+        if owns:
+            for signum,handler in previous.items():signal.signal(signum,handler)
+            if rclpy.ok():rclpy.shutdown()
 
 
 class MotionClient(Node):
@@ -47,6 +68,7 @@ class MotionClient(Node):
         self.actions={r:ActionClient(self,FollowJointTrajectory,'/uwa_cell/'+r+'_trajectory_controller/follow_joint_trajectory') for r in ROBOT_IDS}
         self.switch_client=self.create_client(SwitchController,'/uwa_cell/controller_manager/switch_controller')
         self.list_client=self.create_client(ListControllers,'/uwa_cell/controller_manager/list_controllers')
+        self.stop_clients={r:self.create_client(Trigger,'/uwa_cell/collision_supervisor/'+r+'/stop') for r in ROBOT_IDS}
 
     def joints(self,msg):
         q=dict(zip(msg.name,msg.position));v=dict(zip(msg.name,msg.velocity));required={j for n in self.names.values() for j in n}
@@ -126,15 +148,39 @@ class MotionClient(Node):
         self.owned.update(arms)
 
     def stop(self,arms):
-        arms=set(arms)
+        arms=set(arms);errors=[];requests=[]
         for rid,handle in self.handles.items():
-            if rid in arms and handle.accepted:handle.cancel_goal_async()
+            if rid in arms and handle.accepted:
+                try:handle.cancel_goal_async()
+                except Exception as error:errors.append(str(error))
         for rid in arms:
-            client=self.create_client(Trigger,'/uwa_cell/collision_supervisor/'+rid+'/stop')
-            if client.service_is_ready():client.call_async(Trigger.Request())
+            try:
+                client=self.stop_clients[rid]
+                if client.wait_for_service(timeout_sec=.2):requests.append((rid,client.call_async(Trigger.Request())))
+                else:errors.append(rid+': stop-latch service unavailable')
+            except Exception as error:errors.append(str(error))
         # Direct resource hold is also available if the supervisor process died.
-        try:self.switch([hold_name(r) for r in arms],[r+'_trajectory_controller' for r in arms])
-        except Exception as error:self.get_logger().error('STOP_UNCONFIRMED: '+str(error))
+        def states():
+            future=self.list_client.call_async(ListControllers.Request());self.wait(future.done,1.)
+            return future.result().controller
+        try:
+            controllers=states();active={c.name for c in controllers if c.state=='active'}
+            deactivate=[c.name for c in controllers if c.state=='active' and c.name not in [hold_name(r) for r in ROBOT_IDS]
+                and any(interface.split('/')[0] in self.names[r] for r in arms for interface in c.claimed_interfaces)]
+            try:self.switch([hold_name(r) for r in arms if hold_name(r) not in active],deactivate)
+            except Exception:pass  # the supervisor may have completed the same switch first
+            held={r for r in arms if any(c.name==hold_name(r) and c.state=='active' for c in states())}
+        except Exception as error:held=set();errors.append(str(error))
+        acknowledged=set()
+        for rid,future in requests:
+            try:
+                self.wait(future.done,1.)
+                if future.result().success:acknowledged.add(rid)
+                else:errors.append(rid+': stop latch rejected')
+            except Exception as error:errors.append(str(error))
+        confirmed=held==arms and acknowledged==arms
+        if not confirmed:self.get_logger().error('STOP_UNCONFIRMED: '+str(errors))
+        return dict(resource_holds_confirmed=held==arms,latches_confirmed=acknowledged==arms,errors=errors)
 
     def phase(self,targets,cfg,blocked):
         arms=list(targets);q0={r:np.array([self.positions[j] for j in joint_names(r)]) for r in arms}
@@ -220,10 +266,13 @@ def safe_targets(problem,client,desired,active):
 def execute(plan,output,restore_start=False):
     simulation_only()
     if not plan.get('success') or not plan.get('simulation_only'):raise ValueError('Successful simulation plan required')
+    with motion_context():return _execute(plan,output,restore_start)
+
+
+def _execute(plan,output,restore_start=False):
     from .planning import Problem
-    own_context=not rclpy.ok()
-    if own_context:rclpy.init()
     client=MotionClient(plan.get('layout_path'));result=dict(success=False,guard_stops=0,phase_count=0)
+    result['record_path']=str(output)
     result['stage']='CONNECT';started=time.monotonic()
     try:
         client.connect();cfg=plan['config']
@@ -251,10 +300,12 @@ def execute(plan,output,restore_start=False):
                     dump(preparation_file,preparation);result['preparation_plan_file']=str(preparation_file)
                     if not preparation['success']:raise RuntimeError('Benchmark start reposition failed: '+preparation.get('error',''))
                     _follow(problem,client,preparation,result)
+                    if result.get('stopped_arms'):raise RuntimeError('Start preparation stopped; target execution remains unstarted')
             if max(abs(client.positions[j]-request['start'][j]) for n in problem.names.values() for j in n)>.002:
                 raise ValueError('Live start differs from checked plan; generate a fresh plan')
             result['setup_wall_s']=time.monotonic()-started;motion_started=time.monotonic();sim_started=client.get_clock().now().nanoseconds/1e9
             result['stage']='EXECUTION'
+            client.owned.clear()
             result['preparation_phase_count']=result['phase_count'];result['phase_count']=0;client.minimum_clearance=float('inf')
             _follow(problem,client,plan,result)
             result.update(success=not result['stopped_arms'],actual_wall_s=time.monotonic()-motion_started,
@@ -267,18 +318,21 @@ def execute(plan,output,restore_start=False):
         import traceback
         result['error_traceback']=traceback.format_exc()
         result['guard_status']=client.guard;result['supervisor_status']=client.supervisor
-        if client.owned:client.stop(client.owned)
+        if client.owned:result['stop_result']=client.stop(client.owned)
         if isinstance(error,KeyboardInterrupt):result['error']='INTERRUPTED'
     finally:
         result['total_wall_s']=time.monotonic()-started;dump(output,result)
         client.destroy_node()
-        if own_context:rclpy.shutdown()
     return result
 
 
 def _follow(problem,client,plan,result):
     selected=plan['request']['selected'];blocked=set(client.guard['blocked_arms'])|set(client.supervisor['blocked_arms'])
     if blocked&set(selected):raise RuntimeError('Selected arm is latched; explicit reset required')
+    if len(selected)==1:
+        from .single_execution import follow
+        if follow(problem,client,plan,result):return
+    result.setdefault('execution_modes',[]).append(dict(stage=result.get('stage'),mode='independent_progress_phases',arms=selected))
     client.activate(selected);stopped=set();names=plan['trajectory']['joint_names']
     for waypoint in plan['trajectory']['waypoints'][1:]:
         desired=dict(zip(names,waypoint));phase_limit=0

@@ -1,8 +1,8 @@
 # Objektaufnahme: OAK zuerst, dann vier Wrist-Kameras
 
 Stand: 13.11.2026. Die reale parallele Fahrt mit fünf Stellungen je Arm wurde
-inzwischen ausgeführt. 20 Wrist-HD-Ansichten und vier native OAK-Fotos sind
-bestätigt; die letzte OAK-Aufnahme fehlt. [Ergebnis und aktueller Haltstand](parallel_object_scan.md).
+inzwischen ausgeführt. 20 Wrist-HD-Ansichten und fünf native OAK-Fotos sind
+bestätigt; der Datensatz enthält25/25Bilder. [Ergebnis und aktueller Haltstand](parallel_object_scan.md).
 Der folgende Nachweis vom12.11. beschreibt die frühere Offline-Vorbereitung.
 
 ## Ablauf
