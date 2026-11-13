@@ -453,6 +453,13 @@ calibrate rigid camera mounts separately, then estimate changing table relations
 
 ## Move the arms
 
+The [modular manipulation harness](docs/manipulation_pipeline.md) adds versioned
+skills, agent review points and an opt-in physical-contact carton scene. After
+grasping, the carrying arms follow one rigid object's motion on a common time
+law. Its isolated validation world does not restart this cell. Development and
+actual grasp evidence are recorded separately in HANDOVER; software availability
+alone is not a successful physical-contact lift.
+
 For the new **simulation-only four-arm collision guard and PTP comparison**,
 see [the motion guide](docs/four_arm_motion.md). It provides a10Hz neighbor-pair
 sphere guard with latched per-arm resource holds, independent watchdog,

@@ -58,7 +58,7 @@ def follow(problem,client,plan,result):
     result['phase_count']+=1;result['stopped_arms']=[]
     deadline=time.monotonic()+trajectory['duration_s']*5+8.;last_mesh_check=-float('inf');maximum=0.;nominal_time_error=0.
     while True:
-        rclpy.spin_once(client,timeout_sec=.005);client.health()
+        client.spin_once(timeout_sec=.005);client.health()
         blocked=set(client.guard['blocked_arms'])|set(client.supervisor['blocked_arms'])
         if rid in blocked:
             handle.cancel_goal_async();result['guard_stops']+=1;result['stopped_arms']=[rid]

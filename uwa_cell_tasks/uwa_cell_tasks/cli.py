@@ -62,7 +62,13 @@ def main():
     import rclpy
     from uwa_cell_description.configuration import default_layout_path
     layout=str(getattr(args,'layout',None) or default_layout_path())
-    rclpy.init(args=ros_args)
+    if args.command=='run':
+        import signal
+        from rclpy.signals import SignalHandlerOptions
+        rclpy.init(args=ros_args,signal_handler_options=SignalHandlerOptions.NO)
+        def interrupted(signum,frame):raise KeyboardInterrupt('Signal '+str(signum))
+        for sig in (signal.SIGINT,signal.SIGTERM,signal.SIGHUP):signal.signal(sig,interrupted)
+    else:rclpy.init(args=ros_args)
     node=None
     try:
         if args.command=='run':

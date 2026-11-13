@@ -7,6 +7,7 @@ import time
 import numpy as np
 import rclpy
 from rclpy.node import Node
+from rclpy.clock import Clock,ClockType
 from rclpy.action import ActionClient
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.qos import qos_profile_sensor_data,QoSProfile,DurabilityPolicy
@@ -21,7 +22,7 @@ from uwa_cell_description.configuration import load_layout,joint_names,gripper_j
 from uwa_cell_motion.common import simulation_only
 from uwa_cell_gazebo.charuco_views import Chain
 from match_cooperative_handling.rigid_object import pose_error,interpolate
-from .core import ARMS,RunStore,GraspGroup,verify,write_json,seal
+from .core import ARMS,CAMERAS,RunStore,GraspGroup,verify,write_json,seal
 from .planning import TaskProblem,grasp_candidates,plan_approach,object_trajectory
 
 
@@ -29,7 +30,8 @@ class Simulation(Node):
     def __init__(self,namespace,scene_directory):
         simulation_only()
         if not namespace.startswith('/uwa_grasp_'):raise ValueError('An isolated /uwa_grasp_* simulation namespace is required')
-        super().__init__('task_runner',namespace=namespace)
+        super().__init__('task_runner',namespace=namespace,
+            cli_args=['--ros-args','-r','/clock:='+namespace+'/clock'])
         self.set_parameters([rclpy.parameter.Parameter('use_sim_time',value=True)])
         self.ns=namespace;self.directory=Path(scene_directory);self.q={};self.v={};self.joint_received=0.
         self.guard=None;self.supervisor=None;self.guard_received=0.;self.supervisor_received=0.
@@ -39,16 +41,18 @@ class Simulation(Node):
         for topic,key in [('collision_guard/decision','guard'),('collision_supervisor/status','supervisor'),
                           ('tasks/contacts','contact'),('tasks/object_truth','object')]:
             self.create_subscription(String,namespace+'/'+topic,lambda msg,k=key:self.message(k,msg),10)
-        for arm in ARMS:
-            self.create_subscription(Image,namespace+'/'+arm+'/wrist_camera/image_raw',lambda msg,a=arm:self.image(a,msg),qos_profile_sensor_data)
-            self.create_subscription(CameraInfo,namespace+'/'+arm+'/wrist_camera/camera_info',lambda msg,a=arm:self.info(a,msg),qos_profile_sensor_data)
+        for arm in CAMERAS:
+            topic=namespace+('/oak_overview/rgb/' if arm=='oak' else '/'+arm+'/wrist_camera/')
+            self.create_subscription(Image,topic+'image_raw',lambda msg,a=arm:self.image(a,msg),qos_profile_sensor_data)
+            self.create_subscription(CameraInfo,topic+'camera_info',lambda msg,a=arm:self.info(a,msg),qos_profile_sensor_data)
         self.heartbeat_pub=self.create_publisher(String,'tasks/heartbeat',10)
         self.group_pub=self.create_publisher(String,'tasks/group',QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL))
-        self.create_timer(.1,self.heartbeat)
-        self.clients={key:self.create_client(kind,namespace+'/'+topic) for key,kind,topic in [
+        self.heartbeat_clock=Clock(clock_type=ClockType.STEADY_TIME)
+        self.create_timer(.1,self.heartbeat,clock=self.heartbeat_clock)
+        self.service_clients={key:self.create_client(kind,namespace+'/'+topic) for key,kind,topic in [
             ('reset',Trigger,'collision_supervisor/reset'),('switch',SwitchController,'controller_manager/switch_controller'),
             ('list',ListControllers,'controller_manager/list_controllers'),('latch',SetBool,'tasks/grip_latch')]}
-        for arm in ARMS:self.clients['stop_'+arm]=self.create_client(Trigger,namespace+'/collision_supervisor/'+arm+'/stop')
+        for arm in ARMS:self.service_clients['stop_'+arm]=self.create_client(Trigger,namespace+'/collision_supervisor/'+arm+'/stop')
         self.actions={name:ActionClient(self,FollowJointTrajectory,namespace+'/'+name+'/follow_joint_trajectory')
             for name in ['rigid_object_controller']+[a+'_gripper_controller' for a in ARMS]}
         self.executor=MultiThreadedExecutor(num_threads=2);self.executor.add_node(self)
@@ -60,7 +64,11 @@ class Simulation(Node):
     def image(self,arm,msg):self.images[arm]=msg
     def info(self,arm,msg):self.infos[arm]=msg
     def heartbeat(self):
-        if self.owned:self.heartbeat_pub.publish(String(data=json.dumps(dict(phase=self.phase))))
+        if self.owned:
+            if (getattr(self,'stop_directory',self.directory)/'STOP').exists() and not getattr(self,'stop_sent',False):
+                self.stop_sent=True
+                for arm in ARMS:self.service_clients['stop_'+arm].call_async(Trigger.Request())
+            self.heartbeat_pub.publish(String(data=json.dumps(dict(phase=self.phase))))
     def now(self):return self.get_clock().now().nanoseconds/1e9
 
     def wait(self,predicate,timeout=10.,*,health=False):
@@ -71,7 +79,7 @@ class Simulation(Node):
             time.sleep(.01)
 
     def call(self,key,request,timeout=8.):
-        client=self.clients[key]
+        client=self.service_clients[key]
         if not client.wait_for_service(timeout_sec=timeout):raise RuntimeError('Missing service '+key)
         future=client.call_async(request);self.wait(future.done,timeout)
         result=future.result()
@@ -90,7 +98,10 @@ class Simulation(Node):
             and self.object is not None and self.contact is not None,30.)
 
     def reset(self):
-        self.wait(lambda:bool(self.v) and max(abs(v) for j,v in self.v.items() if '_robotiq_' not in j)<.003,15.)
+        from .planning import actual_names
+        description=(self.directory/'robot.urdf').read_text()
+        required=[j for names in actual_names(description,load_layout()).values() for j in names]
+        self.wait(lambda:all(j in self.v and abs(self.v[j])<.003 for j in required),30.)
         time.sleep(.5)
         self.call('reset',Trigger.Request())
         self.wait(lambda:not set(ARMS).intersection(self.supervisor.get('blocked_arms',[])),5.)
@@ -155,6 +166,12 @@ class Simulation(Node):
             self.wait(lambda:all(all(self.contact['pads'][a].values()) for a in ARMS),duration+5,health=True)
             self.call('latch',SetBool.Request(data=True))
             for h in handles:h.cancel_goal_async()
+            preload_until=self.now()+max(.5,max(.8-self.q[gripper_joint(a)] for a in ARMS)/.02)
+            wall_deadline=time.monotonic()+180.
+            while self.now()<preload_until:
+                self.health()
+                if time.monotonic()>wall_deadline:raise TimeoutError('Grip preload did not settle')
+                time.sleep(.02)
         else:
             results=[h.get_result_async() for h in handles]
             self.wait(lambda:all(f.done() for f in results),duration*3+10,health=True)
@@ -224,6 +241,11 @@ def run_task(directory,scene_directory,layout_file,namespace,reference):
             verify(plan)
             if any(abs(sim.q.get(j,float('inf'))-q)>.002 for j,q in start.items() if j in problem.collision.bounds):
                 raise RuntimeError('Measured start changed after review; regenerate plan')
+            latest=observe(sim,description,reference,directory/f'pre-execution-{attempt}')
+            freshness_delta=pose_error(obj,latest['T_world_object'])
+            if freshness_delta[0]>.002 or freshness_delta[1]>.0175:
+                store.event('REPLAN_REQUIRED','observe',reason='Object changed after plan review')
+                continue
             sim.phase='approach';store.event('RUNNING','approach');sim.follow(plan['trajectory'])
             aligned=observe(sim,description,reference,directory/f'alignment-{attempt}')
             delta=pose_error(obj,aligned['T_world_object'])
@@ -256,20 +278,30 @@ def run_task(directory,scene_directory,layout_file,namespace,reference):
             lifted=obj.copy();lifted[2,3]+=cfg['lift_m']
             sim.phase='move_object';store.event('RUNNING','move_object')
             trajectory=object_trajectory(contact_problem,group,dict(sim.q),obj,lifted,cfg)
+            truth_before=np.array(sim.object['T_world_object'])
             write_json(directory/'object-lift.json',trajectory);sim.follow(trajectory)
             truth=np.array(sim.object['T_world_object'])
-            truth_start=np.array(alignment['observation']['T_world_object'])
-            if sim.contact['supported'] or truth[2,3]-truth_start[2,3]<cfg['lift_m']-.005:
+            truth_start=truth_before
+            if sim.contact['supported'] or abs((truth[2,3]-truth_start[2,3])-cfg['lift_m'])>.002:
                 raise RuntimeError('Actual load pickup was not established')
-            end=time.monotonic()+cfg['dwell_s']
-            while time.monotonic()<end:sim.health();time.sleep(.02)
+            end=sim.now()+cfg['dwell_s'];wall_deadline=time.monotonic()+30.
+            while sim.now()<end:
+                sim.health()
+                if time.monotonic()>wall_deadline:raise TimeoutError('Simulation dwell did not complete')
+                if sim.contact['supported']:raise RuntimeError('Support contact during free hold')
+                time.sleep(.02)
             sim.phase='set_down';store.event('RUNNING','set_down')
             back=object_trajectory(contact_problem,group,dict(sim.q),lifted,obj,cfg)
             write_json(directory/'object-set-down.json',back);sim.follow(back)
             sim.wait(lambda:sim.contact['supported'],5.,health=True)
-            group.release(supported=True,stationary=True)
-            sim.group_pub.publish(String(data=json.dumps(group.record(),default=lambda v:v.tolist())))
+            release_request=dict(group.record(),release_requested=True)
+            sim.group_pub.publish(String(data=json.dumps(release_request,default=lambda v:v.tolist())))
             sim.call('latch',SetBool.Request(data=False));sim.phase='release';sim.grippers(0.)
+            sim.wait(lambda:not any(any(sim.contact['pads'][a].values()) for a in ARMS)
+                and all(sim.q[gripper_joint(a)]<.02 for a in ARMS),10.,health=True)
+            time.sleep(.5)
+            group.release(supported=bool(sim.contact['supported']),stationary=True)
+            sim.group_pub.publish(String(data=json.dumps(group.record(),default=lambda v:v.tolist())))
             store.event('DONE','done',group=group.record(),actual_hub_m=float(truth[2,3]-truth_start[2,3]),
                 physically_attached=False,assumptions=cfg['simulation_assumptions'])
             sim.owned=False

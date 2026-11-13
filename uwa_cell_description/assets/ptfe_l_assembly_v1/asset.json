@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "asset_id": "ptfe_l_assembly_v1",
+  "title": "PTFE L assembly with20mm aluminium supports",
+  "version": 1,
+  "units": "m",
+  "up_axis": "Z",
+  "visual_mesh": "model.dae",
+  "preview_mesh": "model.glb",
+  "solid_mesh": "model.stl",
+  "cad_mm": "model.step",
+  "dimensions_m": [
+    0.30005600458027853,
+    0.1768619685157923,
+    0.18091219490128566
+  ],
+  "triangle_count": 116,
+  "reference_pose": {
+    "frame": "right_charuco",
+    "T_frame_object": [
+      [
+        0.8088820045242822,
+        0.5879710050306726,
+        0.0,
+        -0.49152658741631977
+      ],
+      [
+        0.5879710050306726,
+        -0.8088820045242822,
+        0.0,
+        0.06457438169798052
+      ],
+      [
+        0.0,
+        0.0,
+        -1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ]
+  },
+  "quality": {
+    "status": "image_based_estimate",
+    "measured_accuracy_validated": false,
+    "wall_thickness_m": 0.01,
+    "wall_thickness_measured": false,
+    "known_dimensions_source": "user reports20x20mm profiles,10mm plates; overall sizes from images"
+  },
+  "use": "visual_only; not automatically a planning or physics obstacle",
+  "provenance": {
+    "date": "2026-11-13",
+    "source": "UWA four-arm/OAK image-only scan",
+    "source_model_sha256": "56c03efb330925d4a5c6c5252437b4f3fb953a9c2b5d8a945d29057d681ef31d",
+    "source_export_sha256": "3050732eb5d15d72b183e57229b717cdd671a8826516391e3484b91b1880a881",
+    "dataset_sha256": "522a6eafc21cd336d4ad42d81adadcc9526efaa2021ca1e99eb75f098dc1f4a1"
+  },
+  "files": {
+    "model.dae": "1438364d7ab7b537fb39131cfaad3bb068cd8e70b2d04834aaf2e3f2ac06e696",
+    "model.glb": "8a0990a8e727f2e7c98d3d2ba41e93bcb150167b751fa2eff7428dda80ffd06f",
+    "model.step": "1d902cc31877c73c5f5c1d50339a67e7c8bfc0659ccc747d641e17dbcaa5b621",
+    "model.stl": "adfe102efded8554f17a003cfcef47dc637ed54fb43f35a71fa04b4cdadb9672",
+    "textures/part_2.jpg": "e3117b3d5b47208861aeba20df7bfa8cd9b7bc9f421a46583dad7776fa623cf0",
+    "textures/part_3.jpg": "aa3cfc41905d253a9c16437572754f77babc51bf015efb3fa41a0e0307ae8567",
+    "textures/part_4.jpg": "62426915588ab6afc0ad55068dc0762fbd02064f7f30b7bc39f1f79ac684ba25",
+    "textures/part_5.jpg": "ca01af250aff02c13c3827f7dd53a6fcf97cfd24a1c9a9b2f152ff6398e668cd",
+    "textures/part_6.jpg": "76ec1fcf47c032e842d0f43a38f8090936f9cd1fb967c2fbe78894384d5f6a58"
+  }
+}

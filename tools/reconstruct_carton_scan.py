@@ -243,7 +243,9 @@ def refine(out, *, render=True, vertices_fn=None, object_pose_fn=None):
         if table=='carton':sparsity[offset:offset+count,:6]=1
         elif table=='left':sparsity[offset:offset+count,6:12]=1
         offset+=count
-    fit=least_squares(residual,x0,loss='soft_l1',f_scale=2.,jac_sparsity=sparsity.tocsr(),
+    lower=np.full(len(x0),-np.inf);upper=np.full(len(x0),np.inf)
+    lower[3:6]=.001  # physical positive dimensions, including custom assemblies
+    fit=least_squares(residual,x0,bounds=(lower,upper),loss='soft_l1',f_scale=2.,jac_sparsity=sparsity.tocsr(),
         x_scale='jac',max_nfev=500,ftol=1e-9,xtol=1e-9,gtol=1e-7)
     if not fit.success:raise ValueError('Bundle failed: '+fit.message)
     params=fit.x[:6];bridge=from_vector(fit.x[6:12]);refined={};metrics={}

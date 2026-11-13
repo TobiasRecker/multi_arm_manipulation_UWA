@@ -3,6 +3,8 @@ from pathlib import Path
 import json
 import xml.etree.ElementTree as ET
 import yaml
+import numpy as np
+from scipy.spatial.transform import Rotation
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument,OpaqueFunction,ExecuteProcess,RegisterEventHandler,EmitEvent
 from launch.event_handlers import OnProcessExit
@@ -32,16 +34,23 @@ def setup(context):
     ET.SubElement(plugin.find('ros'),'remapping').text='/clock:='+ns+'/clock'
     for sensor in root.findall('gazebo/sensor'):
         if sensor.find('update_rate') is not None:sensor.find('update_rate').text='1'
+    for reference in root.findall('gazebo'):
+        if reference.get('reference','').startswith(('left_front_','left_rear_')):
+            for sensor in list(reference.findall('sensor')):reference.remove(sensor)
     description=ET.tostring(root,encoding='unicode')
     world=directory/'world.live.sdf';wroot=ET.parse(directory/'world.sdf').getroot()
+    wroot=ET.fromstring(ET.tostring(wroot,encoding='unicode').replace('/uwa_cell/',ns+'/'))
     sensors=ET.SubElement(wroot.find('world'),'plugin',filename='gz-sim-sensors-system',name='gz::sim::systems::Sensors')
     ET.SubElement(sensors,'render_engine').text='ogre2';world.write_text(ET.tostring(wroot,encoding='unicode'))
     clock=[('/clock',ns+'/clock')]
     server=ExecuteProcess(cmd=['gz','sim','-s','-r',str(world),'--headless-rendering','-v','2'],output='screen')
     spawn=Node(package='ros_gz_sim',executable='create',namespace=ns,
         arguments=['-world','uwa_grasp_lab','-name','uwa_cell_grasp','-allow_renaming','false','-topic',ns+'/robot_description'],output='screen')
+    pose=np.array(json.loads((directory/'scene.json').read_text())['T_world_object'])
+    angles=Rotation.from_matrix(pose[:3,:3]).as_euler('xyz')
+    pose_args=[str(v) for pair in zip(('-x','-y','-z','-R','-P','-Y'),[*pose[:3,3],*angles]) for v in pair]
     carton=Node(package='ros_gz_sim',executable='create',namespace=ns,
-        arguments=['-world','uwa_grasp_lab','-name','uwa_grasp_carton','-allow_renaming','false','-file',str(directory/'carton.sdf')],output='screen')
+        arguments=['-world','uwa_grasp_lab','-name','uwa_grasp_carton','-allow_renaming','false','-file',str(directory/'carton.sdf')]+pose_args,output='screen')
     actions=[server,RegisterEventHandler(OnProcessExit(target_action=server,on_exit=[EmitEvent(event=Shutdown(reason='Own grasp world exited'))])),
         Node(package='robot_state_publisher',executable='robot_state_publisher',namespace=ns,
             parameters=[dict(robot_description=description,use_sim_time=True)],remappings=clock+[('/tf',ns+'/tf'),('/tf_static',ns+'/tf_static')],output='screen'),

@@ -91,14 +91,17 @@ public:
     }
     return hardware_interface::return_type::OK;
   }
-  hardware_interface::return_type write(const rclcpp::Time &,const rclcpp::Duration &) override
+  hardware_interface::return_type write(const rclcpp::Time &,const rclcpp::Duration & period) override
   {
     const bool latch=latch_requested_.load();
-    if (!latched_) {
+    {
       for (auto & target:targets_) {
-        const double q=get_command(target.first+"/position");
+        // Explicit grip latch ramps toward closed-air target under bounded
+        // torque. It retains preload through controller cancellation/arm holds.
+        const double q=latch ? .8 : get_command(target.first+"/position");
         if (!std::isfinite(q)) return hardware_interface::return_type::ERROR;
-        target.second=std::clamp(q,0.,.8);
+        const double step=.02*std::max(0.,period.seconds());
+        target.second+=std::clamp(std::clamp(q,0.,.8)-target.second,-step,step);
       }
     }
     latched_=latch;

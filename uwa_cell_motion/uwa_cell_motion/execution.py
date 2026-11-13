@@ -17,6 +17,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
+from rclpy.executors import SingleThreadedExecutor
 from rclpy.qos import qos_profile_sensor_data
 from rclpy.qos import QoSProfile,DurabilityPolicy,ReliabilityPolicy
 from sensor_msgs.msg import JointState
@@ -69,6 +70,18 @@ class MotionClient(Node):
         self.switch_client=self.create_client(SwitchController,'/uwa_cell/controller_manager/switch_controller')
         self.list_client=self.create_client(ListControllers,'/uwa_cell/controller_manager/list_controllers')
         self.stop_clients={r:self.create_client(Trigger,'/uwa_cell/collision_supervisor/'+r+'/stop') for r in ROBOT_IDS}
+        # Persistent attachment lets RPC responses run despite a continuously
+        # ready high-rate simulation clock. Top-level spin_once reattaches the
+        # node on each call and can repeatedly restart callback selection.
+        self.event_executor=SingleThreadedExecutor();self.event_executor.add_node(self)
+
+    def spin_once(self,timeout_sec=.01):
+        if self.executor is not self.event_executor:self.event_executor.add_node(self)
+        self.event_executor.spin_once(timeout_sec=timeout_sec)
+
+    def destroy_node(self):
+        self.event_executor.remove_node(self);self.event_executor.shutdown(timeout_sec=1.)
+        return super().destroy_node()
 
     def joints(self,msg):
         q=dict(zip(msg.name,msg.position));v=dict(zip(msg.name,msg.velocity));required={j for n in self.names.values() for j in n}
@@ -93,7 +106,7 @@ class MotionClient(Node):
         deadline=time.monotonic()+timeout
         while not predicate():
             if time.monotonic()>deadline:raise TimeoutError('Simulation response timed out')
-            rclpy.spin_once(self,timeout_sec=.01)
+            self.spin_once(timeout_sec=.01)
             if health:self.health()
 
     def health(self):
@@ -102,7 +115,7 @@ class MotionClient(Node):
         # a separate continuously spinning process.
         deadline=time.monotonic()+.15
         while True:
-            for _ in range(20):rclpy.spin_once(self,timeout_sec=0.)
+            for _ in range(20):self.spin_once(timeout_sec=0.)
             now=time.monotonic();source=self.get_clock().now().nanoseconds/1e9
             if self.clock_reversed:raise RuntimeError('Simulation clock/state epoch changed; regenerate the plan')
             state_fresh=now-self.received<=.15 and now-self.source_advanced<=.15 and -.02<=source-self.stamp<=.15
@@ -113,7 +126,7 @@ class MotionClient(Node):
                 raise RuntimeError('GUARD/SUPERVISOR LOST')
             # No new command is sent while the client catches up. The separate
             # geometric guard and resource watchdog continue uninterrupted.
-            rclpy.spin_once(self,timeout_sec=.002)
+            self.spin_once(timeout_sec=.002)
 
     def connect(self,guard=True):
         self.wait(lambda:bool(self.positions) and (not guard or self.guard is not None and self.supervisor is not None
@@ -163,15 +176,18 @@ class MotionClient(Node):
         # Direct resource hold is also available if the supervisor process died.
         def states():
             if not self.list_client.wait_for_service(timeout_sec=3.):raise RuntimeError('Controller list service unavailable')
-            future=self.list_client.call_async(ListControllers.Request());self.wait(future.done,1.)
+            future=self.list_client.call_async(ListControllers.Request());self.wait(future.done,3.)
             return future.result().controller
         try:
             controllers=states();active={c.name for c in controllers if c.state=='active'}
             deactivate=[c.name for c in controllers if c.state=='active' and c.name not in [hold_name(r) for r in ROBOT_IDS]
                 and any(interface.split('/')[0] in self.names[r] for r in arms for interface in c.claimed_interfaces)]
-            try:self.switch([hold_name(r) for r in arms if hold_name(r) not in active],deactivate)
-            except Exception:pass  # the supervisor may have completed the same switch first
-            held={r for r in arms if any(c.name==hold_name(r) and c.state=='active' for c in states())}
+            activate=[hold_name(r) for r in arms if hold_name(r) not in active]
+            if activate or deactivate:
+                try:self.switch(activate,deactivate)
+                except Exception:pass  # the supervisor may have completed the same switch first
+                controllers=states()
+            held={r for r in arms if any(c.name==hold_name(r) and c.state=='active' for c in controllers)}
         except Exception as error:held=set();errors.append(str(error))
         acknowledged=set()
         for rid,future in requests:
@@ -201,7 +217,7 @@ class MotionClient(Node):
             self.pending[rid]=self.actions[rid].send_goal_async(goal)
         deadline=time.monotonic()+duration*5+5.;results={};new_stops=set()
         while True:
-            rclpy.spin_once(self,timeout_sec=.005);self.health()
+            self.spin_once(timeout_sec=.005);self.health()
             check_stationary(self,stationary or {})
             current_blocked=set(self.guard['blocked_arms'])|set(self.supervisor['blocked_arms'])
             new_stops.update(current_blocked-blocked)
@@ -433,7 +449,7 @@ def stop_all():
             raise RuntimeError('STOP_UNCONFIRMED: controller resource holds not confirmed')
         since=None;end=time.monotonic()+5.
         while time.monotonic()<end:
-            rclpy.spin_once(client,timeout_sec=.02)
+            client.spin_once(timeout_sec=.02)
             quiet=(time.monotonic()-client.received<.15 and time.monotonic()-client.source_advanced<.15
                    and client.get_clock().now().nanoseconds>0 and
                    -.02<=client.get_clock().now().nanoseconds/1e9-client.stamp<=.15 and

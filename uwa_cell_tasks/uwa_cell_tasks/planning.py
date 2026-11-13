@@ -82,7 +82,7 @@ def grasp_candidates(description, scene, cfg, object_pose):
                 heights=[]
                 for shape in scene['shapes']:
                     if shape['axis']!=axis or shape['side']!=side:continue
-                    triangle=np.array(shape['vertices'])[:3]
+                    triangle=np.array(shape['vertices'])[:shape.get('outline_vertices',3)]
                     for v,w in zip(triangle,np.roll(triangle,-1,axis=0)):
                         if min(v[tangent],w[tangent])-1e-9 <= point[tangent] <= max(v[tangent],w[tangent])+1e-9:
                             if abs(v[tangent]-w[tangent])<1e-9:heights.extend([v[2],w[2]])

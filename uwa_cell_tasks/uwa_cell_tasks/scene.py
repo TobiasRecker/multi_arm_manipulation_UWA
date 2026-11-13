@@ -31,7 +31,24 @@ def carton_shapes(instance, directory, thickness):
     dimensions = triangles.max(axis=(0, 1)); result = []
     for axis, side in ((2, 0), (0, 0), (0, 1), (1, 0), (1, 1)):
         plane = dimensions[axis] if side else 0.
-        for triangle in triangles[np.all(abs(triangles[:, :, axis] - plane) < 1e-7, axis=1)]:
+        polygons=[triangle for triangle in triangles[np.all(abs(triangles[:, :, axis] - plane) < 1e-7, axis=1)]]
+        projection=[i for i in range(3) if i!=axis]
+        # Merge adjacent triangles iff their union is exactly convex. This
+        # reduces dynamic collision bodies without filling a cutout or cavity.
+        changed=True
+        while changed:
+            changed=False
+            for i in range(len(polygons)):
+                if changed:break
+                for j in range(i+1,len(polygons)):
+                    a,b=polygons[i],polygons[j]
+                    if len({tuple(v) for v in a}.intersection(tuple(v) for v in b))<2:continue
+                    combined=np.unique(np.vstack([a,b]),axis=0)
+                    hull=ConvexHull(combined[:,projection])
+                    area=ConvexHull(a[:,projection]).volume+ConvexHull(b[:,projection]).volume
+                    if abs(hull.volume-area)>max(1e-12,area*1e-7):continue
+                    polygons[i]=combined[hull.vertices];polygons.pop(j);changed=True;break
+        for triangle in polygons:
             shift = np.zeros(3); shift[axis] = thickness * (-1 if side else 1)
             vertices = np.vstack([triangle, triangle + shift])
             hull = ConvexHull(vertices); faces = hull.simplices.copy()
@@ -47,8 +64,9 @@ def carton_shapes(instance, directory, thickness):
                 binary.extend(struct.pack('<12fH',*normal,*triangle.ravel(),0))
             path.write_bytes(binary)
             result.append(dict(vertices=vertices.tolist(), triangles=faces.tolist(), uri=path.as_uri(),
-                               sha256=hashlib.sha256(path.read_bytes()).hexdigest(), axis=axis, side=side))
-    if len(result) < 10: raise ValueError('Source does not describe the expected thin-wall carton')
+                               sha256=hashlib.sha256(path.read_bytes()).hexdigest(), axis=axis, side=side,
+                               outline_vertices=len(triangle)))
+    if len(result) < 5: raise ValueError('Source does not describe the expected thin-wall carton')
     return result
 
 
@@ -158,9 +176,19 @@ def prepare_scene(layout, cfg, directory):
     visual_scene=ET.SubElement(w,'scene');ET.SubElement(visual_scene,'ambient').text='.7 .7 .7 1'
     light=ET.SubElement(w,'light',name='grasp_sun',type='directional')
     ET.SubElement(light,'direction').text='-.4 .2 -.9';ET.SubElement(light,'diffuse').text='.9 .9 .9 1'
+    floor=ET.SubElement(w,'model',name='task_floor');ET.SubElement(floor,'static').text='true'
+    floor_link=ET.SubElement(floor,'link',name='floor')
+    plane=ET.SubElement(ET.SubElement(ET.SubElement(floor_link,'collision',name='floor'),'geometry'),'plane')
+    ET.SubElement(plane,'normal').text='0 0 1';ET.SubElement(plane,'size').text='30 30'
+    from uwa_cell_gazebo.overview import camera_config,model_sdf,transforms
+    overview_layout=deepcopy(layout)
+    overview_layout['overview_camera'].update(width=2000,height=1500,rate=1.)
+    overview=camera_config(overview_layout)
+    overview_model=ET.fromstring(model_sdf(overview)).find('model');overview_model.set('name','uwa_grasp_oak');w.append(overview_model)
     (directory/'world.sdf').write_text(ET.tostring(world,encoding='unicode'))
     record = seal(dict(schema_version=1, cfg=cfg, object_id=instance['id'],
         T_world_object=instance['T_world_object'], asset_sha256=instance['manifest']['files'],
+        T_world_overview_optical=transforms(overview)[1],
         shapes=shapes, robot_sha256=hashlib.sha256(description.encode()).hexdigest(),
         mass_and_friction_measured=False, contact_model='force-limited coupled finger approximation'))
     write_json(directory/'scene.json', record)
@@ -172,6 +200,13 @@ def apply_object(model, scene, world_object, *, touching=False):
     from moveit_msgs.msg import CollisionObject
     from shape_msgs.msg import Mesh, MeshTriangle
     from geometry_msgs.msg import Point, Pose
+    t=np.asarray(world_object)
+    cached=getattr(model,'_task_object_cache',None)
+    if cached is not None and cached[0]==scene['sha256'] and np.allclose(cached[1],t,atol=1e-10,rtol=0):
+        for arm in ARMS:
+            for side in ('left','right'):
+                model.scene.allowed_collision_matrix.set_entry(arm+'_robotiq_85_'+side+'_finger_tip_link',scene['object_id'],touching)
+        return
     obj = CollisionObject(); obj.header.frame_id='world'; obj.id=scene['object_id']
     t=np.asarray(world_object); q=Rotation.from_matrix(t[:3,:3]).as_quat()
     for shape in scene['shapes']:
@@ -181,6 +216,7 @@ def apply_object(model, scene, world_object, *, touching=False):
         pose.orientation.x,pose.orientation.y,pose.orientation.z,pose.orientation.w=map(float,q)
         obj.meshes.append(mesh); obj.mesh_poses.append(pose)
     obj.operation=CollisionObject.ADD; model.scene.apply_collision_object(obj)
+    model._task_object_cache=(scene['sha256'],t.copy())
     for arm in ARMS:
         for side in ('left','right'):
             model.scene.allowed_collision_matrix.set_entry(arm+'_robotiq_85_'+side+'_finger_tip_link',obj.id,touching)

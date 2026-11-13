@@ -10,6 +10,27 @@ from uwa_cell_motion.execution import check_stationary,_follow,settle_obstacles,
 from uwa_cell_motion.common import joint_names
 
 
+def test_rpc_response_is_serviced_under_continuously_ready_timer_load(monkeypatch):
+    import rclpy
+    from rclpy.clock import Clock,ClockType
+    from std_srvs.srv import Trigger
+    from uwa_cell_motion.execution import MotionClient,motion_context
+    monkeypatch.setenv('ROS_DOMAIN_ID','64');monkeypatch.setenv('GZ_PARTITION','uwa_cell_sim')
+    monkeypatch.setenv('ROS_AUTOMATIC_DISCOVERY_RANGE','LOCALHOST')
+    with motion_context():
+        client=MotionClient();count={'timer':0}
+        try:
+            def tick():count['timer']+=1
+            def answer(request,response):response.success=True;return response
+            timer=client.create_timer(.00001,tick,clock=Clock(clock_type=ClockType.STEADY_TIME))
+            service=client.create_service(Trigger,'~/executor_fairness_check',answer)
+            request=client.create_client(Trigger,'~/executor_fairness_check')
+            assert request.wait_for_service(timeout_sec=3.)
+            future=request.call_async(Trigger.Request());client.wait(future.done,2.)
+            assert future.result().success and count['timer']>0
+        finally:client.destroy_node()
+
+
 def test_time_lag_on_checked_path_is_safe_but_geometric_departure_is_detected():
     vertices=np.array([[0.,0.],[1.,1.],[1.,2.]])
     start=vertices[:-1];delta=np.diff(vertices,axis=0);squared=np.sum(delta*delta,axis=1)

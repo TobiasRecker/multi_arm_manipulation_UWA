@@ -50,6 +50,25 @@
   SingleThread-Spin der Parameterabfrage laufen. CLI-Reset wartet auf frische
   Guard-/Supervisor-Meldungen, ohne vollständige Armzustände zu fordern
   (Teilreset bleibt möglich). Unmittelbarer Start/Reset/Replay erneut geprüft.
+-33Bahnen bestätigt. Der aufrufende Prozess wurde später mit143 beendet,
+  ohne Abschlussdatei der folgenden Vorbereitung; Ursache unbekannt. Nutzer
+  bestätigt ausdrücklich, den Prozess nicht beendet zu haben, und wünscht
+  Fortsetzung. Abbruchdatensatz unter development-process-termination/ erhalten.
+  Alle Antriebe danach gehalten; Fortsetzung als eigener systemd-Dienst
+  uwa-cell-motion-comparison vorbereitet, mit direktem Python-Hauptprozess
+  und ExecStopPost(Halt bestätigen, dann Kameraraten restaurieren).
+  Physik wird während des Vergleichs nicht mehr unnötig neu gesetzt.
+- Kaltstart-Halteclient wartet auf vorhandene Controller-RPC-Endpunkte, bevor
+  er Requests sendet; Direct-Hold-Fallback funktioniert auch ohne Supervisor-
+  Antwort. Dienstende erst nach Resource-Hold/Drive-Stillstand, keine falsche
+  Quittierung bei fehlender Rückmeldung. Geschwindigkeitsfaults protokollieren
+  jetzt zusätzlich Gelenkindex und gemessenen Wert für Ursachenanalyse.
+- ROS-Client dauerhaft an eigenen SingleThreadedExecutor binden: wiederholtes
+  globales spin_once hing den Node ständig neu ein und konnte Serviceantworten
+  unter dem hochfrequenten /clock-Strom zurückstellen. Kaltstart-Halteprüfung
+  danach PASS; Regression mit kontinuierlich bereitem Timer und Trigger-RPC
+  ergänzt. Konsistente Controller-Liste statt vierfacher Einzelabfrage;
+  Rückmeldewartezeit separat vom unveränderten Aktuator-/Abstandsbudget.
 
 ## Zwischenstand
 

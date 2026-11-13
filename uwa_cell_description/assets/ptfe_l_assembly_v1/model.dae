@@ -1,0 +1,586 @@
+<?xml version='1.0' encoding='utf-8'?>
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
+  <asset>
+    <created>2026-11-13T00:00:00Z</created>
+    <modified>2026-11-13T00:00:00Z</modified>
+    <unit name="meter" meter="1" />
+    <up_axis>Z_UP</up_axis>
+  </asset>
+  <library_images>
+    <image id="part_2_image">
+      <init_from>textures/part_2.jpg</init_from>
+    </image>
+    <image id="part_3_image">
+      <init_from>textures/part_3.jpg</init_from>
+    </image>
+    <image id="part_4_image">
+      <init_from>textures/part_4.jpg</init_from>
+    </image>
+    <image id="part_5_image">
+      <init_from>textures/part_5.jpg</init_from>
+    </image>
+    <image id="part_6_image">
+      <init_from>textures/part_6.jpg</init_from>
+    </image>
+  </library_images>
+  <library_effects>
+    <effect id="part_0_effect">
+      <profile_COMMON>
+        <technique sid="common">
+          <lambert>
+            <emission>
+              <color>0 0 0 1</color>
+            </emission>
+            <ambient>
+              <color>1 1 1 1</color>
+            </ambient>
+            <diffuse>
+              <color>0.682352941 0.556862745 0.388235294 1</color>
+            </diffuse>
+          </lambert>
+        </technique>
+      </profile_COMMON>
+    </effect>
+    <effect id="part_1_effect">
+      <profile_COMMON>
+        <technique sid="common">
+          <lambert>
+            <emission>
+              <color>0 0 0 1</color>
+            </emission>
+            <ambient>
+              <color>1 1 1 1</color>
+            </ambient>
+            <diffuse>
+              <color>0.682352941 0.556862745 0.388235294 1</color>
+            </diffuse>
+          </lambert>
+        </technique>
+      </profile_COMMON>
+    </effect>
+    <effect id="part_2_effect">
+      <profile_COMMON>
+        <newparam sid="part_2_surface">
+          <surface type="2D">
+            <init_from>part_2_image</init_from>
+          </surface>
+        </newparam>
+        <newparam sid="part_2_sampler">
+          <sampler2D>
+            <source>part_2_surface</source>
+            <minfilter>LINEAR</minfilter>
+            <magfilter>LINEAR</magfilter>
+          </sampler2D>
+        </newparam>
+        <technique sid="common">
+          <lambert>
+            <emission>
+              <color>0 0 0 1</color>
+            </emission>
+            <ambient>
+              <color>1 1 1 1</color>
+            </ambient>
+            <diffuse>
+              <texture texture="part_2_sampler" texcoord="UVMap" />
+            </diffuse>
+          </lambert>
+        </technique>
+      </profile_COMMON>
+    </effect>
+    <effect id="part_3_effect">
+      <profile_COMMON>
+        <newparam sid="part_3_surface">
+          <surface type="2D">
+            <init_from>part_3_image</init_from>
+          </surface>
+        </newparam>
+        <newparam sid="part_3_sampler">
+          <sampler2D>
+            <source>part_3_surface</source>
+            <minfilter>LINEAR</minfilter>
+            <magfilter>LINEAR</magfilter>
+          </sampler2D>
+        </newparam>
+        <technique sid="common">
+          <lambert>
+            <emission>
+              <color>0 0 0 1</color>
+            </emission>
+            <ambient>
+              <color>1 1 1 1</color>
+            </ambient>
+            <diffuse>
+              <texture texture="part_3_sampler" texcoord="UVMap" />
+            </diffuse>
+          </lambert>
+        </technique>
+      </profile_COMMON>
+    </effect>
+    <effect id="part_4_effect">
+      <profile_COMMON>
+        <newparam sid="part_4_surface">
+          <surface type="2D">
+            <init_from>part_4_image</init_from>
+          </surface>
+        </newparam>
+        <newparam sid="part_4_sampler">
+          <sampler2D>
+            <source>part_4_surface</source>
+            <minfilter>LINEAR</minfilter>
+            <magfilter>LINEAR</magfilter>
+          </sampler2D>
+        </newparam>
+        <technique sid="common">
+          <lambert>
+            <emission>
+              <color>0 0 0 1</color>
+            </emission>
+            <ambient>
+              <color>1 1 1 1</color>
+            </ambient>
+            <diffuse>
+              <texture texture="part_4_sampler" texcoord="UVMap" />
+            </diffuse>
+          </lambert>
+        </technique>
+      </profile_COMMON>
+    </effect>
+    <effect id="part_5_effect">
+      <profile_COMMON>
+        <newparam sid="part_5_surface">
+          <surface type="2D">
+            <init_from>part_5_image</init_from>
+          </surface>
+        </newparam>
+        <newparam sid="part_5_sampler">
+          <sampler2D>
+            <source>part_5_surface</source>
+            <minfilter>LINEAR</minfilter>
+            <magfilter>LINEAR</magfilter>
+          </sampler2D>
+        </newparam>
+        <technique sid="common">
+          <lambert>
+            <emission>
+              <color>0 0 0 1</color>
+            </emission>
+            <ambient>
+              <color>1 1 1 1</color>
+            </ambient>
+            <diffuse>
+              <texture texture="part_5_sampler" texcoord="UVMap" />
+            </diffuse>
+          </lambert>
+        </technique>
+      </profile_COMMON>
+    </effect>
+    <effect id="part_6_effect">
+      <profile_COMMON>
+        <newparam sid="part_6_surface">
+          <surface type="2D">
+            <init_from>part_6_image</init_from>
+          </surface>
+        </newparam>
+        <newparam sid="part_6_sampler">
+          <sampler2D>
+            <source>part_6_surface</source>
+            <minfilter>LINEAR</minfilter>
+            <magfilter>LINEAR</magfilter>
+          </sampler2D>
+        </newparam>
+        <technique sid="common">
+          <lambert>
+            <emission>
+              <color>0 0 0 1</color>
+            </emission>
+            <ambient>
+              <color>1 1 1 1</color>
+            </ambient>
+            <diffuse>
+              <texture texture="part_6_sampler" texcoord="UVMap" />
+            </diffuse>
+          </lambert>
+        </technique>
+      </profile_COMMON>
+    </effect>
+  </library_effects>
+  <library_materials>
+    <material id="part_0_material">
+      <instance_effect url="#part_0_effect" />
+    </material>
+    <material id="part_1_material">
+      <instance_effect url="#part_1_effect" />
+    </material>
+    <material id="part_2_material">
+      <instance_effect url="#part_2_effect" />
+    </material>
+    <material id="part_3_material">
+      <instance_effect url="#part_3_effect" />
+    </material>
+    <material id="part_4_material">
+      <instance_effect url="#part_4_effect" />
+    </material>
+    <material id="part_5_material">
+      <instance_effect url="#part_5_effect" />
+    </material>
+    <material id="part_6_material">
+      <instance_effect url="#part_6_effect" />
+    </material>
+  </library_materials>
+  <library_geometries>
+    <geometry id="part_0">
+      <mesh>
+        <source id="part_0_positions">
+          <float_array id="part_0_positions_array" count="468">0 0 0.01999999955 0 0.01999999955 0.02999999933 0 0.01999999955 0.01999999955 0 0 0.1809121966 0 0.01999999955 0.1809121966 0 0.01999999955 0.02999999933 0 0 0.1809121966 0 0.01999999955 0.02999999933 0 0 0.01999999955 0.01999999955 0.01999999955 0.1809121966 0 0.01999999955 0.1809121966 0 0 0.1809121966 0.01999999955 0.01999999955 0.1809121966 0 0 0.1809121966 0.01999999955 0 0.1809121966 0 0.02009999938 0.01999999955 0 0.1768619716 0.01999999955 0 0.1768619716 0 0 0 0 0 0.02009999938 0.01999999955 0 0.1768619716 0 0 0.01999999955 0.01999999955 0 0.02009999938 0.01999999955 0 0 0 0 0 0.01999999955 0 0.01999999955 0.01999999955 0 0 0 0.2800559998 0.01999999955 0.1809121966 0.01999999955 0.01999999955 0.1809121966 0.01999999955 0 0.1809121966 0.2800559998 0.01999999955 0.1809121966 0.01999999955 0 0.1809121966 0.2800559998 0 0.1809121966 0.3000560105 0.01999999955 0.1809121966 0.2800559998 0.01999999955 0.1809121966 0.2800559998 0 0.1809121966 0.3000560105 0.01999999955 0.1809121966 0.2800559998 0 0.1809121966 0.3000560105 0 0.1809121966 0.01999999955 0 0.01999999955 0.01999999955 0.01999999955 0.01999999955 0.01999999955 0.01999999955 0.02999999933 0.01999999955 0 0.1609122008 0.01999999955 0.01999999955 0.02999999933 0.01999999955 0.01999999955 0.1609122008 0.01999999955 0 0.1609122008 0.01999999955 0 0.01999999955 0.01999999955 0.01999999955 0.02999999933 0.01999999955 0.01999999955 0 0.01999999955 0 0 0 0 0 0.01999999955 0.1568619758 0 0 0 0 0 0.1768619716 0 0.01999999955 0.1568619758 0 0.01999999955 0.01999999955 0 0 0 0 0.01999999955 0.1768619716 0 0.01999999955 0.1568619758 0 0 0.1768619716 0 0.3000560105 0 0.01999999955 0.3000560105 0.01999999955 0.01999999955 0.3000560105 0.01999999955 0.02999999933 0.3000560105 0 0.1809121966 0.3000560105 0.01999999955 0.02999999933 0.3000560105 0.01999999955 0.1809121966 0.3000560105 0 0.1809121966 0.3000560105 0 0.01999999955 0.3000560105 0.01999999955 0.02999999933 0.2800559998 0 0.01999999955 0.2800559998 0.01999999955 0.02999999933 0.2800559998 0.01999999955 0.01999999955 0.2800559998 0 0.1609122008 0.2800559998 0.01999999955 0.1609122008 0.2800559998 0.01999999955 0.02999999933 0.2800559998 0 0.1609122008 0.2800559998 0.01999999955 0.02999999933 0.2800559998 0 0.01999999955 0.2800559998 0.01999999955 0.1609122008 0.01999999955 0 0.1609122008 0.01999999955 0.01999999955 0.1609122008 0.2800559998 0.01999999955 0.1609122008 0.2800559998 0 0.1609122008 0.01999999955 0 0.1609122008 0.2800559998 0.01999999955 0.01999999955 0.01999999955 0.01999999955 0.01999999955 0.01999999955 0 0.01999999955 0.2800559998 0.01999999955 0.01999999955 0.01999999955 0 0.01999999955 0.2800559998 0 0.01999999955 0.01999999955 0.02009999938 0.01999999955 0.01999999955 0.01999999955 0 0.01999999955 0.1568619758 0 0.01999999955 0.02009999938 0.01999999955 0.01999999955 0.1568619758 0 0.01999999955 0.1568619758 0.01999999955 0.01999999955 0.01999999955 0.01999999955 0.01999999955 0.01999999955 0 0.01999999955 0.02009999938 0.01999999955 0.2800559998 0.01999999955 0 0.01999999955 0 0 0.01999999955 0.01999999955 0 0.2800559998 0.01999999955 0 0.2800559998 0 0 0.01999999955 0 0 0.2800559998 0.1768619716 0 0.01999999955 0.1568619758 0 0.01999999955 0.1768619716 0 0.2800559998 0.1768619716 0 0.2800559998 0.1568619758 0 0.01999999955 0.1568619758 0 0.3000560105 0.02009999938 0.01999999955 0.3000560105 0.1768619716 0 0.3000560105 0.1768619716 0.01999999955 0.3000560105 0 0 0.3000560105 0.1768619716 0 0.3000560105 0.02009999938 0.01999999955 0.3000560105 0.01999999955 0.01999999955 0.3000560105 0 0 0.3000560105 0.02009999938 0.01999999955 0.3000560105 0 0.01999999955 0.3000560105 0 0 0.3000560105 0.01999999955 0.01999999955 0.2800559998 0.1568619758 0.01999999955 0.01999999955 0.1568619758 0 0.2800559998 0.1568619758 0 0.2800559998 0.1568619758 0.01999999955 0.01999999955 0.1568619758 0.01999999955 0.01999999955 0.1568619758 0 0.2800559998 0.02009999938 0.01999999955 0.2800559998 0.1568619758 0 0.2800559998 0.01999999955 0 0.2800559998 0.02009999938 0.01999999955 0.2800559998 0.1568619758 0.01999999955 0.2800559998 0.1568619758 0 0.2800559998 0.01999999955 0.01999999955 0.2800559998 0.02009999938 0.01999999955 0.2800559998 0.01999999955 0 0.3000560105 0 0 0.2800559998 0 0 0.2800559998 0.01999999955 0 0.3000560105 0.1768619716 0 0.2800559998 0.1568619758 0 0.2800559998 0.1768619716 0 0.3000560105 0.1768619716 0 0.2800559998 0.01999999955 0 0.2800559998 0.1568619758 0 0.3000560105 0.1768619716 0 0.3000560105 0 0 0.2800559998 0.01999999955 0 0.2800559998 0.01999999955 0.01999999955 0.2800559998 0.01999999955 0 0.01999999955 0.01999999955 0 0.2800559998 0.01999999955 0.01999999955 0.01999999955 0.01999999955 0 0.01999999955 0.01999999955 0.01999999955</float_array>
+          <technique_common>
+            <accessor source="#part_0_positions_array" count="156" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="part_0_normals">
+          <float_array id="part_0_normals_array" count="468">-1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0</float_array>
+          <technique_common>
+            <accessor source="#part_0_normals_array" count="156" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="part_0_vertices">
+          <input semantic="POSITION" source="#part_0_positions" />
+        </vertices>
+        <triangles count="52" material="material">
+          <input semantic="VERTEX" source="#part_0_vertices" offset="0" />
+          <input semantic="NORMAL" source="#part_0_normals" offset="1" />
+          <p>0 0 1 1 2 2 3 3 4 4 5 5 6 6 7 7 8 8 9 9 10 10 11 11 12 12 13 13 14 14 15 15 16 16 17 17 18 18 19 19 20 20 21 21 22 22 23 23 24 24 25 25 26 26 27 27 28 28 29 29 30 30 31 31 32 32 33 33 34 34 35 35 36 36 37 37 38 38 39 39 40 40 41 41 42 42 43 43 44 44 45 45 46 46 47 47 48 48 49 49 50 50 51 51 52 52 53 53 54 54 55 55 56 56 57 57 58 58 59 59 60 60 61 61 62 62 63 63 64 64 65 65 66 66 67 67 68 68 69 69 70 70 71 71 72 72 73 73 74 74 75 75 76 76 77 77 78 78 79 79 80 80 81 81 82 82 83 83 84 84 85 85 86 86 87 87 88 88 89 89 90 90 91 91 92 92 93 93 94 94 95 95 96 96 97 97 98 98 99 99 100 100 101 101 102 102 103 103 104 104 105 105 106 106 107 107 108 108 109 109 110 110 111 111 112 112 113 113 114 114 115 115 116 116 117 117 118 118 119 119 120 120 121 121 122 122 123 123 124 124 125 125 126 126 127 127 128 128 129 129 130 130 131 131 132 132 133 133 134 134 135 135 136 136 137 137 138 138 139 139 140 140 141 141 142 142 143 143 144 144 145 145 146 146 147 147 148 148 149 149 150 150 151 151 152 152 153 153 154 154 155 155</p>
+        </triangles>
+      </mesh>
+    </geometry>
+    <geometry id="part_1">
+      <mesh>
+        <source id="part_1_positions">
+          <float_array id="part_1_positions_array" count="342">0 0.02999999933 0.1809121966 0 0.02999999933 0.02999999933 0 0.02009999938 0.02999999933 0 0.01999999955 0.1809121966 0 0.02009999938 0.02999999933 0 0.01999999955 0.02999999933 0 0.01999999955 0.1809121966 0 0.02999999933 0.1809121966 0 0.02009999938 0.02999999933 0.01999999955 0.01999999955 0.1809121966 0 0.02999999933 0.1809121966 0 0.01999999955 0.1809121966 0.3000560105 0.02999999933 0.1809121966 0.2800559998 0.01999999955 0.1809121966 0.3000560105 0.01999999955 0.1809121966 0.3000560105 0.02999999933 0.1809121966 0 0.02999999933 0.1809121966 0.01999999955 0.01999999955 0.1809121966 0.3000560105 0.02999999933 0.1809121966 0.01999999955 0.01999999955 0.1809121966 0.2800559998 0.01999999955 0.1809121966 0.01999999955 0.01999999955 0.02999999933 0 0.01999999955 0.02999999933 0 0.02009999938 0.02999999933 0.3000560105 0.02009999938 0.02999999933 0.3000560105 0.01999999955 0.02999999933 0.2800559998 0.01999999955 0.02999999933 0.3000560105 0.02009999938 0.02999999933 0.01999999955 0.01999999955 0.02999999933 0 0.02009999938 0.02999999933 0.3000560105 0.02009999938 0.02999999933 0.2800559998 0.01999999955 0.02999999933 0.01999999955 0.01999999955 0.02999999933 0 0.02999999933 0.02999999933 0 0.1768619716 0.01999999955 0 0.02009999938 0.01999999955 0 0.02999999933 0.02999999933 0 0.1768619716 0.02999999933 0 0.1768619716 0.01999999955 0 0.02009999938 0.02999999933 0 0.02999999933 0.02999999933 0 0.02009999938 0.01999999955 0.01999999955 0.01999999955 0.02999999933 0.01999999955 0.01999999955 0.01999999955 0 0.01999999955 0.01999999955 0.01999999955 0.01999999955 0.02999999933 0 0.01999999955 0.01999999955 0 0.01999999955 0.02999999933 0.3000560105 0.02999999933 0.1809121966 0.3000560105 0.02009999938 0.02999999933 0.3000560105 0.02999999933 0.02999999933 0.3000560105 0.01999999955 0.1809121966 0.3000560105 0.01999999955 0.02999999933 0.3000560105 0.02009999938 0.02999999933 0.3000560105 0.01999999955 0.1809121966 0.3000560105 0.02009999938 0.02999999933 0.3000560105 0.02999999933 0.1809121966 0.01999999955 0.02009999938 0.01999999955 0 0.02009999938 0.02999999933 0 0.02009999938 0.01999999955 0.3000560105 0.02009999938 0.02999999933 0.2800559998 0.02009999938 0.01999999955 0.3000560105 0.02009999938 0.01999999955 0 0.02009999938 0.02999999933 0.01999999955 0.02009999938 0.01999999955 0.3000560105 0.02009999938 0.02999999933 0.01999999955 0.02009999938 0.01999999955 0.2800559998 0.02009999938 0.01999999955 0.3000560105 0.02009999938 0.02999999933 0.3000560105 0.01999999955 0.02999999933 0.3000560105 0.01999999955 0.01999999955 0.2800559998 0.01999999955 0.01999999955 0.3000560105 0.01999999955 0.02999999933 0.2800559998 0.01999999955 0.01999999955 0.2800559998 0.01999999955 0.02999999933 0.01999999955 0.1768619716 0.01999999955 0 0.1768619716 0.01999999955 0 0.1768619716 0.02999999933 0.3000560105 0.1768619716 0.02999999933 0.3000560105 0.1768619716 0.01999999955 0.2800559998 0.1768619716 0.01999999955 0 0.1768619716 0.02999999933 0.3000560105 0.1768619716 0.02999999933 0.01999999955 0.1768619716 0.01999999955 0.01999999955 0.1768619716 0.01999999955 0.3000560105 0.1768619716 0.02999999933 0.2800559998 0.1768619716 0.01999999955 0.01999999955 0.02009999938 0.01999999955 0 0.02009999938 0.01999999955 0 0.01999999955 0.01999999955 0.01999999955 0.02009999938 0.01999999955 0 0.01999999955 0.01999999955 0.01999999955 0.01999999955 0.01999999955 0.3000560105 0.02999999933 0.02999999933 0.3000560105 0.02009999938 0.01999999955 0.3000560105 0.1768619716 0.01999999955 0.3000560105 0.02999999933 0.02999999933 0.3000560105 0.1768619716 0.01999999955 0.3000560105 0.1768619716 0.02999999933 0.3000560105 0.02009999938 0.02999999933 0.3000560105 0.02009999938 0.01999999955 0.3000560105 0.02999999933 0.02999999933 0.2800559998 0.1568619758 0.01999999955 0.01999999955 0.02009999938 0.01999999955 0.01999999955 0.1568619758 0.01999999955 0.2800559998 0.1568619758 0.01999999955 0.2800559998 0.02009999938 0.01999999955 0.01999999955 0.02009999938 0.01999999955 0.3000560105 0.02009999938 0.01999999955 0.2800559998 0.02009999938 0.01999999955 0.2800559998 0.01999999955 0.01999999955 0.3000560105 0.02009999938 0.01999999955 0.2800559998 0.01999999955 0.01999999955 0.3000560105 0.01999999955 0.01999999955</float_array>
+          <technique_common>
+            <accessor source="#part_1_positions_array" count="114" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="part_1_normals">
+          <float_array id="part_1_normals_array" count="342">-1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1</float_array>
+          <technique_common>
+            <accessor source="#part_1_normals_array" count="114" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="part_1_vertices">
+          <input semantic="POSITION" source="#part_1_positions" />
+        </vertices>
+        <triangles count="38" material="material">
+          <input semantic="VERTEX" source="#part_1_vertices" offset="0" />
+          <input semantic="NORMAL" source="#part_1_normals" offset="1" />
+          <p>0 0 1 1 2 2 3 3 4 4 5 5 6 6 7 7 8 8 9 9 10 10 11 11 12 12 13 13 14 14 15 15 16 16 17 17 18 18 19 19 20 20 21 21 22 22 23 23 24 24 25 25 26 26 27 27 28 28 29 29 30 30 31 31 32 32 33 33 34 34 35 35 36 36 37 37 38 38 39 39 40 40 41 41 42 42 43 43 44 44 45 45 46 46 47 47 48 48 49 49 50 50 51 51 52 52 53 53 54 54 55 55 56 56 57 57 58 58 59 59 60 60 61 61 62 62 63 63 64 64 65 65 66 66 67 67 68 68 69 69 70 70 71 71 72 72 73 73 74 74 75 75 76 76 77 77 78 78 79 79 80 80 81 81 82 82 83 83 84 84 85 85 86 86 87 87 88 88 89 89 90 90 91 91 92 92 93 93 94 94 95 95 96 96 97 97 98 98 99 99 100 100 101 101 102 102 103 103 104 104 105 105 106 106 107 107 108 108 109 109 110 110 111 111 112 112 113 113</p>
+        </triangles>
+      </mesh>
+    </geometry>
+    <geometry id="part_2">
+      <mesh>
+        <source id="part_2_positions">
+          <float_array id="part_2_positions_array" count="126">0.01999999955 0 0.1609122008 0 0 0.01999999955 0.01999999955 0 0.01999999955 0.01999999955 0 0.1609122008 0 0 0.1809121966 0 0 0.01999999955 0.01999999955 0 0.1809121966 0 0 0.1809121966 0.01999999955 0 0.1609122008 0.01999999955 0 0.01999999955 0 0 0 0.01999999955 0 0 0.01999999955 0 0.01999999955 0 0 0.01999999955 0 0 0 0.2800559998 0 0.1809121966 0.01999999955 0 0.1609122008 0.2800559998 0 0.1609122008 0.2800559998 0 0.1809121966 0.01999999955 0 0.1809121966 0.01999999955 0 0.1609122008 0.2800559998 0 0.1609122008 0.2800559998 0 0.01999999955 0.3000560105 0 0.01999999955 0.3000560105 0 0.1809121966 0.2800559998 0 0.1809121966 0.2800559998 0 0.1609122008 0.3000560105 0 0.1809121966 0.2800559998 0 0.1609122008 0.3000560105 0 0.01999999955 0.2800559998 0 0.01999999955 0.01999999955 0 0 0.2800559998 0 0 0.2800559998 0 0.01999999955 0.01999999955 0 0.01999999955 0.01999999955 0 0 0.3000560105 0 0.01999999955 0.2800559998 0 0 0.3000560105 0 0 0.3000560105 0 0.01999999955 0.2800559998 0 0.01999999955 0.2800559998 0 0</float_array>
+          <technique_common>
+            <accessor source="#part_2_positions_array" count="42" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="part_2_normals">
+          <float_array id="part_2_normals_array" count="126">0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0</float_array>
+          <technique_common>
+            <accessor source="#part_2_normals_array" count="42" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="part_2_uv">
+          <float_array id="part_2_uv_array" count="84">0.06665422022 0.8894491792 0 0.1105508804 0.06665422022 0.1105508804 0.06665422022 0.8894491792 0 1 0 0.1105508804 0.06665422022 1 0 1 0.06665422022 0.8894491792 0.06665422022 0.1105508804 0 0 0.06665422022 0 0.06665422022 0.1105508804 0 0.1105508804 0 0 0.9333457351 1 0.06665422022 0.8894491792 0.9333457351 0.8894491792 0.9333457351 1 0.06665422022 1 0.06665422022 0.8894491792 0.9333457351 0.8894491792 0.9333457351 0.1105508804 1 0.1105508804 1 1 0.9333457351 1 0.9333457351 0.8894491792 1 1 0.9333457351 0.8894491792 1 0.1105508804 0.9333457351 0.1105508804 0.06665422022 0 0.9333457351 0 0.9333457351 0.1105508804 0.06665422022 0.1105508804 0.06665422022 0 1 0.1105508804 0.9333457351 0 1 0 1 0.1105508804 0.9333457351 0.1105508804 0.9333457351 0</float_array>
+          <technique_common>
+            <accessor source="#part_2_uv_array" count="42" stride="2">
+              <param name="S" type="float" />
+              <param name="T" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="part_2_vertices">
+          <input semantic="POSITION" source="#part_2_positions" />
+        </vertices>
+        <triangles count="14" material="material">
+          <input semantic="VERTEX" source="#part_2_vertices" offset="0" />
+          <input semantic="NORMAL" source="#part_2_normals" offset="1" />
+          <input semantic="TEXCOORD" source="#part_2_uv" offset="2" set="0" />
+          <p>0 0 0 1 1 1 2 2 2 3 3 3 4 4 4 5 5 5 6 6 6 7 7 7 8 8 8 9 9 9 10 10 10 11 11 11 12 12 12 13 13 13 14 14 14 15 15 15 16 16 16 17 17 17 18 18 18 19 19 19 20 20 20 21 21 21 22 22 22 23 23 23 24 24 24 25 25 25 26 26 26 27 27 27 28 28 28 29 29 29 30 30 30 31 31 31 32 32 32 33 33 33 34 34 34 35 35 35 36 36 36 37 37 37 38 38 38 39 39 39 40 40 40 41 41 41</p>
+        </triangles>
+      </mesh>
+    </geometry>
+    <geometry id="part_3">
+      <mesh>
+        <source id="part_3_positions">
+          <float_array id="part_3_positions_array" count="54">0.01999999955 0.1768619716 0.01999999955 0.01999999955 0.1768619716 0 0 0.1768619716 0 0.01999999955 0.1768619716 0.01999999955 0 0.1768619716 0 0 0.1768619716 0.01999999955 0.2800559998 0.1768619716 0.01999999955 0.2800559998 0.1768619716 0 0.01999999955 0.1768619716 0 0.2800559998 0.1768619716 0.01999999955 0.01999999955 0.1768619716 0 0.01999999955 0.1768619716 0.01999999955 0.3000560105 0.1768619716 0.01999999955 0.3000560105 0.1768619716 0 0.2800559998 0.1768619716 0 0.3000560105 0.1768619716 0.01999999955 0.2800559998 0.1768619716 0 0.2800559998 0.1768619716 0.01999999955</float_array>
+          <technique_common>
+            <accessor source="#part_3_positions_array" count="18" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="part_3_normals">
+          <float_array id="part_3_normals_array" count="54">0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0</float_array>
+          <technique_common>
+            <accessor source="#part_3_normals_array" count="18" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="part_3_uv">
+          <float_array id="part_3_uv_array" count="36">0.06665422022 1 0.06665422022 0 0 0 0.06665422022 1 0 0 0 1 0.9333457351 1 0.9333457351 0 0.06665422022 0 0.9333457351 1 0.06665422022 0 0.06665422022 1 1 1 1 0 0.9333457351 0 1 1 0.9333457351 0 0.9333457351 1</float_array>
+          <technique_common>
+            <accessor source="#part_3_uv_array" count="18" stride="2">
+              <param name="S" type="float" />
+              <param name="T" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="part_3_vertices">
+          <input semantic="POSITION" source="#part_3_positions" />
+        </vertices>
+        <triangles count="6" material="material">
+          <input semantic="VERTEX" source="#part_3_vertices" offset="0" />
+          <input semantic="NORMAL" source="#part_3_normals" offset="1" />
+          <input semantic="TEXCOORD" source="#part_3_uv" offset="2" set="0" />
+          <p>0 0 0 1 1 1 2 2 2 3 3 3 4 4 4 5 5 5 6 6 6 7 7 7 8 8 8 9 9 9 10 10 10 11 11 11 12 12 12 13 13 13 14 14 14 15 15 15 16 16 16 17 17 17</p>
+        </triangles>
+      </mesh>
+    </geometry>
+    <geometry id="part_4">
+      <mesh>
+        <source id="part_4_positions">
+          <float_array id="part_4_positions_array" count="18">0.2800559998 0.01999999955 0.1609122008 0.01999999955 0.01999999955 0.02999999933 0.2800559998 0.01999999955 0.02999999933 0.2800559998 0.01999999955 0.1609122008 0.01999999955 0.01999999955 0.1609122008 0.01999999955 0.01999999955 0.02999999933</float_array>
+          <technique_common>
+            <accessor source="#part_4_positions_array" count="6" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="part_4_normals">
+          <float_array id="part_4_normals_array" count="18">0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0 0 -1 0</float_array>
+          <technique_common>
+            <accessor source="#part_4_normals_array" count="6" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="part_4_uv">
+          <float_array id="part_4_uv_array" count="12">1 1 -1.718994502e-09 0 1 0 1 1 -1.718994502e-09 1 -1.718994502e-09 0</float_array>
+          <technique_common>
+            <accessor source="#part_4_uv_array" count="6" stride="2">
+              <param name="S" type="float" />
+              <param name="T" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="part_4_vertices">
+          <input semantic="POSITION" source="#part_4_positions" />
+        </vertices>
+        <triangles count="2" material="material">
+          <input semantic="VERTEX" source="#part_4_vertices" offset="0" />
+          <input semantic="NORMAL" source="#part_4_normals" offset="1" />
+          <input semantic="TEXCOORD" source="#part_4_uv" offset="2" set="0" />
+          <p>0 0 0 1 1 1 2 2 2 3 3 3 4 4 4 5 5 5</p>
+        </triangles>
+      </mesh>
+    </geometry>
+    <geometry id="part_5">
+      <mesh>
+        <source id="part_5_positions">
+          <float_array id="part_5_positions_array" count="18">0.3000560105 0.02999999933 0.1809121966 0.3000560105 0.02999999933 0.02999999933 0 0.02999999933 0.02999999933 0.3000560105 0.02999999933 0.1809121966 0 0.02999999933 0.02999999933 0 0.02999999933 0.1809121966</float_array>
+          <technique_common>
+            <accessor source="#part_5_positions_array" count="6" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="part_5_normals">
+          <float_array id="part_5_normals_array" count="18">0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0</float_array>
+          <technique_common>
+            <accessor source="#part_5_normals_array" count="6" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="part_5_uv">
+          <float_array id="part_5_uv_array" count="12">1 1 1 0 0 0 1 1 0 0 0 1</float_array>
+          <technique_common>
+            <accessor source="#part_5_uv_array" count="6" stride="2">
+              <param name="S" type="float" />
+              <param name="T" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="part_5_vertices">
+          <input semantic="POSITION" source="#part_5_positions" />
+        </vertices>
+        <triangles count="2" material="material">
+          <input semantic="VERTEX" source="#part_5_vertices" offset="0" />
+          <input semantic="NORMAL" source="#part_5_normals" offset="1" />
+          <input semantic="TEXCOORD" source="#part_5_uv" offset="2" set="0" />
+          <p>0 0 0 1 1 1 2 2 2 3 3 3 4 4 4 5 5 5</p>
+        </triangles>
+      </mesh>
+    </geometry>
+    <geometry id="part_6">
+      <mesh>
+        <source id="part_6_positions">
+          <float_array id="part_6_positions_array" count="18">0.3000560105 0.1768619716 0.02999999933 0 0.1768619716 0.02999999933 0 0.02999999933 0.02999999933 0.3000560105 0.1768619716 0.02999999933 0 0.02999999933 0.02999999933 0.3000560105 0.02999999933 0.02999999933</float_array>
+          <technique_common>
+            <accessor source="#part_6_positions_array" count="6" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="part_6_normals">
+          <float_array id="part_6_normals_array" count="18">0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1</float_array>
+          <technique_common>
+            <accessor source="#part_6_normals_array" count="6" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="part_6_uv">
+          <float_array id="part_6_uv_array" count="12">1 1 0 1 0 0 1 1 0 0 1 0</float_array>
+          <technique_common>
+            <accessor source="#part_6_uv_array" count="6" stride="2">
+              <param name="S" type="float" />
+              <param name="T" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="part_6_vertices">
+          <input semantic="POSITION" source="#part_6_positions" />
+        </vertices>
+        <triangles count="2" material="material">
+          <input semantic="VERTEX" source="#part_6_vertices" offset="0" />
+          <input semantic="NORMAL" source="#part_6_normals" offset="1" />
+          <input semantic="TEXCOORD" source="#part_6_uv" offset="2" set="0" />
+          <p>0 0 0 1 1 1 2 2 2 3 3 3 4 4 4 5 5 5</p>
+        </triangles>
+      </mesh>
+    </geometry>
+  </library_geometries>
+  <library_visual_scenes>
+    <visual_scene id="scene">
+      <node id="part_0_node">
+        <instance_geometry url="#part_0">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="material" target="#part_0_material" />
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+      <node id="part_1_node">
+        <instance_geometry url="#part_1">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="material" target="#part_1_material" />
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+      <node id="part_2_node">
+        <instance_geometry url="#part_2">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="material" target="#part_2_material">
+                <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0" />
+              </instance_material>
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+      <node id="part_3_node">
+        <instance_geometry url="#part_3">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="material" target="#part_3_material">
+                <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0" />
+              </instance_material>
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+      <node id="part_4_node">
+        <instance_geometry url="#part_4">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="material" target="#part_4_material">
+                <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0" />
+              </instance_material>
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+      <node id="part_5_node">
+        <instance_geometry url="#part_5">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="material" target="#part_5_material">
+                <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0" />
+              </instance_material>
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+      <node id="part_6_node">
+        <instance_geometry url="#part_6">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="material" target="#part_6_material">
+                <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0" />
+              </instance_material>
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+    </visual_scene>
+  </library_visual_scenes>
+  <scene>
+    <instance_visual_scene url="#scene" />
+  </scene>
+</COLLADA>

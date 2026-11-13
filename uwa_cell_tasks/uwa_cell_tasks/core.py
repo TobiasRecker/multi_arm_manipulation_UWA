@@ -11,6 +11,7 @@ import yaml
 from match_cooperative_handling.rigid_object import rigid, relative, tcp_target, pose_error
 
 ARMS = ('right_front', 'right_rear')
+CAMERAS = ARMS + ('oak',)
 PHASES = ('observe', 'propose_grasp', 'plan_approach', 'review_plan', 'approach',
           'inspect_pregrasp', 'review_alignment', 'grasp', 'form_group', 'move_object',
           'set_down', 'release', 'done')
@@ -165,7 +166,9 @@ class RunStore:
             raise ValueError('Review does not match the current waiting revision')
         if decision not in ('continue', 'observe', 'replan', 'abort') or not reason.strip():
             raise ValueError('Explicit supported decision and reason required')
-        write_json(self.directory / ('decision-' + packet_hash + '.json'), dict(
+        decision_path=self.directory / ('decision-' + packet_hash + '.json')
+        if decision_path.exists():raise ValueError('This review already has a decision')
+        write_json(decision_path, dict(
             packet_sha256=packet_hash, decision=decision, reason=reason, time_unix_s=time.time()))
 
     def decision(self, packet):

@@ -17,16 +17,17 @@ import trimesh
 def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def package(source,output):
+def package(source,output,*,basename='carton',title='Open avocado carton',source_model='carton_model.json'):
     report=json.loads((source/'cad/export.json').read_text())
     for name,digest in report['files'].items():
         if sha(source/'cad'/name)!=digest:raise ValueError('Source export hash mismatch '+name)
-    model=json.loads((source/'carton_model.json').read_text())
-    if sha(source/'carton_model.json')!=report['source_sha256']:raise ValueError('Source model hash mismatch')
+    model=json.loads((source/source_model).read_text())
+    if sha(source/source_model)!=report['source_sha256']:raise ValueError('Source model hash mismatch')
     output.mkdir(parents=True,exist_ok=True);(output/'textures').mkdir(exist_ok=True)
-    for before,after in [('carton_textured.glb','carton.glb'),('carton.stl','carton.stl'),('carton.step','carton.step')]:
+    glb=report.get('visual_glb','carton_textured.glb');stl=report.get('solid_mesh','carton.stl');step=report.get('cad_step','carton.step')
+    for before,after in [(glb,basename+'.glb'),(stl,basename+'.stl'),(step,basename+'.step')]:
         shutil.copyfile(source/'cad'/before,output/after)
-    scene=trimesh.load(source/'cad/carton_textured.glb',force='scene')
+    scene=trimesh.load(source/'cad'/glb,force='scene')
     root=ET.Element('COLLADA',xmlns='http://www.collada.org/2005/11/COLLADASchema',version='1.4.1')
     asset=ET.SubElement(root,'asset')
     for key in ('created','modified'):ET.SubElement(asset,key).text='2026-11-13T00:00:00Z'
@@ -79,17 +80,19 @@ def package(source,output):
         material=ET.SubElement(ET.SubElement(ET.SubElement(instance,'bind_material'),'technique_common'),'instance_material',symbol='material',target='#'+ident+'_material')
         if textured:ET.SubElement(material,'bind_vertex_input',semantic='UVMap',input_semantic='TEXCOORD',input_set='0')
     ET.SubElement(ET.SubElement(root,'scene'),'instance_visual_scene',url='#scene')
-    ET.indent(root);ET.ElementTree(root).write(output/'carton.dae',encoding='utf-8',xml_declaration=True)
-    dimensions=np.array([model[k] for k in ('length_m','width_m','height_m')])
+    ET.indent(root);ET.ElementTree(root).write(output/(basename+'.dae'),encoding='utf-8',xml_declaration=True)
+    dimensions=np.array(model['dimensions_m'] if 'dimensions_m' in model else [model[k] for k in ('length_m','width_m','height_m')])
     if not np.allclose(np.ptp(vertices_all,axis=0),dimensions,atol=1e-7):raise ValueError('DAE extent/unit mismatch')
-    manifest=dict(schema=1,asset_id=output.name,title='Open avocado carton',version=1,
-        units='m',up_axis='Z',visual_mesh='carton.dae',preview_mesh='carton.glb',solid_mesh='carton.stl',cad_mm='carton.step',
+    manifest=dict(schema=1,asset_id=output.name,title=title,version=1,
+        units='m',up_axis='Z',visual_mesh=basename+'.dae',preview_mesh=basename+'.glb',solid_mesh=basename+'.stl',cad_mm=basename+'.step',
         dimensions_m=dimensions.tolist(),triangle_count=triangle_count,
         reference_pose=dict(frame='right_charuco',T_frame_object=model['T_board_object']),
-        quality=dict(status='image_based_estimate',measured_accuracy_validated=False,wall_thickness_m=.0025,wall_thickness_measured=False),
+        quality=dict(status='image_based_estimate',measured_accuracy_validated=False,
+            wall_thickness_m=model.get('plate_thickness_m',model.get('wall_thickness_m',.0025)),
+            wall_thickness_measured=False,known_dimensions_source=model.get('measured_dimensions_source','thickness assumed')),
         use='visual_only; not automatically a planning or physics obstacle',
         provenance=dict(date='2026-11-13',source='UWA four-arm/OAK image-only scan',
-            source_model_sha256=sha(source/'carton_model.json'),source_export_sha256=sha(source/'cad/export.json'),
+            source_model_sha256=sha(source/source_model),source_export_sha256=sha(source/'cad/export.json'),
             dataset_sha256=json.loads((source/'provenance.json').read_text())['dataset_sha256']),
         files={p.relative_to(output).as_posix():sha(p) for p in sorted(output.rglob('*')) if p.is_file() and p.name!='asset.json'})
     (output/'asset.json').write_text(json.dumps(manifest,indent=2)+'\n')

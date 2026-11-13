@@ -18,3 +18,11 @@
   Halten2s, keine künstliche Objektbefestigung als Haltenachweis.
 - Noch offen: Implementierung, Build, Software-/Kontaktprüfung und fünf volle
   Zellläufe. Nur tatsächlich ausgeführte Nachweise als bestanden dokumentieren.
+- Implementiert/gebaut: uwa_cell_tasks, geometrischer Cooperative-Kern,
+  Skill-/Review-/Plan-/Run-/Stop-CLI, Kontaktbackend und isolierter Zell-Launch.
+ 7Softwaretests PASS. Native Kontaktgeometrie auf STL mit Normalen korrigiert,
+  Spawn-Pose explizit; 1-kHz-Fingerservos stehen nach Einschwingen ruhig.
+- Eigene Livewelt/Namespaces: uwa_grasp_lab, uwa_grasp_validation, private Uhr
+  und TF. Keine gemeinsamen Dienste neu gestartet. Entwicklungslogs v1–v4
+  erhalten. V5 ergänzt OAK-Simulationskamera; visueller Pipeline-Nachweis und
+  vollständige Hübe weiterhin offen. Keine Hardwareaktion.

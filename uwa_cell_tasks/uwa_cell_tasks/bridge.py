@@ -25,7 +25,7 @@ from .core import ARMS
 class TelemetryBridge(Node):
     def __init__(self, namespace, world):
         super().__init__('task_telemetry',namespace=namespace)
-        self.transport=TransportNode();self.lock=Lock();self.topics=[];self.closing=False
+        self.transport=TransportNode();self.lock=Lock();self.topics=[];self.closing=False;self.sim_stamp=0.
         self.clock=self.create_publisher(Clock,namespace+'/clock',qos_profile_sensor_data)
         self.contact=self.create_publisher(String,'tasks/contacts',10)
         self.pose=self.create_publisher(String,'tasks/object_truth',10)
@@ -33,9 +33,9 @@ class TelemetryBridge(Node):
         self.subscribe(Contacts,'/world/'+world+'/model/uwa_grasp_carton/link/body/sensor/carton_contacts/contact',self.contacts_message)
         self.subscribe(Pose_V,'/uwa_grasp_carton/pose',self.pose_message)
         self.outputs=[]
-        for arm in ARMS:
+        for arm in ARMS+('oak',):
             for suffix,gz_type,ros_type,convert in [('image_raw',GzImage,Image,image_message),('camera_info',GzInfo,CameraInfo,info_message)]:
-                topic=namespace+'/'+arm+'/wrist_camera/'+suffix
+                topic=namespace+('/oak_overview/rgb/' if arm=='oak' else '/'+arm+'/wrist_camera/')+suffix
                 pub=self.create_publisher(ros_type,topic,qos_profile_sensor_data);self.outputs.append(pub)
                 self.subscribe(gz_type,topic,partial(self.camera,pub,convert,arm))
 
@@ -45,6 +45,7 @@ class TelemetryBridge(Node):
 
     def clock_message(self,msg):
         if self.closing:return
+        self.sim_stamp=msg.sim.sec+msg.sim.nsec/1e9
         out=Clock();out.clock.sec=msg.sim.sec;out.clock.nanosec=msg.sim.nsec;self.clock.publish(out)
 
     def pose_message(self,msg):
@@ -54,7 +55,7 @@ class TelemetryBridge(Node):
                 t=np.eye(4);t[:3,3]=[p.position.x,p.position.y,p.position.z]
                 t[:3,:3]=Rotation.from_quat([p.orientation.x,p.orientation.y,p.orientation.z,p.orientation.w]).as_matrix()
                 self.pose.publish(String(data=json.dumps(dict(T_world_object=t.tolist(),
-                    source='simulation_ground_truth',stamp=msg.header.stamp.sec+msg.header.stamp.nsec*1e-9))))
+                    source='simulation_ground_truth',stamp=self.sim_stamp,stamp_source='world_clock_at_receipt'))))
 
     def contacts_message(self,msg):
         if self.closing:return
@@ -72,7 +73,7 @@ class TelemetryBridge(Node):
             stamp=msg.header.stamp.sec+msg.header.stamp.nsec*1e-9))))
 
     def camera(self,publisher,convert,arm,msg):
-        if not self.closing:publisher.publish(convert(msg,arm))
+        if not self.closing:publisher.publish(convert(msg,arm,frame_id='oak_overview_rgb_optical_frame' if arm=='oak' else None))
 
     def close(self):
         self.closing=True

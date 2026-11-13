@@ -7,19 +7,19 @@ import time
 import numpy as np
 from uwa_cell_gazebo.charuco_views import Chain
 from match_cooperative_handling.rigid_object import pose_error
-from .core import ARMS,seal,write_json
+from .core import ARMS,CAMERAS,seal,write_json
 
 
 def observe(sim,description,reference,directory):
     directory=Path(directory);directory.mkdir(parents=True,exist_ok=True)
     sim.wait(lambda:all(abs(sim.v.get(j,1))<.003 for j in sim.q if '_robotiq_' not in j),10.,health=True)
-    baseline=dict(sim.q);records=[];seen={a:None for a in ARMS};counts={a:0 for a in ARMS}
+    baseline=dict(sim.q);records=[];seen={a:None for a in CAMERAS};counts={a:0 for a in CAMERAS}
     deadline=time.monotonic()+12.
     while min(counts.values())<3 and time.monotonic()<deadline:
         sim.health()
         if any(abs(sim.q.get(j,1e9)-q)>.001 for j,q in baseline.items() if '_robotiq_' not in j):
             raise RuntimeError('Arm moved during static image inspection')
-        for arm in ARMS:
+        for arm in CAMERAS:
             msg=sim.images.get(arm);info=sim.infos.get(arm)
             if msg is None or info is None or counts[arm]>=3:continue
             stamp=msg.header.stamp.sec+msg.header.stamp.nanosec/1e9
@@ -30,8 +30,9 @@ def observe(sim,description,reference,directory):
             image=np.frombuffer(msg.data,np.uint8).reshape(msg.height,msg.step)[:,:msg.width*3].reshape(msg.height,msg.width,3)
             if msg.encoding=='rgb8':image=image[:,:,::-1]
             path=directory/f'{arm}-{counts[arm]}.npy';np.save(path,image)
-            records.append(dict(arm=arm,image=str(path.resolve()),K=list(info.k),D=list(info.d),stamp=stamp,
-                T_world_camera=Chain(description,'world',msg.header.frame_id).forward(baseline).tolist()))
+            camera_pose=(json.loads((sim.directory/'scene.json').read_text())['T_world_overview_optical'] if arm=='oak'
+                else Chain(description,'world',msg.header.frame_id).forward(baseline).tolist())
+            records.append(dict(arm=arm,image=str(path.resolve()),K=list(info.k),D=list(info.d),stamp=stamp,T_world_camera=camera_pose))
             counts[arm]+=1
         time.sleep(.02)
     if not records:raise RuntimeError('No fresh calibrated camera images')
@@ -53,7 +54,7 @@ def worker(inputs,reference,output):
     from uwa_cell_tracking.cli import record,annotate
     cv2.setNumThreads(2);estimator=TexturePose(Path(reference));views=[]
     records=json.loads(Path(inputs).read_text())
-    for arm in ARMS:
+    for arm in CAMERAS:
         selected=[r for r in records if r['arm']==arm]
         if len(selected)<3:continue
         if any(r['K']!=selected[0]['K'] or r['D']!=selected[0]['D'] for r in selected):

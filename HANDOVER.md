@@ -1,5 +1,32 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Modulare Karton-Greifpipeline: Implementierung und erste Prüfungen, 2026-11-13
+
+- Nutzerauftrag: agentbedienbare Skills/Pipeline, zunächst beide rechten URs
+  greifen leeren Karton in Simulation, kurzer Hub und Absetzen, Kontaktphysik.
+  Agent prüft Strategie, Plan und Vorpositionsbilder selbst innerhalb des
+  Auftrags. Hardware ist spätere Arbeit; keine neue manuelle Freigabe je Phase.
+- Verbindliche Präzisierung: nach Greifen starres Multirobotersystem, nur
+  Objektbewegung vorgeben, feste Objekt→TCP-Offsets; keine getrennte Planung
+  oder Zeitparametrierung tragender Arme. Gemeinsamer geometrischer Kern im
+  bestehenden match_cooperative_handling, andere Arme bleiben außerhalb.
+- Neues uwa_cell_tasks mit Skill-Verträgen, SHA-gebundenen Reviews, eigenem
+  Kontaktprofil, Bildworker, gemeinsamem12-Gelenk-Stellverlauf aus Objektbahn,
+  unabhängiger Geometrieprüfung und bestehendem Ressourcen-Supervisor.
+  Separater Greifziellatch erhält Stellkraft bei Armstopp. Keine Objektbefestigung.
+- Paket/C++-Backend gebaut,7gezielte Softwaretests bestanden. Eigene Gazebo-Welt
+  uwa_grasp_lab/Namespace uwa_grasp_validation mit privater Uhr/TF in Domain64,
+  gemeinsame Zelle/Planungsvergleich nicht neu gestartet. Kein Hardwarezugriff.
+- Entwicklungsfehler erhalten: erste OBJ-Prismen ohne Normalen verworfen,
+  auf normalehaltigeSTL gewechselt; Spawn-CLI überschreibtSDF-Pose, deshalb
+  explizitePoseargumente ergänzt. Erstes100-Hz-PD-Profil instabil; eigenes1-kHz-
+  Profil/kd0,003 steht gemessen ruhig. ROS-Clientname/privaterUhranschluss und
+  Reset nach altemRunnerverlust korrigiert. Keine Grenzwerte der altenZelle gelockert.
+- Aktuell noch **kein erfolgreicher Kartongriff/Hub nachgewiesen**. Eigene
+  Simulationsläufe unter setup/tasks/carton_contact_20261113_v*/ und Logs
+  setup/logs/uwa-tasks-*. Übergabe während Umsetzung, kein Abschlussbericht.
+  Anleitung docs/manipulation_pipeline.md, Status work/carton-grasp-pipeline.md.
+
 ## CPU-Objektpose mit statischem und dynamischem Modus, 2026-11-13
 
 - Neuer Nutzerauftrag: bekannte digitalisierte Assets wiederfinden, statisch vor

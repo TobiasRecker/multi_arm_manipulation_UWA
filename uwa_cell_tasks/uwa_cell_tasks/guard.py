@@ -12,6 +12,7 @@ from rclpy.qos import qos_profile_sensor_data,QoSProfile,DurabilityPolicy
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
 from sensor_msgs.msg import JointState
+from visualization_msgs.msg import MarkerArray
 from uwa_cell_description.configuration import load_layout
 from uwa_cell_motion.common import config as motion_config,guard_signature,ROBOT_IDS
 from uwa_cell_motion.guard_core import GuardState
@@ -36,9 +37,10 @@ class TaskGuard(Node):
         self.core=GuardState(self.cfg);self.positions={};self.pairs=[]
         self.instance=str(uuid.uuid4());self.sequence=0;self.group=None;self.supervisor={}
         self.object=None;self.contacts=None;self.object_received=0.;self.contacts_received=0.
-        self.runner_received=None;self.group_object=None;self.touching=False
+        self.runner_received=None;self.group_object=None;self.touching=False;self.releasing=False
         self.chains={a:Chain(self.description,'world',a+'_tool0') for a in ARMS}
         self.publisher=self.create_publisher(String,'~/decision',10)
+        self.markers=self.create_publisher(MarkerArray,'tasks/markers',1)
         self.create_subscription(JointState,'/uwa_cell/joint_states',self.joints,qos_profile_sensor_data)
         self.create_subscription(String,'/uwa_cell/tasks/object_truth',self.object_message,10)
         self.create_subscription(String,'/uwa_cell/tasks/contacts',self.contact_message,10)
@@ -70,6 +72,9 @@ class TaskGuard(Node):
             if self.contacts and self.contacts.get('supported') and all(self.core.stationary(a,time.monotonic()) for a in ARMS):
                 self.group=None
             return
+        if value.get('release_requested') and self.group and self.contacts and self.contacts.get('supported'):
+            if all(a in self.core.records and max(abs(self.core.records[a]['v'][:6]))<.003 for a in ARMS):self.releasing=True
+            return
         if self.group is not None:return  # offsets are immutable until supported release
         self.group=value
 
@@ -82,7 +87,7 @@ class TaskGuard(Node):
             if blocked.intersection(ARMS):faults.append(dict(arms=list(ARMS),reason='GRASP GROUP MEMBER STOPPED'))
             if now-self.object_received>.2 or now-self.contacts_received>.2:
                 faults.append(dict(arms=list(ARMS),reason='GRASP TELEMETRY STALE'))
-            elif not all(all(self.contacts['pads'][a].values()) for a in ARMS):
+            elif not all(all(self.contacts['pads'][a].values()) for a in ARMS) and not (self.releasing and self.contacts.get('supported')):
                 faults.append(dict(arms=list(ARMS),reason='GRASP CONTACT LOST'))
             else:
                 from match_cooperative_handling.rigid_object import pose_error
@@ -119,10 +124,13 @@ class TaskGuard(Node):
             evaluated_monotonic_s=now,guard_config_signature=guard_signature(self.cfg),schema_version=1,
             source_time_s=source,scene_sha256=self.scene['sha256'])
         self.publisher.publish(String(data=json.dumps(status,allow_nan=False)))
+        from .markers import object_markers
+        self.markers.publish(object_markers(self,self.scene,self.object,status,self.group))
 
     def reset(self,req,res):
         if self.group:res.success=False;res.message='Loaded group cannot be reset automatically';return res
         self.runner_received=None
+        self.core.external_faults=self.faults(time.monotonic())
         res.success,res.message=self.core.reset(self.pairs,time.monotonic(),self.get_clock().now().nanoseconds/1e9)
         return res
 
