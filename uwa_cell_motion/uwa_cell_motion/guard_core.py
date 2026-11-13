@@ -54,7 +54,9 @@ class GuardState:
         faults = list(self.external_faults)
         for rid,record in self.records.items():
             if np.max(abs(record['v']))>self.cfg['velocity_limit_rad_s']*1.05:
-                faults.append(dict(arms=[rid],reason='SPEED LIMIT'))
+                index=int(np.argmax(abs(record['v'])))
+                faults.append(dict(arms=[rid],reason='SPEED LIMIT',joint_index=index,
+                    measured_velocity_rad_s=float(record['v'][index]),configured_limit_rad_s=self.cfg['velocity_limit_rad_s']))
         for a, b in PAIRS:
             if not self.fresh(a, now, source_now) or not self.fresh(b, now, source_now):
                 detail={}

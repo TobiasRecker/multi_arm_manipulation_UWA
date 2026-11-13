@@ -133,6 +133,7 @@ class MotionClient(Node):
 
     def switch(self,activate,deactivate):
         if not activate and not deactivate:return
+        if not self.switch_client.wait_for_service(timeout_sec=3.):raise RuntimeError('Controller switch service unavailable')
         request=SwitchController.Request();request.activate_controllers=list(activate);request.deactivate_controllers=list(deactivate)
         request.strictness=SwitchController.Request.BEST_EFFORT;request.activate_asap=True;request.timeout.sec=1
         future=self.switch_client.call_async(request);self.wait(future.done,3.)
@@ -161,6 +162,7 @@ class MotionClient(Node):
             except Exception as error:errors.append(str(error))
         # Direct resource hold is also available if the supervisor process died.
         def states():
+            if not self.list_client.wait_for_service(timeout_sec=3.):raise RuntimeError('Controller list service unavailable')
             future=self.list_client.call_async(ListControllers.Request());self.wait(future.done,1.)
             return future.result().controller
         try:

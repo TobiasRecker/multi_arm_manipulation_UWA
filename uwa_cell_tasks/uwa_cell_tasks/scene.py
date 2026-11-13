@@ -38,9 +38,14 @@ def carton_shapes(instance, directory, thickness):
             for k, face in enumerate(faces):
                 normal = np.cross(vertices[face[1]]-vertices[face[0]], vertices[face[2]]-vertices[face[0]])
                 if normal @ hull.equations[k, :3] < 0: faces[k] = face[::-1]
-            path = directory / f'part_{len(result):03d}.obj'
-            path.write_text(''.join('v %.12g %.12g %.12g\n' % tuple(v) for v in vertices)
-                            + ''.join('f %d %d %d\n' % tuple(f+1) for f in faces))
+            path = directory / f'part_{len(result):03d}.stl'
+            binary=bytearray(b'UWA convex contact prism'.ljust(80,b'\0'))
+            binary.extend(struct.pack('<I',len(faces)))
+            for face in faces:
+                triangle=vertices[face]
+                normal=np.cross(triangle[1]-triangle[0],triangle[2]-triangle[0]);normal/=np.linalg.norm(normal)
+                binary.extend(struct.pack('<12fH',*normal,*triangle.ravel(),0))
+            path.write_bytes(binary)
             result.append(dict(vertices=vertices.tolist(), triangles=faces.tolist(), uri=path.as_uri(),
                                sha256=hashlib.sha256(path.read_bytes()).hexdigest(), axis=axis, side=side))
     if len(result) < 10: raise ValueError('Source does not describe the expected thin-wall carton')
@@ -106,7 +111,7 @@ def contact_description(description, controllers_path):
     backend = ET.SubElement(root, 'ros2_control', name='ContactGrippers', type='system')
     hardware = ET.SubElement(backend, 'hardware')
     ET.SubElement(hardware, 'plugin').text = 'uwa_cell_tasks/ContactGripper'
-    for name, value in [('kp','3.0'),('kd','0.12'),('max_torque','0.35')]:
+    for name, value in [('kp','3.0'),('kd','0.003'),('max_torque','0.35')]:
         ET.SubElement(hardware, 'param', name=name).text = value
     for joint in list(control.findall('joint')):
         name = joint.get('name')
@@ -132,6 +137,7 @@ def prepare_scene(layout, cfg, directory):
     shapes = carton_shapes(instance, directory/'collision', cfg['wall_thickness_m'])
     description, controllers = render_description(layout, directory/'model')
     params = yaml.safe_load(controllers.read_text())
+    params['/uwa_cell/controller_manager']['ros__parameters']['update_rate']=1000
     group_name = 'rigid_object_controller'
     params['/uwa_cell/controller_manager']['ros__parameters'][group_name] = {'type':'joint_trajectory_controller/JointTrajectoryController'}
     params['/uwa_cell/'+group_name] = {'ros__parameters': dict(
@@ -149,6 +155,9 @@ def prepare_scene(layout, cfg, directory):
     for filename,name in [('physics','Physics'),('user-commands','UserCommands'),('scene-broadcaster','SceneBroadcaster'),('contact','Contact')]:
         ET.SubElement(w,'plugin',filename='gz-sim-'+filename+'-system',name='gz::sim::systems::'+name)
     ET.SubElement(w,'gravity').text='0 0 -9.81'
+    visual_scene=ET.SubElement(w,'scene');ET.SubElement(visual_scene,'ambient').text='.7 .7 .7 1'
+    light=ET.SubElement(w,'light',name='grasp_sun',type='directional')
+    ET.SubElement(light,'direction').text='-.4 .2 -.9';ET.SubElement(light,'diffuse').text='.9 .9 .9 1'
     (directory/'world.sdf').write_text(ET.tostring(world,encoding='unicode'))
     record = seal(dict(schema_version=1, cfg=cfg, object_id=instance['id'],
         T_world_object=instance['T_world_object'], asset_sha256=instance['manifest']['files'],

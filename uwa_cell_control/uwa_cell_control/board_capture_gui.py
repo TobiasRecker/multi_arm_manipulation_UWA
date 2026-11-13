@@ -344,6 +344,7 @@ def main():
     p.add_argument('--quick', action='store_true', help='Capture-only: use wrist VGA rather than native HD')
     p.add_argument('--five-cameras', action='store_true', help='Four wrists plus OAK; separate object-scan focus profile')
     p.add_argument('--board', choices=('mobile', 'left', 'right', 'both'), help='Default mobile, or both tables with --five-cameras')
+    p.add_argument('--telemetry-source',choices=('ros','rtde'),default='ros',help='Stationarity observer; rtde only subscribes to controller outputs')
     args = p.parse_args()
     options = {}
     if args.five_cameras:
@@ -351,7 +352,7 @@ def main():
             'src/multi_arm_manipulation_UWA/config/digitization/five_camera_capture.yaml')
         if args.output is None:
             args.output = args.workspace / 'setup/digitization/five_camera'
-    rig = CaptureRig(args.workspace, args.output, board=args.board or ('both' if args.five_cameras else 'mobile'), **options)
+    rig = CaptureRig(args.workspace, args.output, board=args.board or ('both' if args.five_cameras else 'mobile'),telemetry_source=args.telemetry_source, **options)
     if args.capture_only:
         try:
             rig.lock_focus()

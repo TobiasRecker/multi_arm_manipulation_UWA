@@ -221,7 +221,9 @@ class CaptureRig:
     wrist_cameras = CAMERAS[:-1]
     audit_stationarity = False
 
-    def __init__(self, workspace, output=None, *, cameras=CAMERAS, optics_path=None, board='mobile'):
+    def __init__(self, workspace, output=None, *, cameras=CAMERAS, optics_path=None, board='mobile',telemetry_source='ros'):
+        if telemetry_source not in ('ros','rtde'):raise ValueError('Unknown read-only telemetry source')
+        self.telemetry_source=telemetry_source
         self.ws = Path(workspace).resolve()
         repo = self.ws / 'src/multi_arm_manipulation_UWA'
         self.inventory = yaml.safe_load((repo / 'config/hardware_inventory.yaml').read_text())
@@ -426,7 +428,7 @@ class CaptureRig:
 
     def capture_monitor(self, directory):
         from .capture_telemetry import ProcessCaptureMonitor
-        return ProcessCaptureMonitor(self.ws, directory, self.wrist_cameras)
+        return ProcessCaptureMonitor(self.ws, directory, self.wrist_cameras,source=getattr(self,'telemetry_source','ros'))
 
     def capture_all(self, native=True, resume_preview=False):
         if not self.busy.acquire(blocking=False):

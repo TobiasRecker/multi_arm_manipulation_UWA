@@ -25,7 +25,7 @@ def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def prepare(dataset, out, ws):
+def prepare(dataset, out, ws, *, initial_projection=True):
     from uwa_cell_description.configuration import load_layout
     layout = load_layout()
     profile = layout['calibration']
@@ -53,8 +53,10 @@ def prepare(dataset, out, ws):
     data = json.loads(dataset.read_text())
     if not data['acquisition_complete']:
         raise ValueError('Incomplete acquisition')
-    coarse = json.loads((ws/'setup/digitization/four_arm_scan_20261113/overview_estimate/estimate.json').read_text())
-    params = coarse['parameters_board_m_rad']
+    params=None
+    if initial_projection:
+        coarse = json.loads((ws/'setup/digitization/four_arm_scan_20261113/overview_estimate/estimate.json').read_text())
+        params = coarse['parameters_board_m_rad']
     models = {}
     for row in data['rounds']:
         if not row['stationary_set_confirmed']:
@@ -104,6 +106,7 @@ def prepare(dataset, out, ws):
             proxy = cv2.resize(image, (1600,1200), interpolation=cv2.INTER_AREA)
             cv2.imwrite(str(out/(key+'.jpg')), proxy)
             try:
+                if params is None:continue
                 points = project(vertices(params),camera,1600)
                 for i,(x,y) in enumerate(points):
                     cv2.circle(proxy,(round(x),round(y)),5,(0,255,0),2)
@@ -195,12 +198,13 @@ def fit_model(out, ws):
     print(json.dumps(dict(parameters=params.tolist(),individual=individual,metrics=metrics),indent=2))
 
 
-def refine(out, *, render=True):
+def refine(out, *, render=True, vertices_fn=None, object_pose_fn=None):
     """Fixed-optics bundle adjustment, using only training object landmarks.
 
     Both observed boards constrain the cameras. Their relative transform is
     estimated from images (not nominal layout). Holdout poses use boards only.
     """
+    make_points=vertices_fn or vertices;make_pose=object_pose_fn or object_pose
     models=json.loads((out/'camera_models.json').read_text())
     observations=json.loads((out/'landmarks.json').read_text())['observations']
     training=[k for k,o in observations.items() if o['role']=='fit' and
@@ -224,7 +228,7 @@ def refine(out, *, render=True):
         o=observations[key]
         blocks.append((j,key,'carton',np.array(o['ids']),np.array(o['pixels']),3.))
     def residual(x,chosen_blocks=blocks):
-        b=from_vector(x[6:12]);points=vertices(x[:6]);errors=[]
+        b=from_vector(x[6:12]);points=make_points(x[:6]);errors=[]
         for j,key,table,obj,pixels,sigma in chosen_blocks:
             c=models[key];pose=from_vector(x[12+6*j:18+6*j])
             if table=='left':pose=pose@b
@@ -267,13 +271,13 @@ def refine(out, *, render=True):
             bpose=pose@bridge if table=='left' else pose;o=reference['observation']
             pp=cv2.projectPoints(np.array(o['object_points']),cv2.Rodrigues(bpose[:3,:3])[0],bpose[:3,3],np.array(c['K']),np.array(c['D']))[0].reshape(-1,2)
             board_errors_px[table]=float(np.sqrt(np.mean(np.sum((pp-o['image_points'])**2,axis=1))))
-        o=observations[key];errors=project(vertices(params)[o['ids']],c,1600)-o['pixels']
+        o=observations[key];errors=project(make_points(params)[o['ids']],c,1600)-o['pixels']
         rms=float(np.sqrt(np.mean(np.sum(errors**2,axis=1))))
         metrics[key]=dict(role=role,landmarks=len(errors),rms_proxy_px=rms,
             rms_native_px=rms*c['image_size'][0]/1600,board_rms_native_px=board_errors_px,
             pose_used_carton_observations=role=='fit')
     result=dict(schema=2,parameters_board_m_rad=params.tolist(),length_m=params[3],width_m=params[4],height_m=params[5],
-        T_board_object=object_pose(params).tolist(),T_right_board_left_board=bridge.tolist(),metrics=metrics,
+        T_board_object=make_pose(params).tolist(),T_right_board_left_board=bridge.tolist(),metrics=metrics,
         excluded_metric_cameras={'left_front':'Native intrinsic extrapolation inconsistent: independent views imply ~370x299x136mm vs ~400-432x319-357x158-165mm; board PnP RMS3.6-8.7px in round1. No intrinsic replacement or flag rewrite.'},
         method='Robust joint fixed-optics bundle of visible metric board corners and assisted carton envelope landmarks; right board anchor; both-board geometry estimated from training photos',
         fit_views=training,board_sigma_native_px=.9,landmark_sigma_proxy_px=3.,

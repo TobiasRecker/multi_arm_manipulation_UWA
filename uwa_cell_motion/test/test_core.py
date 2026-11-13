@@ -163,6 +163,8 @@ def test_overspeed_latches_moving_arm(cfg):
     status=core.evaluate(pairs(),1,1)
     assert status['blocked_arms']==['left_front']
     assert status['faults'][0]['reason']=='SPEED LIMIT'
+    assert status['faults'][0]['joint_index']==0
+    assert status['faults'][0]['measured_velocity_rad_s']==.08
 
 
 def test_fault_cause_remains_visible_until_explicit_reset(cfg):

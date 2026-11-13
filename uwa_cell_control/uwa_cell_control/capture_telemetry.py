@@ -167,9 +167,10 @@ class CaptureMonitor:
 
 class ProcessCaptureMonitor:
     """Keep raw telemetry/audit independent of image decoding and detector GIL."""
-    def __init__(self, workspace, directory, arms):
+    def __init__(self, workspace, directory, arms, *, source='ros'):
         import subprocess
         import sys
+        if source not in ('ros','rtde'):raise ValueError('Unknown read-only telemetry source')
         self.directory = Path(directory)
         self.ready_path = self.directory/'audit_ready.json'
         self.error_path = self.directory/'audit_error.json'
@@ -177,7 +178,7 @@ class ProcessCaptureMonitor:
         self.log = (self.directory/'audit_worker.log').open('w')
         self.child = subprocess.Popen([sys.executable, '-m', __name__,
             '--workspace', str(workspace), '--directory', str(directory),
-            '--arms', ','.join(arms)], stdout=self.log, stderr=subprocess.STDOUT,
+            '--arms', ','.join(arms),'--source',source], stdout=self.log, stderr=subprocess.STDOUT,
             start_new_session=True)
 
     def wait_still(self, timeout=5.):
@@ -220,10 +221,14 @@ def monitor_main():
     parser.add_argument('--workspace', required=True, type=Path)
     parser.add_argument('--directory', required=True, type=Path)
     parser.add_argument('--arms', required=True)
+    parser.add_argument('--source',choices=('ros','rtde'),default='ros')
     args = parser.parse_args()
     monitor = None
     try:
-        monitor = CaptureMonitor(args.workspace, args.directory, args.arms.split(','))
+        if args.source=='rtde':
+            from .capture_rtde import RtdeCaptureMonitor
+            monitor=RtdeCaptureMonitor(args.workspace,args.directory,args.arms.split(','))
+        else:monitor = CaptureMonitor(args.workspace, args.directory, args.arms.split(','))
         monitor.wait_still()
         (args.directory/'audit_ready.json').write_text(json.dumps(dict(ready=True, armed_monotonic=time.monotonic())))
         while not (args.directory/'audit_finish').exists():
