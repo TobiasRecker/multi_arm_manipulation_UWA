@@ -154,6 +154,15 @@
 
 ## Bildbasierte Objektdigitalisierung (2026-11-12)
 
+- Nutzerauftrag13.11.: texturierten Karton als wiederverwendbares Asset in der
+  virtuellen Zelle an seiner beobachteten Stelle darstellen. Versionierte
+  Modell-/Texturdateien unter description/assets, Instanzen zentral in
+  cell_layout.yaml/scene_objects; Pose aus rechterBoardreferenz ableiten,
+  keine parallele Weltpose raten. Gazebo/TF/RViz teilen dieselbe Berechnung.
+  Zunächst statisches Visual ohne automatische Kollisions-/Planungsaktivierung,
+  laufenden Vergleich nicht ändern; Grenzen der Rekonstruktion erhalten.
+  Anleitung docs/carton_scene_asset.md, Nachladen ohne Zell-/Armneustart.
+
 - Reale automatische Scans: Kamera-/SDK-/Bildarbeit in eigenem Prozess halten,
   ROS-Stopp-/Zustandswächter davon unabhängig. Keine GIL-/Bildlast im Fahrprozess.
   GUI-Verlust verriegelt den Lauf auch während Fotos; keine automatische

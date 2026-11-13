@@ -230,10 +230,10 @@ class MotionClient(Node):
 
 
 def check_stationary(client,baseline):
-    """Only selected arms have a planned future; other arms are obstacles."""
+    """All joints outside the trajectory, including tool drives, stay fixed."""
     if any(abs(client.positions[j]-q)>.001 or abs(client.velocities[j])>.003
            for j,q in baseline.items()):
-        raise RuntimeError('Unselected obstacle arm moved; remaining PTP path invalidated')
+        raise RuntimeError('Stationary obstacle/tool joint moved; remaining PTP path invalidated')
 
 
 def safe_targets(problem,client,desired,active):
@@ -339,7 +339,8 @@ def _execute(plan,output,restore_start=False):
 def _follow(problem,client,plan,result):
     selected=plan['request']['selected'];blocked=set(client.guard['blocked_arms'])|set(client.supervisor['blocked_arms'])
     if blocked&set(selected):raise RuntimeError('Selected arm is latched; explicit reset required')
-    stationary={j:client.positions[j] for r in problem.names if r not in selected for j in problem.names[r]}
+    commanded=set(plan['trajectory']['joint_names'])
+    stationary={j:client.positions[j] for names in problem.names.values() for j in names if j not in commanded}
     check_stationary(client,stationary)
     if len(selected)==1:
         from .single_execution import follow

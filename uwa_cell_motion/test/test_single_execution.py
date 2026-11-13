@@ -6,7 +6,8 @@ from types import SimpleNamespace
 
 sys.path.insert(0,str(Path(__file__).parents[1]))
 from uwa_cell_motion.single_execution import corridor_error
-from uwa_cell_motion.execution import check_stationary
+from uwa_cell_motion.execution import check_stationary,_follow
+from uwa_cell_motion.common import joint_names
 
 
 def test_time_lag_on_checked_path_is_safe_but_geometric_departure_is_detected():
@@ -27,6 +28,15 @@ def test_unselected_arm_requires_stationary_measured_state():
     client=SimpleNamespace(positions={'obstacle':1.,'selected':2.},velocities={'obstacle':0.,'selected':.05})
     check_stationary(client,{'obstacle':1.})
     client.velocities['obstacle']=.01
-    with pytest.raises(RuntimeError,match='Unselected obstacle arm moved'):check_stationary(client,{'obstacle':1.})
+    with pytest.raises(RuntimeError,match='Stationary obstacle/tool joint moved'):check_stationary(client,{'obstacle':1.})
     client.velocities['obstacle']=0.;client.positions['obstacle']=1.002
-    with pytest.raises(RuntimeError,match='Unselected obstacle arm moved'):check_stationary(client,{'obstacle':1.})
+    with pytest.raises(RuntimeError,match='Stationary obstacle/tool joint moved'):check_stationary(client,{'obstacle':1.})
+
+
+def test_selected_arm_gripper_motion_invalidates_arm_only_plan_before_activation():
+    names=joint_names('left_front');tool='left_front_finger_joint'
+    client=SimpleNamespace(guard={'blocked_arms':[]},supervisor={'blocked_arms':[]},
+        positions={j:0. for j in names+[tool]},velocities={j:(.01 if j==tool else 0.) for j in names+[tool]})
+    problem=SimpleNamespace(names={'left_front':names+[tool]})
+    plan={'request':{'selected':['left_front']},'trajectory':{'joint_names':names}}
+    with pytest.raises(RuntimeError,match='Stationary obstacle/tool joint moved'):_follow(problem,client,plan,{})

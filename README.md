@@ -92,6 +92,12 @@ used metrically; the five left-front views remain diagnostic because their
 geometry is inconsistent. Held-out views retain visible residuals, so this is
 a preliminary image-based model with assumed thickness, not validated metrology.
 
+The [textured carton asset](docs/carton_scene_asset.md) is now included in
+Gazebo and RViz at its reconstructed pose relative to the right board, between
+the tables. It loads automatically with the cell; use `cell.sh assets` to add it
+to an already running simulation. It is a static visual, with no new physics
+or planning obstacle.
+
 
 ## OAK camera CAD and tripod
 

@@ -24,6 +24,7 @@ from uwa_cell_gazebo.overview import TOPIC, camera_config, intrinsic, transforms
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--output',type=Path,required=True)
+    parser.add_argument('--without-camera',action='store_true',help='Verify model/TF/markers while another job owns or disables the sensor')
     args=parser.parse_args();out=args.output.resolve();out.mkdir(parents=True,exist_ok=True)
     layout=load_layout();item=instances(layout)[0];expected=item['T_world_object']
     rclpy.init();node=rclpy.create_node('check_reconstructed_carton');latest={};clocks=[]
@@ -40,8 +41,10 @@ def main():
         deadline=time.monotonic()+35
         while time.monotonic()<deadline:
             rclpy.spin_once(node,timeout_sec=.1)
-            if set(latest)=={'tf','markers','image'} and len(clocks)>2:break
-        assert {'tf','markers','image'}<=set(latest),'Missing TF/marker/rendered image'
+            needed={'tf','markers'} if args.without_camera else {'tf','markers','image'}
+            if needed<=set(latest) and len(clocks)>2:break
+        report['received']=list(latest)
+        assert needed<=set(latest),'Missing TF/marker/rendered image'
         t=latest['tf'];p=t.transform.translation;q=t.transform.rotation
         actual=np.eye(4);actual[:3,:3]=Rotation.from_quat([q.x,q.y,q.z,q.w]).as_matrix();actual[:3,3]=[p.x,p.y,p.z]
         np.testing.assert_allclose(actual,expected,atol=1e-10)
@@ -57,6 +60,14 @@ def main():
         np.testing.assert_allclose(gaz,expected,atol=1e-7)
         visual=next(v for link in model.link for v in link.visual)
         assert visual.geometry.mesh.filename.endswith('/carton.dae')
+        report.update(T_world_object=expected.tolist(),gazebo_model_pose=gaz.tolist(),
+            marker_resource=marker.mesh_resource,embedded_materials=True,
+            clock_advance_s=clocks[-1]-clocks[0],visual_only=True,measured_world_accuracy_validated=False)
+        assert report['clock_advance_s']>0
+        if args.without_camera:
+            report.update(success=True,rendered_camera_checked=False,
+                camera_note='Sensor absent during parallel replay; preserved other job configuration')
+            return
         image=latest['image'];channels=3
         bgr=np.frombuffer(image.data,np.uint8).reshape(image.height,image.step)[:,:image.width*channels].reshape(image.height,image.width,channels)
         if image.encoding=='rgb8':bgr=cv2.cvtColor(bgr,cv2.COLOR_RGB2BGR)
@@ -69,8 +80,7 @@ def main():
         low=np.maximum(0,np.floor(pixels.min(axis=0)-40).astype(int));high=np.minimum([image.width,image.height],np.ceil(pixels.max(axis=0)+40).astype(int))
         assert np.all(high>low),'Object outside simulated camera'
         crop=bgr[low[1]:high[1],low[0]:high[0]];cv2.imwrite(str(out/'gazebo_carton_crop.png'),crop)
-        report.update(success=True,T_world_object=expected.tolist(),gazebo_model_pose=gaz.tolist(),
-            marker_resource=marker.mesh_resource,embedded_materials=True,rendered_image_size=[image.width,image.height],
+        report.update(success=True,rendered_camera_checked=True,rendered_image_size=[image.width,image.height],
             crop_bounds=[low.tolist(),high.tolist()],clock_advance_s=clocks[-1]-clocks[0],
             visual_only=True,measured_world_accuracy_validated=False)
         assert report['clock_advance_s']>0

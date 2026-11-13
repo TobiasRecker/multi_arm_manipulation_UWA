@@ -8,6 +8,8 @@ from geometry_msgs.msg import TransformStamped
 from gz.msgs.boolean_pb2 import Boolean
 from gz.msgs.entity_factory_pb2 import EntityFactory
 from gz.msgs.entity_pb2 import Entity
+from gz.msgs.empty_pb2 import Empty
+from gz.msgs.scene_pb2 import Scene
 from gz.transport import Node as TransportNode
 import rclpy
 from rclpy.executors import ExternalShutdownException
@@ -50,11 +52,16 @@ class SceneAssets(Node):
         current=instances(load_layout(self.get_parameter('layout').value))
         # Resolve/validate every asset before modifying any displayed entity.
         descriptions=[(item,model_sdf(item)) for item in current]
+        ok,scene=self.transport.request('/world/uwa_lab/scene/info',Empty(),Empty,Scene,3000)
+        if not ok:raise RuntimeError('Gazebo scene unavailable')
+        existing={model.name for model in scene.model}
         for item,sdf in descriptions:
             name=item['model_name']
-            if name in self.owned:
+            # Recover only our configured, namespaced models after an earlier
+            # process crash; do not touch arbitrary Gazebo scene entities.
+            if name in existing:
                 if not self.remove(name):raise RuntimeError('Cannot replace scene asset '+name)
-                self.owned.remove(name)
+                self.owned.discard(name)
             if not self.request('create',EntityFactory(sdf=sdf,name=name,allow_renaming=False),EntityFactory):
                 raise RuntimeError('Cannot create scene asset '+name)
             self.owned.add(name)
@@ -84,6 +91,7 @@ class SceneAssets(Node):
             marker.scale.x=marker.scale.y=marker.scale.z=1.
             marker.color.r=marker.color.g=marker.color.b=marker.color.a=1.
             marker.mesh_resource=item['mesh_resource'];marker.mesh_use_embedded_materials=True
+            marker.lifetime.sec=6  # expire after a lost publisher; refreshed every2s
             message.markers.append(marker)
         self.markers.publish(message)
 

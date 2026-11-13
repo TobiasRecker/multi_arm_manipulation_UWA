@@ -17,10 +17,11 @@ def corridor_error(measured,segment_start,delta,lengths_squared):
 
 def follow(problem,client,plan,result):
     rid=plan['request']['selected'][0];cfg=problem.cfg
-    others=[r for r in problem.names if r!=rid]
+    names=joint_names(rid)
+    stationary=[j for n in problem.names.values() for j in n if j not in names]
     client.health()
-    if any(abs(client.velocities[j])>.003 for r in others for j in problem.names[r]):return False
-    baseline=dict(client.positions);names=joint_names(rid)
+    if any(abs(client.velocities[j])>.003 for j in stationary):return False
+    baseline=dict(client.positions)
     request=problem.normalize(dict(start=baseline,goals={rid:plan['request']['goals'][rid]}))
     # Preserve all original geometric waypoints, with a checked tiny initial
     # correction from the measured state rather than a discontinuous t=0 jump.
@@ -63,8 +64,8 @@ def follow(problem,client,plan,result):
             handle.cancel_goal_async();result['guard_stops']+=1;result['stopped_arms']=[rid]
             result['error']=rid+': collision interlock latched';return True
         if client.live_signature!=problem.signature:raise RuntimeError('Running collision model changed')
-        if any(abs(client.positions[j]-baseline[j])>.001 for r in others for j in problem.names[r]):
-            raise RuntimeError('Stationary obstacle arm moved; remaining single-arm path invalidated')
+        if any(abs(client.positions[j]-baseline[j])>.001 or abs(client.velocities[j])>.003 for j in stationary):
+            raise RuntimeError('Stationary obstacle/tool joint moved; remaining single-arm path invalidated')
         elapsed=client.stamp-start/1e9
         expected=np.asarray([np.interp(elapsed,times,positions[:,i]) for i in range(6)])
         measured=np.asarray([client.positions[j] for j in names])

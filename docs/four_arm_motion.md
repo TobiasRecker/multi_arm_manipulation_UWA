@@ -109,6 +109,8 @@ Use six joint angles per selected arm. Unselected arms remain scene obstacles.
 They must stay stationary. Include every arm intended to move in `goals`;
 an unselected arm moving during execution invalidates the job and stops the
 job's owned arms. This does not globally prohibit independent ROS motion.
+Tool drives also stay at their complete-start values during these arm-only
+trajectories; external gripper movement invalidates the remaining PTP path.
 Example goal form:
 
 ```json

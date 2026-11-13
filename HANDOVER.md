@@ -1,5 +1,27 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Texturierter Karton als Zell-Asset eingefügt, 2026-11-13
+
+- Nutzer wünscht das fertige Modell als wiederverwendbares Asset und in der
+  virtuellen Zelle an der real beobachteten Position. Paketiert unter
+  uwa_cell_description/assets/carton_avocado_v1/: COLLADA+vierJPEGs für beide
+  Renderer, GLB/STL/STEP und Manifest mit Herkunft/Hash/Qualitätsgrenzen.
+- Zentrale Instanz scene_objects/avocado_carton in cell_layout.yaml; Ursprung
+  aus Bildfit relativ zum rechtenChArUco-Board, dessen bestehende Zellpose
+  wird weiterverwendet. Unterer Mittelpunkt etwa(-0,013;0,007;0,903)m zwischen
+  denTischen. Keine neue absolute Weltkalibrierung oder höhere Genauigkeit.
+- Separater statischer Visualspawn, ROS-TF asset/avocado_carton und texturierter
+  RViz-Marker teilen eine Pose. Normaler Zellstart lädt automatisch; laufende
+  Zelle ergänzt durch cell.sh assets, Reloadservice/uwa_cell/scene_assets/reload.
+  Eigener Benutzerdienst uwa-cell-assets; bestehendeZelle nicht neu gestartet.
+-17Offlineprüfungen bestanden; liveGazebo-Modellpose/TF/Marker abgeglichen,
+  Zell-PID274663 unverändert. RViz geöffnet; keine Texturladefehler imLog.
+  Sim-OAK vom parallelenReplay entfernt, daher dessen Einstellungen bewahrt
+  und kein Kamerabildnachweis behauptet. Bericht unter Kartonordner/scene-live/.
+- Visual-only ohne neue Gazebo-/MoveIt-Kollision oder Hardwareaktionen;
+  laufenden Planungsvergleich erhalten. Keine vollständigen Rohfotos/Sitzungen
+  ins Asset kopiert. Bedienung/Grenzen docs/carton_scene_asset.md.
+
 ## Großer Karton aus gespeicherten Farbfotos rekonstruiert, 2026-11-13
 
 - Nutzerauftrag nach Scan:3D-Modell des neuen offenen Avocado-Kartons.
