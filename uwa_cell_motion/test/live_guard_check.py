@@ -42,6 +42,7 @@ def fixture(path):
         def geometry(self,now):
             world,pairs=super().geometry(now)
             for index in self.flags.get('pair_faults',[]):pairs[index]['clearance_m']=pairs[index]['threshold_m']-.001
+            for index in self.flags.get('close_clear_pairs',[]):pairs[index]['clearance_m']=pairs[index]['threshold_m']+.001
             return world,pairs
     rclpy.init();node=TestGuard()
     try:rclpy.spin(node)
@@ -125,6 +126,15 @@ def check(output,own_supervisor=False):
             node.wait(lambda:node.guard['state']=='STATE STALE' and set(node.supervisor['held_arms'])=={'left_front','right_front','left_rear'},3.)
             results['lost_state_neighbor_scope']=True
             dump(flags,{});reset()
+            dump(flags,dict(close_clear_pairs=[0]));wait_seconds(.3)
+            assert not node.supervisor['blocked_arms']
+            began=time.monotonic();child.send_signal(signal.SIGSTOP)
+            node.wait(lambda:set(node.supervisor['held_arms'])=={'left_front','right_front'},.3)
+            latency=time.monotonic()-began
+            assert latency<=1/cfg['rate_hz']+cfg['stop_latency_s']+.05
+            results['close_pair_guard_loss_hold_latency_s']=latency
+            results['close_pair_lease_expires_before_global_heartbeat']=True
+            child.send_signal(signal.SIGCONT);dump(flags,{});reset()
             # No MotionClient health/stop fallback during this observation:
             # the independent supervisor alone must react to missing decisions.
             began=time.monotonic();child.send_signal(signal.SIGSTOP)

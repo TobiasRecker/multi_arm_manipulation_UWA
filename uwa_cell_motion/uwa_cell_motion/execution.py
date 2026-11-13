@@ -284,6 +284,8 @@ def _execute(plan,output,restore_start=False):
     result['stage']='CONNECT';started=time.monotonic()
     try:
         client.connect();cfg=plan['config']
+        result['guard_config_signature']=client.guard.get('guard_config_signature')
+        result['guard_instance']=client.guard.get('instance')
         with tempfile.TemporaryDirectory(prefix='uwa-execute-') as directory:
             problem=Problem(directory,cfg,plan.get('layout_path'))
             if problem.signature!=plan['model_signature'] or problem.spheres.geometry.assets!=plan['mesh_sha256']:

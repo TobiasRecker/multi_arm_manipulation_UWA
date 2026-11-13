@@ -1,11 +1,14 @@
 # Vier Armkameras plus OAK für Objektrekonstruktion
 
-Stand: 12.11.2026. Nutzerziel: ein Objekt in einem gemeinsamen Tischbereich mit
+Stand: 13.11.2026. Nutzerziel: ein Objekt in einem gemeinsamen Tischbereich mit
 vier Wrist-Kameras und OAK fotografieren, optional mit zusätzlichen Ansichten
 nach kleinen Kamerabewegungen. Konzept und Literaturbewertung. Die erste Implementierung ist inzwischen unter
 [OAK zuerst und Fünfkamera-Aufnahme](object_scan.md) dokumentiert. Am13.11. erreichten alle vier Arme ihre fünf realen Scanstellungen;
 25/25 Bilder sind bestätigt; die letzte OAK-Gruppe wurde nach dem freigegebenen
 OS1.47-Update im Stillstand ergänzt. [Ergebnis und Grenzen](parallel_object_scan.md).
+Ein erster [CAD-Entwurf des neuen Kartons](carton_multiview_2026-11-13.md) ist
+inzwischen exportiert: ca.404×342×163mm, sichtbare Ausschnitte/Fototexturen,
+20metrische Fotos, zehn zurückgehaltene Prüfbilder; keine metrische Freigabe.
 
 ## Nutzen und gemeinsame Sicht
 
@@ -86,7 +89,7 @@ prüfen Geometrie und Skalierung. Für einfache Objekte bleibt eine Ebenen-/Quad
 oder andere parametrische Anpassung sinnvoll. Ein Mesh wird nicht automatisch
 zu bearbeitbaren CAD-Flächen.
 
-## Lokaler Stand nach Beginn der Umsetzung
+## Historischer Vorbereitungsstand vom12.11. vor dem vollständigen Scan
 
 Der Nutzer hat den Beginn beauftragt und den Aufbau korrigiert: neuer größerer
 Karton **zwischen beiden Tischen**, Unterseite auf Tischhöhe, grob40×30×20cm.

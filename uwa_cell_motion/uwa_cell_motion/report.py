@@ -63,6 +63,15 @@ def render(directory,output,guard_check=None):
                          f'<td>{len(successes)}/{len(selected)}</td><td>{timing:.3f}</td><td>—</td>')
         table.append('<tr><th>'+category+'</th>'+''.join(cells)+'</tr>')
     execution=summary.get('execution_summary',{})
+    attempts=[]
+    for path in sorted((directory/'executions').rglob('*.json')):
+        value=json.loads(path.read_text())
+        if 'phase_count' in value and 'guard_stops' in value:
+            attempts.append(dict(record=str(path.relative_to(directory)),success=value['success'],
+                stage=value.get('stage'),error=value.get('error'),stopped_arms=value.get('stopped_arms',[])))
+    history=output.with_suffix('.attempts.json');history.write_text(json.dumps(attempts,indent=2)+'\n')
+    failures=[a for a in attempts if not a['success']]
+    failure_rows=''.join('<li>'+html.escape(a['record'])+': '+html.escape(str(a['stage']))+' — '+html.escape(str(a['error'] or a['stopped_arms']))+'</li>' for a in failures)
     badges=f"OFFLINE {'COMPLETE' if summary.get('complete') else 'INCOMPLETE'} · EXECUTION {'COMPLETE' if execution.get('complete') else 'INCOMPLETE'}"
     document=f'''<!doctype html><html lang="en"><meta charset="utf-8"><title>UWA simulation study</title>
 <style>body{{background:#10141c;color:white;font:17px system-ui;max-width:1200px;margin:32px auto;padding:20px}}h1,.status{{color:#ffdf55}}table{{border-collapse:collapse;width:100%}}td,th{{border:1px solid #aab7c8;padding:9px;text-align:left}}img{{width:100%;background:white}}a{{color:#8edaff}}.status{{border:3px solid white;padding:16px}}</style>
@@ -73,5 +82,6 @@ def render(directory,output,guard_check=None):
 <table><thead><tr><th>Task category</th><th>RRT success</th><th>Plan [s]</th><th>Duration [sim s]</th><th>CF success</th><th>Plan [s]</th><th>Duration [sim s]</th></tr></thead><tbody>{''.join(table)}</tbody></table>
 <p>Duration medians use successful plans only; planning medians include failures. Start repositioning is checked separately and excluded from measured task duration. Identical timed trajectories share a linked execution record; physical executions and planning trials are counted separately.</p>
 <p>Execution status: {html.escape(json.dumps(execution))}</p>
+<p>All retained execution attempts, including development versions, changed experimental conditions and operator interruptions: {len(attempts)} attempts, {len(failures)} unsuccessful. These are separate from the final unique-trajectory coverage. <a href="{html.escape(history.name)}">Complete attempt history</a>.</p><ul>{failure_rows}</ul>
 <p>This is a simulation research comparison with provisional model anchors, approximated tool geometry and discrete mesh checks. It is not a hardware safety validation or evidence of a generally superior planner.</p></html>'''
     output.write_text(document)

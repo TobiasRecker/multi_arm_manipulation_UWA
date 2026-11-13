@@ -1,5 +1,31 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Großer Karton aus gespeicherten Farbfotos rekonstruiert, 2026-11-13
+
+- Nutzerauftrag nach Scan:3D-Modell des neuen offenen Avocado-Kartons.
+  Erster assistierter CAD-Entwurf ca.404×342×163mm, Boden/vierWände mit
+  nachgezeichneten Griff-/Oberkantenausschnitten und optionalen Fototexturen.
+  Dateien setup/digitization/carton_multiview_20261113/cad/: STEP/mm, STL/m,
+  GLB/m, editierbare SCAD/mm; carton_preview.png im übergeordneten Ordner.
+- Alle25Originalfotos geprüft,20metrisch verwendet. LF wegen widersprüchlicher
+  nativer Bildgeometrie ausgeschlossen; seine Kalibrierflags unverändert.
+  LR/RF/RR eigene passende HD-K/D, OAKWerksoptik; keine VGA-Substitution.
+  Direkt sichtbares rechtesBoard und aus Trainingsbildern geschätzte Relation
+  beiderBoards, keine nominellen Tischabstände/FK/Hand-Auge-Weltanker.
+- ZehnFit-/zehnPrüffotos, davon vierOAK-Prüfungen nur zeitliche Wiederholungen.
+  Prüfkameraposen nur ausBoardpunkten. MedianPunkt-RMS bei1600px Breite:
+  Training14,05px/Prüfung13,68px. Daher ausdrücklich keine metrische Freigabe
+  oder Millimetergenauigkeit. Reale Kontrollmaße und Ursache der systematischen
+  Kameradifferenzen offen. Dicke2,5mm angenommen; verdeckte Details vereinfacht.
+- STEP-Rückimport/Einheiten, geschlossenes zusammenhängendes STL292Dreiecke,
+  GLB-Rückimport, Transformationsrichtung und Kontur-Rückprojektion geprüft.
+  Gezielte100/70px-Störung sämtlicher Prüf-Objektpixel verändert Fitparameter
+  nicht. Ergebnis/Hashes/Prüfungen lokal erhalten; Vorschau visuell geprüft.
+- Neue Offlinewerkzeuge tools/reconstruct_carton_scan.py,
+  export_scanned_carton.py, preview_scanned_carton.py. Keine Kamera-/Arm-
+  oder Dienstaktionen, keine Profil-/TF-/Gazebo-Änderung, keine Installation.
+  Anleitung und Grenzen: docs/carton_multiview_2026-11-13.md.
+
 ## Kamerabeleuchtung im Leerlauf geprüft, 2026-11-13
 
 - Nutzer erinnert nach Scanabschluss an Abschalten der Kamerabeleuchtung bei
@@ -14,7 +40,7 @@
   Kameras verwaltet. Nachweis setup/wrist_lighting/idle_check_20261113/verified_off.json.
 
 
-## Vierarm-Kollisionswächter und PTP-Vergleich in Arbeit, 2026-11-13
+## Vierarm-Kollisionswächter und PTP-Vergleich: Offlinevergleich fertig, Gazebo-Abnahme läuft, 2026-11-13
 
 - Neuer Nutzerauftrag/Entscheidungen: unabhängiger10Hz-Kugelwächter für vier
   Nachbarpaare, verriegelter Paarstopp statt pauschalem Vierarmstopp; offene
@@ -26,18 +52,33 @@
   je Arm, gemeinsame Zielauflösung/MoveIt-FCL-Prüfung/Quintik-Zeitparametrierung,
   native OMPL-RRTConnect und CF-inspirierte Offline-Rollouts ohne RRT-Fallback.
   Anleitung docs/four_arm_motion.md; Arbeit work/four-arm-collision-planning.md.
-- Paket gebaut, bisher32Offlineprüfungen bestanden. Gazebo-Wristfahrt0,04rad
-  bestanden; Koordinationsbarrieren2,8s gemessen. Live-Stoppprüfungv2 bestanden:
+- Paket gebaut,47Offlineprüfungen bestanden (neue Oberflächenmarkerprüfung
+  danach ergänzt, abschließender Build folgt). Gazebo-Wristfahrt0,04rad
+  bestanden. Live-Stoppprüfungv2 bestanden:
   nurLF/RF stoppen/LRerreichtZiel, Topic-/Reaktivierungssperre, Mehrfachfehler,
   Datenverlust und Wächterausfall/Wiederkehr verriegelt. Fehler→Stillstand118ms,
   Wächterverlust→Halteverriegelung450ms; Simulation, keine reale Stoppreserve.
-- Rohdaten setup/logs/uwa-motion-*. Erstes Offlinevergleichssetv2 komplett
-  300Versuche, aber dessen fünf Nachbarfälle belegen noch keine echte Kreuzung;
-  derzeit ausdrückliche Kreuzungsfälle ergänzen und Vergleich neu auswerten.
-  Vorläufige Erfolgszahlen daraus nicht als endgültigen Vergleich übernehmen.
-- Drei unterschiedliche kurze Vergleichsbahnen in Gazebo bestanden; großer
-  Replay nach Zeitfaktorumschaltung vor nächster Bewegung verriegelt abgebrochen.
-  Faktor1 wiederhergestellt. Weitere Ausführungen/abschließende Abnahme offen.
+- Endgültiges Offlinevergleichssetv4 komplett300Versuche: RRT102/125,
+  zirkulare Felder115/125 gültige Zielversuche erfolgreich, je25ungültige
+  Ziele verworfen. Kreuzungen3/25gegen15/25; Kugelbahnüberschneidung jetzt
+  nachgewiesen, Meshkontakt separat.250unveränderte Versuche mit Herkunft zu
+  v2 verlinkt,50korrigierte Kreuzungsversuche ergänzt. Feste Suite im Paket.
+-55verschiedene erfolgreiche zeitparametrierte Bahnen zum Gazebo-Replay;
+  identische Wiederholungen bekommen denselben Ausführungsnachweis. Nach
+  IDE-Absturz kontrolliert fortgesetzt; Fortschritt/Fehler inkrementell in
+  setup/logs/uwa-motion-comparison-v4/summary.json. Vollständige Abnahme offen.
+  Normale1ms/RTF1-Physik; RTF3-Versuch mit5ms-Schritt löste STATE STALE aus
+  und wurde vor Fahrt verriegelt abgebrochen, alle Einstellungen restauriert.
+  Temporäre Replay-Kamerarate0,2Hz wird per EXIT-Trap auf10Hz restauriert.
+- Einzelarmfahrten unter stationären Hindernisarmen folgen vollständiger
+  geprüfter Bahn mit gemessenem1mrad-Geometriekorridor; zeitlicher Lag separat
+  erfasst. Mehrarmfahrten weiter mit unabhängigen Fortschrittsbarrieren.
+  SIGTERM während Bewegung hinterließ bestätigte Holds+Latches:
+  setup/logs/uwa-motion-signal-check.json. Keine automatische Wiederaufnahme.
+- Auditkorrektur in Protokollv2: Paarlease im Supervisor begrenzt die Dauer
+  einer alten geometrischen Freigabe anhand ihrer verbleibenden Abstandsreserve,
+  statt stets400ms Heartbeat auszuschöpfen. Monotonzeit enthält Transportalter,
+  20ms Pollintervall abgezogen. Installierte Abschluss-Liveprüfung noch offen.
   Ein früherer Live-Stoppversuch scheiterte an unerwartetem zusätzlichen Hold;
   Rohdaten erhalten, instrumentierter Wiederholungslaufv2 vollständig PASS.
 - Gemeinsame Simulation einmal für Plugin-Erkennung neu gestartet; vorherige

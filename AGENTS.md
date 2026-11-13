@@ -189,8 +189,18 @@
   getrennt von Endmaßen/Unsicherheit behandeln. Planer erzeugt keine Armkommandos.
 - Fünfkamera-Aufruf scripts/object_capture.sh nutzt beide40mm-Boardidentitäten und
   kontinuierlichen Stillstandsaudit. Unterschiedliche Boardframes nur über eine
-  beobachtete OAK-Brücke verbinden, nicht über nominelle Tischabstände. Bilder ohne
+  beobachtete gemeinsame Bildreferenz verbinden (OAK, falls beideBoards sichtbar,
+  sonst expliziter Mehransichtsfit von Kameras, die beideBoards sehen), nicht über
+  nominelle Tischabstände. Direkt dasselbe sichtbareBoard bevorzugen. Bilder ohne
   passende native K/D nicht metrisch verwenden. Bestehenden Dreikamera-Aufruf erhalten.
+- Mehransichts-CAD seit13.11.: docs/carton_multiview_2026-11-13.md. Optik passend
+  zu Identität/Fokus/nativeAuflösung mit Quellenhash datensatzlokal einfrieren;
+  separate HD-Ergebnisse müssen dafür nicht global aktiviert werden. Widersprüche
+  zwischen Kameras sichtbar behalten, problematische Ansichten nicht in ein
+  vermeintlich genaueres Mittel zwingen. Zurückgehaltene Objektpixel dürfen weder
+  Geometriefit noch ihre Prüfkamerapose beeinflussen; statische OAK-Wiederholungen
+  nicht als unabhängige neue Blickrichtungen zählen. Kontur-Nachzeichnung und
+  normierte/vereinfachte Details von mehransichtig vermessener Geometrie trennen.
 
 - Nutzerwunsch vom 2026-11-12: vier Wrist-Kameras plus OAK auf einen gemeinsamen
   Objektbereich ausrichten, fünf Fotos pro Schritt und optional kleine zusätzliche

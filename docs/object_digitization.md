@@ -1,5 +1,10 @@
 # Einfache Objekte aus Farbbildern digitalisieren
 
+Der neue größere Avocado-Karton aus dem25-Foto-Scan vom13.11. ist separat unter
+[Mehransichts-CAD, Dateien und Genauigkeitsgrenzen](carton_multiview_2026-11-13.md)
+dokumentiert. Die folgenden Maße/Ergebnisse beschreiben den früheren schmalen
+Dreifachkarton vom12.11., nicht das neue Objekt zwischen den Tischen.
+
 Erste Version vom12.11.2026: **assistierte, parametrische Rekonstruktion eines
 rechteckigen offenen Kartons**. Fotos werden automatisch aufgenommen und eine
 Geometrie wird numerisch angepasst; die Zuordnung der Objekt-Eckpunkte bleibt

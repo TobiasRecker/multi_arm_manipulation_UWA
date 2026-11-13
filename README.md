@@ -85,6 +85,13 @@ guard. Following the approved OAK update to OS1.47.0,15repeated8K starts and the
 final five-camera set passed; factory calibration stayed identical. All arms
 are stationary, motion controllers inactive, with no automatic return motion.
 
+The [large-carton reconstruction](docs/carton_multiview_2026-11-13.md) now exports
+an open carton with visible wall cutouts and optional photo textures as STEP,
+STL, GLB and editable SCAD. Approximate size404×342×163mm. Twenty photos are
+used metrically; the five left-front views remain diagnostic because their
+geometry is inconsistent. Held-out views retain visible residuals, so this is
+a preliminary image-based model with assumed thickness, not validated metrology.
+
 
 ## OAK camera CAD and tripod
 

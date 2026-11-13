@@ -4,6 +4,10 @@ Stand: 13.11.2026. **Alle fünf Stellungen je Roboter und 25/25 Bilder sind
 abgeschlossen.** Alle Arme stehen; Fahrcontroller sind inaktiv. Keine automatische
 Rückfahrt oder neue Fahrt beim Öffnen des Statusfensters.
 
+Die anschließende Offlineauswertung liefert einen ersten
+[Karton-CAD-Entwurf mit Ausschnitten und Fototexturen](carton_multiview_2026-11-13.md).
+Die dort dokumentierten Mehransichtsfehler bleiben offen; kein metrischer PASS.
+
 ## Ergebnis
 
 - Index: `setup/digitization/four_arm_scan_20261113/scan_dataset.json`.

@@ -68,7 +68,9 @@ def export(source,out):
         def literal(value):
             return value if isinstance(value,str) else str(value)
         matrix_text='['+','.join('['+','.join(literal(v) for v in row)+']' for row in matrix)+']'
-        scad.append(f'  // {name}: visible photo contour\n  multmatrix({matrix_text})\n    linear_extrude(height=wall) polygon(points={json.dumps(outline.tolist())});')
+        normalized=outline/np.array([extent,H])
+        length_parameter='L' if name in ('front','back') else 'W'
+        scad.append(f'  // {name}: visible photo contour\n  multmatrix({matrix_text})\n    linear_extrude(height=wall) scale([{length_parameter},H]) polygon(points={json.dumps(normalized.tolist())});')
     if not BRepCheck_Analyzer(shape).IsValid():raise ValueError('Invalid merged CAD solid')
     writer=STEPControl_Writer();writer.Transfer(shape,STEPControl_AsIs)
     if writer.Write(str(out/'carton.step'))!=IFSelect_RetDone:raise ValueError('STEP export failed')
