@@ -164,3 +164,13 @@ def test_native_rrt_worker_runs_without_direct_shortcut(problem):
     assert path is not None,error
     assert np.allclose(path[-1],request['target'])
     assert all(problem.edge(request,a,b) for a,b in zip(path,path[1:]))
+
+
+@pytest.mark.parametrize('roundoff,valid',[(-1e-13,True),(-1e-5,False)])
+def test_native_and_common_bounds_agree_for_measured_gripper_zero(problem,roundoff,valid):
+    source=simple(problem);source['start'][gripper_joint('right_front')]=roundoff
+    request=problem.normalize(source);start=[request['start'][j] for j in request['joint_names']]
+    assert problem.check(request,start)==valid
+    path,error=problem.rrt(request,0,3.)
+    assert (path is not None)==valid,error
+    if valid:assert all(problem.edge(request,a,b) for a,b in zip(path,path[1:]))

@@ -236,6 +236,26 @@ def check_stationary(client,baseline):
         raise RuntimeError('Stationary obstacle/tool joint moved; remaining PTP path invalidated')
 
 
+def settle_obstacles(client,joints):
+    """Wait for a preceding controller's final settling, before owning motion."""
+    client.health()
+    quiet_since=None
+    def quiet():
+        nonlocal quiet_since
+        if any(abs(client.velocities[j])>.003 for j in joints):quiet_since=None;return False
+        if quiet_since is None:quiet_since=time.monotonic()
+        return time.monotonic()-quiet_since>=.1
+    try:client.wait(quiet,timeout=5.,health=True)
+    except TimeoutError as error:raise RuntimeError('Stationary obstacle/tool joints did not settle before PTP start') from error
+
+
+def drives_stationary(client):
+    """Use the same independent drives as guard/hold, not passive mimic noise."""
+    required=[j for names in client.names.values() for j in names]
+    return bool(required and all(j in client.velocities and np.isfinite(client.velocities[j])
+                                 and abs(client.velocities[j])<.003 for j in required))
+
+
 def safe_targets(problem,client,desired,active):
     """Prove all relative phase progress and stopping positions inside a phase."""
     start=dict(client.positions);world=problem.spheres.world(start);cfg=problem.cfg
@@ -340,6 +360,10 @@ def _follow(problem,client,plan,result):
     selected=plan['request']['selected'];blocked=set(client.guard['blocked_arms'])|set(client.supervisor['blocked_arms'])
     if blocked&set(selected):raise RuntimeError('Selected arm is latched; explicit reset required')
     commanded=set(plan['trajectory']['joint_names'])
+    fixed=[j for names in problem.names.values() for j in names if j not in commanded]
+    settle_obstacles(client,fixed)
+    if max(abs(client.positions[j]-plan['request']['start'][j]) for names in problem.names.values() for j in names)>.002:
+        raise RuntimeError('Live start changed while obstacle joints settled; generate a fresh plan')
     stationary={j:client.positions[j] for names in problem.names.values() for j in names if j not in commanded}
     check_stationary(client,stationary)
     if len(selected)==1:
@@ -403,10 +427,10 @@ def stop_all():
             quiet=(time.monotonic()-client.received<.15 and time.monotonic()-client.source_advanced<.15
                    and client.get_clock().now().nanoseconds>0 and
                    -.02<=client.get_clock().now().nanoseconds/1e9-client.stamp<=.15 and
-                   max(abs(v) for v in client.velocities.values())<.003)
+                   drives_stationary(client))
             if quiet:
                 if since is None:since=time.monotonic()
-                if time.monotonic()-since>=.3:return 'STOPPED: four resource holds active; measured standstill confirmed'
+                if time.monotonic()-since>=.3:return 'STOPPED: four resource holds active; measured drive standstill confirmed'
             else:since=None
         raise RuntimeError('STOP_UNCONFIRMED: hold resources requested, fresh standstill not confirmed')
     finally:client.destroy_node();rclpy.shutdown()

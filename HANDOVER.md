@@ -64,7 +64,37 @@
   Kameras verwaltet. Nachweis setup/wrist_lighting/idle_check_20261113/verified_off.json.
 
 
-## Vierarm-Kollisionswächter und PTP-Vergleich: Offlinevergleich fertig, Gazebo-Abnahme läuft, 2026-11-13
+## Vierarm-Kollisionswächter/PTP: nach Neustart fortgesetzt, 2026-11-13
+
+- Nutzerpause und erlaubter PC-Neustart durchgeführt; Nutzer hat danach die
+  Fortsetzung ausdrücklich beauftragt. Keine automatische Bahnfortsetzung.
+  Checkpoint `setup/logs/uwa-motion-reboot-checkpoint.json`;28/55verschiedene
+  Bahnen erfolgreich in Gazebo,27noch offen, Offlinevergleich300/300fertig.
+  Alle vier Simulationsarme/Resource-Holds bestätigt, eigener motion-Dienst
+  kontrolliert beendet. Physik1ms/RTF1 und ursprüngliche Kameraraten bestätigt.
+- Letzter Replay-Abbruch blocked_direct_03 erfolgte vor Zielbewegung wegen
+  Restgeschwindigkeit eines gerade vorbereiteten Hindernisarms. Rohdaten
+  `executions/development-before-obstacle-settling/` bleiben im Bericht.
+  Korrektur: vor Start100ms Ruhe abwarten, vollständigen Start danach erneut
+  prüfen; unbekannte Hindernis-/Greiferbewegung während Fahrt weiter abbrechen.
+  Nach Neustart keine automatische Pose-/Bahnwiederaufnahme. Anleitung und
+  genaue Fortsetzungsaufgaben in work/four-arm-collision-planning.md.
+- Nach Neustart vollständiger Stoppcheck einschließlich besonders knapper
+  Paarlease PASS: setup/logs/uwa-motion-live-guard-check-complete.json.
+  Abstandsfault→Stillstand182ms, knappe Paarlease→Hold127ms, gesamter
+  Wächterverlust→Hold281ms. Eigene Simulation und normaler Wächter gestartet,
+  Replay der27restlichen verschiedenen Bahnen fortgesetzt.
+-29.Bahn bestätigt. Danach native Vorbereitung wegen Greifer-Nullpunkt-
+  Rundung(-7e-14rad) abgewiesen. Native Grenztoleranz auf dieselben1e-8rad
+  wie gemeinsame Prüfung gesetzt; echte Überschreitung -1e-5 bleibt ungültig.
+  Alle300Offline-Startzustände nutzen exakt0rad am Greifer, Audit gespeichert;
+  Abfragegeometrie/Benchmarkfälle bleiben unverändert. Fehlversuch/Diagnose
+  in development-before-native-bound-tolerance/ bzw. uwa-motion-*.log erhalten.
+- Neu53automatische Prüfungen PASS(CTest56mit3Wrappern). Stillstand-CLI
+  prüft wie Wächter/Hold die unabhängigen Antriebe, statt passive Gazebo-
+  Mimic-Geschwindigkeitsgeräusche als Antriebsbewegung zu behandeln. Ungültige
+  oder fehlende Antriebsdaten sperren weiter; Bestätigung ausdrücklich drive
+  standstill. Reale Hardware unverändert.
 
 - Neuer Nutzerauftrag/Entscheidungen: unabhängiger10Hz-Kugelwächter für vier
   Nachbarpaare, verriegelter Paarstopp statt pauschalem Vierarmstopp; offene
@@ -76,8 +106,9 @@
   je Arm, gemeinsame Zielauflösung/MoveIt-FCL-Prüfung/Quintik-Zeitparametrierung,
   native OMPL-RRTConnect und CF-inspirierte Offline-Rollouts ohne RRT-Fallback.
   Anleitung docs/four_arm_motion.md; Arbeit work/four-arm-collision-planning.md.
-- Paket gebaut,48Offlineprüfungen bestanden (CTest zusätzlich3Wrapper,
-  zusammen51/0Fehler). Gazebo-Wristfahrt0,04rad
+- Paket gebaut,50Offlineprüfungen bestanden (CTest zusätzlich3Wrapper,
+  zusammen53/0Fehler), einschließlich Hindernis-Einschwingen vor Start und
+  Greiferbewegung während Arm-PTP. Gazebo-Wristfahrt0,04rad
   bestanden. Live-Stoppprüfung der Protokollv2-Version bestanden:
   nurLF/RF stoppen/LRerreichtZiel, Topic-/Reaktivierungssperre, Mehrfachfehler,
   Datenverlust und Wächterausfall/Wiederkehr verriegelt. Fehler→Stillstand125ms,

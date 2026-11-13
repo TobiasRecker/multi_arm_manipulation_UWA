@@ -64,7 +64,9 @@ int main(int argc, char **argv)
       auto *v=s->as<ompl::base::RealVectorStateSpace::StateType>();
       for (size_t i=0; i<names.size(); ++i) state.setVariablePosition(names[i],v->values[i]);
       state.update();
-      if (!state.satisfiesBounds() || scene.isStateColliding(state)) return false;
+      // Match CollisionModel::check's 1e-8rad tolerance. Simulated gripper
+      // drives at their zero limit can report tiny negative roundoff.
+      if (!state.satisfiesBounds(1e-8) || scene.isStateColliding(state)) return false;
       std::map<std::string,std::vector<Eigen::Vector3d>> world;
       for (const auto &[arm, shapes] : spheres) for (const auto &s : shapes)
         world[arm].push_back(state.getGlobalLinkTransform(s.link)*s.centre);

@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 sys.path.insert(0,str(Path(__file__).parents[1]))
 from uwa_cell_motion.single_execution import corridor_error
-from uwa_cell_motion.execution import check_stationary,_follow
+from uwa_cell_motion.execution import check_stationary,_follow,settle_obstacles,drives_stationary
 from uwa_cell_motion.common import joint_names
 
 
@@ -24,6 +24,14 @@ def test_stationary_waypoint_has_finite_corridor_distance():
     assert np.isclose(corridor_error(np.array([1.,2.01]),start,delta,squared),.01)
 
 
+def test_drive_standstill_ignores_passive_noise_but_rejects_moving_missing_nonfinite_drive():
+    client=SimpleNamespace(names={'arm':['drive']},velocities={'drive':0.,'passive_mimic':.1})
+    assert drives_stationary(client)
+    client.velocities['drive']=.01;assert not drives_stationary(client)
+    client.velocities['drive']=float('nan');assert not drives_stationary(client)
+    del client.velocities['drive'];assert not drives_stationary(client)
+
+
 def test_unselected_arm_requires_stationary_measured_state():
     client=SimpleNamespace(positions={'obstacle':1.,'selected':2.},velocities={'obstacle':0.,'selected':.05})
     check_stationary(client,{'obstacle':1.})
@@ -37,6 +45,24 @@ def test_selected_arm_gripper_motion_invalidates_arm_only_plan_before_activation
     names=joint_names('left_front');tool='left_front_finger_joint'
     client=SimpleNamespace(guard={'blocked_arms':[]},supervisor={'blocked_arms':[]},
         positions={j:0. for j in names+[tool]},velocities={j:(.01 if j==tool else 0.) for j in names+[tool]})
+    client.health=lambda:None
+    def wait(predicate,**kwargs):
+        assert not predicate()
+        raise TimeoutError()
+    client.wait=wait
     problem=SimpleNamespace(names={'left_front':names+[tool]})
     plan={'request':{'selected':['left_front']},'trajectory':{'joint_names':names}}
-    with pytest.raises(RuntimeError,match='Stationary obstacle/tool joint moved'):_follow(problem,client,plan,{})
+    with pytest.raises(RuntimeError,match='Stationary obstacle/tool joints did not settle'):_follow(problem,client,plan,{})
+
+
+def test_preceding_obstacle_can_settle_before_start_without_looser_runtime_monitor(monkeypatch):
+    from uwa_cell_motion import execution
+    clock={'now':0.};monkeypatch.setattr(execution,'time',SimpleNamespace(monotonic=lambda:clock['now']))
+    client=SimpleNamespace(velocities={'obstacle':.01,'selected':.05},health=lambda:None)
+    def wait(predicate,**kwargs):
+        assert not predicate()
+        client.velocities['obstacle']=0.;assert not predicate()
+        clock['now']=.11;assert predicate()
+    client.wait=wait
+    settle_obstacles(client,['obstacle'])
+    assert client.velocities['selected']==.05
