@@ -6,6 +6,7 @@ import uuid
 
 import numpy as np
 import rclpy
+from rclpy.clock import Clock,ClockType
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from rclpy.qos import QoSProfile,DurabilityPolicy,ReliabilityPolicy
@@ -43,7 +44,11 @@ class CollisionGuard(Node):
             QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL,reliability=ReliabilityPolicy.RELIABLE))
         self.create_subscription(String,'/uwa_cell/collision_supervisor/status',self.supervisor_message,10)
         self.create_service(Trigger, '~/reset', self.reset)
-        self.create_timer(1/cfg['rate_hz'], self.tick, clock=self.get_clock())
+        # The distance reserve and supervisor leases are wall-time budgets.
+        # Slow physics must not reduce supervision frequency; a paused source
+        # is still evaluated and becomes STATE STALE.
+        self.wall_clock=Clock(clock_type=ClockType.STEADY_TIME)
+        self.create_timer(1/cfg['rate_hz'],self.tick,clock=self.wall_clock)
         self.get_logger().info('RUNNING: four neighbor pairs,10Hz; reset is explicit; simulation only')
 
     def receive(self, msg):

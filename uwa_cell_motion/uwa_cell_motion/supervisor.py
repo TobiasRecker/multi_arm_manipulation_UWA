@@ -38,10 +38,12 @@ class Supervisor(Node):
             for rid in ROBOT_IDS for name in (rid+'_trajectory_controller',rid+'_gripper_controller')}
         self.publisher=self.create_publisher(String,'~/status',10)
         self.create_subscription(String,'/uwa_cell/collision_guard/decision',self.receive,10,callback_group=self.group)
+        if prepare:self.prepare()
+        # prepare() spins temporary parameter futures before the multithreaded
+        # executor starts. Blocking reset callbacks must not run in that phase.
         self.create_service(Trigger,'~/reset',self.reset,callback_group=self.group)
         self.stop_services=[self.create_service(Trigger,'~/'+rid+'/stop',
             lambda request,response,rid=rid:self.stop_arm(rid,response),callback_group=self.group) for rid in ROBOT_IDS]
-        if prepare:self.prepare()
         self.create_timer(SUPERVISOR_PERIOD_S,self.tick)  # independent wall clock
         self.get_logger().info('RUNNING: resource interlocks armed; explicit reset required; simulation only')
 

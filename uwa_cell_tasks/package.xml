@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>uwa_cell_tasks</name><version>0.1.0</version>
+  <description>Simulation manipulation skills, rigid grasp groups and contact validation.</description>
+  <maintainer email="rosmatch@example.com">rosmatch</maintainer><license>MIT</license>
+  <buildtool_depend>ament_cmake</buildtool_depend><buildtool_depend>ament_cmake_python</buildtool_depend>
+  <depend>gz_ros2_control</depend><depend>hardware_interface</depend><depend>pluginlib</depend>
+  <depend>rclcpp</depend><depend>gz_sim_vendor</depend><depend>gz_transport_vendor</depend><depend>gz_msgs_vendor</depend>
+  <exec_depend>rclpy</exec_depend><exec_depend>match_cooperative_handling</exec_depend>
+  <exec_depend>uwa_cell_motion</exec_depend><exec_depend>uwa_cell_tracking</exec_depend>
+  <exec_depend>uwa_cell_description</exec_depend><exec_depend>uwa_cell_gazebo</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend><exec_depend>std_msgs</exec_depend><exec_depend>std_srvs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend><exec_depend>visualization_msgs</exec_depend>
+  <exec_depend>control_msgs</exec_depend><exec_depend>controller_manager_msgs</exec_depend>
+  <exec_depend>trajectory_msgs</exec_depend><exec_depend>ros_gz_sim</exec_depend>
+  <exec_depend>python3-numpy</exec_depend><exec_depend>python3-scipy</exec_depend><exec_depend>python3-yaml</exec_depend>
+  <test_depend>ament_cmake_pytest</test_depend><test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>

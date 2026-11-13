@@ -1,5 +1,24 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Modulare Manipulation und starre Greifverbünde (2026-11-13)
+
+- Nutzer möchte agentbedienbare wiederverwendbare Skills mit Voraussetzungen,
+  Ergebnisprüfungen, Abbruchverhalten und versionsgebundenen Prüfnachweisen.
+  Erste Anwendung: beide rechten URs greifen leeren Karton, heben kurz an und
+  setzen ab; zuerst Simulation mit Kontaktphysik, Chat/CLI/RViz. Agent darf im
+  konkreten Auftrag selbst prüfen/fortsetzen; keine pauschale Hardwarefreigabe.
+- Ab bestätigtem Griff ausschließlich gemeinsames Objekt/virtuelles Objektframe
+  kommandieren, feste Objekt→TCP-Transformationen der beteiligten Arme. Prinzip
+  aus match_cooperative_handling wiederverwenden; keine getrennte Planung oder
+  unabhängige Zeitparametrierung tragender Arme. Andere Arme bleiben außerhalb.
+- Grenzen/Stopps auf gesamten Greifverbund übertragen; Greifkraft bei Armstopp
+  erhalten. Keine automatische Öffnung, Rückfahrt oder Wiederaufnahme. Relative
+  Greiftransformationen nicht nachführen, um Schlupf zu verdecken. Verbiegen/
+  gezieltes Verspannen ist keine Aufgabe dieser ersten starren Betriebsart.
+- Erfolg mit Kontaktphysik setzt echten getragenen Karton voraus; künstliches
+  Anheften ist kein Haltekraftnachweis. Masse/Reibung und starres Kartonmodell
+  als Simulationsannahmen kennzeichnen, keine Hardwaregenauigkeit daraus ableiten.
+
 ## Vierarm-Kollisionswächter und PTP-Vergleich (2026-11-13)
 
 - Nutzerauftrag: unabhängiger10Hz-Kugelwächter für genau LF/RF, LF/LR,
@@ -23,6 +42,11 @@
   Heartbeat-Timeouts verbrauchen. Paarabhängige Lease/Transportalter prüfen.
   Sim-Nachweise unter normaler Physik(RTF≤1) führen; Beschleunigung separat
   nachweisen. Nicht ausgewählte PTP-Arme bleiben gemessen stationäre Hindernisse.
+- Geometrische10Hz-Prüfung und Watchdog-Reserve auf dieselbe monotone Echtzeit
+  beziehen; langsame/pausierte Gazebo-Zeit darf die Prüfungen nicht verlangsamen.
+  Pausierte Quellzustände bleiben STATE STALE und erfordern bewussten Reset.
+  Native/Python-Grenzprüfung gemeinsam mit1e-8rad numerischer Toleranz führen,
+  echte Grenzüberschreitungen weiter ablehnen.
 
 ## Native HD-Intrinsics hinten links (2026-11-12)
 

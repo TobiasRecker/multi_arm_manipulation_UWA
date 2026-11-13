@@ -79,6 +79,21 @@ def check(output,own_supervisor=False):
             def controllers():
                 answer=node.service(ListControllers,'/uwa_cell/controller_manager/list_controllers',ListControllers.Request())
                 return {c.name:c.state for c in answer.controller}
+            def pause_world(paused):
+                answer=subprocess.run(['gz','service','-s','/world/uwa_lab/control','--reqtype','gz.msgs.WorldControl',
+                    '--reptype','gz.msgs.Boolean','--timeout','5000','--req','pause: '+str(paused).lower()],
+                    capture_output=True,text=True,timeout=8.)
+                assert answer.returncode==0 and 'data: true' in answer.stdout,answer.stdout+answer.stderr
+            # All arms are held. Supervision must keep ticking while the source
+            # clock is paused, and report stale state rather than disappearing.
+            initial_sequence=node.guard['sequence']
+            try:
+                pause_world(True);wait_seconds(.65)
+                assert node.guard['sequence']>=initial_sequence+4
+                assert node.guard['state']=='STATE STALE'
+                results['wall_checks_continue_during_simulation_pause']=True
+                results['paused_simulation_reports_state_stale']=True
+            finally:pause_world(False)
             reset();start=dict(node.positions);arms=['left_front','right_front','left_rear']
             telemetry=[]
             def sample(msg):

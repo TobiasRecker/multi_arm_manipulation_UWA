@@ -31,6 +31,20 @@
   passive Gazebo-Mimic-Geschwindigkeitsgeräusche hatten die Bestätigung trotz
   aktiver Holds unnötig verhindert. Fehlende/ungültige Antriebsdaten bleiben
   gesperrt, Meldung lautet ausdrücklich measured drive standstill.
+-31Bahnen bestätigt. Folgende Vorbereitung durch Paarlease bei CPU-bedingt
+  langsamer Simulationszeit vorsorglich gestoppt; Rohversuch in
+  development-before-wall-timer/ erhalten. Korrektur Protokollv3: Geometrie-
+  timer mit10Hz monotoner Echtzeit statt Simulationszeit, passend zu Leases
+  und Stoppbudget. Keine Grenz-/Timeoutlockerung. Pausequellen werden weiter
+  geprüft und als STATE STALE verriegelt. Gezielter Pause-Livetest ergänzt;
+  anschließend normaler Replay mit denselben Modellen/Abfragen fortsetzen.
+- Protokollv3 abgenommen: geprüfte Grundstellungsfahrt PASS, danach kompletter
+  Livecheck in `setup/logs/uwa-motion-live-guard-check-steady-wall.json` PASS.
+  Prüfung läuft bei pausierter Quelle weiter und verriegelt STATE STALE.
+  Beobachtete Latenzen63ms Abstandsfault→Stillstand,132ms knappe Paarlease,
+  321ms Wächterverlust→Hold; einzelne Beobachtungen, keine garantierte Obergrenze.
+  Ressourcen-/Topic-Sperre, unabhängige Weiterfahrt und Teilreset weiterhin PASS.
+  Replay nach explizitem Reset fortgesetzt;53automatische Prüfungen bestanden.
 
 ## Zwischenstand
 

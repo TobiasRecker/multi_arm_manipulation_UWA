@@ -58,6 +58,10 @@ reactivation attempts. A trajectory topic cannot write through an active hold
 controller. An operator deliberately replacing the hold controller in an
 explicit controller-manager switch can defeat this software interlock; the
 supervisor will request it again. It is not a hardware safety function.
+Standstill confirmation uses the measured independent arm/tool drives used by
+the guard and FK model. Passive mimic joints follow that coupling model;
+their Gazebo solver velocity noise does not count as commanded drive motion.
+Missing/nonfinite drive measurements prevent confirmation.
 
 The sphere model encloses every local collision-body AABB by circumspheres of
 complete slices. All modeled collision volume is covered, including finger
@@ -88,8 +92,10 @@ liveness. Reset requires fresh clear geometry,10mm extra hysteresis and a
 stationary history. A guard restart or heartbeat recovery cannot clear a latch.
 Reset can release eligible arms individually: with LF state missing, RR may
 be reset while LF/RF/LR remain held. Source-clock reversal also latches a stop.
-The geometric check uses10Hz simulation time; state/heartbeat age and the
-supervisor watchdog use wall time. Pausing Gazebo therefore causes a latch.
+The geometric check uses10Hz monotone wall time, independently of physics
+speed. State/heartbeat age and the supervisor watchdog also use wall time.
+Pausing Gazebo continues the checks and latches `STATE STALE` when source
+timestamps stop advancing. Source timestamps and RViz markers use ROS time.
 The supervisor also expires each pair's geometric decision before its last
 distance reserve is consumed. Excess clearance buys extra waiting time, capped
 by the400ms heartbeat limit; a close pair can expire sooner. Same-host
@@ -184,6 +190,8 @@ fixed seeds and10s planner budget give300 attempts. Normalization is shared;
 final validation time is recorded separately from planning time. Every failure,
 including invalid goals and timeouts, stays in the denominator. The raw per-run
 artifacts retain duration, path length and minimum sphere clearance.
+Native and Python joint-limit checks share a numerical tolerance of1e-8rad,
+including measured gripper positions near zero. Larger violations stay invalid.
 
 `--limit` and `--seeds` select a smoke comparison. `--execute` also executes each
 successful result in Gazebo and repositions to its start through checked RRT
@@ -213,6 +221,9 @@ The live guard check injects proximity/stale-state faults in a separate test
 fixture while moving Gazebo joints. It exposes no fault-injection service in
 production. It checks pair scope, continued independent motion, multiple
 faults, topic commands, controller reactivation, state loss and missing guard.
+It also pauses physics while all arms are held, verifies continued wall-time
+checks and `STATE STALE`, and restores physics before moving. Successful
+observed latencies are measurements, not guaranteed worst-case bounds.
 Run it only with the normal motion service stopped:
 
 ```bash

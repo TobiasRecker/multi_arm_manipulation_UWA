@@ -1,0 +1,6 @@
+<library path="contact_gripper">
+  <class name="uwa_cell_tasks/ContactGripper" type="uwa_cell_tasks::ContactGripper"
+    base_class_type="gz_ros2_control::GazeboSimSystemInterface">
+    <description>Force-limited contact servo; no kinematic finger commands.</description>
+  </class>
+</library>

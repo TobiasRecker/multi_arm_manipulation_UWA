@@ -95,6 +95,16 @@
   Mimic-Geschwindigkeitsgeräusche als Antriebsbewegung zu behandeln. Ungültige
   oder fehlende Antriebsdaten sperren weiter; Bestätigung ausdrücklich drive
   standstill. Reale Hardware unverändert.
+-31Bahnen bestätigt; folgende Vorbereitung wurde wegen Paarlease bei
+  langsamer Simulationszeit angehalten. Ursache Zeitbasis korrigiert:
+  Protokollv3 prüft Geometrie mit10Hz monotone Echtzeit, passend zu Watchdog
+  und Reserve. Grenzwerte unverändert. Ehemaliger Versuch erhalten unter
+  development-before-wall-timer/. Geprüfte Sim-Grundstellungsfahrt PASS;
+  vollständiger Livecheck samt pausierter Physik/STATE STALE PASS:
+  setup/logs/uwa-motion-live-guard-check-steady-wall.json. Beobachtete63ms
+  Abstandsfault→Stillstand,132ms knappe Paarlease,321ms Wächterverlust→Hold,
+  keine garantierten Obergrenzen. Replay mit24offenen verschiedenen Bahnen
+  nach bewusstem Reset fortgesetzt.
 
 - Neuer Nutzerauftrag/Entscheidungen: unabhängiger10Hz-Kugelwächter für vier
   Nachbarpaare, verriegelter Paarstopp statt pauschalem Vierarmstopp; offene

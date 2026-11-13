@@ -1,0 +1,17 @@
+schema_version: 1
+object_id: avocado_carton
+arms: [right_front, right_rear]
+lift_m: 0.03
+dwell_s: 2.0
+mass_kg: 0.3
+friction: 0.6
+wall_thickness_m: 0.0025
+pregrasp_distance_m: 0.06
+max_object_speed_m_s: 0.005
+joint_velocity_rad_s: 0.05
+joint_acceleration_rad_s2: 0.10
+relative_position_tolerance_m: 0.002
+relative_angle_tolerance_rad: 0.017453292519943295
+maximum_observation_age_s: 5.0
+maximum_attempts: 3
+simulation_assumptions: [rigid_empty_carton, unmeasured_mass, unmeasured_friction, approximate_geometry]

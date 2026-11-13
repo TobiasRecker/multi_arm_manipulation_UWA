@@ -407,6 +407,12 @@ def snapshot():
 def reset():
     rclpy.init();client=MotionClient()
     try:
+        # A transient service can be starting while its controllers are still
+        # being prepared. Require published supervision, without requiring all
+        # arm states: partial resets must remain possible with one missing arm.
+        client.wait(lambda:client.guard is not None and client.supervisor is not None
+            and time.monotonic()-client.guard_received<.4 and time.monotonic()-client.supervisor_received<.4
+            and client.supervisor.get('guard_age_s') is not None,timeout=15.)
         response=client.service(Trigger,'/uwa_cell/collision_supervisor/reset',Trigger.Request())
         if not response.success:raise RuntimeError(response.message)
         return response.message

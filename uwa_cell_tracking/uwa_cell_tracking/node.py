@@ -54,6 +54,7 @@ class ObjectTracker(Node):
 
     def change_mode(self,mode,response):
         self.epoch+=1;self.mode=mode;self.burst=[];self.last_stamp=None
+        self.last_received=time.monotonic()
         while not self.jobs.empty():
             try:self.jobs.get_nowait()
             except queue.Empty:break
