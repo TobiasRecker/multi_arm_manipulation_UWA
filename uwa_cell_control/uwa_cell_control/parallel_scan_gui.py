@@ -1,5 +1,8 @@
 """Independent high-contrast STOP/status window for the hardware scan runner."""
 import json
+import fcntl
+from pathlib import Path
+import signal
 import os
 import sys
 import time
@@ -12,7 +15,16 @@ from std_srvs.srv import Trigger
 
 def main():
     os.environ['ROS_DOMAIN_ID']='66';os.environ['ROS_AUTOMATIC_DISCOVERY_RANGE']='LOCALHOST'
-    rclpy.init(args=[]);node=rclpy.create_node('uwa_object_scan_stop_window')
+    folder=Path(os.environ.get('UWA_WS',str(Path.home()/'UWA_ws')))/'setup/digitization'
+    folder.mkdir(parents=True,exist_ok=True)
+    lock=(folder/'.four_arm_scan_gui.lock').open('a')
+    try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    except BlockingIOError:
+        print('STOP window already open; use the existing window.',file=sys.stderr)
+        return 1
+    from rclpy.signals import SignalHandlerOptions
+    rclpy.init(args=[],signal_handler_options=SignalHandlerOptions.NO)
+    node=rclpy.create_node('uwa_object_scan_stop_window')
     heartbeat=node.create_publisher(Empty,'/uwa_object_scan/heartbeat',10)
     client=node.create_client(Trigger,'/uwa_object_scan/stop')
     resume_client=node.create_client(Trigger,'/uwa_object_scan/resume')
@@ -38,7 +50,7 @@ def main():
         requested[0]=True
         state.setText('STOP RECEIVED · Cancelling goals / deactivating controllers…\nStandstill is not yet confirmed.')
         state.setStyleSheet('background:#ffe066;color:#000;font-size:22px;font-weight:bold;padding:15px;')
-        if client.service_is_ready():client.call_async(Trigger.Request())
+        if rclpy.ok() and client.service_is_ready():client.call_async(Trigger.Request())
     stop.clicked.connect(request)
     def status(msg):
         last[0]=json.loads(msg.data);received[0]=time.monotonic()
@@ -54,10 +66,16 @@ def main():
         state.setStyleSheet(f'background:{color};color:#000;font-size:22px;font-weight:bold;padding:15px;')
     subscription=node.create_subscription(String,'/uwa_object_scan/status',status,10)
     def tick():
+        if not rclpy.ok():
+            timer.stop();app.quit();return
         heartbeat.publish(Empty());rclpy.spin_once(node,timeout_sec=0)
         if requested[0] and client.service_is_ready():client.call_async(Trigger.Request());requested[0]=False
     timer=QtCore.QTimer();timer.timeout.connect(tick);timer.start(50)
     app.aboutToQuit.connect(request)
+    def signal_stop(signum,frame):
+        request();app.quit()
+    signal.signal(signal.SIGINT,signal_stop)
+    signal.signal(signal.SIGTERM,signal_stop)
     window.setStyleSheet('background:#171c24;color:white;');window.resize(760,480);window.show()
     if os.environ.get('UWA_SCAN_GUI_SNAPSHOT'):
         QtCore.QTimer.singleShot(500,lambda:window.grab().save(os.environ['UWA_SCAN_GUI_SNAPSHOT']))
@@ -65,8 +83,10 @@ def main():
     finally:
         request()
         end=time.monotonic()+.3
-        while time.monotonic()<end:rclpy.spin_once(node,timeout_sec=.02)
-        node.destroy_node();rclpy.shutdown()
+        while rclpy.ok() and time.monotonic()<end:rclpy.spin_once(node,timeout_sec=.02)
+        node.destroy_node()
+        if rclpy.ok():rclpy.shutdown()
+        lock.close()
 
 
 if __name__=='__main__':sys.exit(main())

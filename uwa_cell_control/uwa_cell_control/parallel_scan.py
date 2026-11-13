@@ -5,7 +5,6 @@ may run. An independent GUI heartbeat/STOP service remains active during photos.
 """
 import argparse
 from collections import deque
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import fcntl
 import hashlib
@@ -384,19 +383,30 @@ class ParallelMotion:
         self.node.destroy_service(self.resume_service)
 
 
+def round_start_positions(plan, rounds, number):
+    if not 1 <= number <= len(rounds):
+        raise ValueError('Start round outside the checked scan')
+    selected = [plan['steps'][index] for index in rounds[number-1]]
+    expected = {step['arm']: step['points'][0]['positions'] for step in selected}
+    if set(expected) != set(ROBOT_IDS) or len(selected) != len(ROBOT_IDS):
+        raise ValueError('A resume round must contain exactly all four original arm paths')
+    return expected
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--plan',type=Path,required=True);parser.add_argument('--analysis',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--workspace',type=Path,default=Path.home()/'UWA_ws')
     parser.add_argument('--check-only',action='store_true')
+    parser.add_argument('--start-round',type=int,default=1,help='Explicit restart from a checked round; never blend to its start')
     parser.add_argument('--pause-after-initial',action='store_true',help='Hold after first five photographs for image review')
     args=parser.parse_args()
     import rclpy
     from rclpy.signals import SignalHandlerOptions
     from match_ur_hardware.profiles import load_profiles,MOTION
     from match_ur_hardware.operations import controller_list
-    from .board_capture import CaptureRig,FIVE_CAMERAS
+    from .scan_camera_worker import CameraProcess
     args.output.mkdir(parents=True,exist_ok=False)
     lock=(args.workspace/'setup/digitization/.four_arm_scan.lock').open('a')
     fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
@@ -407,12 +417,12 @@ def main():
     runner=ParallelMotion(node,profiles,args.output,require_gui=not args.check_only)
     def stop(signum,frame):runner.stop_requested=True
     signal.signal(signal.SIGINT,stop);signal.signal(signal.SIGTERM,stop)
-    rig=None;pool=ThreadPoolExecutor(max_workers=1)
+    rig=None
     try:
         plan,proof,description,rounds=load_checked(args.plan,args.analysis)
         if plan.get('inventory_fingerprint')!=digest(profiles):
             raise RuntimeError('Robot inventory differs from the planned physical identities')
-        expected={rid:[plan['start'][j] for j in joint_names(rid)] for rid in ROBOT_IDS}
+        expected=round_start_positions(plan,rounds,args.start_round)
         runner.status('PREPARING',message='Checking exact source paths, live robot states and separation proof')
         runner.wait_ready(expected)
         for rid,p in profiles.items():
@@ -435,16 +445,18 @@ def main():
         (args.output/'source_manifest.json').write_text(json.dumps(dict(plan=str(args.plan.resolve()),
             inventory_fingerprint=digest(profiles),
             plan_sha256=hashlib.sha256(args.plan.read_bytes()).hexdigest(),analysis=str(args.analysis.resolve()),
-            analysis_sha256=hashlib.sha256(args.analysis.read_bytes()).hexdigest(),rounds=rounds),indent=2)+'\n')
+            analysis_sha256=hashlib.sha256(args.analysis.read_bytes()).hexdigest(),rounds=rounds,start_round=args.start_round),indent=2)+'\n')
         if args.check_only:
             runner.status('CHECKED',motion_sent=False,rounds=len(rounds));return
-        rig=CaptureRig(args.workspace,args.output/'photos',cameras=FIVE_CAMERAS,
-            optics_path=args.workspace/'src/multi_arm_manipulation_UWA/config/digitization/five_camera_capture.yaml',board='both')
-        def wait_camera(future):
-            while not future.done():runner.spin(.02);runner.guard()
-            return future.result()
-        wait_camera(pool.submit(rig.lock_focus))
-        for index,indices in enumerate(rounds):
+        rig=CameraProcess(args.workspace,args.output)
+        def wait_camera(token):
+            while not rig.ready(token):
+                runner.spin(.02);runner.guard()
+                if rig.child.poll() is not None:
+                    raise RuntimeError('Camera worker exited; see camera_ipc/worker.log')
+            return rig.result(token)
+        wait_camera(rig.submit('focus'))
+        for index,indices in enumerate(rounds[args.start_round-1:],start=args.start_round-1):
             runner.wait_ready(runner.expected)
             steps=[plan['steps'][i] for i in indices]
             runner.status('MOVING',round=index+1,total_rounds=len(rounds),arms=[s['arm'] for s in steps])
@@ -452,7 +464,7 @@ def main():
             errors=runner.deactivate()
             if errors:raise RuntimeError('Controller deactivation failed: '+str(errors))
             runner.status('CAPTURING',round=index+1,total_rounds=len(rounds),message='All four arms settled; native five-camera photographs')
-            report=wait_camera(pool.submit(rig.capture_all))
+            report=wait_camera(rig.submit('capture'))
             if not report['all_captured'] or not report.get('stationary_set_confirmed'):
                 raise RuntimeError('Photo set failed; no next movement: '+report.get('error','see manifest'))
             runner.status('CAPTURED',round=index+1,total_rounds=len(rounds),directory=report['directory'])
@@ -469,9 +481,8 @@ def main():
         raise
     finally:
         # A native photo transaction must finish its restoration even after STOP.
-        pool.shutdown(wait=True)
         if rig is not None:
-            try:rig.restore_focus()
+            try:rig.close(spin=lambda:runner.spin(.02))
             except Exception as e:runner.status('RESTORE_FAILED',error=str(e))
         runner.close();node.destroy_node();rclpy.shutdown();lock.close()
 

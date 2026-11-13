@@ -38,8 +38,10 @@ class Supervisor(Node):
         self.publisher=self.create_publisher(String,'~/status',10)
         self.create_subscription(String,'/uwa_cell/collision_guard/decision',self.receive,10,callback_group=self.group)
         self.create_service(Trigger,'~/reset',self.reset,callback_group=self.group)
+        self.stop_services=[self.create_service(Trigger,'~/'+rid+'/stop',
+            lambda request,response,rid=rid:self.stop_arm(rid,response),callback_group=self.group) for rid in ROBOT_IDS]
         if prepare:self.prepare()
-        self.create_timer(.05,self.tick)  # independent system clock; simulation pauses cannot hide a lost guard
+        self.create_timer(.02,self.tick)  # independent wall clock; simulation pauses cannot hide a lost guard
         self.get_logger().info('RUNNING: resource interlocks armed; explicit reset required; simulation only')
 
     def prepare(self):
@@ -47,12 +49,12 @@ class Supervisor(Node):
             parameters={}
             for rid,names in self.names.items():
                 parameters['/uwa_cell/'+hold_name(rid)]={'ros__parameters':
-                    {'joints':names,'deceleration':self.cfg['braking_acceleration_rad_s2'],'use_sim_time':True}}
+                    {'type':'uwa_cell_motion/CollisionHold','joints':names,'deceleration':self.cfg['braking_acceleration_rad_s2'],'use_sim_time':True}}
             path=Path(directory)/'holds.yaml';path.write_text(yaml.safe_dump(parameters))
             for rid in ROBOT_IDS:
                 result=subprocess.run(['ros2','run','controller_manager','spawner',hold_name(rid),
-                    '-c','/uwa_cell/controller_manager','-t','uwa_cell_motion/CollisionHold',
-                    '--inactive','--param-file',str(path)],capture_output=True,text=True,timeout=45)
+                    '-c','/uwa_cell/controller_manager','--inactive','--param-file',str(path),
+                    '--ros-args','-r','__ns:=/uwa_cell'],capture_output=True,text=True,timeout=45)
                 if result.returncode:raise RuntimeError(result.stdout+'\n'+result.stderr)
 
     def receive(self,msg):
@@ -75,6 +77,11 @@ class Supervisor(Node):
         answer=future.result();response.success=answer.success;response.message=answer.message
         if not answer.success:
             with self.lock:self.core.pending_reset=None
+        return response
+
+    def stop_arm(self,rid,response):
+        with self.lock:self.core.blocked.add(rid);self.core.reason='STOP REQUESTED'
+        response.success=True;response.message=rid+': STOP RECEIVED; standstill not yet confirmed'
         return response
 
     def tick(self):
@@ -100,6 +107,7 @@ class Supervisor(Node):
                     if c.name not in [hold_name(r) for r in blocked]:deactivate.append(c.name)
                 elif any(interface.split('/')[0] in self.names[r] for r in blocked for interface in c.claimed_interfaces):
                     deactivate.append(c.name)
+            if not activate and not deactivate:self.last_error=None
             for rid in blocked-self.last_cancel:
                 for suffix in ('_trajectory_controller','_gripper_controller'):
                     client=self.cancel_clients[rid+suffix]

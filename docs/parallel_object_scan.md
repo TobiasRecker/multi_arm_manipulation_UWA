@@ -1,20 +1,40 @@
 # Vierarm-Objektscan: realer Runner und aktueller Startstand
 
-Stand:13.11.2026. Nutzer beauftragt ausdrücklich eine echte parallele Ausführung
-und bleibt für den Versuch am physischen Nothalt. **Bisher keine reale Scanbewegung,
-Power-/Brake-Aktion oder Safety-Quittierung ausgeführt.** Programme zur
-Treiberwiederverbindung wurden am13.11. neu verbunden.
+Stand:13.11.2026. Nutzer beauftragt echte parallele Ausführung und bestätigt
+Nothalt-Bediener, Remote-Control sowie unveränderten/freien Aufbau.
 
-## Aktueller Blocker
+**Erste parallele Anfahrt aller vier Arme erfolgreich erreicht. Scan danach
+angehalten; vier Zusatzrunden noch offen.** Keine automatische Wiederaufnahme.
 
-**Update13.11.:** Alle vier Dashboards wieder RUNNING/NORMAL erreichbar.
-Nutzer bestätigt Remote-Control vorne rechts, aktuellen Nothalt-Bediener sowie
-unveränderten Aufbau und freie Fahrbereiche/Kabel. Die vier RTDE-Reader liefen
-nach Netzausfall nicht wieder an; gespeicherte ROS-Werte widersprechen den
-Dashboards. Gezielte Treiberwiederherstellung und neue Planung nötig. Noch
-keine reale Fahrt gestartet. Neue Wege/Trennung und Hardware-Check bestanden;
-Kamera-Fokusvorlauf vor Fahrt abgebrochen und anschließend korrigiert.
-Stationärer Test aller fünf nativen Fotopfade läuft.
+## Aktueller Stand und Blocker
+
+- Vier RTDE-Treiber nach Netzverlust gezielt wiederhergestellt. Neue immutable
+  Plan-/Proofkette mit aktuellen Gelenken und OAK-Grobgeometrie geprüft.
+- run02:11:46:50–11:48:06AWST alle4Ziele erreicht; anschließend Fahrcontroller
+  inaktiv und Stillstand bestätigt. NativeWrist-Fotos: Objekt sichtbar und
+  12/20/16/12Boardecken. OAK-Pipeline scheitert weiter intermittierend.
+-11:49:10 während Aufnahme GUI-Heartbeat verloren: überwachter Stopp, Stillstand
+  bestätigt, keine Zusatzfahrt/automatische Rückfahrt. Erstes Fünferset insgesamt
+  fehlgeschlagen, einschließlich Telemetrielücken; keine Qualitätsflags umgeschrieben.
+- Kameraarbeit jetzt eigener Prozess `scan_camera_worker`, getrennt vom
+  ROS-Bewegungswächter. Echter stationärer Retest:4Wrist-HD-Fotos und
+  StillstandsauditPASS; maximaleParent-Spinpause18,2ms. OAK wieder fehlgeschlagen.
+  Alle vier Kamera-Konfigurationen einschließlich Autofokus-ROIs restauriert.
+- GUI-Doppelstart gesperrt, SIGTERM-Ende geprüft. Ein Stoppfenster zeigt HALTED;
+  kein Fahrbackend aktiv. Ursache des früheren Heartbeatverlusts nicht endgültig
+  belegt, Bild-/SDK-Arbeit kann künftig die ROS-Python-Ausführung nicht mitblockieren.
+- Entscheidung offen: OAK zuerst stabilisieren oder vier Rest-Wrist-Runden mit
+  vorhandenem OAK-Foto als ausdrücklich zeitlich separater Referenz. Keine
+  weiteren Fahrten bis zur bewussten Auswahl/Fortsetzung.
+
+Rohdaten/Prüfungen: `setup/digitization/four_arm_scan_20261113/`, insbesondere
+`run02/`, `isolated_camera_preflight/result.json`, `full_camera_restore/` und
+`gui_signal_shutdown.json`. Die neueren Wrist-Fotos sind stationär bestätigt;
+das alte fehlgeschlagene Set bleibt als Diagnose erhalten.
+
+Spätere Fortsetzung kann `--start-round 2` verwenden; Startgelenke müssen exakt
+zu den ursprünglichen nächsten Pfaden passen. Es gibt keine Überblendungsfahrt.
+Quellhash, Modell, Kollisionen und Livezustand werden weiterhin neu geprüft.
 
 Historischer Ausfall am12.11.:
 

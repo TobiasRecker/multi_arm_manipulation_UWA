@@ -8,6 +8,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
+from rclpy.qos import QoSProfile,DurabilityPolicy,ReliabilityPolicy
 from sensor_msgs.msg import JointState
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
@@ -18,6 +19,7 @@ from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from .common import ROBOT_IDS, all_names, model_context, simulation_only
 from .geometry import SphereModel
 from .guard_core import GuardState
+from uwa_cell_control.parallel_scan import collision_signature
 
 
 class CollisionGuard(Node):
@@ -27,15 +29,19 @@ class CollisionGuard(Node):
         self.directory = tempfile.TemporaryDirectory(prefix='uwa-guard-')
         self.layout, self.description, _ = model_context(self.directory.name, layout_path)
         self.names = all_names(self.layout)
+        self.signature=collision_signature(self.description);self.model_match=False
         self.model = SphereModel(self.description, self.names, cfg['sphere_spacing_m'])
         self.core = GuardState(cfg); self.cfg = cfg; self.pairs = []; self.positions = {}
         self.instance = str(uuid.uuid4()); self.sequence = 0
+        self.previous_blocked=set()
         self.publisher = self.create_publisher(String, '~/decision', 10)
         self.markers = self.create_publisher(MarkerArray, '~/markers', 1)
         self.diagnostics = self.create_publisher(DiagnosticArray, '~/diagnostics', 10)
         self.create_subscription(JointState, '/uwa_cell/joint_states', self.receive, qos_profile_sensor_data)
+        self.create_subscription(String,'/uwa_cell/robot_description',self.description_message,
+            QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL,reliability=ReliabilityPolicy.RELIABLE))
         self.create_service(Trigger, '~/reset', self.reset)
-        self.create_timer(1/cfg['rate_hz'], self.tick, clock=rclpy.clock.Clock())
+        self.create_timer(1/cfg['rate_hz'], self.tick, clock=self.get_clock())
         self.get_logger().info('RUNNING: four neighbor pairs,10Hz; reset is explicit; simulation only')
 
     def receive(self, msg):
@@ -47,10 +53,15 @@ class CollisionGuard(Node):
                 if self.core.receive(rid, [q[j] for j in names], [v[j] for j in names], stamp, now):
                     self.positions.update({j: q[j] for j in names})
 
+    def description_message(self,msg):
+        try:self.model_match=collision_signature(msg.data)==self.signature
+        except Exception:self.model_match=False
+
     def geometry(self, now):
-        velocities = {r: self.core.records[r]['v'] for r in self.names}
-        ages = {r: max(0., now-self.core.records[r]['received']) for r in self.names}
-        return self.model.pairs(self.positions, velocities, ages, self.cfg)
+        velocities = {r: self.core.records[r]['v'] for r in self.core.records}
+        source=self.get_clock().now().nanoseconds/1e9
+        ages = {r: max(0., now-self.core.records[r]['received'],source-self.core.records[r]['stamp']) for r in self.core.records}
+        return self.model.pairs(self.positions, velocities, ages, self.cfg,partial=True)
 
     def tick(self):
         now = time.monotonic(); world = None; error = None
@@ -59,10 +70,16 @@ class CollisionGuard(Node):
         except Exception as e:
             self.pairs = []; error = str(e)
             self.core.latched.update(ROBOT_IDS)
+        self.core.external_faults=[] if self.model_match else [dict(arms=list(ROBOT_IDS),reason='MODEL UNCONFIRMED OR MISMATCHED')]
         status = self.core.evaluate(self.pairs, now, self.get_clock().now().nanoseconds/1e9)
+        blocked=set(status['blocked_arms'])
+        if blocked-self.previous_blocked:
+            self.get_logger().error('STOP LATCHED: '+json.dumps(status['latched_causes']))
+        self.previous_blocked=blocked
         if error: status.update(state='STATE STALE', geometry_error=error)
         self.sequence += 1
         status.update(instance=self.instance, sequence=self.sequence, pairs=self.pairs,
+                      model_signature=self.signature,model_match=self.model_match,
                       source_time_s=self.get_clock().now().nanoseconds/1e9,
                       state_ages_s={r: now-self.core.records[r]['received'] for r in self.core.records})
         self.publisher.publish(String(data=json.dumps(status, allow_nan=False)))
@@ -74,7 +91,13 @@ class CollisionGuard(Node):
         if world is not None: self.show(world, status)
 
     def show(self, world, status):
-        markers=[]; stamp=self.get_clock().now().to_msg(); number=0
+        markers=[Marker(action=Marker.DELETEALL)]; stamp=self.get_clock().now().to_msg(); number=0
+        for rid in self.names:
+            if rid in world:continue
+            label=Marker();label.header.frame_id=rid+'_base_link';label.ns='unknown';label.id=number;number+=1
+            label.type=Marker.TEXT_VIEW_FACING;label.pose.orientation.w=1.;label.pose.position.z=.8;label.scale.z=.09
+            label.color.r=label.color.g=label.color.b=label.color.a=1.;label.text=rid+' STATE STALE — NO JOINTS'
+            markers.append(label)
         for rid, centres in world.items():
             blocked=rid in status['blocked_arms']
             for centre, radius in zip(centres, self.model.radii[rid]):

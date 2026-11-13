@@ -1,6 +1,6 @@
 # Erster realer Scan mit vier parallelen Armen
 
-- Status: **alle vier erreichbar; RTDE-Treiberwiederherstellung und neue Planung**, 2026-11-13, Hauptagent Digitalisierung.
+- Status: **angehalten; OAK-Fehler, wartet auf bewusste Fortsetzungsentscheidung**, 2026-11-13, Hauptagent Digitalisierung.
 - Nutzer beauftragt Durchführung mit allen Robotern parallel und bleibt am
   physischen Nothalt. Das ist die Freigabe zur Vorbereitung/Ausführung eines
   tatsächlich kollisionsgeprüften Ablaufs; ungeklärte hintere Zusatzpfade nicht
@@ -105,3 +105,28 @@
 - Neuer stationärer Fünfkamera-Vorlauf: alle4 festen Foki bestätigt; native
   Fotos laufen. Noch keine Armziele gesendet. Fremder Agent baut ausschließlich
   uwa_cell_motion/Simulation; work/four-arm-collision-planning.md gelesen.
+
+- Stationärer Vorlauf: alle4 nativeWrist-HD-Fotos und StillstandPASS; OAK bei
+  gleichzeitigem Start erneutSDK-Pingverlust, separate WiederholungPASS8K.
+  Fünfkamera startet daher OAK erst nach den parallelenWrists, bei durchgehendem
+  Stillstandsaudit. Auto-ROI-Restaurierung mit begrenztemgemeinsamenFeedback
+  implementiert/testet; alle4 Originalkonfigurationen bestätigt.40TestsPASS.
+- run02 am13.11.11:46:50AWST inMOVING/Runde1, alle4 gleichzeitig beauftragt.
+  Gleiche immutablePlan-/Proofkette, frischer Modell-/Startcheck; Nutzer vorher
+  ausdrücklich auf Bewegungsbeginn hingewiesen. ErsteBildkontrollpause geplant.
+
+- Erste4Ziele11:48:06AWST erreicht, Fahrcontrollerdeaktiviert/Stillstand bestätigt.
+  Runde1nativeFototransaktionen laufen; nochkeineExtras vorBildkontrolle.
+
+- run02 um11:49:10 nach erfolgreicher erster4Arm-Anfahrt wegenGUI-Heartbeatverlust
+  gestoppt, Stillstand bestätigt; OAK erneutgescheitert, keineZusatzfahrten.
+- Kamera-Prozessisolierung implementiert: echter stationärer Retest alle4HD-
+  Fotos/StillstandauditPASS, Parent-Spinmax18,2ms, OAK weiterhinSDK-Ausfall.
+  Alle4Originalkonfigurationen restauriert. GUI-Singleton/Signalende real geprüft;
+  alte eigeneZombie-Qt-Fenster gezielt entfernt, ein frisches HALTED-Fenster.
+- Geprüfte ursprüngliche Runde2 ohneInitialfahrt explizit auswählbar; kein
+  automatischer Neustart. Nutzer um Entscheidung OAK-Diagnose vsRest-Wrist-
+  Runden+zeitlichseparatesOAK-Referenzfoto gebeten. VierRundenstehenaus.
+
+- Abschließende68gezielteTestsPASS; letzte echte Prüfung alle4RUNNING/NORMAL,
+  ExternalControlverbunden, Stillstandbestätigt, sämtlicheFahrcontrollerinaktiv.

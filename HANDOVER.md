@@ -1,44 +1,83 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
-## Wiederaufnahme Vierarm-Scan, 2026-11-13
+## Vierarm-Kollisionswächter und PTP-Vergleich in Arbeit, 2026-11-13
 
-- Nutzer kündigt Wiederherstellung der Verbindung an. Ethernet enp87s0 wieder
-  UP/CarrierON mit192.168.8.209. Echte Dashboard-Lesung: LF RUNNING/NORMAL und
-  PLAYING ros.urp; LR/RR RUNNING/NORMAL, ros.urp STOPPED. Alle Fahrcontroller
-  inaktiv. Keine Power-/Brake-/Play-/Fahraktion ausgeführt.
-- RF192.168.8.103 ist inzwischen ebenfalls RUNNING/NORMAL/PLAYING erreichbar.
-  Nutzer bestätigt Remote-Control, aktuellen Nothalt-Bediener, unveränderten
-  Aufbau sowie freie Fahrbereiche/Kabel. Die vier alten RTDE-Reader sind nach
-  dem Netzausfall ausgefallen („Background reading is not running“); daher
-  gezielte Treiberwiederherstellung vor frischer Planung. Fahrcontroller inaktiv.
-- OAK-Prüffoto13.11. unvollständig: SDK-Pingverlust/Queue geschlossen und
-  Geräteabsturz gemeldet; Ursache nicht bestätigt. Fehlerartefakte unter
-  setup/oak4/photos/20261113-110935-standard-2810009d/. Kein Foto als gültig
-  übernommen, kein manueller Reset/Flash oder Roboterschreibzugriff.
-- Genau ein OAK-Wiederholungsversuch erfolgreich:8000×6000/Fokus116, neues
-  Prüfbild zeigt weiter denselben Karton. Assistierte Grobmaße43,3×34,3×16,2cm;
-  Board-PnP1,83px, scheinbare Board/OAK-Differenz zum12.11.1,77mm/0,34°
-  einschließlich PnP-Unsicherheit. Kein Nachweis absoluter Lagegenauigkeit.
-  Erfolgsdaten setup/oak4/photos/20261113-111253-standard-5b8d982b/.
-- Neue eindeutige Statusdateien unter setup/digitization/four_arm_scan_20261113/.
-  Aufbau per OAK-Einzelfoto prüfen, alte Quellpläne nicht wieder freigeben.
-  Vor Bewegung frische Planung und aktuelle Bediener-/Aufbaubestätigung.
+- Neuer Nutzerauftrag/Entscheidungen: unabhängiger10Hz-Kugelwächter für vier
+  Nachbarpaare, verriegelter Paarstopp statt pauschalem Vierarmstopp; offene
+  Greifer/Wrist-Gehäuse einschließen. Zunächst PC-/ROS-Fahrten nur in Simulation64.
+  PTP vorab planen, Warten erlaubt, RRTConnect und unabhängige zirkulare Felder;
+  CDF später. Keine Hardwareaktionen aus dieser Aufgabe.
+- Neues Paket uwa_cell_motion: konservative Vollkörper-Kugelhüllen,
+  geometrischer Wächter plus unabhängiger Watchdog, Ressourcen-Haltecontroller
+  je Arm, gemeinsame Zielauflösung/MoveIt-FCL-Prüfung/Quintik-Zeitparametrierung,
+  native OMPL-RRTConnect und CF-inspirierte Offline-Rollouts ohne RRT-Fallback.
+  Anleitung docs/four_arm_motion.md; Arbeit work/four-arm-collision-planning.md.
+- Paket gebaut, bisher32Offlineprüfungen bestanden. Gazebo-Wristfahrt0,04rad
+  bestanden; Koordinationsbarrieren2,8s gemessen. Live-Stoppprüfungv2 bestanden:
+  nurLF/RF stoppen/LRerreichtZiel, Topic-/Reaktivierungssperre, Mehrfachfehler,
+  Datenverlust und Wächterausfall/Wiederkehr verriegelt. Fehler→Stillstand118ms,
+  Wächterverlust→Halteverriegelung450ms; Simulation, keine reale Stoppreserve.
+- Rohdaten setup/logs/uwa-motion-*. Erstes Offlinevergleichssetv2 komplett
+  300Versuche, aber dessen fünf Nachbarfälle belegen noch keine echte Kreuzung;
+  derzeit ausdrückliche Kreuzungsfälle ergänzen und Vergleich neu auswerten.
+  Vorläufige Erfolgszahlen daraus nicht als endgültigen Vergleich übernehmen.
+- Drei unterschiedliche kurze Vergleichsbahnen in Gazebo bestanden; großer
+  Replay nach Zeitfaktorumschaltung vor nächster Bewegung verriegelt abgebrochen.
+  Faktor1 wiederhergestellt. Weitere Ausführungen/abschließende Abnahme offen.
+  Ein früherer Live-Stoppversuch scheiterte an unerwartetem zusätzlichen Hold;
+  Rohdaten erhalten, instrumentierter Wiederholungslaufv2 vollständig PASS.
+- Gemeinsame Simulation einmal für Plugin-Erkennung neu gestartet; vorherige
+  Gelenke gesichert und identisch zu den konfigurierten Anfangsstellungen.
+  Reale Scan-/Kamera-/Treiberarbeit anderer Aufgabe erhalten.
 
-- Wiederherstellung abgeschlossen: alle4 ROS-RobotMode7/Safety1, ExternalControl
-  verbunden und Stillstand. Vier alte Launches gezielt ersetzt; LF-Controller
-  inaktiv nachgeladen, LR/RR Programme über MATCH, RF nach echtem NORMAL/Remote-
-  Check über Dashboard stop/play verbunden. Noch keine Bewegungsziele.
-- Neue immutable Plan-/Proofkette unter four_arm_scan_20261113/:20Wege,
-  fünfRunden mit allen4parallel, vollständige Kollisionsprüfung und50mm-
-  Trennung bei±0,005radKorridor bestanden; kleinsteModelluntergrenze339,89mm.
-  Einziges frisches Stopfenster geprüft, letzte Hardwareprüfung läuft.
+## Vierarm-Scan: erste reale Anfahrt, anschließend angehalten, 2026-11-13
 
-- Erster run01 noch vor Bewegung wegen Kamera-Fokus/LED-Prüfung abgebrochen.
-  Fokuspfad schreibt nun nur Fokus plus korrektenManaged-LED-Setter, restauriert
-  ohne Visionneustart; CB3-Fünfkamera nutzt denselben erprobten32bit-Helfer
-  wie dessen Service.45KameratestsPASS/38nachletztemFokuspfad. AlteLF/LR-ROI
-  nach fehlerhafter Native-Restaurierung vollständig bestätigt wiederhergestellt.
-  Stationärer fünfkameriger Vorlauf vor erneutem Bewegungsstart.
+- Nutzer bestätigt Remote-Control, Anwesenheit am Nothalt, unveränderten Karton/
+  Tischaufbau sowie freie Fahrbereiche/Kabel. Alle vier Dashboards erreichbar.
+  Vier RTDE-Reader waren nach Netzausfall ausgefallen, lieferten Cachewerte;
+  Launches gezielt ersetzt. LF-Controller inaktiv nachgeladen, LR/RR ros.urp
+  über MATCH verbunden, RF nach echtem NORMAL/Remote-Check über Dashboard
+  stop/play. Keine Power-/Brake-Aktion oder Safety-Quittierung.
+- Frisches OAK-Prüffoto:8000×6000/Fokus116, assistierte Grobmaße43,3×34,3×16,2cm.
+  RechteBoard-PnP1,83px; scheinbare Referenzdifferenz zum12.11.1,77mm/0,34°
+  einschließlich PnP-Unsicherheit. Erfolg11:12 und11:45; wiederholte spätere
+  OAK-Pipeline-Starts mit SDK-Pingverlust/FW-crash/Device-not-found fehlgeschlagen.
+  Kein manueller Gerätereset oder Firmwareflash; Ursache weiter offen.
+- Neue immutable Plan-/Proofkette:20Wege/fünfRunden, alle4parallel geprüft,
+ 50mmRestabstand inklusive±0,005radKorridor; kleinsteModelluntergrenze339,89mm.
+  Vollständiger neuer Live-/Modell-/Kollisionscheck vor Start bestanden.
+- run01 vor Bewegung am Kamera-Fokus/LED-Check abgebrochen. Fokuspfad schreibt
+  nun nur Fokus+korrektenManaged-LED-Setter, CB3 nutzt denselben erprobten32bit-
+  Helfer wie sein Service. Autofokus-ROI wird ohne Visionneustart mit begrenztem
+  gemeinsamem Koordinatenfeedback vollständig restauriert; keine gelockerten
+  Prüfgrenzen. Vier Originalkonfigurationen nach realen Tests bestätigt.
+- **run02: erste vier Ziele parallel erreicht**, Fahrt11:46:50–11:48:06AWST.
+  Fahrcontroller danach inaktiv. Erste Wrist-HD-Bilder zeigen Karton und
+ 12/20/16/12ChArUco-Ecken. OAK-Aufnahme gescheitert; um11:49:10 GUI-Heartbeat-
+  Verlust, überwachter Stopp und echter Stillstand bestätigt. Keine Zusatzfahrt,
+  kein Rückfahrziel, keine automatische Wiederaufnahme. Gesamter Bildsatz wegen
+  OAK-Fehler und Telemetrielücken nicht als gültiges Fünferset freigegeben.
+- Kameraarbeit jetzt eigener `scan_camera_worker`-Prozess; ROS-Wächter bleibt
+  unabhängig. Echter stationärer Retest: alle4Wrist-HD-Fotos/StillstandsauditPASS,
+  längste gemessene Parent-Spinpause18,2ms, OAK weiter fehlgeschlagen. Alle vier
+  Originalkonfigurationen danach bestätigt. Das behebt die beobachtete Kopplung;
+  genaue Ursache des früheren Heartbeatverlusts bleibt nicht abschließend belegt.
+- GUI: Singleton, sauberes SIGINT/SIGTERM-Ende statt weiterlaufendem Qt-Fenster
+  mit ungültigem ROS-Kontext; Doppelstart und echter Signalabschluss geprüft.
+  Aktuell ein neues Fenster mit HALTED-Text, kein Bewegungsbackend aktiv.
+- `--start-round 2` für spätere ausdrücklich ausgelöste Fortsetzung vorbereitet:
+  exakt ursprüngliche nächste Pfadanfänge, keine Überblendung/Initialfahrt.
+  Ursprüngliche Hash-/Modell-/Live-/Stillstandsprüfungen bleiben erforderlich.
+- Nutzerentscheidung angefragt: erst OAK stabilisieren oder vier verbleibende
+  Wrist-Runden mit schon vorhandenem OAK-Bild als zeitlich separater Referenz.
+  Bis dahin keine weiteren Fahrten. Bisher kein vollständiger Fünfrundenscan.
+- Artefakte unter `setup/digitization/four_arm_scan_20261113/`: plan_wall60_reserves,
+  separation50_tracking005, run02, isolated_camera_preflight, Kamera-/GUI-/Testlogs.
+  Aktueller Bedien-/Startstand: docs/parallel_object_scan.md.
+
+
+- Abschließende68gezielteTestsPASS; letzte echte Prüfung alle4RUNNING/NORMAL,
+  ExternalControlverbunden, Stillstandbestätigt, sämtlicheFahrcontrollerinaktiv.
 
 ## Schnellere HD-Fotos und nutzungsabhängige LEDs,2026-11-12
 

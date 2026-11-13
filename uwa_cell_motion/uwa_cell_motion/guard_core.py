@@ -13,6 +13,8 @@ class GuardState:
         self.last_stamp = {}
         self.last_source_advance = {}
         self.last_faults = []
+        self.causes = []
+        self.external_faults = []
 
     def receive(self, rid, positions, velocities, source_stamp, now):
         q, v = np.asarray(positions, float), np.asarray(velocities, float)
@@ -46,7 +48,10 @@ class GuardState:
                     np.max(np.ptp(qs, axis=0)) <= self.cfg['standstill_velocity_rad_s']*window)
 
     def evaluate(self, pairs, now, source_now):
-        faults = []
+        faults = list(self.external_faults)
+        for rid,record in self.records.items():
+            if np.max(abs(record['v']))>self.cfg['velocity_limit_rad_s']*1.05:
+                faults.append(dict(arms=[rid],reason='SPEED LIMIT'))
         for a, b in PAIRS:
             if not self.fresh(a, now, source_now) or not self.fresh(b, now, source_now):
                 faults.append(dict(arms=[a, b], reason='STATE STALE'))
@@ -55,11 +60,13 @@ class GuardState:
                 faults.append(dict(arms=pair['arms'], reason='DISTANCE'))
         self.last_faults = faults
         for fault in faults:
+            if not any(c['arms']==fault['arms'] and c['reason']==fault['reason'] for c in self.causes):
+                self.causes.append(dict(fault,source_time_s=source_now))
             self.latched.update(fault['arms'])
-        stopped = all(self.stationary(rid, now) for rid in self.latched)
+        stopped = all(self.stationary(rid, now) and self.fresh(rid,now,source_now) for rid in self.latched)
         state = 'STATE STALE' if any(f['reason']=='STATE STALE' for f in faults) else (
             'STOPPED' if stopped and self.latched else 'STOPPING' if self.latched else 'CLEAR')
-        return dict(state=state, blocked_arms=sorted(self.latched), faults=faults,
+        return dict(state=state, blocked_arms=sorted(self.latched), faults=faults,latched_causes=list(self.causes),
                     standstill_confirmed=bool(self.latched and stopped), reset_sequence=self.reset_sequence)
 
     def reset(self, pairs, now, source_now):
@@ -68,5 +75,5 @@ class GuardState:
             return False, 'Reset refused: fresh clear geometry and confirmed standstill required'
         if any(p['clearance_m'] <= p['threshold_m']+self.cfg['reset_hysteresis_m'] for p in pairs):
             return False, 'Reset refused: clearance hysteresis not reached'
-        self.latched.clear(); self.reset_sequence += 1
+        self.latched.clear(); self.causes.clear(); self.reset_sequence += 1
         return True, 'Reset accepted; motion remains inactive. Submit a newly checked plan explicitly.'

@@ -1,5 +1,24 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Vierarm-Kollisionswächter und PTP-Vergleich (2026-11-13)
+
+- Nutzerauftrag: unabhängiger10Hz-Kugelwächter für genau LF/RF, LF/LR,
+  RF/RR, LR/RR; Diagonalen aus dieser Paarüberwachung ausnehmen. Greifer
+  einschließlich offener Finger und Wrist-Gehäuse in die Kugelhüllen aufnehmen.
+- Abstandsunterschreitung verriegelt das betroffene Paar, keine pauschale
+  Vierarmabschaltung bei einer einzelnen Paarverletzung und keine automatische
+  Wiederaufnahme. Datenverlust betrifft die zugehörigen Nachbarschaften;
+  Gesamtausfall des Wächters hat keine überwachten freien Paare mehr.
+- Erste Stufe ausschließlich Simulation64/uwa_cell_sim, alle PC-/ROS-Fahrquellen;
+  Pendantprogramme und reale Stoppanbindung sind spätere Arbeit. Hardware-
+  Not-Halt von gemessenem Softwarestopp unterscheiden.
+- PTP vorab planen; zeitversetzte Starts/Warten sind erlaubt. RRTConnect und
+  unabhängige zirkulare Felder mit derselben Zielauflösung/Endprüfung vergleichen,
+  kein versteckter RRT-Fallback im Feldansatz. CDF zunächst zurückgestellt.
+- Vergleich30Aufgaben×5Seeds×2Verfahren,10s Planungsbudget. Fehlschläge behalten;
+  Planungszeit, Validierungszeit, geplante und tatsächlich gemessene Fahrzeit
+  trennen. Anleitung docs/four_arm_motion.md, Paket uwa_cell_motion.
+
 ## Native HD-Intrinsics hinten links (2026-11-12)
 
 - Jetzt 41Ansichten/33Fit/8Prüfung bestanden, eigene physische Kamera
@@ -129,6 +148,13 @@
   Kamerazugriff beachten, keine fremden Live-/ROS-Dienste automatisch stoppen.
 
 ## Bildbasierte Objektdigitalisierung (2026-11-12)
+
+- Reale automatische Scans: Kamera-/SDK-/Bildarbeit in eigenem Prozess halten,
+  ROS-Stopp-/Zustandswächter davon unabhängig. Keine GIL-/Bildlast im Fahrprozess.
+  GUI-Verlust verriegelt den Lauf auch während Fotos; keine automatische
+  Wiederaufnahme nach diesem Stopp. Fehlgeschlagene Fünfersets nicht nachträglich
+  als bestätigt ausgeben; einzelne gültige Wrist-Fotos getrennt erhalten.
+
 
 - Nutzer beauftragt echten Scan mit allen vier Armen parallel und bleibt am
   Nothalt. Dafür neue besser getrennte Ziele prüfen; die zuvor ungeklärten

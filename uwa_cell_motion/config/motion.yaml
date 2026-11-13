@@ -1,8 +1,8 @@
 # Simulation design bounds; measured stop results are exported separately.
 rate_hz: 10.0
-state_timeout_s: 0.20
+state_timeout_s: 0.15
 heartbeat_timeout_s: 0.40
-stop_latency_s: 0.15
+stop_latency_s: 0.10
 braking_acceleration_rad_s2: 0.5
 velocity_limit_rad_s: 0.05
 acceleration_limit_rad_s2: 0.10

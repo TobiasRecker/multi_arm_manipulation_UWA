@@ -1,5 +1,6 @@
 """Common offline PTP request, independent planners and identical final checks."""
 from pathlib import Path
+from itertools import product
 import subprocess
 import time
 
@@ -31,14 +32,25 @@ class Problem:
         if not goals or set(goals)-set(ROBOT_IDS):raise ValueError('Expected goals for one or more known arms')
         selected=[r for r in ROBOT_IDS if r in goals]
         names=[j for rid in selected for j in joint_names(rid)]
-        target=dict(start)
+        target=dict(start);choices={};cartesian=False
         for rid in selected:
             goal=goals[rid]
             if isinstance(goal,list):q=np.asarray(goal,float)
             elif 'positions' in goal:q=np.asarray(goal['positions'],float)
-            else:q=self.ik(rid,start,goal)
+            else:
+                choices[rid]=self.ik(rid,start,goal);q=choices[rid][0];cartesian=True
             if q.shape!=(6,) or not np.isfinite(q).all():raise ValueError('Goal must contain six finite radians')
             target.update(zip(joint_names(rid),q))
+            choices.setdefault(rid,[q])
+        if cartesian:
+            combinations=list(product(*(choices[r] for r in selected)))
+            combinations.sort(key=lambda values:sum(np.linalg.norm(q-np.asarray([start[j] for j in joint_names(r)])) for r,q in zip(selected,values)))
+            temporary=dict(start=start,joint_names=names)
+            for values in combinations:
+                q=np.concatenate(values)
+                if self.check(temporary,q):
+                    target.update(zip(names,q));break
+            else:raise ValueError('No collision-clear combined Cartesian IK goal')
         return dict(schema_version=1,start=start,goals={rid:[target[j] for j in joint_names(rid)] for rid in selected},
                     selected=selected,joint_names=names,target=[target[j] for j in names])
 
@@ -60,7 +72,10 @@ class Problem:
             fit=least_squares(residual,np.clip(seed,bounds[0]+1e-8,bounds[1]-1e-8),bounds=bounds,max_nfev=150)
             if np.linalg.norm(residual(fit.x))<1e-4:solutions.append(fit.x)
         if not solutions:raise ValueError('Cartesian goal IK failed')
-        return min(solutions,key=lambda q:np.linalg.norm(q-initial))
+        unique=[]
+        for q in sorted(solutions,key=lambda q:np.linalg.norm(q-initial)):
+            if not any(np.linalg.norm(q-p)<1e-4 for p in unique):unique.append(q)
+        return unique[:4]
 
     def state(self,request,q):return dict(request['start'],**dict(zip(request['joint_names'],q)))
 
@@ -120,8 +135,10 @@ class Problem:
                 if time.monotonic()>=deadline:return None,'TIMEOUT'
                 if not agent['alive']:continue
                 q=agent['q'];error=target-q
+                if _%20==0 and self.edge(request,q,target,deadline=deadline):
+                    return agent['path']+[target.tolist()],None
                 if np.max(abs(error))<=cfg['goal_tolerance_rad']:
-                    if self.edge(request,q,target):return agent['path']+[target.tolist()],None
+                    if self.edge(request,q,target,deadline=deadline):return agent['path']+[target.tolist()],None
                 state=self.state(request,q);world,jac=self.spheres.jacobians(state,request['selected'])
                 velocity=np.clip(.8*error,-cfg['velocity_limit_rad_s'],cfg['velocity_limit_rad_s'])
                 terms=self.spheres.environment_nearest(state,world,jac)
@@ -141,6 +158,7 @@ class Problem:
                     tangent/=max(np.linalg.norm(tangent),1e-9)
                     strength=np.clip(1-gap/cfg['field_influence_m'],0,1)
                     cartesian=relative@velocity
+                    if np.dot(cartesian,normal)>=-1e-6 and gap>.015:continue
                     # Remove closing velocity near contact; tangential circulation
                     # supplies an independently chosen passing direction.
                     avoidance=(-min(0.,np.dot(cartesian,normal))*normal+
@@ -151,7 +169,7 @@ class Problem:
                 accepted=False
                 for scale in (1.,.5,.25,.125):
                     next_q=np.clip(q+cfg['field_step_s']*scale*velocity,bounds[0],bounds[1])
-                    if np.max(abs(next_q-q))>1e-7 and self.edge(request,q,next_q):accepted=True;break
+                    if np.max(abs(next_q-q))>1e-7 and self.edge(request,q,next_q,deadline=deadline):accepted=True;break
                 if not accepted:agent['alive']=False;continue
                 key=tuple(np.round(next_q/.015).astype(int));agent['visits'][key]=agent['visits'].get(key,0)+1
                 if agent['visits'][key]>100:agent['alive']=False;continue
@@ -159,10 +177,37 @@ class Problem:
             if not any(a['alive'] for a in agents):return None,'STUCK: all circular hypotheses blocked/cycling'
         return None,'STEP_LIMIT'
 
-    def edge(self,request,a,b):
+    def edge(self,request,a,b,margin=True,deadline=None):
         a,b=np.asarray(a),np.asarray(b)
         count=max(1,int(np.ceil(np.max(abs(b-a))/self.cfg['joint_check_step_rad'])))
-        return all(self.check(request,a+u*(b-a)) for u in np.linspace(0,1,count+1))
+        for u in np.linspace(0,1,count+1):
+            if deadline is not None and time.monotonic()>=deadline:return False
+            if not self.check(request,a+u*(b-a),margin=margin):return False
+        return True
+
+    def serial_direct(self,request,deadline):
+        """Common waiting coordinator: try fixed arm orders before detours.
+
+        Every connection is checked with the other arms at their actual phase
+        positions. This is identical for both planners and is reported as such.
+        """
+        selected=request['selected']
+        if len(selected)<2:return None
+        names=request['joint_names'];initial=np.array([request['start'][j] for j in names]);target=np.array(request['target'])
+        orders=[]
+        for source in (selected,list(reversed(selected))):
+            for k in range(len(source)):
+                order=source[k:]+source[:k]
+                if order not in orders:orders.append(order)
+        for order in orders:
+            q=initial.copy();path=[q.tolist()]
+            for rid in order:
+                indices=[names.index(j) for j in joint_names(rid)];end=q.copy();end[indices]=target[indices]
+                if not self.edge(request,q,end,deadline=deadline):break
+                q=end;path.append(q.tolist())
+            else:return path
+            if time.monotonic()>=deadline:return None
+        return None
 
     def plan(self,request,method,seed=0,normalized=False):
         if method not in ('rrtconnect','circular'):raise ValueError('Unknown planning method')
@@ -175,7 +220,17 @@ class Problem:
         elif not self.check(request,request['target']):result['error']='INVALID_GOAL'
         else:
             remaining=self.cfg['planning_budget_s']-(time.monotonic()-started)
-            path,error=(self.rrt(request,seed,remaining) if method=='rrtconnect' else self.circular(request,seed,remaining))
+            # Identical cheap direct-connection test for both methods. Detour
+            # algorithms are needed only when this connection is blocked.
+            direct=self.edge(request,q0,request['target'],deadline=started+self.cfg['planning_budget_s'])
+            serial=None if direct else self.serial_direct(request,started+self.cfg['planning_budget_s'])
+            remaining=self.cfg['planning_budget_s']-(time.monotonic()-started)
+            result['direct_connection']=direct
+            result['coordination']='simultaneous_direct' if direct else 'serial_direct' if serial else 'detour'
+            if direct:path,error=[q0,request['target']],None
+            elif serial:path,error=serial,None
+            elif remaining<=0:path,error=None,'TIMEOUT'
+            else:path,error=(self.rrt(request,seed,remaining) if method=='rrtconnect' else self.circular(request,seed,remaining))
             result['planning_time_s']=time.monotonic()-started
             if error:result['error']=error
             else:

@@ -107,3 +107,12 @@ def test_abort_broadcasts_cancellation_even_without_any_goal_acknowledgement():
     r.observer=SimpleNamespace(settled=lambda:True);r.status=lambda *a,**k:None
     r.abort()
     assert events[:2]==['cancel server a','cancel server b'] and events[2]=='deactivate'
+
+
+def test_explicit_resume_uses_original_next_paths_not_initial_scan_positions():
+    from uwa_cell_control.parallel_scan import round_start_positions,ROBOT_IDS
+    plan={'steps':[{'arm':rid,'points':[{'positions':[float(i)]*6}]} for i,rid in enumerate(ROBOT_IDS)]}
+    result=round_start_positions(plan,[[0,1,2,3]],1)
+    assert result=={rid:[float(i)]*6 for i,rid in enumerate(ROBOT_IDS)}
+    with pytest.raises(ValueError):round_start_positions(plan,[[0,1,2,3]],2)
+    with pytest.raises(ValueError):round_start_positions(plan,[[0,1,2,2]],1)

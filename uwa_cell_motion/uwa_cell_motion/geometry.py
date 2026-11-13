@@ -49,13 +49,14 @@ class SphereModel:
             self.local[rid], self.radii[rid] = np.asarray(centres), np.asarray(radii)
             self.links[rid], self.motion_radii[rid] = links, np.asarray(motion)
 
-    def world(self, positions):
+    def world(self, positions, partial=False):
         required = {j for names in self.names.values() for j in names}
-        if not required <= positions.keys() or not np.isfinite([positions[j] for j in required]).all():
+        if (not partial and not required <= positions.keys()) or not np.isfinite([positions[j] for j in required if j in positions]).all():
             raise ValueError('Missing/nonfinite measured arm or gripper joints')
         frames = self.geometry.fk.frames(positions)
         result = {}
         for rid, centres in self.local.items():
+            if partial and not all(j in positions for j in self.names[rid]):continue
             transforms = np.asarray([frames[link] for link in self.links[rid]])
             result[rid] = np.einsum('nij,nj->ni', transforms[:, :3, :3], centres)+transforms[:, :3, 3]
         return result
@@ -77,11 +78,12 @@ class SphereModel:
         latency = 1/cfg['rate_hz']+age+cfg['stop_latency_s']
         return speed*latency+braking, speed
 
-    def pairs(self, positions, velocities, ages, cfg):
-        world = self.world(positions)
-        budgets = {rid: self.arm_budget(rid, velocities[rid], ages[rid], cfg) for rid in self.names}
+    def pairs(self, positions, velocities, ages, cfg,partial=False):
+        world = self.world(positions,partial=partial)
+        budgets = {rid: self.arm_budget(rid, velocities[rid], ages[rid], cfg) for rid in world}
         result = []
         for a, b in PAIRS:
+            if a not in world or b not in world:continue
             nearest = self.nearest(world, a, b)
             threshold = cfg['model_margin_m']+budgets[a][0]+budgets[b][0]
             result.append(dict(arms=[a, b], threshold_m=threshold,
@@ -92,10 +94,14 @@ class SphereModel:
         names = [j for rid in selected for j in self.names[rid][:6]]
         world = self.world(positions)
         jac = {rid: np.zeros((len(points), 3, len(names))) for rid, points in world.items()}
-        for k, name in enumerate(names):
-            moved = self.world(dict(positions, **{name: positions[name]+epsilon}))
-            for rid in world:
-                jac[rid][:, :, k] = (moved[rid]-world[rid])/epsilon
+        frames=self.geometry.fk.frames(positions)
+        joints={entry[0]:entry for entry in self.geometry.fk.joints}
+        for k,name in enumerate(names):
+            _,kind,parent,child,fixed,axis,mimic=joints[name]
+            transform=frames[parent]@fixed;world_axis=transform[:3,:3]@axis
+            rid=next(r for r in selected if name in self.names[r]);index=self.names[rid].index(name)
+            mask=self.motion_radii[rid][:,index]>0
+            jac[rid][mask,:,k]=np.cross(world_axis,world[rid][mask]-transform[:3,3])
         return world, jac
 
     def environment_nearest(self,positions,world,jac):

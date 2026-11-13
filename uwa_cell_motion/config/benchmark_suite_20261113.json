@@ -1,0 +1,1717 @@
+{
+  "schema_version": 1,
+  "model_signature": "cdeff8884ab0c4a6cd54a4e82a5d32880d91b1efd6efb485144ef2848a461504",
+  "mesh_sha256": {
+    "/opt/ros/lyrical/share/ur_description/meshes/ur5/collision/base.stl": "81c2ad265f7140313c305d9bfdf98d5b00f5978e9b01acbf12243602dc4dd151",
+    "/opt/ros/lyrical/share/ur_description/meshes/ur5/collision/shoulder.stl": "1d62e23a8c3ff9e6334fb157c805e6202037bcfca65bc6a36c5c9ae866751b3b",
+    "/opt/ros/lyrical/share/ur_description/meshes/ur5/collision/upperarm.stl": "55c11ac0ad1e144f230849b2033532e8b140b2e818ea497296d08dfb88757440",
+    "/opt/ros/lyrical/share/ur_description/meshes/ur5/collision/forearm.stl": "8e79aa80a532494ba5320c30b40363ff63d228e3d59e2904703dca341dcba2ac",
+    "/opt/ros/lyrical/share/ur_description/meshes/ur5/collision/wrist1.stl": "0a1fd12150140efdee91650dcb4c2d0443065551a9207a2d2dbde58ff1fb4eb7",
+    "/opt/ros/lyrical/share/ur_description/meshes/ur5/collision/wrist2.stl": "c1d9f7843366068cb331f3f5c43fa716d3eceeb8c80216eccbbc878905dab123",
+    "/opt/ros/lyrical/share/ur_description/meshes/ur5/collision/wrist3.stl": "cf7220397b56f1d3047be9465eea1181d471b40fc82728052e31c97588585b4b",
+    "/home/rosmatch/UWA_ws/src/multi_arm_manipulation_UWA/uwa_cell_description/meshes/collision/2f_85/robotiq_base.stl": "ede5cd7d7846c051b88645f33d6bbb5ed9b36bbef404a19a46557639bfab7060",
+    "/home/rosmatch/UWA_ws/src/multi_arm_manipulation_UWA/uwa_cell_description/meshes/collision/2f_85/left_knuckle.stl": "b7ec787f57a7db5b2b14e64ffbedaac28739e38f14aac8afa8b575bac941feb7",
+    "/home/rosmatch/UWA_ws/src/multi_arm_manipulation_UWA/uwa_cell_description/meshes/collision/2f_85/right_knuckle.stl": "d151fb38f59748f1e6e627312e2ede96f2c98ba267bf722091665b20c78e7a8d",
+    "/home/rosmatch/UWA_ws/src/multi_arm_manipulation_UWA/uwa_cell_description/meshes/collision/2f_85/left_finger.stl": "f39a50be121122fc1c53c588a762ad1da8a0f64d39bc6f299cbe9b0597e7257b",
+    "/home/rosmatch/UWA_ws/src/multi_arm_manipulation_UWA/uwa_cell_description/meshes/collision/2f_85/right_finger.stl": "1d018fa2f0b50aca5941778d78810b211b1abfc8637c7953451d76d4833ba6f8",
+    "/home/rosmatch/UWA_ws/src/multi_arm_manipulation_UWA/uwa_cell_description/meshes/collision/2f_85/left_inner_knuckle.stl": "f250a3fea49be4d1bb2383d9980172c59fc44031193ef2293ca540f756f6c1e6",
+    "/home/rosmatch/UWA_ws/src/multi_arm_manipulation_UWA/uwa_cell_description/meshes/collision/2f_85/right_inner_knuckle.stl": "c936d951ede875b91c180bd41d45b22ae23f8a39d9c3e09e29066453a8e863ef",
+    "/home/rosmatch/UWA_ws/src/multi_arm_manipulation_UWA/uwa_cell_description/meshes/collision/2f_85/left_finger_tip.stl": "9d90031cd99106a8be63609f8ff78580638d91cc4167bf66c09198329f2e65cf",
+    "/home/rosmatch/UWA_ws/src/multi_arm_manipulation_UWA/uwa_cell_description/meshes/collision/2f_85/right_finger_tip.stl": "126f1559f2f7dca62449a6ca926c609fbdaa93ca66df805ff7c069bb206e3d10",
+    "/opt/ros/lyrical/share/ur_description/meshes/ur5e/collision/base.stl": "9a145e0d46f2130afdf2a2e8825a00a929870c4c3d6d8e4d1adc5f04db3aac1b",
+    "/opt/ros/lyrical/share/ur_description/meshes/ur5e/collision/shoulder.stl": "ceb92532177daa77682f5fbd628e01c2137d168f949a7a706ce1dabe9f002387",
+    "/opt/ros/lyrical/share/ur_description/meshes/ur5e/collision/upperarm.stl": "ee893044caf00075cb55b4cf666d1f1311c7979786212a501009f33bee945209",
+    "/opt/ros/lyrical/share/ur_description/meshes/ur5e/collision/forearm.stl": "2e7423cab807c34160ec4f770daee5e747d70e777eb01b7beeace2b8c5751816",
+    "/opt/ros/lyrical/share/ur_description/meshes/ur5e/collision/wrist1.stl": "f8c9f9337b6fd98c75f052e96de10e14a107ddb6874ba6b904e546f8a4e4f43a",
+    "/opt/ros/lyrical/share/ur_description/meshes/ur5e/collision/wrist2.stl": "2964a63f60ce3e3cf3ad55bcf190d7876d50e373cb64b70a57cea5885eaf3c86",
+    "/opt/ros/lyrical/share/ur_description/meshes/ur5e/collision/wrist3.stl": "83b3666b4ae2badd54af0d2c25a921682ecbc29e849eec646c3ed55fb74c78a3"
+  },
+  "generation_seed": 20261113,
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "planning_budget_s": 10.0,
+  "cases": [
+    {
+      "id": "free_01",
+      "category": "free",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_front": [
+            1.1988411449104057,
+            -1.7896651451231582,
+            1.6664820884392773,
+            -2.462335716168368,
+            -1.2952326671862258,
+            -0.14587277145030625
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false
+    },
+    {
+      "id": "free_02",
+      "category": "free",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_rear": [
+            1.155628020675594,
+            -1.9959565286833136,
+            1.9043389661930865,
+            -2.5907705743847083,
+            -1.1777356072951277,
+            -0.2670075081245273
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false
+    },
+    {
+      "id": "free_03",
+      "category": "free",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "right_front": [
+            0.3370665616524315,
+            -1.1713908279808578,
+            -1.8956695567106243,
+            -0.6088184314103364,
+            1.2710461583661328,
+            0.31341005299279967
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false
+    },
+    {
+      "id": "free_04",
+      "category": "free",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "right_rear": [
+            0.4289138315013792,
+            -1.152405241960863,
+            -1.9919414171799035,
+            -0.6344566262460604,
+            1.2933135821078197,
+            0.18396149686751545
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false
+    },
+    {
+      "id": "free_05",
+      "category": "free",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_front": [
+            1.1991198810198656,
+            -1.8375489635693558,
+            1.7421595255348343,
+            -2.3569876381576442,
+            -1.2567437227549025,
+            -0.15510376462408285
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false
+    },
+    {
+      "id": "blocked_direct_01",
+      "category": "blocked_direct",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 0.649818555976243,
+          "left_front_shoulder_lift_joint": -1.346167183183911,
+          "left_front_elbow_joint": 1.5717593491019861,
+          "left_front_wrist_1_joint": -2.341996277638351,
+          "left_front_wrist_2_joint": -1.257402284989709,
+          "left_front_wrist_3_joint": -0.12153517934130062,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_front": [
+            0.512390315609923,
+            -0.6722312311689667,
+            0.9069178848650071,
+            -1.5927909797962219,
+            -2.643459074958856,
+            0.10481152550623832
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": true
+    },
+    {
+      "id": "blocked_direct_02",
+      "category": "blocked_direct",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.6459078749984393,
+          "left_rear_shoulder_lift_joint": -2.5646297428627918,
+          "left_rear_elbow_joint": 2.4293768527831476,
+          "left_rear_wrist_1_joint": -2.11105136815024,
+          "left_rear_wrist_2_joint": -0.9041031252925067,
+          "left_rear_wrist_3_joint": 0.38602550690938237,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_rear": [
+            2.933053288170971,
+            -1.9603027192401217,
+            2.1135800780849823,
+            -1.256329246244884,
+            -0.5974683430000272,
+            0.20899553559695666
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": true
+    },
+    {
+      "id": "blocked_direct_03",
+      "category": "blocked_direct",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.09682182879442958,
+          "right_front_shoulder_lift_joint": -1.9031311782338212,
+          "right_front_elbow_joint": -2.166210969866117,
+          "right_front_wrist_1_joint": -0.00877629909163169,
+          "right_front_wrist_2_joint": 1.6274233904647804,
+          "right_front_wrist_3_joint": 0.34567162084515385,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "right_front": [
+            -0.9274300103149493,
+            -1.3698044204671462,
+            -1.3422013587852404,
+            0.01963383469390123,
+            2.5247783945910007,
+            0.6279102142028883
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": true
+    },
+    {
+      "id": "blocked_direct_04",
+      "category": "blocked_direct",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.6950647762018488,
+          "right_rear_shoulder_lift_joint": -0.6239783205346316,
+          "right_rear_elbow_joint": -1.4831945750486633,
+          "right_rear_wrist_1_joint": -0.6218552308276214,
+          "right_rear_wrist_2_joint": 1.1525423096249219,
+          "right_rear_wrist_3_joint": 0.775703649600223,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "right_rear": [
+            2.1355714010375704,
+            -1.7208839619288236,
+            -0.23616303797525373,
+            -0.6926386868269171,
+            0.8783970110208525,
+            0.22671520250242871
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": true
+    },
+    {
+      "id": "blocked_direct_05",
+      "category": "blocked_direct",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.912675393596945,
+          "left_front_shoulder_lift_joint": -1.9224116772644066,
+          "left_front_elbow_joint": 1.6609883971886226,
+          "left_front_wrist_1_joint": -3.0116815304385205,
+          "left_front_wrist_2_joint": -1.0220844601777745,
+          "left_front_wrist_3_joint": -0.5363110960676305,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_front": [
+            0.7949303439300539,
+            -1.2407105719881009,
+            2.0028196282522277,
+            -3.605312588242981,
+            -1.9787727210449213,
+            0.7206600424000118
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": true
+    },
+    {
+      "id": "neighbor_crossing_01",
+      "category": "neighbor_crossing",
+      "request": {
+        "start": {
+          "left_front_shoulder_pan_joint": 0.5943644630140884,
+          "left_front_shoulder_lift_joint": -1.7964068674879654,
+          "left_front_elbow_joint": 1.70079966037494,
+          "left_front_wrist_1_joint": -2.247199961772999,
+          "left_front_wrist_2_joint": -1.0252512182176627,
+          "left_front_wrist_3_joint": -0.39794975549984113,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.7543017817774589,
+          "right_front_shoulder_lift_joint": -1.7048261651284071,
+          "right_front_elbow_joint": -2.4670900605065,
+          "right_front_wrist_1_joint": -0.32021480277873715,
+          "right_front_wrist_2_joint": 1.5237835176626804,
+          "right_front_wrist_3_joint": -0.22974689811179472,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_front": [
+            -0.8012553576488014,
+            -0.996316088937488,
+            0.5667607016113707,
+            -1.3273620774736221,
+            -1.361751670457815,
+            0.2115562420896956
+          ],
+          "right_front": [
+            1.3808112306694633,
+            -1.0220031549048776,
+            -2.271005053894496,
+            -1.4308043935555843,
+            1.1462518627836162,
+            -0.43654187093892727
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false,
+      "neighbor_sphere_intersection_verified": true,
+      "full_cell_collision_at_crossing": false
+    },
+    {
+      "id": "neighbor_crossing_02",
+      "category": "neighbor_crossing",
+      "request": {
+        "start": {
+          "left_front_shoulder_pan_joint": 1.3358383601444674,
+          "left_front_shoulder_lift_joint": -1.2481215935360204,
+          "left_front_elbow_joint": 1.8363359438719484,
+          "left_front_wrist_1_joint": -3.1852576497259917,
+          "left_front_wrist_2_joint": -0.9321661322819583,
+          "left_front_wrist_3_joint": 0.24714241807663032,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 0.5220242801572836,
+          "left_rear_shoulder_lift_joint": -1.952531825659241,
+          "left_rear_elbow_joint": 2.1196673379621798,
+          "left_rear_wrist_1_joint": -2.525777871435179,
+          "left_rear_wrist_2_joint": -1.9349796804367476,
+          "left_rear_wrist_3_joint": -0.7144994639056859,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_front": [
+            1.7021927994628,
+            -1.748736495346945,
+            1.6258136035608792,
+            -3.8336510247717928,
+            -1.373914040031301,
+            1.0014918692857608
+          ],
+          "left_rear": [
+            1.950298484539557,
+            -0.5163649365204606,
+            0.7767791294716635,
+            -2.9511535009359404,
+            -1.112615846696019,
+            0.5255928381420261
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false,
+      "neighbor_sphere_intersection_verified": true,
+      "full_cell_collision_at_crossing": true
+    },
+    {
+      "id": "neighbor_crossing_03",
+      "category": "neighbor_crossing",
+      "request": {
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.47554974543427375,
+          "right_front_shoulder_lift_joint": -1.286302071873339,
+          "right_front_elbow_joint": -1.4637233711575997,
+          "right_front_wrist_1_joint": -0.6921906032106789,
+          "right_front_wrist_2_joint": 1.5387125040263305,
+          "right_front_wrist_3_joint": 0.22821454997404528,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.3259051787793841,
+          "right_rear_shoulder_lift_joint": -2.0143336207574407,
+          "right_rear_elbow_joint": -1.7219911817217306,
+          "right_rear_wrist_1_joint": -0.7039431691672209,
+          "right_rear_wrist_2_joint": 1.442003907300564,
+          "right_rear_wrist_3_joint": 0.28400651181095654,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "right_front": [
+            0.2888536089164432,
+            -2.221818543864904,
+            -0.8406686644223322,
+            -1.2319279230385365,
+            1.6261919550303194,
+            0.7534996124040143
+          ],
+          "right_rear": [
+            -0.14016320721203246,
+            -0.956903260507473,
+            -0.4975618720739714,
+            -1.424097317622212,
+            1.4675574640709599,
+            0.15632598168591066
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false,
+      "neighbor_sphere_intersection_verified": true,
+      "full_cell_collision_at_crossing": false
+    },
+    {
+      "id": "neighbor_crossing_04",
+      "category": "neighbor_crossing",
+      "request": {
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.6661991834497505,
+          "left_rear_shoulder_lift_joint": -1.5859398328307206,
+          "left_rear_elbow_joint": 1.7910372519243467,
+          "left_rear_wrist_1_joint": -2.8771738270811724,
+          "left_rear_wrist_2_joint": -0.4990162043430033,
+          "left_rear_wrist_3_joint": -0.4619280436438878,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.19490771845236998,
+          "right_rear_shoulder_lift_joint": -1.9827556358512424,
+          "right_rear_elbow_joint": -2.1123047734776734,
+          "right_rear_wrist_1_joint": -0.03688535024900752,
+          "right_rear_wrist_2_joint": 0.5481998327849705,
+          "right_rear_wrist_3_joint": 0.1252756298983035,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_rear": [
+            1.4658076399893776,
+            -1.724984534915645,
+            1.7120614949377864,
+            -4.0428612569339215,
+            -0.2962565951103924,
+            -0.7325185363195745
+          ],
+          "right_rear": [
+            -1.0228796974064887,
+            -0.7946834404641749,
+            -1.3067265805401629,
+            0.24233726287841406,
+            -0.2792508355009399,
+            1.0963243335473636
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false,
+      "neighbor_sphere_intersection_verified": true,
+      "full_cell_collision_at_crossing": false
+    },
+    {
+      "id": "neighbor_crossing_05",
+      "category": "neighbor_crossing",
+      "request": {
+        "start": {
+          "left_front_shoulder_pan_joint": 1.4928090539261236,
+          "left_front_shoulder_lift_joint": -2.2154143275997016,
+          "left_front_elbow_joint": 1.4363077905642685,
+          "left_front_wrist_1_joint": -3.0818977828275083,
+          "left_front_wrist_2_joint": -1.2030901559527634,
+          "left_front_wrist_3_joint": -0.48843481748885875,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 1.188176235154993,
+          "right_front_shoulder_lift_joint": -1.9297179409166827,
+          "right_front_elbow_joint": -1.2826510015168473,
+          "right_front_wrist_1_joint": -1.2544419348499547,
+          "right_front_wrist_2_joint": 1.568230510739236,
+          "right_front_wrist_3_joint": -0.00986874923473674,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_front": [
+            0.5265451639091548,
+            -1.6060430451151535,
+            1.674766012929882,
+            -4.060730028590363,
+            -0.412926767534022,
+            -0.1736959829452659
+          ],
+          "right_front": [
+            2.1637102493704266,
+            -1.7271553715667125,
+            -0.20193240872063511,
+            -0.35549702254758264,
+            1.5270667190479632,
+            -1.3838811281517744
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false,
+      "neighbor_sphere_intersection_verified": true,
+      "full_cell_collision_at_crossing": false
+    },
+    {
+      "id": "four_arm_01",
+      "category": "four_arm",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_front": [
+            1.3335114389147913,
+            -1.7845949195512247,
+            1.5878780112043298,
+            -2.3115788611208745,
+            -1.4281092889152032,
+            -0.06233728772785502
+          ],
+          "left_rear": [
+            1.122785649414179,
+            -2.0261128586501163,
+            1.8071544609347332,
+            -2.4692925012013154,
+            -1.3126560679859733,
+            -0.2892501205620087
+          ],
+          "right_front": [
+            0.461805239292136,
+            -1.1152948488788104,
+            -2.0692171265156243,
+            -0.6185206769956283,
+            1.1206134280397335,
+            0.21026632910790602
+          ],
+          "right_rear": [
+            0.36898363840764636,
+            -1.3442129231395874,
+            -1.8953872805895646,
+            -0.6926026137956722,
+            1.0792051589588225,
+            0.3000291000516906
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false
+    },
+    {
+      "id": "four_arm_02",
+      "category": "four_arm",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_front": [
+            1.279604167117586,
+            -1.829821982857827,
+            1.7026987419899389,
+            -2.507090851899956,
+            -1.3072446045267703,
+            -0.3221640547796926
+          ],
+          "left_rear": [
+            1.0735390216736376,
+            -1.9982235713620762,
+            1.9626656820550608,
+            -2.61783032186802,
+            -1.1879663910279468,
+            -0.10875773881100251
+          ],
+          "right_front": [
+            0.3833095996043507,
+            -1.2783724422154286,
+            -1.9612903969680424,
+            -0.6742309637539406,
+            1.164159297306101,
+            0.1084761377052127
+          ],
+          "right_rear": [
+            0.31450189998745215,
+            -1.231691423846934,
+            -1.938293031462845,
+            -0.7178039661959769,
+            1.0796033261952034,
+            0.35442150119823324
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false
+    },
+    {
+      "id": "four_arm_03",
+      "category": "four_arm",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_front": [
+            1.2325842976887964,
+            -1.9527283195341227,
+            1.8309098388169773,
+            -2.4483853282251364,
+            -1.2824379808392778,
+            -0.04405728631433725
+          ],
+          "left_rear": [
+            1.1645796662924404,
+            -1.8085807062158257,
+            1.8878847269792398,
+            -2.547250911924861,
+            -1.372636308083249,
+            -0.2995791473521954
+          ],
+          "right_front": [
+            0.33299997093867745,
+            -1.337445401695174,
+            -1.9094001338414384,
+            -0.5308324496687014,
+            1.3015947003781285,
+            0.27086743784909906
+          ],
+          "right_rear": [
+            0.28604191733925044,
+            -1.1654353549005543,
+            -1.8910245166021364,
+            -0.7060792995138355,
+            1.2599355213298356,
+            0.3102237526752487
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false
+    },
+    {
+      "id": "four_arm_04",
+      "category": "four_arm",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_front": [
+            1.205478693135183,
+            -1.7432596639041489,
+            1.6755842807885002,
+            -2.5301961799786605,
+            -1.3384494672570995,
+            -0.049606868393329784
+          ],
+          "left_rear": [
+            1.1996671648829742,
+            -1.9947571132359552,
+            2.0309618191946104,
+            -2.6476078958341933,
+            -1.3665021386021179,
+            -0.2610667928727524
+          ],
+          "right_front": [
+            0.33813302270996165,
+            -1.1621869764134898,
+            -1.9307070708693248,
+            -0.5399031701059249,
+            1.0900717822987023,
+            0.16837071299908107
+          ],
+          "right_rear": [
+            0.4599266847654734,
+            -1.2329298846934842,
+            -1.9184230728163825,
+            -0.5662899304330631,
+            1.2851647876659902,
+            0.18043718888524046
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false
+    },
+    {
+      "id": "four_arm_05",
+      "category": "four_arm",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_front": [
+            1.2191460020748812,
+            -1.852134137346871,
+            1.5830631904746748,
+            -2.480591397832241,
+            -1.40551812677641,
+            -0.06726680197534068
+          ],
+          "left_rear": [
+            1.232012939838111,
+            -2.0682689389623494,
+            1.8768842028539818,
+            -2.5979978122976553,
+            -1.3053484008918343,
+            -0.10490709103107201
+          ],
+          "right_front": [
+            0.3484057461616953,
+            -1.160652630298258,
+            -1.8628858541279438,
+            -0.5807061746835042,
+            1.2323719639989659,
+            0.32294691145190535
+          ],
+          "right_rear": [
+            0.371481403624946,
+            -1.1436180220372871,
+            -2.086634334050995,
+            -0.5954874187745159,
+            1.3618923523308197,
+            0.23719029318012785
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false
+    },
+    {
+      "id": "tool_passage_01",
+      "category": "tool_passage",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.3008306687668063,
+          "left_front_shoulder_lift_joint": -2.2726011393233745,
+          "left_front_elbow_joint": 2.2870799732511173,
+          "left_front_wrist_1_joint": -2.6149285869563563,
+          "left_front_wrist_2_joint": -1.4816035865127815,
+          "left_front_wrist_3_joint": -0.383654582636045,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.8187454767578557,
+          "right_front_shoulder_lift_joint": -1.767919309992481,
+          "right_front_elbow_joint": -2.0488733093317064,
+          "right_front_wrist_1_joint": -0.38939979001964,
+          "right_front_wrist_2_joint": 1.9057493007198225,
+          "right_front_wrist_3_joint": 0.823433310914037,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_front": [
+            1.457662178911669,
+            -2.013971035622081,
+            2.000784173037897,
+            -2.3178472915535635,
+            -1.5915894626156342,
+            -0.11641614975366293
+          ],
+          "right_front": [
+            0.5566735165859868,
+            -2.0108253677373176,
+            -1.7537449336395106,
+            -0.09178087124585571,
+            1.7973132543619728,
+            0.5886570004271572
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false
+    },
+    {
+      "id": "tool_passage_02",
+      "category": "tool_passage",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 0.7184967939372622,
+          "left_front_shoulder_lift_joint": -2.481722826661896,
+          "left_front_elbow_joint": 1.9281330726481736,
+          "left_front_wrist_1_joint": -2.9537430319599394,
+          "left_front_wrist_2_joint": -0.7772078609771169,
+          "left_front_wrist_3_joint": -0.3082315590108331,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 0.6190734959707286,
+          "left_rear_shoulder_lift_joint": -1.7076390221510893,
+          "left_rear_elbow_joint": 1.7176355154795955,
+          "left_rear_wrist_1_joint": -2.624492019977281,
+          "left_rear_wrist_2_joint": -1.1667394617884326,
+          "left_rear_wrist_3_joint": 0.02626508614742845,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_front": [
+            0.8781003666326976,
+            -2.3389015599721406,
+            1.656215829246783,
+            -2.894928564859126,
+            -0.5165614954693027,
+            -0.47396184712134787
+          ],
+          "left_rear": [
+            0.4306379358654326,
+            -1.431125675627855,
+            1.8182713665767478,
+            -2.5561357757557315,
+            -1.3230989892093494,
+            -0.23929510246301194
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false
+    },
+    {
+      "id": "tool_passage_03",
+      "category": "tool_passage",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.8002429415474164,
+          "right_front_shoulder_lift_joint": -0.8568768862191678,
+          "right_front_elbow_joint": -2.1151699870790317,
+          "right_front_wrist_1_joint": -1.2099406103179993,
+          "right_front_wrist_2_joint": 1.652047575656063,
+          "right_front_wrist_3_joint": 0.3786942514144496,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.6111165647558858,
+          "right_rear_shoulder_lift_joint": -0.7743430893713033,
+          "right_rear_elbow_joint": -2.0527487734385943,
+          "right_rear_wrist_1_joint": -0.2272150743239728,
+          "right_rear_wrist_2_joint": 1.8828199823996095,
+          "right_rear_wrist_3_joint": 0.6284593273024619,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "right_front": [
+            0.8685377521078901,
+            -0.9049356804498925,
+            -1.9308677128484506,
+            -1.325279718211055,
+            1.6057583265216233,
+            0.36965608278351514
+          ],
+          "right_rear": [
+            0.568718613820986,
+            -0.8916646818539387,
+            -1.775273556870153,
+            -0.045909255951760486,
+            1.7480709362553306,
+            0.5079137481745668
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false
+    },
+    {
+      "id": "tool_passage_04",
+      "category": "tool_passage",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.632297131928341,
+          "left_rear_shoulder_lift_joint": -1.658257091264302,
+          "left_rear_elbow_joint": 1.263567968274013,
+          "left_rear_wrist_1_joint": -1.8919811113253864,
+          "left_rear_wrist_2_joint": -0.5493482528956894,
+          "left_rear_wrist_3_joint": 0.2423284737292169,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.7197166349052122,
+          "right_rear_shoulder_lift_joint": -0.7343841144172423,
+          "right_rear_elbow_joint": -2.3734260263605327,
+          "right_rear_wrist_1_joint": -1.1816438811525511,
+          "right_rear_wrist_2_joint": 1.4690317003646247,
+          "right_rear_wrist_3_joint": -0.3803301315392678,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_rear": [
+            1.3815289564481594,
+            -1.5906921688116022,
+            1.0631007196119047,
+            -1.9282784302804856,
+            -0.8252004234501096,
+            0.3655476111053287
+          ],
+          "right_rear": [
+            0.7897972755741989,
+            -0.7971715649388369,
+            -2.2230607292936275,
+            -1.2588743401974751,
+            1.5206743276727768,
+            -0.3804001742585042
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false
+    },
+    {
+      "id": "tool_passage_05",
+      "category": "tool_passage",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.6702209687792577,
+          "left_front_shoulder_lift_joint": -1.540860336615254,
+          "left_front_elbow_joint": 1.6314538087568713,
+          "left_front_wrist_1_joint": -1.9916361420503237,
+          "left_front_wrist_2_joint": -1.788471911503453,
+          "left_front_wrist_3_joint": -0.026447006312434657,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 1.0262832695691555,
+          "right_front_shoulder_lift_joint": -1.3761460273495594,
+          "right_front_elbow_joint": -1.492599810077008,
+          "right_front_wrist_1_joint": -0.9787821442870654,
+          "right_front_wrist_2_joint": 1.4618086518164906,
+          "right_front_wrist_3_joint": 0.39369946608524714,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_front": [
+            1.9299190430218347,
+            -1.7460327846624855,
+            1.6598214563624187,
+            -1.7274992055337732,
+            -1.8153551099687726,
+            0.239641819804103
+          ],
+          "right_front": [
+            0.7768993767616146,
+            -1.5825356855092547,
+            -1.400467387397319,
+            -0.962448629397425,
+            1.1849764652837669,
+            0.6736503544744676
+          ]
+        }
+      },
+      "expected_unreachable": false,
+      "direct_path_checked": false
+    },
+    {
+      "id": "unreachable_01",
+      "category": "unreachable",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_front": [
+            6.483185307179586,
+            -1.9329781611513077,
+            1.7544865455740957,
+            -2.4408955652983906,
+            -1.293252559510305,
+            -0.27041658244776
+          ]
+        }
+      },
+      "expected_unreachable": true,
+      "direct_path_checked": false
+    },
+    {
+      "id": "unreachable_02",
+      "category": "unreachable",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_rear": [
+            6.483185307179586,
+            -1.9087534007485163,
+            1.8757309409503464,
+            -2.5944695521934626,
+            -1.272695864314635,
+            -0.25883186610642084
+          ]
+        }
+      },
+      "expected_unreachable": true,
+      "direct_path_checked": false
+    },
+    {
+      "id": "unreachable_03",
+      "category": "unreachable",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "right_front": [
+            6.483185307179586,
+            -1.156788995173865,
+            -1.877623221515101,
+            -0.563593595778406,
+            1.3097768656477116,
+            0.22530338513539683
+          ]
+        }
+      },
+      "expected_unreachable": true,
+      "direct_path_checked": false
+    },
+    {
+      "id": "unreachable_04",
+      "category": "unreachable",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "right_rear": [
+            6.483185307179586,
+            -1.1564853176265362,
+            -1.8622152598470207,
+            -0.5286637917018226,
+            1.1376486430793407,
+            0.30596401844549515
+          ]
+        }
+      },
+      "expected_unreachable": true,
+      "direct_path_checked": false
+    },
+    {
+      "id": "unreachable_05",
+      "category": "unreachable",
+      "request": {
+        "schema_version": 1,
+        "start": {
+          "left_front_shoulder_pan_joint": 1.249400825263,
+          "left_front_shoulder_lift_joint": -1.843683752555,
+          "left_front_elbow_joint": 1.712763937445,
+          "left_front_wrist_1_joint": -2.410104221538,
+          "left_front_wrist_2_joint": -1.302728224516,
+          "left_front_wrist_3_joint": -0.179475624579,
+          "left_front_robotiq_85_left_knuckle_joint": 0.0,
+          "left_rear_shoulder_pan_joint": 1.156343972423,
+          "left_rear_shoulder_lift_joint": -1.923678973178,
+          "left_rear_elbow_joint": 1.937577321054,
+          "left_rear_wrist_1_joint": -2.538078577348,
+          "left_rear_wrist_2_joint": -1.226379855048,
+          "left_rear_wrist_3_joint": -0.235292530833,
+          "left_rear_robotiq_85_left_knuckle_joint": 0.0,
+          "right_front_shoulder_pan_joint": 0.414452354372,
+          "right_front_shoulder_lift_joint": -1.217913680412,
+          "right_front_elbow_joint": -1.937577321053,
+          "right_front_wrist_1_joint": -0.603514076241,
+          "right_front_wrist_2_joint": 1.226379855048,
+          "right_front_wrist_3_joint": 0.235292530833,
+          "right_front_robotiq_85_left_knuckle_joint": 0.0,
+          "right_rear_shoulder_pan_joint": 0.414452354372,
+          "right_rear_shoulder_lift_joint": -1.217913680412,
+          "right_rear_elbow_joint": -1.937577321053,
+          "right_rear_wrist_1_joint": -0.603514076241,
+          "right_rear_wrist_2_joint": 1.226379855048,
+          "right_rear_wrist_3_joint": 0.235292530833,
+          "right_rear_robotiq_85_left_knuckle_joint": 0.0
+        },
+        "goals": {
+          "left_front": [
+            6.483185307179586,
+            -1.8641542284574388,
+            1.6730950622502359,
+            -2.3491977389800884,
+            -1.233209791552301,
+            -0.17090965632459404
+          ]
+        }
+      },
+      "expected_unreachable": true,
+      "direct_path_checked": false
+    }
+  ],
+  "generation_version": 2,
+  "crossing_generation_seed": 12973
+}

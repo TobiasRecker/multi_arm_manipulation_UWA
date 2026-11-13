@@ -85,12 +85,14 @@ int main(int argc, char **argv)
     if (target.size()!=names.size()) throw std::runtime_error("Wrong target dimension");
     for (size_t i=0; i<names.size(); ++i) { start[i]=initial.at(names[i]); goal[i]=target[i]; }
     ss.setStartAndGoalStates(start, goal, 1e-8);
-    ss.setPlanner(std::make_shared<ompl::geometric::RRTConnect>(ss.getSpaceInformation()));
+    auto planner=std::make_shared<ompl::geometric::RRTConnect>(ss.getSpaceInformation());
+    planner->setRange(0.15);  // radians: default extent-scaled steps are too large in this cell
+    ss.setPlanner(planner);
     const auto solved=ss.solve(request.value("budget_s",10.));
     if (solved!=ompl::base::PlannerStatus::EXACT_SOLUTION) {
       output={{"success",false},{"error","No exact RRTConnect solution within budget"}};
     } else {
-      // Simplification is bounded separately by the caller's remaining budget.
+      ss.simplifySolution(0.1);  // included in the caller's hard wall-clock budget
       auto &path=ss.getSolutionPath();
       json points=json::array();
       for (const auto *s : path.getStates()) {

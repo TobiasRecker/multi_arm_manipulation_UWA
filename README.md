@@ -73,13 +73,17 @@ A [four-wrist plus OAK scan design and literature comparison](docs/five_camera_r
 describes the methods and limits. The first [OAK-first scan workflow](docs/object_scan.md)
 now estimates coarse box geometry, prepares checked view proposals and provides a
 five-camera viewer via `bash src/multi_arm_manipulation_UWA/scripts/object_capture.sh`.
-Corner selection is assisted; no real scan motion has been executed.
+Corner selection remains assisted; hardware progress is recorded below.
 A [virtual-wall and swept-volume analysis](docs/scan_separation.md) now derives a
 parallel review schedule from the unchanged scan paths. It retains the original
-order for pairs without a separation proof; no hardware execution is enabled.
+order for pairs without a separation proof and feeds the separate hardware runner.
 A separately tested [hardware parallel runner and STOP window](docs/parallel_object_scan.md)
-are prepared. Ethernet and all four dashboards are restored on 2026-11-13. The interrupted
-RTDE drivers are being restored before a fresh plan and complete hardware check; no real scan movement has been sent.
+completed the first simultaneous hardware approach on 2026-11-13. Four wrist-HD
+views show the carton. The scan stopped during acquisition following a GUI-heartbeat
+loss and OAK failure; all controllers are inactive and the four extra rounds remain.
+Camera work is now isolated in a separate process and tested while stationary;
+the OAK connection still needs attention. No automatic restart.
+
 
 ## OAK camera CAD and tripod
 
