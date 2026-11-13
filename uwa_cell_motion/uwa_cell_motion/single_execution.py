@@ -76,9 +76,9 @@ def follow(problem,client,plan,result):
         maximum=max(maximum,error)
         if error>tolerance:raise RuntimeError(f'{rid}: measured path tracking error {error:.6f}rad exceeds {tolerance:.6f}rad')
         now=time.monotonic()
-        if now-last_mesh_check>=.05:
+        if client.stamp-last_mesh_check>=.05:
             if not problem.collision.check(client.positions)[0]:raise RuntimeError('Measured full-cell collision/limit check failed')
-            last_mesh_check=now
+            last_mesh_check=client.stamp
         if completed.done():
             response=completed.result()
             if response.status!=GoalStatus.STATUS_SUCCEEDED or response.result.error_code!=FollowJointTrajectory.Result.SUCCESSFUL:

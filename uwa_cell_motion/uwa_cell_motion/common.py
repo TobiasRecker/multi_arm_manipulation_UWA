@@ -68,4 +68,4 @@ def guard_signature(cfg):
     keys=('rate_hz','state_timeout_s','heartbeat_timeout_s','stop_latency_s','braking_acceleration_rad_s2',
           'velocity_limit_rad_s','model_margin_m','reset_hysteresis_m','standstill_velocity_rad_s',
           'standstill_window_s','sphere_spacing_m')
-    return sha(json.dumps({k:cfg[k] for k in keys},sort_keys=True))
+    return sha(json.dumps(dict(interlock_protocol=2,operating_bounds={k:cfg[k] for k in keys}),sort_keys=True))

@@ -18,6 +18,11 @@
 - Vergleich30Aufgaben×5Seeds×2Verfahren,10s Planungsbudget. Fehlschläge behalten;
   Planungszeit, Validierungszeit, geplante und tatsächlich gemessene Fahrzeit
   trennen. Anleitung docs/four_arm_motion.md, Paket uwa_cell_motion.
+- Laufzeit-Stoppreserve auch bei Wächterausfall erhalten: Supervisor darf die
+  letzte geometrische Abstandsreserve nicht durch unbedingtes Ausschöpfen des
+  Heartbeat-Timeouts verbrauchen. Paarabhängige Lease/Transportalter prüfen.
+  Sim-Nachweise unter normaler Physik(RTF≤1) führen; Beschleunigung separat
+  nachweisen. Nicht ausgewählte PTP-Arme bleiben gemessen stationäre Hindernisse.
 
 ## Native HD-Intrinsics hinten links (2026-11-12)
 

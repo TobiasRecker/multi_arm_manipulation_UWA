@@ -15,14 +15,25 @@
 
 ## Zwischenstand
 
-- Paket gebaut,32Offline-Tests PASS. Native RRT-Schrittweite0,15rad statt
+- Paket gebaut,45Offline-Tests PASS (vor neuer Paarlease-Prüfung). Native RRT-Schrittweite0,15rad statt
   ungeeigneter automatischer Extent-Skalierung. Frühe Entwicklungsdaten erhalten.
 - Live-Gazebo-Stoppcheckv2 PASS: Paarstopp mit unabhängiger Weiterfahrt,
   Topic-/Reaktivierungssperre, Mehrfachfehler, Zustandsverlust, Wächterausfall
   und verriegelte Wiederkehr.118ms Fehler→Stillstand,450ms Watchdog→Hold.
-- Vergleichv2 mit300Versuchen abgeschlossen; Kreuzungskategorie bei strenger
-  Nachprüfung unzureichend, deshalb neue explizit verifizierte Fälle vorbereiten.
-  Drei kurze Replay-Bahnen PASS; weiterer Replay vor Fahrt wegen verriegelter
-  Startbedingung nach Zeitfaktorwechsel abgebrochen, Zeitfaktor1 wiederhergestellt.
-- Geplanter nächster Schritt: Ursachenhistorie/Startreihenfolge prüfen,
-  Kreuzungsfälle und abschließende Vergleichs-/Replay-Nachweise vervollständigen.
+- Vergleichv4 mit300Versuchen abgeschlossen; fünf neue Nachbarfälle mit
+  nachgewiesener Kugelbahnüberschneidung, tatsächlichen Meshkontakt separat
+  gespeichert. RRT102/125 gültige Zielversuche erfolgreich,CF115/125;
+  je25absichtlich ungültige Ziele abgewiesen. Eingefrorene Suite im Paket.
+- Gazebo-Replay der55verschiedenen erfolgreichen zeitparametrierten Bahnen
+  läuft, identische Wiederholungen mit gemeinsamem Ausführungsnachweis verlinkt.
+  Vollständige Einzelarmbahn mit gemessenem geometrischem Korridor statt
+  unnötiger Rest-zu-Rest-Mikrophasen; Mehrarmbarrieren unverändert konservativ.
+  SIGTERM-Cleanup mit tatsächlicher Bewegung/Persistenz der Halteverriegelung
+  geprüft: setup/logs/uwa-motion-signal-check.json. Kein automatischer Reset.
+- Beschleunigungsversuch5ms/RTF3 wegen STATE STALE vor Fahrt abgebrochen;
+  Original1ms/RTF1 und Sim-Kameraraten10Hz wiederhergestellt. Weitere Fahrten
+  unter normalen Einstellungen, für Replay temporär Kameraraten0,2Hz mit Trap.
+- Auditkorrektur: näherungsabhängige Paarlease im unabhängigen Supervisor;
+  letzter Abstand darf nicht unbesehen400ms Wächterausfall überbrücken.
+  Hashgebundenes Protokollv2, Monotonzeit/Transportalter und20ms Pollreserve.
+  Abschluss-Livetest/Build und endgültige Auswertung noch offen.

@@ -18,7 +18,7 @@ def managed(tmp_path, monkeypatch):
     folder = activity.directory(IP)
     folder.mkdir()
     (folder / 'enabled').touch()
-    (folder / 'profile.json').write_text(json.dumps({'active': {'lightingMode': 0, 'lightingValue': 42}}))
+    (folder / 'profile.json').write_text(json.dumps({'active': {'lightingMode': 2, 'lightingValue': 42}}))
     calls = []
     def remote(ip, desired):
         calls.append(desired)
@@ -34,8 +34,9 @@ def test_nested_and_independent_users_keep_lights_until_last_release(managed):
             activity.reconcile(IP)
             assert len(calls) == 1
         assert len(calls) == 1
-    assert calls == [{'lightingMode': 0, 'lightingValue': 42}, {'lightingMode': 2, 'lightingValue': 0}]
-    assert json.loads((folder / 'state.json').read_text())['active'] is False
+    assert calls == [{'lightingMode': 2, 'lightingValue': 42}, {'lightingMode': 1, 'lightingValue': 0}]
+    state = json.loads((folder / 'state.json').read_text())
+    assert state['active'] is False and state['requested_led'] == activity.led_request(0)
 
 
 def test_unenrolled_camera_is_untouched(tmp_path, monkeypatch):
@@ -51,7 +52,7 @@ def test_capture_failure_still_switches_lights_off(managed):
     with pytest.raises(RuntimeError, match='JPEG'):
         with activity.Activity(IP):
             raise RuntimeError('JPEG failed')
-    assert calls[-1] == {'lightingMode': 2, 'lightingValue': 0}
+    assert calls[-1] == {'lightingMode': 1, 'lightingValue': 0}
 
 
 def test_failed_on_write_leaves_cleanup_intent_for_guardian(managed, monkeypatch):
@@ -64,7 +65,7 @@ def test_failed_on_write_leaves_cleanup_intent_for_guardian(managed, monkeypatch
     assert json.loads((folder / 'state.json').read_text())['active'] is True
     monkeypatch.setattr(activity, 'remote', remote)
     activity.reconcile(IP)
-    assert calls == [{'lightingMode': 2, 'lightingValue': 0}]
+    assert calls == [{'lightingMode': 1, 'lightingValue': 0}]
 
 
 def test_process_death_releases_kernel_lease_and_guardian_turns_off(managed):
@@ -85,14 +86,15 @@ def test_process_death_releases_kernel_lease_and_guardian_turns_off(managed):
         process.kill()
         process.join(3)
         activity.reconcile(IP)
-        assert calls == [{'lightingMode': 2, 'lightingValue': 0}]
+        assert calls == [{'lightingMode': 1, 'lightingValue': 0}]
     finally:
         if process.is_alive():
             process.kill()
             process.join(3)
 
 
-def test_remote_legacy_led_mapping_and_unrelated_focus_are_verified(monkeypatch):
+@pytest.mark.parametrize('version', ['UCC-1.11.1.10337', 'UCC-3.44.0.149696', 'UCC-4.1.0.164735'])
+def test_remote_off_requires_disabled_hardware_switch(monkeypatch, version):
     import importlib.util
     from pathlib import Path
     path = Path(__file__).resolve().parents[1] / 'remote/wrist_lighting.py'
@@ -100,7 +102,9 @@ def test_remote_legacy_led_mapping_and_unrelated_focus_are_verified(monkeypatch)
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     current = dict(focus=388, focusAuto=False, exposureAuto=False, exposure=60000,
-                   gain=19, lightingMode=2, lightingValue=0)
+                   gain=19, lightingMode=1, lightingValue=0)
+    writes = []
+    apply_off = [False]
     class Response:
         def __init__(self, value): self.value = value
         def read(self): return json.dumps(self.value).encode()
@@ -109,24 +113,31 @@ def test_remote_legacy_led_mapping_and_unrelated_focus_are_verified(monkeypatch)
             if '/status' in request.full_url:
                 return Response({'current state': 'Normal'})
             if '/hello' in request.full_url:
-                return Response({'version': 'UCC-1.11.1.10337'})
+                return Response({'version': version})
             if '/setcamera' in request.full_url:
                 desired = json.loads(request.data)['cameraSettings']
-                current.update(desired)
-                if current['lightingMode'] in (0, 1):
-                    current['lightingMode'] = 1 - current['lightingMode']
-                return Response({'status': 'failed', 'code': 15})
+                writes.append((request.full_url, desired))
+                if apply_off[0]:
+                    current.update(lightingMode=0, lightingValue=desired['lightingValue'])
+                return Response({'status': 'succeeded'})
             return Response({'status': 'succeeded', 'cameraSettings': dict(current)})
     monkeypatch.setattr(m, 'build_opener', lambda *a: Opener())
-    result = m.apply({'lightingMode': 1, 'lightingValue': 0})
+    monkeypatch.setattr(m.time, 'sleep', lambda _: None)
+    off = {'lightingMode': 1, 'lightingValue': 0}
+    with pytest.raises(RuntimeError, match='LED readback mismatch'):
+        m.apply(off)  # The API acknowledged the write, but the switch is on.
+    apply_off[0] = True
+    result = m.apply(off)
+    assert len(writes) == 2
+    assert all(url.endswith('setManualValuesIfModeChanged=false') and value == off for url, value in writes)
     assert result['verified'] and result['settings']['focus'] == 388
-    assert result['settings']['lightingMode'] == 1
+    assert result['settings']['lightingMode'] == 0
 
 
 def test_adjusting_closed_viewer_keeps_lights_off_and_open_viewer_updates_profile(managed):
     folder, calls = managed
     activity.configure(IP, 70)
-    assert calls[-1] == {'lightingMode': 2, 'lightingValue': 0}
+    assert calls[-1] == {'lightingMode': 1, 'lightingValue': 0}
     with activity.Activity(IP):
         assert calls[-1]['lightingValue'] == 70
         activity.configure(IP, 35)
@@ -193,3 +204,24 @@ def test_focus_write_preserves_leased_manual_led_despite_getter_setter_differenc
     assert sent[0]['lightingMode'] == 2
     assert result['lightingMode'] == 1 and result['lightingValue'] == 53
     assert result['focus'] == 450 and result['exposure'] == 60000
+
+
+
+def test_guardian_ignores_report_and_unenrolled_directories(managed):
+    folder, _ = managed
+    report = folder.parent / 'idle_check_20261113'
+    report.mkdir()
+    (report / 'enabled').touch()
+    (folder.parent / '192.0.2.2').mkdir()
+    assert list(activity.enrolled_cameras()) == [IP]
+
+
+def test_guardian_rechecks_cached_manual_zero_after_upgrade(managed):
+    folder, calls = managed
+    (folder / 'state.json').write_text(json.dumps({
+        'active': False, 'verified': True, 'verified_epoch': time.time(),
+        'settings': {'lightingMode': 1, 'lightingValue': 0},
+    }))
+    activity.reconcile(IP)
+    activity.reconcile(IP)
+    assert calls == [{'lightingMode': 1, 'lightingValue': 0}]

@@ -1,5 +1,33 @@
 """Independent heartbeat latch; a guard restart never implicitly releases it."""
+import math
 from .common import ROBOT_IDS
+
+
+SUPERVISOR_PERIOD_S=.02
+
+
+def expired_pair_leases(decision,now,cfg):
+    """Do not spend a close pair's distance reserve on the full heartbeat timeout.
+
+    A healthy decision already reserves one geometric check interval plus
+    switching/braking. Excess clearance buys additional supervision time.
+    Same-host monotonic evaluation time includes computation/transport delay.
+    The supervisor period is deducted so its next tick fits that reserve.
+    Assumes the normal Gazebo real-time factor <=1, as the stop budget does.
+    """
+    try:
+        evaluated=float(decision['evaluated_monotonic_s'])
+        if not math.isfinite(evaluated) or evaluated>now+.001:raise ValueError()
+        expired=set()
+        for pair in decision['pairs']:
+            speed=float(pair['relative_speed_bound_m_s']);gap=float(pair['clearance_m']);threshold=float(pair['threshold_m'])
+            if not all(map(math.isfinite,(speed,gap,threshold))) or speed<0:raise ValueError()
+            lease=cfg['heartbeat_timeout_s']
+            if speed>0:
+                lease=min(lease,max(0.,1/cfg['rate_hz']-SUPERVISOR_PERIOD_S+(gap-threshold)/speed))
+            if now-evaluated>=lease:expired.update(pair['arms'])
+        return expired
+    except (KeyError,TypeError,ValueError):return set(ROBOT_IDS)
 
 
 class Interlock:

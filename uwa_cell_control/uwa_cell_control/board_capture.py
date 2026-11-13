@@ -36,7 +36,8 @@ def write_session_focus(camera, *, focus, auto):
     ip = camera.base.split('//')[1].split(':')[0]
     changes = dict(focus=focus, focusAuto=auto)
     if (directory(ip) / 'enabled').exists():
-        changes.update(lightingMode=2, lightingValue=before['lightingValue'])
+        changes.update(lightingMode=1 if before['lightingMode'] == 0 else 2,
+                       lightingValue=before['lightingValue'])
     camera.request('/setcamerasettings?setManualValuesIfModeChanged=true',
                    body={'cameraSettings': changes})
     time.sleep(.5)
@@ -67,7 +68,8 @@ def restore_session_focus(camera, original):
                 from .wrist_activity import directory
                 ip = camera.base.split('//')[1].split(':')[0]
                 if (directory(ip) / 'enabled').exists():
-                    changes.update(lightingMode=2, lightingValue=actual['lightingValue'])
+                    changes.update(lightingMode=1 if actual['lightingMode'] == 0 else 2,
+                                   lightingValue=actual['lightingValue'])
                 camera.request('/setcamerasettings?setManualValuesIfModeChanged=true',
                                body={'cameraSettings': changes})
                 time.sleep(.4)

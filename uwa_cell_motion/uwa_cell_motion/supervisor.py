@@ -18,7 +18,7 @@ import yaml
 from rcl_interfaces.srv import GetParameters
 
 from .common import ROBOT_IDS, all_names, load_layout, default_layout_path, simulation_only,guard_signature
-from .interlock import Interlock
+from .interlock import Interlock,expired_pair_leases,SUPERVISOR_PERIOD_S
 
 
 def hold_name(rid):return rid+'_collision_hold_controller'
@@ -42,7 +42,7 @@ class Supervisor(Node):
         self.stop_services=[self.create_service(Trigger,'~/'+rid+'/stop',
             lambda request,response,rid=rid:self.stop_arm(rid,response),callback_group=self.group) for rid in ROBOT_IDS]
         if prepare:self.prepare()
-        self.create_timer(.02,self.tick)  # independent wall clock; simulation pauses cannot hide a lost guard
+        self.create_timer(SUPERVISOR_PERIOD_S,self.tick)  # independent wall clock
         self.get_logger().info('RUNNING: resource interlocks armed; explicit reset required; simulation only')
 
     def prepare(self):
@@ -103,6 +103,11 @@ class Supervisor(Node):
     def tick(self):
         with self.lock:
             blocked=self.core.tick(time.monotonic())
+            if self.core.last:
+                expired=expired_pair_leases(self.core.last,time.monotonic(),self.cfg)
+                if expired:
+                    self.core.blocked.update(expired);blocked.update(expired)
+                    self.core.reason='PAIR SUPERVISION EXPIRED'
             if self.pending_switch is not None and self.pending_switch.done():
                 try:
                     if not self.pending_switch.result().ok:self.last_error='Controller interlock switch rejected'

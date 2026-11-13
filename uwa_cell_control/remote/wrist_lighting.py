@@ -35,11 +35,14 @@ def apply(desired):
                 or type(desired['lightingValue']) is not int or not 0 <= desired['lightingValue'] <= 175):
             raise ValueError('Invalid LED profile')
         version = request('/hello').get('version', '')
-        change = dict(desired)
-        if version.startswith(('UCC-1.11.1.', 'UCC-3.44.0.')) and change['lightingMode'] in (0, 1):
-            change['lightingMode'] = 1 - change['lightingMode']
+        known_readback = version.startswith(('UCC-4.1.0.', 'UCC-1.11.1.', 'UCC-3.44.0.'))
+        # Off is API setter mode 1 on all tested releases. Force-refresh reports
+        # the hardware switch (0=off, 1=enabled), not the API setter enum.
+        off = desired['lightingMode'] == 1 and desired['lightingValue'] == 0
+        expected_mode = 0 if off and known_readback else desired['lightingMode']
         # A setter error alone is inconclusive on UCC4.1; actual readback decides.
-        response = request('/setcamerasettings?setManualValuesIfModeChanged=true', change)
+        response = request('/setcamerasettings?setManualValuesIfModeChanged=' +
+                           ('false' if off else 'true'), desired)
         automatic = set()
         if before.get('focusAuto'):
             automatic.add('focus')
@@ -49,18 +52,20 @@ def apply(desired):
             actual = settings()
             unrelated = [k for k in before if k not in automatic and k not in desired
                          and actual.get(k) != before[k]]
-            if unrelated:
-                raise RuntimeError('LED operation changed other camera fields: ' + str(unrelated))
-            matches = all(actual.get(k) == v for k, v in desired.items())
-            # The tested UCC readback encodes manual LED mode as 1, for both
-            # zero and nonzero intensity. The setter's documented manual mode
-            # is 2. Require its successful acknowledgement AND actual intensity.
-            if (desired['lightingMode'] == 2 and response.get('status') == 'succeeded'
-                    and version.startswith(('UCC-4.1.0.', 'UCC-1.11.1.', 'UCC-3.44.0.'))):
-                matches = actual.get('lightingValue') == desired['lightingValue'] and actual.get('lightingMode') in (1, 2)
-            if matches:
+            mode = actual.get('lightingMode')
+            level = actual.get('lightingValue')
+            matches = mode == expected_mode and level == desired['lightingValue']
+            # Mode 2 enables manual light; require acknowledgement when the
+            # firmware returns the hardware boolean instead of the mode enum.
+            if known_readback and desired['lightingMode'] == 2 and mode == 1:
+                matches = response.get('status') == 'succeeded' and level == desired['lightingValue']
+            # Force-refresh can momentarily return mixed focus-window values.
+            # Require the original settings to settle; don't waive the check.
+            if matches and not unrelated:
                 return {'before': before, 'settings': actual, 'verified': True}
             time.sleep(.1)
+        if unrelated:
+            raise RuntimeError('LED operation changed other camera fields: ' + str(unrelated))
         raise RuntimeError('LED readback mismatch: ' + str(actual))
 
 

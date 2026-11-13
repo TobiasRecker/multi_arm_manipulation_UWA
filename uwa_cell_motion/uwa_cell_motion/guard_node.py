@@ -87,6 +87,7 @@ class CollisionGuard(Node):
         status.update(instance=self.instance, sequence=self.sequence, pairs=self.pairs,
                       model_signature=self.signature,model_match=self.model_match,
                       guard_config_signature=guard_signature(self.cfg),schema_version=1,
+                      evaluated_monotonic_s=now,
                       source_time_s=self.get_clock().now().nanoseconds/1e9,
                       state_ages_s={r: now-self.core.records[r]['received'] for r in self.core.records})
         self.publisher.publish(String(data=json.dumps(status, allow_nan=False)))
@@ -136,7 +137,12 @@ class CollisionGuard(Node):
             line=Marker(); line.header.frame_id='world'; line.ns='nearest'; line.id=number; number+=1
             line.type=Marker.LINE_LIST; line.pose.orientation.w=1.; line.scale.x=.012
             line.color.r=line.color.g=line.color.a=1.
-            line.points=[Point(x=p[0],y=p[1],z=p[2]) for p in pair['centres']]; markers.append(line)
+            line.points=[Point(x=p[0],y=p[1],z=p[2]) for p in pair['surface_points']]; markers.append(line)
+            for p in pair['surface_points']:
+                point=Marker();point.header.frame_id='world';point.ns='nearest_points';point.id=number;number+=1
+                point.type=Marker.SPHERE;point.pose.orientation.w=1.;point.pose.position=Point(x=p[0],y=p[1],z=p[2])
+                point.scale.x=point.scale.y=point.scale.z=.025;point.color.r=point.color.g=point.color.b=point.color.a=1.
+                markers.append(point)
             label=Marker(); label.header.frame_id='world'; label.ns='distance'; label.id=number; number+=1
             label.type=Marker.TEXT_VIEW_FACING; label.pose.orientation.w=1.; label.scale.z=.045
             p=np.mean(pair['centres'],axis=0); label.pose.position=Point(x=float(p[0]),y=float(p[1]),z=float(p[2]+.08))

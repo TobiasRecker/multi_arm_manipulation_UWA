@@ -182,7 +182,7 @@ class MotionClient(Node):
         if not confirmed:self.get_logger().error('STOP_UNCONFIRMED: '+str(errors))
         return dict(resource_holds_confirmed=held==arms,latches_confirmed=acknowledged==arms,errors=errors)
 
-    def phase(self,targets,cfg,blocked):
+    def phase(self,targets,cfg,blocked,stationary=None):
         arms=list(targets);q0={r:np.array([self.positions[j] for j in joint_names(r)]) for r in arms}
         peak=max(np.max(abs(targets[r]-q0[r])) for r in arms)
         duration=max(.2,1.875*peak/cfg['velocity_limit_rad_s'],np.sqrt(5.774*peak/cfg['acceleration_limit_rad_s2']))
@@ -200,6 +200,7 @@ class MotionClient(Node):
         deadline=time.monotonic()+duration*5+5.;results={};new_stops=set()
         while True:
             rclpy.spin_once(self,timeout_sec=.005);self.health()
+            check_stationary(self,stationary or {})
             current_blocked=set(self.guard['blocked_arms'])|set(self.supervisor['blocked_arms'])
             new_stops.update(current_blocked-blocked)
             for rid,future in self.pending.items():
@@ -226,6 +227,13 @@ class MotionClient(Node):
             if finished and len(results)==len(arms):break
             if time.monotonic()>deadline:raise TimeoutError('Measured phase progress timed out')
         return new_stops
+
+
+def check_stationary(client,baseline):
+    """Only selected arms have a planned future; other arms are obstacles."""
+    if any(abs(client.positions[j]-q)>.001 or abs(client.velocities[j])>.003
+           for j,q in baseline.items()):
+        raise RuntimeError('Unselected obstacle arm moved; remaining PTP path invalidated')
 
 
 def safe_targets(problem,client,desired,active):
@@ -329,6 +337,8 @@ def _execute(plan,output,restore_start=False):
 def _follow(problem,client,plan,result):
     selected=plan['request']['selected'];blocked=set(client.guard['blocked_arms'])|set(client.supervisor['blocked_arms'])
     if blocked&set(selected):raise RuntimeError('Selected arm is latched; explicit reset required')
+    stationary={j:client.positions[j] for r in problem.names if r not in selected for j in problem.names[r]}
+    check_stationary(client,stationary)
     if len(selected)==1:
         from .single_execution import follow
         if follow(problem,client,plan,result):return
@@ -338,6 +348,7 @@ def _follow(problem,client,plan,result):
         desired=dict(zip(names,waypoint));phase_limit=0
         while True:
             client.health();current_blocked=set(client.guard['blocked_arms'])|set(client.supervisor['blocked_arms'])
+            check_stationary(client,stationary)
             stopped.update(current_blocked&set(selected));active=[r for r in selected if r not in stopped]
             result['stopped_arms']=sorted(stopped)
             if not active:break
@@ -351,7 +362,7 @@ def _follow(problem,client,plan,result):
                 result.setdefault('rest_path_stops',[]).extend(sorted(unsafe))
                 if not unsafe:raise RuntimeError('Remaining phase cannot be proved clear')
                 continue
-            new_stops=client.phase(targets,problem.cfg,current_blocked)
+            new_stops=client.phase(targets,problem.cfg,current_blocked,stationary)
             result['guard_stops']+=len(new_stops&set(selected));result['phase_count']+=1
             phase_limit+=1
             if phase_limit>5000:raise RuntimeError('Phase progress limit reached')

@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import shlex
 import re
+from ipaddress import IPv4Address, AddressValueError
 import subprocess
 import time
 
@@ -18,8 +19,24 @@ def root():
 
 
 def directory(ip):
-    import ipaddress
-    return root() / str(ipaddress.IPv4Address(ip))
+    return root() / str(IPv4Address(ip))
+
+
+def led_request(intensity):
+    return {'lightingMode': 2 if intensity else 1, 'lightingValue': intensity}
+
+
+def enrolled_cameras():
+    """Find enabled camera directories, ignoring reports and other artifacts."""
+    if not root().is_dir():
+        return
+    for path in root().iterdir():
+        try:
+            ip = str(IPv4Address(path.name))
+        except AddressValueError:
+            continue
+        if path.is_dir() and (path / 'enabled').is_file():
+            yield ip
 
 
 def write_json(path, data):
@@ -46,10 +63,11 @@ def set_active(ip, active):
     """Caller holds the local mutex and exclusive use lock."""
     folder = directory(ip)
     profile = json.loads((folder / 'profile.json').read_text())
-    desired = profile['active'] if active else {'lightingMode': 2, 'lightingValue': 0}
+    desired = led_request(profile['active']['lightingValue'] if active else 0)
     result = remote(ip, desired)
     write_json(folder / 'state.json', dict(active=active, verified=True,
         verified_epoch=time.time(),
+        requested_led=desired,
         updated_utc=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), settings=result['settings']))
     return result
 
@@ -159,6 +177,7 @@ def reconcile(ip):
             state_file = folder / 'state.json'
             state = json.loads(state_file.read_text()) if state_file.exists() else {}
             if (state.get('active') is False and state.get('verified')
+                    and state.get('requested_led') == led_request(0)
                     and time.time() - state.get('verified_epoch', 0) < 15):
                 return
             return set_active(ip, False)
@@ -201,15 +220,15 @@ def main():
             enroll(ip)
             print('LED POLICY ENABLED · ' + ip, flush=True)
         return
-    def check(folder):
+    def check(ip):
         try:
-            reconcile(folder.name)
+            reconcile(ip)
         except Exception as error:
-            print('LED CLEANUP RETRY · ' + folder.name + ': ' + str(error), flush=True)
+            print('LED CLEANUP RETRY · ' + ip + ': ' + str(error), flush=True)
     with ThreadPoolExecutor(max_workers=4) as pool:
         while True:
             if root().exists():
-                list(pool.map(check, [p for p in root().iterdir() if p.is_dir() and p.name != 'pending']))
+                list(pool.map(check, enrolled_cameras()))
                 for path in (root() / 'pending').glob('*.json'):
                     try:
                         pending_enrollment(path)

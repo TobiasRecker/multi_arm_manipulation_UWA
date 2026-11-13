@@ -13,7 +13,7 @@ source src/multi_arm_manipulation_UWA/scripts/env.bash
 colcon --log-base log_lyrical build --build-base build_lyrical \
   --install-base install_lyrical --packages-select uwa_cell_motion
 source install_lyrical/setup.bash
-ros2 launch uwa_cell_motion guard.launch.py
+bash src/multi_arm_manipulation_UWA/scripts/motion.sh start
 ```
 
 The cell must already be running. The controller manager must have inherited
@@ -27,6 +27,11 @@ ros2 run uwa_cell_motion cell_motion reset
 
 Reset releases the hold controllers; trajectory controllers remain inactive.
 Execution or the operator must explicitly activate them. No automatic resume.
+`motion.sh status` and `motion.sh logs` inspect the managed user service
+`uwa-cell-motion`. `motion.sh stop` first requests and confirms all four holds,
+then ends only that service. It leaves Gazebo and all hardware services alone.
+For a foreground session, use `ros2 launch uwa_cell_motion guard.launch.py`
+instead; do not start a second guard beside the managed service.
 
 The geometric process publishes `/uwa_cell/collision_guard/decision`,
 `/uwa_cell/collision_guard/diagnostics` and MarkerArray
@@ -78,6 +83,16 @@ claimed. Measured stop latency must fit the configured budget.
 Replayed messages with unchanged source timestamps do not refresh state
 liveness. Reset requires fresh clear geometry,10mm extra hysteresis and a
 stationary history. A guard restart or heartbeat recovery cannot clear a latch.
+Reset can release eligible arms individually: with LF state missing, RR may
+be reset while LF/RF/LR remain held. Source-clock reversal also latches a stop.
+The geometric check uses10Hz simulation time; state/heartbeat age and the
+supervisor watchdog use wall time. Pausing Gazebo therefore causes a latch.
+The supervisor also expires each pair's geometric decision before its last
+distance reserve is consumed. Excess clearance buys extra waiting time, capped
+by the400ms heartbeat limit; a close pair can expire sooner. Same-host
+monotonic evaluation timestamps include computation and transport age, and
+the20ms supervisor period is deducted from the lease. The stop budget assumes
+the default real-time factor at most1; accelerated physics is unsupported.
 
 ## Request, plan and preview
 
@@ -88,6 +103,9 @@ ros2 run uwa_cell_motion cell_motion snapshot --output /tmp/uwa-start.json
 The request has `schema_version:1`, a complete `start` joint-position mapping
 (radians, including the four gripper drive joints) and `goals` keyed by arm ID.
 Use six joint angles per selected arm. Unselected arms remain scene obstacles.
+They must stay stationary. Include every arm intended to move in `goals`;
+an unselected arm moving during execution invalidates the job and stops the
+job's owned arms. This does not globally prohibit independent ROS motion.
 Example goal form:
 
 ```json
@@ -128,18 +146,30 @@ and all other arms, including diagonals in the full FCL scene. Collision
 sampling is at most5mrad per joint; this is discrete checking, not continuous
 mesh CCD. The execution phases add conservative interarm displacement bounds.
 
-The executor uses short independently safe phases and measured endpoint
-barriers. It can wait for unequal progress. After a pair stop it rechecks
+For a single arm among measured stationary obstacles, the executor submits the
+complete revalidated timed trajectory. It monitors the measured geometric
+corridor (1mrad), source-clock progress, stationary obstacles and full-cell FCL
+checks every50ms simulation time. A harmless temporal lag on that same path is
+recorded separately. The exact applied trajectory is saved with the execution.
+
+Multiarm execution uses short independently safe phases and measured endpoint
+barriers. It can wait for unequal progress. After a pair stop it rechecks the
 remaining phases against the current arms and a braking-displacement envelope.
-Actual execution time includes these barriers and can exceed offline timing.
+The executor recomputes quintic timing within the same limits for these phases;
+actual execution time includes barriers and can exceed offline planned timing.
+Interrupted execution requests persistent per-arm latches and resource holds
+before closing ROS; its result records whether those were confirmed.
 
 ## Reproducible comparison
 
 ```bash
 ros2 run uwa_cell_motion cell_motion coverage --output /tmp/uwa-coverage.json
-ros2 run uwa_cell_motion cell_motion scenarios --output /tmp/uwa-suite.json
-ros2 run uwa_cell_motion cell_motion benchmark /tmp/uwa-suite.json \
+ros2 run uwa_cell_motion cell_motion benchmark \
+  src/multi_arm_manipulation_UWA/uwa_cell_motion/config/benchmark_suite_20261113.json \
   --output setup/logs/uwa-motion-comparison
+ros2 run uwa_cell_motion cell_motion replay-comparison setup/logs/uwa-motion-comparison
+ros2 run uwa_cell_motion cell_motion report setup/logs/uwa-motion-comparison \
+  --output setup/logs/uwa-motion-comparison/report.html
 ```
 
 The suite has30 verified tasks, five each: free, blocked direct path,
@@ -156,6 +186,42 @@ paths, never by teleporting the cell. It requires an armed, reset guard and an
 otherwise idle simulation. Individual results and `summary.json` are saved
 incrementally; an interrupted comparison resumes from existing bound results.
 Offline successes and execution successes remain separate metrics.
+`replay-comparison` groups identical complete start/timed-trajectory pairs and
+links the physical execution record to each repeat. A newly failed execution
+aborts the batch with the latch retained. Review the saved cause before an
+explicit reset/new invocation; the batch never resets a stop automatically.
+`scenarios` can generate a new suite, but the checked-in suite freezes this
+comparison. Neighbor crossings have verified conservative sphere intersection;
+that does not imply physical mesh contact in every crossing.
+
+## Evidence and current limits (2026-11-13)
+
+The final offline set is `setup/logs/uwa-motion-comparison-v4/`:300 trials,
+10s per planner query,30 fixed tasks and five seeds. RRTConnect succeeded in
+102/125 valid-goal attempts and the circular baseline in115/125. Both rejected
+all25 intentionally invalid goals. Neighbor-crossing success was3/25 versus
+15/25. This is evidence for this suite, not a general planner ranking.
+The250 unchanged trials retain explicit provenance to the previous comparison;
+the50 corrected crossing trials use the same frozen model/configuration.
+
+The live guard check injects proximity/stale-state faults in a separate test
+fixture while moving Gazebo joints. It exposes no fault-injection service in
+production. It checks pair scope, continued independent motion, multiple
+faults, topic commands, controller reactivation, state loss and missing guard.
+Run it only with the normal motion service stopped:
+
+```bash
+bash src/multi_arm_manipulation_UWA/scripts/motion.sh stop
+python3 src/multi_arm_manipulation_UWA/uwa_cell_motion/test/live_guard_check.py \
+  --own-supervisor --output /tmp/uwa-guard-check.json
+bash src/multi_arm_manipulation_UWA/scripts/motion.sh start
+```
+
+Full-cell validation uses the shared rendered URDF, allowed-collision rules and
+floor. Arbitrary Gazebo-spawned obstacles, visual-only scan points, cables and
+unmodeled attachments are not automatically imported. Geometry changes require
+a fresh model, plan and suite; the controller manager must load matching hold
+parameters. Simulation stop measurements establish no real braking reserve.
 
 Sources: [CDF](https://arxiv.org/html/2406.01137v1),
 [Informed Circular Fields](https://www.frontiersin.org/journals/robotics-and-ai/articles/10.3389/frobt.2024.1447351/full),

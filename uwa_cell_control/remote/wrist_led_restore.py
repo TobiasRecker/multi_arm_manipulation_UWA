@@ -1,4 +1,4 @@
-"""Keep an explicitly leased manual LED profile during native recovery. MIT."""
+"""Keep the leased LED state during native recovery. MIT."""
 import os
 
 
@@ -10,10 +10,10 @@ def restore(function, worker, service, original):
         if path.startswith('/setcamerasettings') and data and 'cameraSettings' in data:
             changes = dict(data['cameraSettings'])
             if 'lightingMode' in changes or 'lightingValue' in changes:
-                # Setter enum2 is MANUAL; forceRefresh returns mode1 on the
-                # tested controllers. Replaying getter1 as setter1 turns LEDs
-                # off and destroys intensity. Never apply this to unleased use.
-                changes.update(lightingMode=2, lightingValue=original['lightingValue'])
+                # Translate the hardware switch to the setter enum. Preserve
+                # explicit OFF even during a lease configured at zero.
+                changes.update(lightingMode=1 if original['lightingMode'] == 0 else 2,
+                               lightingValue=original['lightingValue'])
                 data = {'cameraSettings': changes}
         return request(path, data)
     worker.request = manual_request

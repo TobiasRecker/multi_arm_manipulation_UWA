@@ -65,8 +65,12 @@ class SphereModel:
         delta = world[a][:, None, :]-world[b][None, :, :]
         clearances = np.linalg.norm(delta, axis=2)-self.radii[a][:, None]-self.radii[b][None, :]
         i, j = np.unravel_index(np.argmin(clearances), clearances.shape)
+        direction=world[b][j]-world[a][i];length=np.linalg.norm(direction)
+        direction=direction/length if length>1e-12 else np.array([1.,0.,0.])
         return dict(clearance_m=float(clearances[i, j]), sphere_indices=[int(i), int(j)],
                     links=[self.links[a][i], self.links[b][j]],
+                    surface_points=[(world[a][i]+direction*self.radii[a][i]).tolist(),
+                                    (world[b][j]-direction*self.radii[b][j]).tolist()],
                     centres=[world[a][i].tolist(), world[b][j].tolist()])
 
     def arm_budget(self, rid, velocities, age, cfg):

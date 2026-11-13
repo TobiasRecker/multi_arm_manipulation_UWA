@@ -155,9 +155,9 @@ class WristCamera:
         ip = self.base.split('//')[1].split(':')[0]
         managed = (directory(ip) / 'enabled').exists()
         if managed:
-            # A full focus write contains getter LED mode1. Its setter enum
-            # is manual2; preserve the current intensity rather than turning off.
-            desired['lightingMode'] = 2
+            # The readback reports the hardware switch: 0=off, 1=enabled.
+            # A focus change must preserve the current switch and intensity.
+            desired['lightingMode'] = 1 if before['lightingMode'] == 0 else 2
         self.request('/setcamerasettings?setManualValuesIfModeChanged=true',
                      body={'cameraSettings': desired})
         after = self.settings()

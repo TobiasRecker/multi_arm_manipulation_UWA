@@ -38,7 +38,7 @@ für eingefrorene Reihen; `NativeCapture(..., fast=False)` behält den alten For
 
 ## LED-Bedienung
 
-- Erster Foto-/Video-Nutzer: Licht an, letzter Nutzer: explizit manuell0.
+- Erster Foto-/Video-Nutzer: Licht an, letzter Nutzer: expliziter Aus-Modus.
   Vorschauen halten Licht durchgehend; weitere Nutzer werden mitgezählt.
   Ein Snapshot allein hält kein Licht an. Fotos halten es bis zum bestätigten Restore.
 - **Pause live view** gibt auch die Wrist-Beleuchtung frei. Andere Viewer dürfen
@@ -51,10 +51,13 @@ für eingefrorene Reihen; `NativeCapture(..., fast=False)` behält den alten For
   bestätigt dann Licht0, protokolliert Fehler und versucht erneut. Im Leerlauf
   regelmäßige Prüfung. Bei Netz-/Stromverlust ist kein sofortiger LED-Befehl möglich.
 
-Firmwarebesonderheit: manueller Setter2 wird auf den getesteten Versionen als1
-gelesen, bei Intensität0 und53. Deshalb erfolgreichen manuellen Setter UND
-tatsächliche Intensität verlangen; Getter1 nicht blind als Setter1 wiederholen.
-Ein Managed-Restore-Shim erhält den Lichtwert. Alle übrigen Felder streng prüfen.
+Der Robotiq-Setter verwendet Modus1 für **Aus** und Modus2 für **Manuell**.
+Auf UCC1.11.1, 3.44 und 4.1 meldet `forceRefresh=true` den Hardware-Schalter:
+0 = aus, 1 = eingeschaltet. `lightingValue=0` allein reicht deshalb nicht als
+Aus-Nachweis. Der Wächter verlangt Schalter0 und Intensität0. Bei Fokusänderung
+oder Wiederherstellung nach einer Aufnahme bleiben Schalter und Intensität
+erhalten. Der Wächter berücksichtigt nur aktivierte Verzeichnisse mit
+gültiger IPv4-Adresse.
 
 Erfasst sind Workspace-Clients: Wrist-Fenster, Drei-/Fünf-Kamera-App, HTTP-Fotos,
 HD-Dienst und Kalibrierungsaufnahme. Fremde direkte HTTP-Clients/Pendant-Viewer
@@ -72,12 +75,11 @@ Der aufgeschobene left_rear-Rollout wurde am12.11. abgeschlossen; die Jobdatei
 `setup/wrist_lighting/pending/left_rear.json` steht auf `COMPLETE`. Nicht erneut
 in eine laufende Messreihe ausrollen oder Kameradienste dafür neu starten.
 
-Am13.11. nach erneutem Nutzerhinweis: kein Foto-/Videonutzer aktiv, alle vier
-Nutzungssperren frei; physischer Kamera-Readback jeweils `lightingValue=0`,
-vor und nach explizitem Aus-Befehl. Guardian aktiv/aktiviert. Nachweis unter
-`setup/wrist_lighting/idle_check_20261113/verified_off.json`. Die gespeicherten
-aktiven Nutzungsintensitäten bleiben erhalten, damit das nächste Foto/Video
-wieder beleuchtet wird.
+Am13.11. meldeten alle vier Kameras im alten Leerlaufzustand Schalter1
+trotz Intensität0. Der explizite Aus-Befehl (Setter1) ergab bei allen vier
+Schalter0 und Intensität0 bei wiederholter direkter Abfrage. Die älteren
+Nachweise unter `setup/wrist_lighting/idle_check_20261113/` erfassten nur
+Intensität0 als Aus-Kriterium. Die Nutzungsintensitäten bleiben erhalten.
 
 ```bash
 systemctl --user status uwa-wrist-led-policy.service

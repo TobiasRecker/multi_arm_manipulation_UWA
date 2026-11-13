@@ -135,6 +135,19 @@ def check(output,own_supervisor=False):
             child.send_signal(signal.SIGCONT);wait_seconds(.5)
             assert set(node.supervisor['blocked_arms'])==set(ROBOT_IDS)
             results['heartbeat_recovery_stays_latched']=True
+            # A watchdog-wide latch need not strand the independent rear-right
+            # arm when only front-left state remains unavailable afterwards.
+            dump(flags,dict(stale_arms=['left_front']));wait_seconds(.5)
+            answer=node.service(Trigger,'/uwa_cell/collision_supervisor/reset',Trigger.Request())
+            assert answer.success,answer.message
+            affected={'left_front','right_front','left_rear'}
+            node.wait(lambda:set(node.supervisor['held_arms'])==affected and set(node.supervisor['blocked_arms'])==affected,3.)
+            rid='right_rear';target=np.array([node.positions[j] for j in joint_names(rid)])+np.array([0,0,0,0,0,.02])
+            node.activate([rid]);node.phase({rid:target},cfg,affected)
+            assert max(abs(node.positions[j]-target[i]) for i,j in enumerate(joint_names(rid)))<.001
+            results['partial_reset_independent_arm_continues_with_missing_neighbor_state']=True
+            results['final_stop_result']=node.stop(ROBOT_IDS)
+            assert results['final_stop_result']['resource_holds_confirmed'] and results['final_stop_result']['latches_confirmed']
             results['success']=True;results['final_positions']=dict(node.positions)
         except BaseException as error:
             import traceback

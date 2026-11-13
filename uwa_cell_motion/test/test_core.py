@@ -5,9 +5,9 @@ import pytest
 
 sys.path.insert(0,str(Path(__file__).parents[1]))
 from uwa_cell_motion.common import PAIRS,ROBOT_IDS,config,simulation_only
-from uwa_cell_motion.geometry import box_spheres
+from uwa_cell_motion.geometry import box_spheres,SphereModel
 from uwa_cell_motion.guard_core import GuardState
-from uwa_cell_motion.interlock import Interlock
+from uwa_cell_motion.interlock import Interlock,expired_pair_leases,SUPERVISOR_PERIOD_S
 
 
 @pytest.fixture
@@ -33,6 +33,14 @@ def test_spheres_enclose_volume_not_just_mesh_vertices():
     rng=np.random.default_rng(14);points=rng.uniform(lo,hi,(10000,3))
     assert np.max(np.min(np.linalg.norm(points[:,None,:]-c[None,:,:],axis=2)-r,axis=1))<=0
     assert len(c)==16
+
+
+def test_nearest_markers_use_surface_points_with_the_reported_gap():
+    from types import SimpleNamespace
+    model=SimpleNamespace(radii={'a':np.array([.1]),'b':np.array([.2])},links={'a':['tool_a'],'b':['tool_b']})
+    nearest=SphereModel.nearest(model,{'a':np.array([[0.,0.,0.]]),'b':np.array([[1.,0.,0.]])},'a','b')
+    assert np.allclose(nearest['surface_points'],[[.1,0.,0.],[.8,0.,0.]])
+    assert np.isclose(np.linalg.norm(np.diff(nearest['surface_points'],axis=0)),nearest['clearance_m'])
 
 
 def test_guard_stops_only_violating_pair_and_latches(cfg):
@@ -103,6 +111,25 @@ def test_watchdog_startup_requires_explicit_reset():
     assert core.request_reset(1)
     core.receive(decision(2,reset=1),1.1)
     assert not core.tick(1.1)
+
+
+def test_close_pair_cannot_spend_the_whole_heartbeat_timeout(cfg):
+    value=dict(evaluated_monotonic_s=1.,pairs=[dict(arms=list(PAIRS[0]),clearance_m=.10,threshold_m=.10,relative_speed_bound_m_s=.5)])
+    assert not expired_pair_leases(value,1.07,cfg)
+    assert expired_pair_leases(value,1.081,cfg)==set(PAIRS[0])
+    # A supervisor tick plus switch latency remains within the guard's
+    # check-interval + switch reserve even if no new decision arrives.
+    assert .08+SUPERVISOR_PERIOD_S+cfg['stop_latency_s']<=1/cfg['rate_hz']+cfg['stop_latency_s']
+
+
+def test_lease_includes_transport_age_and_excess_clearance(cfg):
+    value=dict(evaluated_monotonic_s=1.,pairs=[dict(arms=list(PAIRS[1]),clearance_m=.20,threshold_m=.10,relative_speed_bound_m_s=.5)])
+    assert not expired_pair_leases(value,1.27,cfg)
+    assert expired_pair_leases(value,1.281,cfg)==set(PAIRS[1])
+    value['pairs'][0]['clearance_m']=1.
+    assert not expired_pair_leases(value,1.39,cfg)
+    assert expired_pair_leases(value,1.41,cfg)==set(PAIRS[1])
+    assert expired_pair_leases({},1.,cfg)==set(ROBOT_IDS)
 
 
 def test_guard_death_stops_all_and_stays_latched_after_return():
