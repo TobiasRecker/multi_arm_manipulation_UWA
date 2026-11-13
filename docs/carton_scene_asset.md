@@ -5,6 +5,8 @@ Seit13.11.2026 ist der texturierte Avocado-Karton als versioniertes Asset
 normalen Zellstart automatisch als separates statisches Visual eingefügt.
 Gazebo und RViz verwenden dieselbe Geometrie, Texturen und Objektpose.
 
+![Karton mit Fototextur zwischen den Tischen in RViz](../output/images/carton_in_virtual_cell.png)
+
 ## Asset und Pose
 
 Verzeichnis: `uwa_cell_description/assets/carton_avocado_v1/`.
@@ -79,7 +81,10 @@ Schachtel ist keine automatisch bekannte Planungsgeometrie.
   Armkommando. Modell `uwa_asset_avocado_carton` erfolgreich eingefügt; Gazebo-
   Modellpose, ROS-TF und Markerposition stimmen numerisch überein.
 - RViz mit aktualisierter Anzeige geöffnet, Marker empfangen, keine gemeldeten
-  Texturladefehler. Livebericht:
+  Texturladefehler. Direkter RViz-Renderexport `rviz-render.png` visuell geprüft:
+  Fototextur, offene Form und Platzierung zwischen beiden Boards sichtbar.
+  Der zunächst schwarze Desktop-Screenshot wurde dafür nicht als Nachweis benutzt.
+  Livebericht und Quellcode des einmaligen Renderprüfers:
   `setup/digitization/carton_multiview_20261113/scene-live/report.json`.
 - Die OAK-Simulationskamera war für den parallelen Replay nicht in der Szene.
   Deren Einstellungen wurden erhalten; der Livecheck dokumentiert deshalb

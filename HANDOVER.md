@@ -16,6 +16,8 @@
   Eigener Benutzerdienst uwa-cell-assets; bestehendeZelle nicht neu gestartet.
 -17Offlineprüfungen bestanden; liveGazebo-Modellpose/TF/Marker abgeglichen,
   Zell-PID274663 unverändert. RViz geöffnet; keine Texturladefehler imLog.
+  Direkter RViz-Renderexport visuell geprüft; Fototextur und Position sichtbar.
+  Vorschau output/images/carton_in_virtual_cell.png.
   Sim-OAK vom parallelenReplay entfernt, daher dessen Einstellungen bewahrt
   und kein Kamerabildnachweis behauptet. Bericht unter Kartonordner/scene-live/.
 - Visual-only ohne neue Gazebo-/MoveIt-Kollision oder Hardwareaktionen;
