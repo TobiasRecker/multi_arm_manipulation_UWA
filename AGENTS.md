@@ -178,6 +178,16 @@
 
 ## Bildbasierte Objektdigitalisierung (2026-11-12)
 
+- Weiteres Nutzerobjekt13.11.: L-Konstruktion aus PTFE und Aluminium, eigene
+  Asset-ID ptfe_l_assembly_v1. Nutzerangaben20×20mm-Profile/10mm-Platten von
+  geschätzten Außenmaßen300×177×181mm unterscheiden. Keine fremde Karton-
+  Szeneinstanz ersetzen. Fotoasset fertig; Texturtracker auf diesem Objekt noch
+  LOST, keine übertragene Karton-Trackingfreigabe. docs/ptfe_l_assembly.md.
+- Kamera-only-Fünfersets können ausdrücklich --telemetry-source rtde nutzen,
+  falls ROS-Treiber fehlen: nur Ausgabefelder timestamp/actual_q/actual_qd,
+  unabhängiger Stillstandsprozess und unveränderte Prüfgrenzen. Kein Start von
+  Treibern, Programmen oder Bewegung; ROS bleibt Standard. Fehlversuche erhalten.
+
 - Nutzerziel13.11.: bekannte Assets mit6DoF-Pose wiederfinden; langsame möglichst
   genaue statische Lokalisierung vor Greifen und schnelle dynamische Verfolgung
   getrennt anbieten. Zunächst Mini-PC; Nutzer organisiert eventuell später

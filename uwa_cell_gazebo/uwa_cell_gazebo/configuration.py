@@ -1,6 +1,7 @@
 """Gazebo adapters for the shared description configuration."""
 from copy import deepcopy
 from pathlib import Path
+import xml.etree.ElementTree as ET
 import yaml
 
 from uwa_cell_description.configuration import (
@@ -10,7 +11,17 @@ from uwa_cell_description.configuration import (
 )
 
 
-def render_description(layout, directory):
+def without_image_sensors(description):
+    """Keep all physical/visual bodies and joints; omit image rendering only."""
+    root=ET.fromstring(description)
+    for parent in root.iter():
+        for child in list(parent):
+            kind=child.get('type','')
+            if child.tag=='sensor' and ('camera' in kind or kind in ('depth','rgbd')):parent.remove(child)
+    return ET.tostring(root,encoding='unicode')
+
+
+def render_description(layout, directory, *, image_sensors=True):
     """Generate only temporary launch artifacts, never edit the source layout."""
     import xacro
     from ament_index_python.packages import get_package_share_directory
@@ -28,4 +39,5 @@ def render_description(layout, directory):
     }).toxml()
     from uwa_cell_description.calibration_profile import apply_description
     description = apply_description(description, layout)
+    if not image_sensors:description=without_image_sensors(description)
     return description, controllers_file

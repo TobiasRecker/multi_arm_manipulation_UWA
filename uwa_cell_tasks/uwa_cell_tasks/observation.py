@@ -14,7 +14,7 @@ def observe(sim,description,reference,directory):
     directory=Path(directory);directory.mkdir(parents=True,exist_ok=True)
     sim.wait(lambda:all(abs(sim.v.get(j,1))<.003 for j in sim.q if '_robotiq_' not in j),10.,health=True)
     baseline=dict(sim.q);records=[];seen={a:None for a in CAMERAS};counts={a:0 for a in CAMERAS}
-    deadline=time.monotonic()+12.
+    deadline=time.monotonic()+30.
     while min(counts.values())<3 and time.monotonic()<deadline:
         sim.health()
         if any(abs(sim.q.get(j,1e9)-q)>.001 for j,q in baseline.items() if '_robotiq_' not in j):
@@ -32,7 +32,8 @@ def observe(sim,description,reference,directory):
             path=directory/f'{arm}-{counts[arm]}.npy';np.save(path,image)
             camera_pose=(json.loads((sim.directory/'scene.json').read_text())['T_world_overview_optical'] if arm=='oak'
                 else Chain(description,'world',msg.header.frame_id).forward(baseline).tolist())
-            records.append(dict(arm=arm,image=str(path.resolve()),K=list(info.k),D=list(info.d),stamp=stamp,T_world_camera=camera_pose))
+            records.append(dict(arm=arm,image=str(path.resolve()),K=list(info.k),D=list(info.d),stamp=stamp,T_world_camera=camera_pose,
+                environment='own_gazebo_renderer'))
             counts[arm]+=1
         time.sleep(.02)
     if not records:raise RuntimeError('No fresh calibrated camera images')
@@ -61,7 +62,18 @@ def worker(inputs,reference,output):
             raise ValueError('Camera calibration changed during static burst')
         frames=[np.load(r['image'],allow_pickle=False) for r in selected]
         K=np.array(selected[-1]['K']).reshape(3,3);D=np.array(selected[-1]['D'])
-        result=static_pose(estimator,frames,K,D);data=record(result);data.update(arm=arm,source_stamp=selected[-1]['stamp'])
+        hashes=[__import__('hashlib').sha256(np.ascontiguousarray(frame).tobytes()).hexdigest() for frame in frames]
+        if len(set(hashes))<3:
+            stamps=[r['stamp'] for r in selected]
+            if (not all(r.get('environment')=='own_gazebo_renderer' for r in selected)
+                    or not np.isfinite(stamps).all() or not all(b>a for a,b in zip(stamps,stamps[1:]))):
+                raise ValueError('Repeated pixels need advancing own-renderer source stamps')
+            # No noise means no extra independent information: register once,
+            # never multiply inliers or claim a three-sample accuracy gain.
+            result=estimator.register(frames[-1],K,D)
+            result.reason+='; noiseless renderer; unique source stamps, one image information content'
+        else:result=static_pose(estimator,frames,K,D)
+        data=record(result);data.update(arm=arm,source_stamp=selected[-1]['stamp'])
         if result.status=='VALID':data['T_world_object']=(np.array(selected[-1]['T_world_camera'])@result.T_camera_object).tolist()
         cv2.imwrite(str(Path(output).parent/(arm+'-inspection.jpg')),annotate(frames[-1],result,K,D));views.append(data)
     valid=[v for v in views if v['status']=='VALID']

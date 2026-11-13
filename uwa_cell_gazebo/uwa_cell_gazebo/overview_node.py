@@ -36,6 +36,8 @@ class Overview(Node):
         super().__init__('oak_overview', namespace='uwa_cell')
         self.declare_parameter('layout', str(default_layout_path()))
         self.declare_parameter('world', 'uwa_lab')
+        self.declare_parameter('image_sensors',True)
+        self.image_sensors=self.get_parameter('image_sensors').value
         self.world = self.get_parameter('world').value
         self.transport = TransportNode()
         self.broadcaster = StaticTransformBroadcaster(self)
@@ -47,7 +49,7 @@ class Overview(Node):
         self.callbacks = []
         for suffix, gz_type, ros_type, convert in (
                 ('image_raw', GzImage, Image, image_message),
-                ('camera_info', GzInfo, CameraInfo, info_message)):
+                ('camera_info', GzInfo, CameraInfo, info_message)) if self.image_sensors else ():
             topic = TOPIC + '/' + suffix
             pub = self.create_publisher(ros_type, topic, qos_profile_sensor_data)
             callback = partial(self.receive, pub, convert)
@@ -77,7 +79,7 @@ class Overview(Node):
     def apply(self):
         layout = load_layout(self.get_parameter('layout').value)
         cfg = camera_config(layout)  # Validate before touching an existing camera.
-        sdf = model_sdf(cfg) if cfg['enabled'] else None  # Resolve visual assets first.
+        sdf = model_sdf(cfg,image_sensors=self.image_sensors) if cfg['enabled'] else None
         self.ready = False
         self.remove()
         if cfg['enabled']:
@@ -99,7 +101,7 @@ class Overview(Node):
                 frames.append(real)
             self.broadcaster.sendTransform(frames)
             self.ready = True
-        self.get_logger().info(f'OAK overview: enabled={cfg["enabled"]}, '
+        self.get_logger().info(f'OAK overview: enabled={cfg["enabled"]}, images={self.image_sensors}, '
             f'{cfg["width"]}x{cfg["height"]}@{cfg["rate"]}, '
             f'xyz={cfg["xyz"]}, target={cfg["look_at"]}; '
             f'{cfg.get("quality_status", "nominal_design")}, '

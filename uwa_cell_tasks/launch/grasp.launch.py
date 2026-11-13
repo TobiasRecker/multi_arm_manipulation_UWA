@@ -33,7 +33,7 @@ def setup(context):
     plugin.find('parameters').text=str(param_file);plugin.find('ros/namespace').text=ns
     ET.SubElement(plugin.find('ros'),'remapping').text='/clock:='+ns+'/clock'
     for sensor in root.findall('gazebo/sensor'):
-        if sensor.find('update_rate') is not None:sensor.find('update_rate').text='1'
+        if sensor.find('update_rate') is not None:sensor.find('update_rate').text='10'
     for reference in root.findall('gazebo'):
         if reference.get('reference','').startswith(('left_front_','left_rear_')):
             for sensor in list(reference.findall('sensor')):reference.remove(sensor)

@@ -1,5 +1,29 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## PTFE-L-Konstruktion aufgenommen und als Asset exportiert, 2026-11-13
+
+- Separater Nutzerauftrag: neues Objekt mit vier Wristkameras und OAK aufnehmen,
+  Asset für anschließendesTracking anlegen. Nutzer bestätigt20×20mm-Profile und
+  10mm-Platten; Außenmaße bildbasiertca300×177×181mm. Keine Armbewegung.
+- Set setup/digitization/ptfe_l_20261113/acquisition/20261113_153425_f9234640/
+  set_153436_409595/ vollständig aufgenommen/brauchbar und kontinuierlich
+  stationär bestätigt; nicht alle Boards vollständig sichtbar. Erster Versuch
+  ohne ROS-Joints bleibt gescheitert. Zweiter Versuch explizit mit neuem rein
+  lesendem RTDE-Ausgabebeobachter; keine Treiber-/Programm-/Poweraktionen.
+- Asset description/assets/ptfe_l_assembly_v1 mit STEPmm, STL/GLB/DAEm,
+  fünf Fototexturen, Manifesthashes. Ein geschlossener Körper/116Dreiecke,
+  STEP-/Mesh-Rückimport geprüft,21gezielteTests bestanden. Platten/Profilnuten/
+  Schraubdetails teilweise vereinfacht; keine absolute Genauigkeit validiert.
+- Geometriefit OAK/LR/RR, RF ausschließlich geometrische Prüfansicht mit25,20px
+  Restfehler bei1600px-Breite. LF wegen nativer Optik-/Boardinkonsistenz metrisch
+  ausgeschlossen. Schätzgrenzen in docs/ptfe_l_assembly.md, keine PASS-Umdeutung.
+- Trackingreferenz1494Merkmale vorbereitet. Offline-OAK/LR/RR/RF jeweilsLOST;
+  regelmäßige Lochstruktur/glatte Flächen erschweren SIFT. Keine Online-
+  Tracking- oder Manipulationsfreigabe für dieses Objekt. Mehrskaliger Versuch
+  ebenfalls erfolglos, Diagnosen erhalten, bisherigen Trackerstandard beibehalten.
+- Laufende Karton-Simulations-/Greifarbeit unverändert; neues Asset installiert,
+  noch keine aktive Szeneinstanz. Anleitung und Vorschau docs/ptfe_l_assembly.md.
+
 ## Modulare Karton-Greifpipeline: Implementierung und erste Prüfungen, 2026-11-13
 
 - Nutzerauftrag: agentbedienbare Skills/Pipeline, zunächst beide rechten URs

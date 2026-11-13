@@ -32,7 +32,7 @@ def setup(context):
     layout = load_layout(layout_path)
     directory = Path(tempfile.mkdtemp(prefix='uwa_cell_'))
     try:
-        description, controllers = render_description(layout, directory)
+        description, controllers = render_description(layout, directory,image_sensors=enabled(context,'image_sensors'))
     except Exception:
         shutil.rmtree(directory)
         raise
@@ -52,6 +52,8 @@ def setup(context):
         RegisterEventHandler(OnShutdown(on_shutdown=lambda event, ctx:
             shutil.rmtree(directory, ignore_errors=True))),
         LogInfo(msg='UWA simulation: ROS domain 64, localhost only; no hardware drivers.'),
+        LogInfo(msg='Image rendering enabled.' if enabled(context,'image_sensors') else
+            'BENCHMARK: image rendering disabled; collision/visual bodies and TF preserved.'),
         server,
         RegisterEventHandler(OnProcessExit(target_action=server, on_exit=[
             EmitEvent(event=Shutdown(reason='Gazebo server exited'))])),
@@ -64,14 +66,15 @@ def setup(context):
              output='screen'),
     ]
     cameras = [rid for rid in ROBOT_IDS if layout['robots'][rid]['tools']['camera_enabled']]
-    if cameras:
+    if cameras and enabled(context,'image_sensors'):
         actions.append(Node(package='uwa_cell_gazebo', executable='camera_bridge',
                             name='camera_bridge', namespace='uwa_cell',
                             parameters=[{'robot_ids': cameras, 'use_sim_time': True}],
                             output='screen'))
     if layout.get('overview_camera', {}).get('enabled', False):
         overview = Node(package='uwa_cell_gazebo', executable='oak_overview',
-                        parameters=[{'layout': layout_path, 'use_sim_time': True}], output='screen')
+                        parameters=[{'layout': layout_path, 'use_sim_time': True,
+                                     'image_sensors':enabled(context,'image_sensors')}], output='screen')
         # Creating this separate sensor model before the cell is inserted can
         # lose the camera during the initial scene reconstruction. Spawn only
         # after the cell exists; no robot state is reset for later camera reloads.
@@ -142,6 +145,7 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('layout', default_value=str(default_layout_path())),
         DeclareLaunchArgument('gui', default_value='true'),
+        DeclareLaunchArgument('image_sensors', default_value='true',description='Render camera images; false keeps all geometry/TF for motion benchmarks'),
         DeclareLaunchArgument('controller_gui', default_value='true'),
         DeclareLaunchArgument('rviz', default_value='false'),
         DeclareLaunchArgument('hardware_overlay',default_value='true'),

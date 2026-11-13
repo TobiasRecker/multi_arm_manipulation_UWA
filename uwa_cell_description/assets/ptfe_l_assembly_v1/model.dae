@@ -35,7 +35,7 @@
               <color>1 1 1 1</color>
             </ambient>
             <diffuse>
-              <color>0.682352941 0.556862745 0.388235294 1</color>
+              <color>0.607843137 0.643137255 0.666666667 1</color>
             </diffuse>
           </lambert>
         </technique>
@@ -52,7 +52,7 @@
               <color>1 1 1 1</color>
             </ambient>
             <diffuse>
-              <color>0.682352941 0.556862745 0.388235294 1</color>
+              <color>0.921568627 0.921568627 0.898039216 1</color>
             </diffuse>
           </lambert>
         </technique>

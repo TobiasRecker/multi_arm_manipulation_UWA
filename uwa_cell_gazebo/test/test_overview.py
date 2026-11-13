@@ -52,6 +52,14 @@ def test_sdf_stays_static_with_matching_optics_topics_and_no_controllers():
     assert root.findall('.//collision') == []  # visual stand, not yet a planning obstacle
 
 
+def test_sensor_free_overview_preserves_every_visual_and_pose():
+    cfg=camera_config(load_layout());normal=ET.fromstring(model_sdf(cfg))
+    normal.find('model/link').remove(normal.find('model/link/sensor'))
+    disabled=ET.fromstring(model_sdf(cfg,image_sensors=False))
+    assert disabled.findall('.//sensor')==[]
+    assert ET.tostring(normal)==ET.tostring(disabled)
+
+
 def test_overview_finds_small_markers_in_large_frame_without_world_pose_input():
     import cv2
     config = load_layout()['charuco']

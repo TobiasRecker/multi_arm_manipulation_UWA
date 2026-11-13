@@ -58,7 +58,13 @@ def package(source,output,*,basename='carton',title='Open avocado carton',source
         ET.SubElement(ET.SubElement(lambert,'ambient'),'color').text='1 1 1 1'
         diffuse=ET.SubElement(lambert,'diffuse')
         if textured:ET.SubElement(diffuse,'texture',texture=ident+'_sampler',texcoord='UVMap')
-        else:ET.SubElement(diffuse,'color').text='0.682352941 0.556862745 0.388235294 1'
+        else:
+            # Preserve the source material for non-carton assets as well.
+            material=getattr(geometry.visual,'material',None)
+            color=getattr(material,'baseColorFactor',None)
+            if color is None:color=np.asarray(geometry.visual.vertex_colors)[0]
+            color=np.asarray(color,dtype=float)/255.0
+            ET.SubElement(diffuse,'color').text=' '.join(f'{v:.9g}' for v in color)
         ET.SubElement(ET.SubElement(materials,'material',id=ident+'_material'),'instance_effect',url='#'+ident+'_effect')
         mesh=ET.SubElement(ET.SubElement(geometries,'geometry',id=ident),'mesh')
         def source_array(suffix,values,parameters):

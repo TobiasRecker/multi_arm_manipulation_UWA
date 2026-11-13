@@ -78,3 +78,24 @@ def test_changed_asset_hash_invalid_pose_and_implicit_reanchor_are_rejected(tmp_
         with pytest.raises(ValueError,match='rigid'):rigid(bad)
     layout=load_layout();layout['scene_objects'][0]['anchor_frame']='world'
     with pytest.raises(ValueError,match='different anchor'):instances(layout,SHARE)
+
+
+def test_ptfe_asset_uses_own_geometry_materials_and_board_pose():
+    layout=deepcopy(load_layout())
+    layout['scene_objects']=[dict(id='ptfe_l',asset='ptfe_l_assembly_v1')]
+    item=instances(layout,SHARE)[0];manifest=item['manifest']
+    root=ET.parse(item['mesh_file']).getroot()
+    points=[]
+    for source in root.findall('.//c:source',NS):
+        if source.get('id','').endswith('_positions'):
+            points.extend(np.fromstring(source.findtext('c:float_array',namespaces=NS),sep=' ').reshape(-1,3))
+    np.testing.assert_allclose(np.ptp(points,axis=0),manifest['dimensions_m'],atol=1e-8)
+    assert len(root.findall('c:library_images/c:image',NS))==5
+    colors=[np.fromstring(c.text,sep=' ') for c in root.findall('.//c:diffuse/c:color',NS)]
+    # White PTFE and grey aluminium must survive GLB -> ROS DAE export.
+    assert len(colors)==2 and all(np.ptp(c[:3])<.1 for c in colors)
+    np.testing.assert_allclose(item['T_world_object'][:3,2],[0,0,1],atol=1e-8)
+    assert manifest['quality']['wall_thickness_m']==.01
+    assert not manifest['quality']['measured_accuracy_validated']
+    sdf=ET.fromstring(model_sdf(item))
+    assert sdf.find('.//collision') is None

@@ -92,6 +92,9 @@ class Simulation(Node):
                 or now-self.supervisor_received>.4):raise RuntimeError('STOP requested or state/guard lost')
         if self.owned and set(ARMS).intersection(self.supervisor.get('blocked_arms',[])):
             raise RuntimeError('Grasp group/owned arm STOP LATCHED')
+        if self.owned and any(abs(self.q.get(j,float('inf'))-q)>.001 or abs(self.v.get(j,float('inf')))>.003
+            for j,q in getattr(self,'obstacles',{}).items()):
+            raise RuntimeError('Unselected obstacle arm moved; remaining task plan invalid')
 
     def connect(self):
         self.wait(lambda:bool(self.q) and self.guard is not None and self.supervisor is not None
@@ -134,6 +137,8 @@ class Simulation(Node):
         if response.status!=GoalStatus.STATUS_SUCCEEDED or response.result.error_code!=0:
             raise RuntimeError('Action failed: '+response.result.error_string)
         self.wait(lambda:all(abs(self.v.get(j,1))<.003 for j in trajectory['joint_names']),5.,health=True)
+        if any(abs(self.q.get(j,float('inf'))-q)>.001 for j,q in zip(trajectory['joint_names'],trajectory['points'][-1]['positions'])):
+            raise RuntimeError('Measured endpoint did not reach the checked common target')
         self.handles.remove(handle)
 
     def grippers(self,target):
@@ -184,7 +189,8 @@ class Simulation(Node):
         for h in list(self.handles):h.cancel_goal_async()
         try:
             for arm in ARMS:self.call('stop_'+arm,Trigger.Request(),3.)
-            self.wait(lambda:all(abs(self.v.get(j,1))<.003 for a in ARMS for j in joint_names(a)),4.)
+            self.wait(lambda:set(ARMS)<=set(self.supervisor.get('held_arms',[])) and
+                all(abs(self.v.get(j,1))<.003 for a in ARMS for j in joint_names(a)),5.)
             states=self.call('list',ListControllers.Request()).controller
             report['confirmed']=all(any(c.name==a+'_collision_hold_controller' and c.state=='active' for c in states) for a in ARMS)
         except Exception as error:report['error']=str(error)
@@ -213,9 +219,10 @@ def run_task(directory,scene_directory,layout_file,namespace,reference):
     if store.state['state']!='CREATED':raise RuntimeError('A run is immutable after start; create a new run directory')
     scene_directory=Path(scene_directory);scene=verify(json.loads((scene_directory/'scene.json').read_text()))
     cfg=scene['cfg'];layout=load_layout(layout_file);description=(scene_directory/'robot.urdf').read_text()
-    sim=Simulation(namespace,scene_directory);sim.stop_directory=directory;sim.connect();group=None
+    sim=Simulation(namespace,scene_directory);sim.stop_directory=directory;sim.layout=layout;sim.connect();group=None
     try:
         sim.reset();sim.activate_group()
+        sim.obstacles={j:q for j,q in sim.q.items() if j.startswith(('left_front_','left_rear_')) and ('_robotiq_' not in j or j.endswith('robotiq_85_left_knuckle_joint'))}
         for attempt in range(int(cfg['maximum_attempts'])):
             store.event('RUNNING','observe',attempt=attempt+1)
             from .observation import observe

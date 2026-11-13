@@ -105,6 +105,12 @@ remained stationary, so real motion/occlusion and absolute accuracy still need
 validation. Start camera-only: `bash src/multi_arm_manipulation_UWA/scripts/object_tracking.sh oak`.
 
 
+The new [PTFE L assembly asset](docs/ptfe_l_assembly.md) includes real photo
+textures and STEP/STL/GLB/ROS meshes, estimated at300×177×181mm with user-supplied
+10mm plates and20×20mm profiles. Five stationary camera views were captured
+without arm motion. Its tracking reference is prepared, but the current CPU
+texture matcher still reports LOST on this object; recognition needs further work.
+
 ## OAK camera CAD and tripod
 
 The overview camera now uses the supplied OAK-4-Pro CAD model in **Gazebo and

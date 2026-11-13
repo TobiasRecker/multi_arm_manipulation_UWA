@@ -79,7 +79,11 @@ def fit(out):
         assumptions=['rigid90degree L, perpendicular planar plates','base20mm profile plus10mm plate above support plane',
             'profile placement inferred from visible frame; hidden underside approximate','profile internal slots and plate perforations not measured'],
         method='robust fixed-optics multi-view plate fit and board-camera bundle; no prior object pose',
-        wall_thickness_m=None,wall_thickness_measured=False)
+        wall_thickness_measured=False)
+    for key in ('length_m','height_m','wall_thickness_m'):
+        refined.pop(key,None)
+    for metric in refined['metrics'].values():
+        metric['pose_used_object_observations']=metric.pop('pose_used_carton_observations')
     save(out/'assembly_result.json',refined)
     models=json.loads((out/'refined_camera_models.json').read_text())
     for key,c in models.items():

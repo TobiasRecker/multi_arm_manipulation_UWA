@@ -17,6 +17,18 @@ def description(layout, directory):
     return ET.fromstring(render_description(layout, directory)[0])
 
 
+def test_image_rendering_can_be_disabled_without_changing_robot_or_controller_model(tmp_path):
+    layout=load_layout(LAYOUT)
+    normal=ET.fromstring(render_description(layout,tmp_path)[0])
+    disabled=ET.fromstring(render_description(layout,tmp_path,image_sensors=False)[0])
+    assert len(normal.findall('.//sensor[@type="camera"]'))==4
+    assert disabled.findall('.//sensor[@type="camera"]')==[]
+    for tag in ('link','joint','ros2_control'):
+        assert [ET.tostring(e) for e in normal.findall(tag)]==[ET.tostring(e) for e in disabled.findall(tag)]
+    assert [ET.tostring(e) for e in normal.findall('.//sensor') if e.get('type')!='camera']==[
+        ET.tostring(e) for e in disabled.findall('.//sensor')]
+
+
 def transform(root, link, ancestor='world'):
     parents = {joint.find('child').get('link'): joint for joint in root.findall('joint')}
     matrix = np.eye(4)

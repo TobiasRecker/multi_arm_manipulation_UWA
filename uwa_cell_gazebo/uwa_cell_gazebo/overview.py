@@ -133,7 +133,7 @@ def coverage(layout):
     return result
 
 
-def model_sdf(cfg):
+def model_sdf(cfg, *, image_sensors=True):
     root = ET.Element('sdf', version='1.9')
     model = ET.SubElement(root, 'model', name=MODEL)
     ET.SubElement(model, 'static').text = 'true'
@@ -142,6 +142,7 @@ def model_sdf(cfg):
     rpy = Rotation.from_matrix(sensor_pose[:3, :3]).as_euler('xyz')
     ET.SubElement(link, 'pose').text = ' '.join(map(str, [*sensor_pose[:3,3], *rpy]))
     append_sdf_visuals(model, link, sensor_pose)
+    if not image_sensors:return ET.tostring(root,encoding='unicode')
     sensor = ET.SubElement(link, 'sensor', name='oak_rgb', type='camera')
     for key, value in [('always_on','true'), ('update_rate',str(cfg['rate'])),
                        ('topic',TOPIC+'/image_raw'), ('frame_id',FRAME)]:

@@ -27,7 +27,7 @@ def test_contact_scene_keeps_open_geometry_mass_and_actual_fingers(tmp_path):
         v=np.array(shape['vertices'])
         assert np.ptp(v[:,shape['axis']])<=cfg['wall_thickness_m']+1e-8
     candidates=grasp_candidates(description,record,cfg,record['T_world_object'])
-    assert len(candidates)==8
+    assert len(candidates)==10
     for candidate in candidates:
         assert set(candidate['tcp_targets'])==set(cfg['arms'])
         for arm,pose in candidate['tcp_targets'].items():

@@ -69,6 +69,15 @@
   danach PASS; Regression mit kontinuierlich bereitem Timer und Trigger-RPC
   ergänzt. Konsistente Controller-Liste statt vierfacher Einzelabfrage;
   Rückmeldewartezeit separat vom unveränderten Aktuator-/Abstandsbudget.
+- Verwalteter Lauf wurde korrekt bei 300ms Zustandsalter gestoppt; Ressourcen
+  anschließend bestätigt. Einfrierende Simzeit bei hochauflösenden Bildsensoren
+  statt Bewegung/Frischegrenzen zu lockern untersuchen. Neuer Startparameter
+  image_sensors:=false entfernt ausschließlich Bildsensor-Tags, Kamerabridges
+  und Bildpublikation; Geometrie, Inertien, Kalibrierung/TF bleiben erhalten.
+  OAK-Visualmodell bleibt über den Overview-Node bestehen. Gemeinsamen eigenen
+  Simdienst nach Modellgleichheitsprüfung dafür neu starten; andere Dienste
+  nicht steuern. Für einheitliche Abnahmebedingungen anschließend neue komplette
+  Ausführungsserie, bisherige Nachweise/Fehlschläge vollständig archivieren.
 
 ## Zwischenstand
 

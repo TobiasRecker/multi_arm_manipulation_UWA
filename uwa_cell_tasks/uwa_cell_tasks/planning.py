@@ -74,11 +74,11 @@ def grasp_candidates(description, scene, cfg, object_pose):
     candidates=[]
     for axis in (0,1):
         tangent=1-axis
-        for fraction in (.2,.3,.7,.8):
+        for fraction in (.5,.2,.3,.7,.8):
             targets={};pre={};contacts={}
             for arm, side in zip(ARMS,(0,1)):
                 point=np.zeros(3);point[axis]=dims[axis]*side+cfg['wall_thickness_m']*(.5 if not side else -.5)
-                point[tangent]=dims[tangent]*fraction
+                point[tangent]=dims[tangent]*(fraction if side==0 else 1-fraction)
                 heights=[]
                 for shape in scene['shapes']:
                     if shape['axis']!=axis or shape['side']!=side:continue

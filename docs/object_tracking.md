@@ -58,6 +58,13 @@ mit `asset.json` vorliegen. Wenig Textur/ähnliche Ansichten können die Erkennu
 verhindern; hier wird kein universeller Scanner/Detektor behauptet.
 Bei Assetänderung `prepare` erneut ausführen; Referenzen sind asset-hashgebunden.
 
+Zusätzliches Asset seit13.11.: **`ptfe_l_assembly_v1`**, die L-Konstruktion aus
+10mm-PTFE-Platten und20×20mm-Aluminiumprofilen. 1494 Modellmerkmale vorbereitet;
+Offline-Wiedererkennung in vier Ansichten derzeit **LOST**. Das periodische
+Lochmuster bietet zu wenige eindeutige Zuordnungen für diesen Backend. Die
+Karton-Ergebnisse gelten deshalb nicht automatisch für dieses Objekt.
+[Modell, Aufnahmen, Grenzen und nächste Schritte](ptfe_l_assembly.md).
+
 Für eine bereits vorhandene ROS-Kamera ohne Gerätezugriff:
 
 ```bash

@@ -182,7 +182,7 @@ def prepare_scene(layout, cfg, directory):
     ET.SubElement(plane,'normal').text='0 0 1';ET.SubElement(plane,'size').text='30 30'
     from uwa_cell_gazebo.overview import camera_config,model_sdf,transforms
     overview_layout=deepcopy(layout)
-    overview_layout['overview_camera'].update(width=2000,height=1500,rate=1.)
+    overview_layout['overview_camera'].update(width=2000,height=1500,rate=10.)
     overview=camera_config(overview_layout)
     overview_model=ET.fromstring(model_sdf(overview)).find('model');overview_model.set('name','uwa_grasp_oak');w.append(overview_model)
     (directory/'world.sdf').write_text(ET.tostring(world,encoding='unicode'))

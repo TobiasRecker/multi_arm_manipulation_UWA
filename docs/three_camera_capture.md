@@ -103,6 +103,28 @@ colcon --log-base log_lyrical build --build-base build_lyrical --install-base in
 python3 src/multi_arm_manipulation_UWA/scripts/install_camera_capture_desktop.py
 ```
 
+## Explicit output-only telemetry for stationary five-camera sets
+
+If ROS hardware drivers are not running, a camera-only five-camera set can
+explicitly subscribe to actual joint positions/velocities directly:
+
+```bash
+bash src/multi_arm_manipulation_UWA/scripts/camera_capture.sh \
+  --five-cameras --capture-only --telemetry-source rtde
+```
+
+ROS remains the default observer. The separate RTDE process uses protocol2,
+20Hz output fields `timestamp,actual_q,actual_qd` on30004; it sends only protocol
+negotiation, output setup and data-stream start. No input recipe, registers,
+URScript, I/O, robot-program command or driver startup. See the
+[UR RTDE protocol](https://docs.universal-robots.com/tutorials/communication-protocol-tutorials/rtde-guide.html).
+Controller timestamps must advance. Existing continuous freshness, settling,
+velocity and drift checks remain unchanged; missing/stale data fail the set.
+This is a stationarity audit, not exposure synchronization or a motion supervisor.
+Logs identify the selected source; missing ROS endpoint samples remain labelled.
+The PTFE five-camera set on13.11. passed with this observer. A prior missing-ROS
+attempt remains failed. Details: [PTFE asset](ptfe_l_assembly.md).
+
 ## First hardware check,2026-11-12
 
 Both right URs supplied fresh joint states, native safety NORMAL, External Control
