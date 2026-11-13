@@ -1,5 +1,6 @@
 """Image-only observation worker; simulator truth never enters pose estimation."""
 import json
+import hashlib
 from pathlib import Path
 import subprocess
 import sys
@@ -10,8 +11,27 @@ from match_cooperative_handling.rigid_object import pose_error
 from .core import ARMS,CAMERAS,seal,write_json
 
 
+def rendered_static_pose(estimator,frames,K,D,records):
+    """Only our timestamp-audited noiseless renderer may repeat pixels."""
+    from uwa_cell_tracking.static import static_pose
+    hashes=[hashlib.sha256(np.ascontiguousarray(frame).tobytes()).hexdigest() for frame in frames]
+    if len(set(hashes))>=3:return static_pose(estimator,frames,K,D)
+    stamps=[r['stamp'] for r in records]
+    if (len(frames)<3 or len(records)!=len(frames)
+            or not all(r.get('environment')=='own_gazebo_renderer' for r in records)
+            or not np.isfinite(stamps).all() or not all(b>a for a,b in zip(stamps,stamps[1:]))):
+        raise ValueError('Repeated pixels need advancing own-renderer source stamps')
+    result=estimator.register(frames[-1],K,D)
+    result.reason+='; noiseless renderer; unique source stamps, one image information content'
+    return result
+
+
 def observe(sim,description,reference,directory):
     directory=Path(directory);directory.mkdir(parents=True,exist_ok=True)
+    reference_meta=json.loads(Path(reference).with_suffix('.json').read_text())
+    scene=json.loads((sim.directory/'scene.json').read_text())
+    if (reference_meta['asset_id']!=scene['asset_id'] or reference_meta['asset_manifest_sha256']!=scene['asset_manifest_sha256']):
+        raise ValueError('Image reference belongs to a different asset revision')
     sim.wait(lambda:all(abs(sim.v.get(j,1))<.003 for j in sim.q if '_robotiq_' not in j),10.,health=True)
     from std_srvs.srv import Trigger
     baseline=dict(sim.q);records=[]
@@ -58,17 +78,7 @@ def worker(inputs,reference,output):
             raise ValueError('Camera calibration changed during static burst')
         frames=[np.load(r['image'],allow_pickle=False) for r in selected]
         K=np.array(selected[-1]['K']).reshape(3,3);D=np.array(selected[-1]['D'])
-        hashes=[__import__('hashlib').sha256(np.ascontiguousarray(frame).tobytes()).hexdigest() for frame in frames]
-        if len(set(hashes))<3:
-            stamps=[r['stamp'] for r in selected]
-            if (not all(r.get('environment')=='own_gazebo_renderer' for r in selected)
-                    or not np.isfinite(stamps).all() or not all(b>a for a,b in zip(stamps,stamps[1:]))):
-                raise ValueError('Repeated pixels need advancing own-renderer source stamps')
-            # No noise means no extra independent information: register once,
-            # never multiply inliers or claim a three-sample accuracy gain.
-            result=estimator.register(frames[-1],K,D)
-            result.reason+='; noiseless renderer; unique source stamps, one image information content'
-        else:result=static_pose(estimator,frames,K,D)
+        result=rendered_static_pose(estimator,frames,K,D,selected)
         data=record(result);data.update(arm=arm,source_stamp=selected[-1]['stamp'])
         if result.status=='VALID':data['T_world_object']=(np.array(selected[-1]['T_world_camera'])@result.T_camera_object).tolist()
         cv2.imwrite(str(Path(output).parent/(arm+'-inspection.jpg')),annotate(frames[-1],result,K,D));views.append(data)

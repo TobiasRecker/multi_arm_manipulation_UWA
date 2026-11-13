@@ -19,6 +19,18 @@ from .core import ARMS, seal
 from .scene import apply_object
 
 
+def support_exemptions(problem,object_pose):
+    """Only shallow object/table support, never finger/table or deep penetration."""
+    from uwa_cell_description.scene_assets import transform
+    local=np.asarray([v for s in problem.scene_record['shapes'] for v in s['vertices']])
+    t=np.asarray(object_pose);world=local@t[:3,:3].T+t[:3,3]
+    for table_id,table in problem.layout['tables'].items():
+        inv=np.linalg.inv(transform(table['xyz'],table['rpy']))
+        points=world@inv[:3,:3].T+inv[:3,3]
+        shallow=-.001<=points[:,2].min()-table['height']<=.001
+        problem.collision.scene.allowed_collision_matrix.set_entry(table_id+'_table_plate',problem.scene_record['object_id'],bool(shallow))
+
+
 def actual_names(description, layout):
     result=all_names(layout)
     for arm in ARMS:
@@ -50,7 +62,9 @@ class TaskProblem(Problem):
         self.spheres=SphereModel(self.description,self.names,self.cfg['sphere_spacing_m'])
         self.signature=collision_signature(self.description)
         self.chains={a:Chain(description,'world',a+'_tool0') for a in ARMS}
-        if not static: apply_object(self.collision,scene,object_pose,touching=True)
+        if not static:
+            apply_object(self.collision,scene,object_pose,touching=True)
+            support_exemptions(self,object_pose)
 
     def solve_tcp(self, arm, start, target, *, attempts=1):
         target=rigid(target);names=joint_names(arm);chain=self.chains[arm]
@@ -128,6 +142,42 @@ def plan_approach(problem, start, candidate, *, seed=0):
         model_signature=problem.signature,scene_sha256=problem.scene_record['sha256'],candidate=candidate))
 
 
+def grasp_entry(problem, start, candidate, cfg):
+    """Checked common Cartesian entry before contacts; no individual retiming."""
+    names=[j for a in ARMS for j in joint_names(a)];q=dict(start);samples=[]
+    origins={a:problem.chains[a].forward(q) for a in ARMS}
+    for u in np.linspace(0,1,121):
+        for arm in ARMS:
+            target=interpolate(origins[arm],candidate['tcp_targets'][arm],float(u))
+            q.update(zip(joint_names(arm),problem.solve_tcp(arm,q,target)))
+        if not problem.collision.check(q)[0]:raise ValueError('Final grasp entry collides')
+        request=dict(start=start,joint_names=names)
+        if not problem.check(request,np.array([q[n] for n in names])):
+            raise ValueError('Final grasp entry violates stopping reserve')
+        samples.append([q[j] for j in names])
+    samples=np.asarray(samples);fractions=np.linspace(0,1,len(samples))
+    gradient=np.gradient(samples,fractions,axis=0)
+    duration=max(30.,1.875*np.max(abs(gradient))/cfg['joint_velocity_rad_s'])
+    points=[]
+    for u in np.linspace(0,1,max(121,int(np.ceil(duration/.025))+1)):
+        s=10*u**3-15*u**4+6*u**5
+        positions=[float(np.interp(s,fractions,samples[:,i])) for i in range(len(names))]
+        points.append(dict(time=float(u*duration),positions=positions))
+    return dict(joint_names=names,points=points,duration_s=float(duration)),q
+
+
+class PlannedObjectConstraint:
+    """Predicted rigid geometry for preflight; never evidence of a real grasp."""
+    members=ARMS
+    def __init__(self,obj,tcps):
+        from match_cooperative_handling.rigid_object import relative
+        self.offsets={a:relative(obj,tcps[a]) for a in ARMS}
+    def targets(self,obj):
+        from match_cooperative_handling.rigid_object import tcp_target
+        return {a:tcp_target(obj,t) for a,t in self.offsets.items()}
+    def record(self):return dict(kind='predicted_geometry_only',members=ARMS,object_to_tcp=self.offsets,contact_confirmed=False)
+
+
 def object_trajectory(problem, group, start, object_start, object_end, cfg):
     """One common object parameter. IK resolves actuator states, not arm paths.
 
@@ -143,6 +193,7 @@ def object_trajectory(problem, group, start, object_start, object_end, cfg):
         q=dict(qprev)
         for arm,(target,_) in targets.items():q.update(zip(joint_names(arm),problem.solve_tcp(arm,qprev,target)))
         apply_object(problem.collision,problem.scene_record,obj,touching=True)
+        support_exemptions(problem,obj)
         if not problem.collision.check(q)[0]:raise ValueError('Object motion full-scene collision')
         world=problem.spheres.world(q)
         for pair in problem.thresholds():
@@ -168,6 +219,7 @@ def object_trajectory(problem, group, start, object_start, object_end, cfg):
             d,a=pose_error(problem.chains[arm].forward(state),expected)
             if d>.0005 or a>.004:raise ValueError('Shared controller interpolation violates rigid-object corridor')
         apply_object(problem.collision,problem.scene_record,obj,touching=True)
+        support_exemptions(problem,obj)
         if not problem.collision.check(state)[0]:raise ValueError('Interpolated object motion collides')
         points.append(dict(time=float(time_u*duration),positions=q.tolist(),object_pose=obj.tolist()))
     return seal(dict(kind='rigid_object',joint_names=names,points=points,duration_s=duration,

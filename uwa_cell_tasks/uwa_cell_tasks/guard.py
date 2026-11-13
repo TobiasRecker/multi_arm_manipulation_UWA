@@ -97,6 +97,18 @@ class TaskGuard(Node):
                     d,r=pose_error(self.chains[a].forward(self.positions),expected)
                     if d>self.scene['cfg']['relative_position_tolerance_m'] or r>self.scene['cfg']['relative_angle_tolerance_rad']:
                         faults.append(dict(arms=list(ARMS),reason='GRASP RIGIDITY ERROR / SLIP'))
+                    region=self.group.get('contact_regions',{}).get(a)
+                    if region and not self.releasing:
+                        centre=np.array(region['point_object']);axis=np.array(region['normal_object'])
+                        for side in ('left','right'):
+                            valid=False
+                            for contact in self.contacts['contacts']:
+                                if not any(a+'_robotiq_85_'+side+'_finger_tip' in n for n in contact['collisions']):continue
+                                for point,normal in zip(contact['positions'],contact.get('normals',[])):
+                                    local=obj[:3,:3].T@(np.array(point)-obj[:3,3])
+                                    local_normal=obj[:3,:3].T@np.array(normal)
+                                    if np.linalg.norm(local-centre)<.04 and abs(local_normal@axis)>.7:valid=True
+                            if not valid:faults.append(dict(arms=list(ARMS),reason='GRASP CONTACT OUTSIDE CHECKED WALL REGION'))
         return faults
 
     def tick(self):

@@ -64,3 +64,18 @@ def test_invalid_transform_is_not_accepted_as_pose():
     with pytest.raises(ValueError):tcp_target(malformed,np.eye(4))
     end=np.eye(4);end[2,3]=.03
     assert interpolate(np.eye(4),end,.5)[2,3]==pytest.approx(.015)
+
+
+def test_noiseless_renderer_does_not_weaken_real_frame_freshness():
+    from types import SimpleNamespace
+    from uwa_cell_tasks.observation import rendered_static_pose
+    class Estimator:
+        calls=0
+        def register(self,*args):
+            self.calls+=1;return SimpleNamespace(status='VALID',inliers=42,reason='single render')
+    e=Estimator();frames=[np.zeros((8,8,3),np.uint8)]*3
+    records=[dict(environment='own_gazebo_renderer',stamp=t) for t in (1.,2.,3.)]
+    result=rendered_static_pose(e,frames,np.eye(3),[],records)
+    assert result.inliers==42 and e.calls==1
+    with pytest.raises(ValueError):rendered_static_pose(e,frames,np.eye(3),[],[dict(r,environment='physical') for r in records])
+    with pytest.raises(ValueError):rendered_static_pose(e,frames,np.eye(3),[],[dict(r,stamp=1.) for r in records])

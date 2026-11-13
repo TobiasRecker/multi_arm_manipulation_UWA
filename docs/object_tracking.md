@@ -11,12 +11,12 @@ Zwei Modi teilen dieselbe Objekt-ID und denselben metrischen Assetframe:
 Das ist **keine FoundationPose-Installation**. Der erste Backend verwendet
 OpenCV-SIFT, metrische Oberflächenmerkmale, RANSAC/PnP und LK-Tracking.
 FoundationPose benötigt in der offiziellen Implementierung CUDA und RGB-D
-einschließlich Objektmaske zur Initialisierung. Als spätere Backends kommen
-[FoundationPose](https://github.com/NVlabs/FoundationPose) auf zusätzlichem
-NVIDIA-Rechner und [M3T](https://github.com/DLR-RM/3DObjectTracking/tree/master/M3T)
-mit Region-/Textur-/Tiefenmodalitäten infrage. Sie sind noch nicht angebunden.
-Nutzerentscheidung: zunächst Mini-PC, zusätzliches GPU-Compute organisiert er
-parallel; keine Anschaffung oder Remote-Anbindung durch diesen Prototyp.
+einschließlich Objektmaske zur Initialisierung. Seit13.11. steht eine zusätzliche
+TITAN-RTX-Workstation für einen [isolierten FoundationPose-Versuch](foundationpose_titanpc.md)
+zur Verfügung. Noch kein Backendtausch oder GPU-Erfolg dieses CPU-Prototyps.
+[M3T](https://github.com/DLR-RM/3DObjectTracking/tree/master/M3T) mit Region-/Textur-/
+Tiefenmodalitäten bleibt eine weitere Option; beide noch nicht an dessen ROS-
+Schnittstelle angebunden.
 
 ![Erste reale OAK-Trackingausgabe](../output/images/carton_cpu_tracking.png)
 

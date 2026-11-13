@@ -78,6 +78,21 @@
   Simdienst nach Modellgleichheitsprüfung dafür neu starten; andere Dienste
   nicht steuern. Für einheitliche Abnahmebedingungen anschließend neue komplette
   Ausführungsserie, bisherige Nachweise/Fehlschläge vollständig archivieren.
+- Renderfreie Variante geprüft:36Gazebo-Modell-/Overview-Tests PASS;
+  Kollisionssignatur exakt weiterhin cdeff888…461504, identische Mesh-Hashes,
+  alle68Kollisionskörper erhalten, Bildsensoren4→0. Eigener Zellneustart
+  abgeschlossen(16:12Perth), Default-Controller vollständig aktiv.
+  Alte Ausführungen unter execution-history-pre-sensor-free/ vollständig
+  erhalten; neue Serie sensor_free_v1 führt alle55unterschiedlichen Bahnen
+  unter denselben Renderbedingungen aus. OAK-Bilder aus, CAD/TF bleiben.
+- Sensorfreie Komplett-Stoppabnahme PASS, auch nach Quellenpause. Zusätzliche
+  Fehlerauslösung erst bei beiden Armen≥95%der Geschwindigkeit: gemessene
+  0,04755rad/s,80ms bis Stillstand; unabhängiger Arm erreicht sein Ziel.
+  Knappe Paarlease128ms, Wächterausfall280ms, Topic-/Aktivierungsverriegelung,
+  Mehrfachfehler, Datenverlust und Teilreset PASS. Rohdaten
+  setup/logs/uwa-motion-live-guard-check-max-speed.json. Einzelbeobachtungen,
+  keine garantierten Worst-Case-/Hardwarewerte. Eigener Vergleichsdienst
+  danach neu gestartet; Log uwa-motion-replay-sensor-free.log.
 
 ## Zwischenstand
 

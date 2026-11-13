@@ -189,10 +189,13 @@ def prepare_scene(layout, cfg, directory):
     from ament_index_python.packages import get_package_prefix
     backend=Path(get_package_prefix('uwa_cell_tasks'))/'lib/libcontact_gripper.so'
     record = seal(dict(schema_version=1, cfg=cfg, object_id=instance['id'],
+        asset_id=instance['manifest']['asset_id'],
+        asset_manifest_sha256=hashlib.sha256((instance['mesh_file'].parent/'asset.json').read_bytes()).hexdigest(),
         backend_binary=str(backend.resolve()),backend_sha256=hashlib.sha256(backend.read_bytes()).hexdigest(),
         T_world_object=instance['T_world_object'], asset_sha256=instance['manifest']['files'],
         T_world_overview_optical=transforms(overview)[1],
         shapes=shapes, robot_sha256=hashlib.sha256(description.encode()).hexdigest(),
+        controllers_sha256=hashlib.sha256(controllers.read_bytes()).hexdigest(),
         mass_and_friction_measured=False, contact_model='force-limited coupled finger approximation'))
     write_json(directory/'scene.json', record)
     return record
@@ -230,8 +233,11 @@ def verify_scene(directory):
     from urllib.parse import urlparse,unquote
     directory=Path(directory)
     scene=verify(json.loads((directory/'scene.json').read_text()))
-    if 'backend_sha256' in scene and hashlib.sha256(Path(scene['backend_binary']).read_bytes()).hexdigest()!=scene['backend_sha256']:
+    if 'backend_sha256' not in scene:raise ValueError('Unbound development scene; prepare a new scene')
+    if hashlib.sha256(Path(scene['backend_binary']).read_bytes()).hexdigest()!=scene['backend_sha256']:
         raise ValueError('Contact backend changed; prepare and relaunch the scene')
+    if hashlib.sha256((directory/'model/controllers.yaml').read_bytes()).hexdigest()!=scene['controllers_sha256']:
+        raise ValueError('Scene controller configuration changed; prepare a new scene')
     if hashlib.sha256((directory/'robot.urdf').read_bytes()).hexdigest()!=scene['robot_sha256']:
         raise ValueError('Scene robot description changed; prepare a new scene')
     for shape in scene['shapes']:

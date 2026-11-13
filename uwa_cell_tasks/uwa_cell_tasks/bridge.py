@@ -66,7 +66,7 @@ class TelemetryBridge(Node):
                 for side in ('left','right'):
                     if any(arm+'_robotiq_85_'+side+'_finger_tip' in n for n in names):pads[arm][side+'_pad']=True
             records.append(dict(collisions=list(names),positions=[[p.x,p.y,p.z] for p in c.position],
-                depths=list(c.depth)))
+                normals=[[n.x,n.y,n.z] for n in c.normal],depths=list(c.depth)))
         self.contact.publish(String(data=json.dumps(dict(pads=pads,supported=support,contacts=records,
             stamp=msg.header.stamp.sec+msg.header.stamp.nsec*1e-9))))
 

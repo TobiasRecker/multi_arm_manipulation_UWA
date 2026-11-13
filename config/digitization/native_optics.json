@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "robots": {
+    "left_front": {"file": "setup/calibration/hardware_handeye/left_front_hd_20261112/intrinsics.json", "identity": "028E1F350009061C", "metric_default": false, "note": "Prior scan showed native board inconsistency; keep images, require explicit review for metric use"},
+    "left_rear": {"file": "setup/calibration/hardware_handeye/left_rear_hd_20261112/result_v2/intrinsics.json", "identity": "06561F1400090106", "metric_default": true},
+    "right_rear": {"file": "setup/calibration/hardware_handeye/right_rear_hd_20261112/result_v1/intrinsics.json", "identity": "01D1111A00090912", "metric_default": true},
+    "right_front": {"file": "setup/calibration/hardware_handeye/right_front_hd_20261112/evaluation_v1/diagnostic_intrinsics.json", "identity": "01D10E1900090912", "metric_default": true, "note": "Operator accepted below threshold; preserve original failed calibration flags"}
+  },
+  "oak4": {"source": "active_profile_factory", "focus": 116, "metric_default": true, "note": "Factory EEPROM optics, not independently validated absolute accuracy"}
+}

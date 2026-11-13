@@ -1,5 +1,21 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Zusätzliche NVIDIA-Workstation für FoundationPose, 2026-11-13
+
+- Nutzer stellt titanpc/192.168.2.137 über WLAN für Compute bereit. Gemeinsame
+  Workstation anderer Nutzer: vorhandene Umgebungen/System/Dienste erhalten.
+- TITAN RTX24GiB, Ubuntu22.04.5, Treiber570.211.01, Toolkit12.3 real gelesen.
+  Docker ohne Benutzerzugriff; Systempartition nur5,5GiB frei. Deshalb eigener
+  Ordner und eigene Conda-Umgebung auf Datenlaufwerk RAID1_L, keine Adminänderung.
+- FoundationPose-Installation und begrenzte offizielle RGB-D-Demo in Arbeit;
+  noch kein Inferenzerfolg. CPU-Tracker und alle lokalen Roboter-/Simdienste
+  erhalten. Stand/Bedienung: docs/foundationpose_titanpc.md,
+  laufender Status work/foundationpose-titanpc.md.
+- Fachlicher Anschluss: bekannte Karton-/PTFE-Assets, statische Lokalisierung
+  und dynamische Verfolgung. Reale OAK-Anbindung benötigt noch passende
+  RGB-ausgerichtete Tiefe, Intrinsics und Initialmaske; keine direkte Nutzung
+  der Mono-HQ-Tiefe mit RGB oder neue Manipulationsfreigabe.
+
 ## Schnellere Digitalisierung: Bestandsprüfung und Umsetzungskonzept, 2026-11-13
 
 - Nutzer möchte weniger Wartezeit und niedrigeren Reasoning-Aufwand bei
@@ -73,8 +89,8 @@
 
 - Neuer Nutzerauftrag: bekannte digitalisierte Assets wiederfinden, statisch vor
   Manipulation Genauigkeit priorisieren, dynamisch Onlinegeschwindigkeit.
-  Nutzerentscheidung: zunächst Intel-Mini-PC; weiterer NVIDIA-Rechner eventuell
-  später, von ihm parallel organisiert. FoundationPose noch nicht installiert.
+  Ursprünglich zunächst Intel-Mini-PC; zusätzlicher NVIDIA-Rechner seit13.11.
+  ausdrücklich für isolierte FoundationPose-Versuche verfügbar (siehe oben).
 - Neues Paket uwa_cell_tracking: assetgebundeneSIFT-/3D-Merkmale ohne bekannte
   Objekt-/Boardpose, globale/panelweisePnP-Hypothesen,3-Frame-Static mit robustem
   Fit, dynamischesLK/PnP und Wiederinitialisierung. ROS-Pose/Status/Overlay,

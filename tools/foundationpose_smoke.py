@@ -26,12 +26,16 @@ def main():
     import imageio.v2 as imageio
     import trimesh
     import nvdiffrast.torch as dr
+    import warp as wp
+    wp.config.kernel_cache_dir = os.environ['WARP_CACHE_PATH']
     from estimater import FoundationPose, ScorePredictor, PoseRefinePredictor
     from datareader import YcbineoatReader
-    from Utils import draw_xyz_axis, set_seed
+    from Utils import draw_xyz_axis, draw_posed_3d_box, nvdiffrast_render, set_seed
     imports_s = time.perf_counter() - started
     set_seed(0)
     mesh = trimesh.load(args.scene / 'mesh/textured_simple.obj')
+    to_origin, extents = trimesh.bounds.oriented_bounds(mesh)
+    bbox = np.stack([-extents / 2, extents / 2], axis=0).reshape(2, 3)
     reader = YcbineoatReader(str(args.scene), shorter_side=None, zfar=float('inf'))
     report = {
         'gpu': torch.cuda.get_device_name(0), 'torch': torch.__version__,
@@ -40,6 +44,7 @@ def main():
         'pose_convention': 'T_camera_object; mesh and depth in metres',
         'ground_truth_used_for_estimation': False,
         'manipulation_approved': False, 'absolute_accuracy_validated': False,
+        'validation_scope': 'execution and finite rigid poses; alignment metrics reported separately',
         'imports_s': imports_s, 'frames': [],
     }
     init_start = time.perf_counter()
@@ -76,6 +81,19 @@ def main():
         row = {'index': index, 'id': reader.id_strs[index],
                'mode': 'register' if number == 0 else 'track',
                'seconds': elapsed, 'T_camera_object': pose.tolist()}
+        # Evaluate image agreement AFTER estimation, outside measured inference time.
+        _, rendered_depth, _ = nvdiffrast_render(
+            K=reader.K, H=depth.shape[0], W=depth.shape[1],
+            ob_in_cams=torch.tensor(pose, device='cuda', dtype=torch.float32)[None],
+            glctx=est.glctx, mesh=mesh,
+        )
+        rendered_depth = rendered_depth[0].detach().cpu().numpy()
+        predicted = rendered_depth > 0
+        observed = reader.get_mask(index).astype(bool)
+        row['mask_iou'] = float((predicted & observed).sum() / max(1, (predicted | observed).sum()))
+        overlap = predicted & observed & (depth > 0)
+        row['overlap_depth_median_abs_mm'] = (float(np.median(np.abs(rendered_depth[overlap] - depth[overlap])) * 1000)
+                                              if overlap.any() else None)
         # Read annotations only AFTER estimation, solely for separate evaluation.
         gt = reader.get_gt_pose(index)
         if gt is not None:
@@ -84,7 +102,9 @@ def main():
             row['annotation_rotation_error_deg'] = float(np.degrees(np.arccos(np.clip(cosine, -1, 1))))
         report['frames'].append(row)
         np.savetxt(args.output / f'pose_{number:03d}.txt', pose)
-        overlay = draw_xyz_axis(rgb.copy(), ob_in_cam=pose, scale=0.1,
+        overlay = draw_posed_3d_box(reader.K, img=rgb.copy(),
+                                  ob_in_cam=pose @ np.linalg.inv(to_origin), bbox=bbox)
+        overlay = draw_xyz_axis(overlay, ob_in_cam=pose, scale=0.1,
                                 K=reader.K, thickness=3, transparency=0, is_input_rgb=True)
         imageio.imwrite(args.output / f'overlay_{number:03d}.png', overlay)
         print(json.dumps({'frame': index, 'mode': row['mode'], 'seconds': elapsed}), flush=True)

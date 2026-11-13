@@ -100,15 +100,16 @@ def skills():
 
 class GraspGroup:
     """No per-arm motion API. Offsets cannot be changed while loaded."""
-    def __init__(self, object_id, world_object, tcps, contacts, cfg):
-        if tuple(tcps) != ARMS or set(contacts) != set(tcps):
+    def __init__(self, object_id, world_object, tcps, contacts, cfg, contact_regions=None):
+        if set(tcps) != set(ARMS) or set(contacts) != set(tcps):
             raise ValueError('Both right members and contact records required')
         if not all(contacts[a].get('left_pad') and contacts[a].get('right_pad') for a in tcps):
             raise ValueError('Both pads of every gripper must contact the object')
-        self.object_id = object_id; self.members = tuple(tcps); self.cfg = dict(cfg)
-        self._offsets = {a: relative(world_object, t) for a, t in tcps.items()}
+        self.object_id = object_id; self.members = ARMS; self.cfg = dict(cfg)
+        self._offsets = {a: relative(world_object, tcps[a]) for a in ARMS}
         for t in self._offsets.values(): t.setflags(write=False)
         self.stopped = None; self.released = False
+        self.contact_regions=json.loads(json.dumps(contact_regions or {},default=plain))
 
     @property
     def offsets(self): return {a: t.copy() for a, t in self._offsets.items()}
@@ -136,7 +137,7 @@ class GraspGroup:
 
     def record(self):
         return dict(object_id=self.object_id, members=self.members, object_to_tcp=self.offsets,
-                    stopped=self.stopped, released=self.released)
+                    stopped=self.stopped, released=self.released,contact_regions=self.contact_regions)
 
 
 class RunStore:

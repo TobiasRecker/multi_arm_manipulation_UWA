@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 from uwa_cell_description.configuration import load_layout
 from uwa_cell_tasks.core import configuration, verify
-from uwa_cell_tasks.scene import prepare_scene, mass_properties
+from uwa_cell_tasks.scene import prepare_scene, mass_properties,verify_scene
 from uwa_cell_tasks.planning import grasp_candidates, actual_names
 
 
@@ -32,3 +32,7 @@ def test_contact_scene_keeps_open_geometry_mass_and_actual_fingers(tmp_path):
         assert set(candidate['tcp_targets'])==set(cfg['arms'])
         for arm,pose in candidate['tcp_targets'].items():
             assert pose[2,3]<candidate['pregrasp'][arm][2,3]
+    verify_scene(tmp_path)
+    (tmp_path/'robot.urdf').write_text(description+'<!-- changed -->')
+    import pytest
+    with pytest.raises(ValueError,match='robot description changed'):verify_scene(tmp_path)

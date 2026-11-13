@@ -102,14 +102,23 @@ def check(output,own_supervisor=False):
             node.create_subscription(JointState,'/uwa_cell/joint_states',sample,qos_profile_sensor_data)
             targets={r:np.array([start[j] for j in joint_names(r)])+np.array([0,0,0,0,0,.12]) for r in arms}
             node.activate(arms);injected=[]
+            cancel_injection=threading.Event()
             def inject():
-                injected.append(time.monotonic());dump(flags,dict(pair_faults=[0]))
-            timer=threading.Timer(.7,inject);timer.start()
-            stops=node.phase(targets,cfg,set());timer.join()
+                deadline=time.monotonic()+20.
+                while not cancel_injection.is_set() and time.monotonic()<deadline:
+                    if all(abs(node.velocities[joint_names(r)[-1]])>=.95*cfg['velocity_limit_rad_s']
+                           for r in ('left_front','right_front')):
+                        injected.append(time.monotonic());dump(flags,dict(pair_faults=[0]));return
+                    cancel_injection.wait(.005)
+            timer=threading.Thread(target=inject,daemon=True);timer.start()
+            try:stops=node.phase(targets,cfg,set())
+            finally:cancel_injection.set();timer.join(timeout=1.)
+            assert injected,'Both arms must reach95% of configured speed before the injected fault'
             node.wait(lambda:set(node.supervisor['held_arms'])=={'left_front','right_front'},2.)
             assert set(stops)=={'left_front','right_front'},stops
             peak=max(v for t,v in telemetry if t<injected[0])
-            assert peak>cfg['standstill_velocity_rad_s']
+            results['peak_velocity_before_fault_rad_s']=peak
+            assert peak>=.9*cfg['velocity_limit_rad_s']
             stopped_at=next(t for t,v in telemetry if t>=injected[0] and v<=cfg['standstill_velocity_rad_s'])
             results['pair_fault_to_standstill_s']=stopped_at-injected[0]
             assert results['pair_fault_to_standstill_s']<=1/cfg['rate_hz']+cfg['stop_latency_s']+peak/cfg['braking_acceleration_rad_s2']+.1

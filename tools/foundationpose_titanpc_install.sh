@@ -11,7 +11,7 @@ python -m pip install --no-cache-dir -c "$constraints" -r requirements.txt \
   pybind11 setuptools wheel ninja gdown
 # Compile only for this TITAN RTX; do not invoke upstream's unbounded -j(nproc).
 python -m pip install --no-cache-dir --no-build-isolation --no-deps \
-  git+https://github.com/facebookresearch/pytorch3d.git@v0.7.8
+  git+https://github.com/facebookresearch/pytorch3d.git@V0.7.8
 python -m pip install --no-cache-dir --no-build-isolation --no-deps \
   git+https://github.com/NVlabs/nvdiffrast.git@v0.3.3
 python -m pip install --no-cache-dir iopath

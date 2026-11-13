@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "id": "image_model_review_v1",
+  "proxy_width": 1600,
+  "minimum_fit_views": 2,
+  "minimum_validation_views": 1,
+  "maximum_fit_rms_proxy_px": 3.0,
+  "maximum_validation_rms_proxy_px": 5.0,
+  "minimum_camera_baseline_m": 0.05,
+  "board_rms_warning_native_px": 2.0,
+  "note": "Image consistency only; never grants absolute metric accuracy, tracking or manipulation approval. Existing objects can legitimately fail these checks."
+}

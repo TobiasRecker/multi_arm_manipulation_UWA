@@ -23,7 +23,7 @@ from uwa_cell_motion.common import simulation_only
 from uwa_cell_gazebo.charuco_views import Chain
 from match_cooperative_handling.rigid_object import pose_error,interpolate
 from .core import ARMS,CAMERAS,RunStore,GraspGroup,verify,write_json,seal
-from .planning import TaskProblem,grasp_candidates,plan_approach,object_trajectory
+from .planning import TaskProblem,grasp_candidates,plan_approach,object_trajectory,grasp_entry,PlannedObjectConstraint
 from .scene import verify_scene
 
 
@@ -101,7 +101,9 @@ class Simulation(Node):
     def reset(self):
         from .planning import actual_names
         description=(self.directory/'robot.urdf').read_text()
-        required=[j for names in actual_names(description,load_layout()).values() for j in names]
+        required=[j for names in actual_names(description,getattr(self,'layout',load_layout())).values() for j in names]
+        if self.contact and any(any(p.values()) for p in self.contact['pads'].values()):
+            raise RuntimeError('Object contact already exists; explicit supported release is required before a new run')
         self.wait(lambda:all(j in self.v and abs(self.v[j])<.003 for j in required),30.)
         time.sleep(.5)
         self.call('reset',Trigger.Request())
@@ -235,8 +237,20 @@ def run_task(directory,scene_directory,layout_file,namespace,reference):
             problem=TaskProblem(directory/f'planning-{attempt}',description,layout,scene,obj)
             failures=[];plan=None
             for candidate in candidates:
-                try:plan=plan_approach(problem,start,candidate);break
-                except ValueError as error:failures.append(dict(candidate=candidate['id'],reason=str(error)))
+                try:
+                    plan=plan_approach(problem,start,candidate)
+                    witness=TaskProblem(directory/f'witness-{candidate["id"]}',description,layout,scene,obj,static=False)
+                    pre_state=dict(start,**dict(zip(plan['request']['joint_names'],plan['request']['target'])))
+                    entry,grasp_state=grasp_entry(witness,pre_state,candidate,cfg)
+                    predicted=PlannedObjectConstraint(obj,candidate['tcp_targets'])
+                    lifted=obj.copy();lifted[2,3]+=cfg['lift_m']
+                    # This geometric witness is distinct from the actual
+                    # contact-bound plan recomputed after grasp confirmation.
+                    lift_witness=object_trajectory(witness,predicted,grasp_state,obj,lifted,cfg)
+                    plan=seal(dict(plan,entry=entry,lift_witness=lift_witness))
+                    break
+                except ValueError as error:
+                    failures.append(dict(candidate=candidate['id'],reason=str(error)));plan=None
             write_json(directory/'candidate_failures.json',failures)
             if plan is None:raise RuntimeError('No collision-clear reachable grasp candidate; see candidate_failures.json')
             write_json(directory/'plan.json',plan)
@@ -268,20 +282,13 @@ def run_task(directory,scene_directory,layout_file,namespace,reference):
             # interpolation parameter and one combined controller.
             sim.phase='grasp';store.event('RUNNING','grasp')
             contact_problem=TaskProblem(directory/'contact-plan',description,layout,scene,obj,static=False)
-            names=[j for a in ARMS for j in joint_names(a)];q=dict(sim.q);points=[]
-            origins={a:contact_problem.chains[a].forward(q) for a in ARMS}
-            for u in np.linspace(0,1,121):
-                for a in ARMS:
-                    target=interpolate(origins[a],plan['candidate']['tcp_targets'][a],float(u))
-                    q.update(zip(joint_names(a),contact_problem.solve_tcp(a,q,target)))
-                if not contact_problem.collision.check(q)[0]:raise RuntimeError('Final grasp entry collides')
-                points.append(dict(time=float(u*30.),positions=[q[j] for j in names]))
-            sim.follow(dict(joint_names=names,points=points));sim.grippers(.8)
+            entry,_=grasp_entry(contact_problem,dict(sim.q),plan['candidate'],cfg)
+            sim.follow(entry);sim.grippers(.8)
             # Use visual pose and actual TCPs, not a synthetic attachment.
             grasp_observation=observe(sim,description,reference,directory/'grasp-observation')
             obj=np.array(grasp_observation['T_world_object'])
             tcps={a:contact_problem.chains[a].forward(sim.q) for a in ARMS}
-            group=GraspGroup(cfg['object_id'],obj,tcps,sim.contact['pads'],cfg)
+            group=GraspGroup(cfg['object_id'],obj,tcps,sim.contact['pads'],cfg,plan['candidate']['contacts'])
             record=group.record();write_json(directory/'group.json',record)
             sim.group_pub.publish(String(data=json.dumps(record,default=lambda v:v.tolist())))
             lifted=obj.copy();lifted[2,3]+=cfg['lift_m']
