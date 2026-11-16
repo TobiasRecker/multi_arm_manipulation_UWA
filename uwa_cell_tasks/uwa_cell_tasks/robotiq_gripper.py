@@ -1,0 +1,93 @@
+"""Explicit Robotiq transport; no writes until an individually requested command.
+
+SET framing, acknowledgement and register semantics follow the locally backed-up
+Robotiq1.8.6 GripperCommunicationScript/GripperInstallationNodeScript.
+No URScript, Dashboard, controller-manager or robot power commands exist here.
+"""
+import math
+import socket
+import time
+from .hardware_preparation import GripperObserver
+
+
+class Robotiq:
+    def __init__(self, host, *, port=63352, enabled=False, max_force_raw=0, max_speed_raw=32):
+        self.host, self.port, self.enabled = host, port, enabled
+        self.max_force_raw, self.max_speed_raw = max_force_raw, max_speed_raw
+        self.last_requested = None
+
+    def status(self):
+        # For mock tests the same strict observer connects only to loopback.
+        observer = GripperObserver.__new__(GripperObserver)
+        observer.socket = socket.create_connection((self.host, self.port), timeout=.5)
+        observer.socket.settimeout(.5); observer.timeout=.5; observer.buffer=b''
+        try:
+            return observer.snapshot()
+        finally:
+            observer.close()
+
+    def validate(self, operation, position, speed, force, timeout):
+        if not self.enabled:
+            raise ValueError('MONITOR ONLY: activation and movement disabled')
+        if operation not in (1, 2):
+            raise ValueError('Unsupported gripper operation')
+        if any(type(v) is not int or not 0 <= v <= 255 for v in (position, speed, force)):
+            raise ValueError('Raw registers must be integers0..255')
+        if force > self.max_force_raw or speed > self.max_speed_raw:
+            raise ValueError('Raw force/speed exceeds this commissioning profile')
+        if not math.isfinite(timeout) or not 1. <= timeout <= 30.:
+            raise ValueError('Command timeout must be1..30s')
+
+    def _set(self, pairs):
+        if not self.enabled:
+            raise ValueError('MONITOR ONLY')
+        allowed = {'ACT', 'POS', 'SPE', 'FOR', 'GTO'}
+        if any(k not in allowed or type(v) is not int or not 0 <= v <= 255 for k, v in pairs):
+            raise ValueError('Invalid Robotiq SET')
+        command = ('SET '+' '.join(f'{k} {v}' for k, v in pairs)+'\n').encode('ascii')
+        # Acknowledgement is three bytes in the vendor script. Close this SET
+        # connection afterwards so optional trailing newlines cannot pollute GET.
+        with socket.create_connection((self.host, self.port), timeout=.5) as wire:
+            wire.settimeout(.5); wire.sendall(command); reply=b''
+            while len(reply) < 3:
+                chunk=wire.recv(3-len(reply))
+                if not chunk:
+                    raise RuntimeError('Command outcome uncertain: incomplete acknowledgement; no retry')
+                reply += chunk
+            if reply != b'ack':
+                raise RuntimeError('Gripper command rejected; no automatic retry')
+
+    def _wait(self, predicate, deadline, feedback, activation=False):
+        consecutive = 0
+        while time.monotonic() < deadline:
+            state=self.status(); regs=state['registers']; feedback(state)
+            if regs['FLT'] >= 8 or (not activation and regs['FLT'] != 0):
+                raise RuntimeError(f"Gripper fault {regs['FLT']}; target retained, no reset/open")
+            consecutive = consecutive+1 if predicate(regs) else 0
+            if consecutive >= 2:
+                return state
+            time.sleep(.05)
+        raise TimeoutError('Gripper outcome unconfirmed; no reset/open or automatic command retry')
+
+    def command(self, operation, position, speed, force, timeout, feedback=lambda value: None):
+        self.validate(operation, position, speed, force, timeout)
+        deadline=time.monotonic()+timeout
+        if operation == 2:
+            # Activation is a separate explicit goal, never a side effect of
+            # node startup or MOVE. The vendor requires reset before activation.
+            state=self.status()
+            if state['activated'] and state['fault_free']:
+                return state
+            self._set([('ACT', 0)])
+            self._wait(lambda r:r['ACT']==0 and r['STA']==0, deadline, feedback, activation=True)
+            self._set([('ACT', 1)])
+            return self._wait(lambda r:r['ACT']==1 and r['STA']==3 and r['FLT']==0,
+                              deadline, feedback, activation=True)
+        state=self.status()
+        if not state['activated'] or not state['fault_free']:
+            raise RuntimeError('Gripper inactive/faulted; explicit activation required, no MOVE sent')
+        self.last_requested=dict(position_raw=position, speed_raw=speed, force_raw=force)
+        self._set([('POS', position), ('SPE', speed), ('FOR', force)])
+        self._set([('GTO', 1)])
+        return self._wait(lambda r:r['ACT']==1 and r['STA']==3 and r['PRE']==position and r['OBJ'] in (1,2,3),
+                          deadline, feedback)

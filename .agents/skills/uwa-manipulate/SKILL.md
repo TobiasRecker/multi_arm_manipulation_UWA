@@ -95,7 +95,20 @@ facing the fixed OAK camera; direct right-table descent self-collides. Scene04
 passes complete dense geometry/timing checks and has a labelled file-only model
 animation. This does not establish contact-supported rolling. Initial Home
 entry was rejected; the fixture attempt reached four pad contacts but stopped
-before pickup on a170ms state gap. A single lower-RTF repeat is pending. Never
+before pickup on a170ms state gap. The lower-RTF repeat lifts147.7mm but stops near9degrees on2.03mm relative
+error. The stronger virtual preload trial stops before pickup on a169ms
+state gap. No complete quarter-turn is qualified; see the sealed
+`setup/tasks/carton_roll_summary_20261116/result.json` under the workspace. Never
 weaken freshness limits to make the experiment pass or present planned motion
 as a completed contact cycle. Phase budgets come from the reviewed trajectory;
 the old short lift's generic120s skill metadata does not describe a250s turn.
+
+For a requested real carton test, first read
+`docs/carton_hardware_commissioning.md` and
+`work/carton-hardware-commissioning.md`. The separate preparation/ROS-gripper
+tools default to read-only and have native GET/loopback evidence. The arm task
+executor remains simulation-only; do not change its domain or reuse the
+independent-progress hardware PTP runner for a loaded rigid group. UR startup
+executes no manipulation. Real activation, empty travel, force/aperture mapping,
+world/object alignment and a coupled hardware object master need commissioning
+before a loaded lift. No physical gripper actuation was performed in preparation.

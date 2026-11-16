@@ -1,0 +1,18 @@
+# Preparation parameters only; never passed to the simulation executor.
+# Engineering starting values, not measured hardware limits or a motion release.
+schema_version: 1
+mode: hardware_preparation_only
+arms: [right_front, right_rear]
+object_id: avocado_carton
+mass_kg: 0.5
+user_reference_per_jaw_n: 50.0
+object_speed_m_s: 0.0005
+lift_m: 0.005
+dwell_s: 1.0
+joint_velocity_rad_s: 0.005
+joint_acceleration_rad_s2: 0.005
+gripper_force_setting: null
+gripper_speed_setting: null
+require_one_object_time_law: true
+retain_grip_on_stop: true
+automatic_open_or_resume: false

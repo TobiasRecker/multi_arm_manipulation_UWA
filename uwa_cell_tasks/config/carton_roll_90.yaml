@@ -1,4 +1,6 @@
-# Experimental sideways placement; not qualified by earlier translation-only cycles.
+# Experimental sideways placement; no complete contact quarter-turn qualified.
+# Current preload lifts148mm but exceeds2mm relative deviation near9degrees.
+# See work/carton-roll-90.md and the retained negative cases.
 schema_version: 1
 object_id: avocado_carton
 arms:

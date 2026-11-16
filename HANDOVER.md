@@ -1,6 +1,78 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Langsamer realer Kartontest vorbereitet, Live-Inbetriebnahme offen, 2026-11-16
+
+- Nutzer beauftragt Vorbereitung eines deutlich langsameren Realtests; startet
+  URs erst selbst auf Bereitschaft. Greifer bisher laut Nutzer unbenutzt; ROS-
+  Steuerung ausdrücklich erkunden. Keine Power-/Brake-/Play-, Arm-, Greifer-
+  oder Controllerschaltbefehle in dieser Vorbereitung. Vorhandene Dienste erhalten.
+- Beide rechten URs gelesen: POWER_OFF/NORMAL, ros.urpSTOPPED, commands[].
+  Alle4RTDE-Ausgaben aufgenommen (q/qd,TCP/Wrench/Offset,nativeSpeedScaling).
+  Beide rechtenTCPoffsets0. IndividuelleFK/nativesTCP stimmen innerhalb1µm
+  überein; nur interner Modell-/Frameabgleich, keine physische Genauigkeit oder
+  validierte Welt-/Tisch-/Basenextrinsik. Auch aktuelle Stillstandwerte sind
+  ungeprüfte native Schätzausgaben; POWER_OFF ist kein Geschwindigkeitsabgleich.
+- Neue ROS-Greiferanbindung: `uwa_cell_gripper_interfaces/RobotiqCommand` und
+  tools/carton_gripper_ros.py. StandardMONITOR ONLY, Domain66 real/67loopbackMock;
+  GET-Status/Read-Service, ausdrückliche ACTIVATE-/MOVE-Actions erst mit--actuate.
+  Keine automatische Aktivierung beim Start/MOVE, Kraft/SPE/POS klar als Rohwerte,
+  StartcapsFOR0/SPE32 ohneN-Zuordnung. Keine automatische Öffnung/Reset/Force0
+  nach Fehler oder Nodeexit. Cancel wird abgelehnt, physischer Greiferstopp
+  noch zu prüfen. Keine Greiferkommandos bei Armstopp; letztes Greifziel bleibt.
+- Vorhandenes lokales Robotiq-URCap1.8.6 als Protokollprimärquelle geprüft.
+  Beide echten63352-Server GET-erreichbar, ACT0/STA0/FLT0. Zwei echte ROS-Read-
+  Services erfolgreich getestet, ausschließlichGET; eigene Nodes Exit0/beendet.
+  Keine physische Greiferaktivierung oder Kraft-/Öffnungsprüfung behaupten.
+- Neues Interfacepaket gebaut;23gezielte Softwaretests PASS. ROS-Mockintegration
+  auf67gegenLoopbackserver PASS: readonly ohneSET, explizitActivate+Move, höhere
+  FORabgewiesen, ShutdownohneFreigabe. Belege setup/tasks/carton_gripper_ros_*_20261116_01/.
+- Readonly-Vorbereitung: tools/prepare_carton_hardware.py, langsames Datenprofil
+  carton_hardware_first_test.yaml (0,5mm/s,5mmHub,0,005rad/s,0,005rad/s²).
+  Paket erzeugt ausdrücklich keinen ausführbaren Hardwareplan/motion_ready.
+  Daten setup/tasks/carton_hardware_preparation_20261116_01/. Initiale Import-/
+  Offline-FK-Pfad-/Frameentwicklungsfehler in Logs erhalten, erfolgreiche
+  Nachfolger geprüft. Kein Neubau laufender Simulations-/Motionpakete.
+- Nächste Stufe nach Nutzerstart: frische Status-/Controller-/Sensorprüfung,
+  sichere einzelne Greiferleerfahrt, realer Geometrie-/Objektabgleich. Tragender
+  Hardware-Objektmaster noch integrieren/qualifizieren; unabhängigenPTPRunner
+  nicht für starren Griff benutzen. Keine Simulation-only-Sperre entfernt.
+  **Bereit für Live-Inbetriebnahme, nicht sofort für automatischen Kartonhub.**
+  Anleitung docs/carton_hardware_commissioning.md, Arbeit work/carton-hardware-commissioning.md.
+
+## Planungsforschung auf Offlinekoordination präzisiert, 2026-11-16
+
+- Nutzer kennt alle geplanten Arm-/Basiswege; zunächst keine externe Störung,
+  Menschenreaktion oder reaktive Online-Regelung. Frühere MPC-Priorisierung
+  ist für den aktuellen Umfang durch Offline-Zeitkoordination ersetzt.
+- Gemeinsame Samplingplanung als Vergleich ausdrücklich gewünscht; Schwerpunkt
+  mehrere Ziel-/IK-Kandidaten, glatte MoveJ/MoveL-nahe Wege und priorisierte
+  beziehungsweise zeitliche Konfliktlösung. Moderner Lernvergleich gewünscht.
+- Vergleichsdokument um Bahnfortschritts-Konfliktkarten, Raum-Zeit-Voxel,
+  Primitive-/Blendinggrenzen und Sample→Abstand/Klasse ergänzt. Vorschlag:
+  paarweise Abstandsregression mit relativer Basispose statt dichtem24D-Raster;
+  geometrische Endprüfung erhalten. DiffCo von generativer Diffusionsplanung
+  und metrische Clearance von Gelenkraum-CDF unterscheiden.
+- cuRoboV1 laut Nutzer enttäuschend, genaue Ursache unbekannt. V2-Änderungen
+  anhand Technical Report recherchiert, keine lokale V2-Erprobung behauptet.
+- Nur Konzept/Dokumentation in diesem Schritt, keine neue Implementierung,
+  Dienste oder Bewegung. Details docs/mobile_multiarm_planning_survey_2026-11-16.md.
+
 ## Echter Vierarm-Timingtest vorbereitet, Bewegung durch Startreserve blockiert, 2026-11-16
+
+- Neueste Nutzerkorrektur: **offene Greifer, etwa20cm Spalt; hintere Basen
+  mit Zollstock recht genau100cm**. Ersetzt die unten historisch genannten
+ 30cm und die bloße100cm-Schätzung. Originale offene Meshgeometrie erwartet
+  bei100cm statt90cm Basisabstand ungefähr21cm Spalt, also plausibel passend.
+  Nutzer regt OAK-/Tischboard-Abgleich an. Beide validierten hinteren
+  T_base_board liegen vor; gemeinsame Bildsicht erlaubt relative Basenlage
+  ohne OAK-Weltpose. Kamera-only-Prüfung abgeschlossen:12.11.-Boardposen ergeben
+  mit den akzeptiertenRear-Fits99,115cm, konsistent zurZollstockmessung, aber
+  historisch/alterFokusunbekannt. FrischeStandard-/HQ-Fotos: linkesBoard stark
+  unscharf/nur1Marker/0Ecken; rechts24Ecken, unabhängigePrüf-RMS1,835/1,924px
+  überschreiten1px. Keine neue vermesseneBasispose/Profilaktivierung/Fahrt.
+  Kamera-Lease freigegeben.100zufälligeTransformationsketten PASS, geometrische
+  Genauigkeit dadurch nicht bewiesen. Bericht docs/rear_base_spacing_review_2026-11-16.md,
+  Rohdaten setup/research/four-arm-model-distance-review/board-base-review.json.
 
 - Nutzer widerspricht dem implizierten realen Engstand: Arme seien recht weit
   getrennt. Physische Startvorbereitung vorerst zurückgestellt; zuerst Modell-
@@ -10,6 +82,16 @@
   nominal, Werks-FK/optischeKalibrierung ersetzt keinen Basisextrinsikabgleich.
   Ansicht setup/research/four-arm-model-distance-review/rear-envelope-gap.png.
   Keine Aufforderung, reale Arme passend zu diesen Modellannahmen umzustellen.
+  Präzisierung: Ausrichtung passt, realer Greiferabstand laut Nutzer eher30cm
+  (Schätzung, keine Kalibrierung). Montagezentren-Abstand angefragt; angenommene
+ 90cm und konservative Greiferhülle getrennt prüfen, keine globale Pose aus
+  dieser einzelnen groben Distanz fitten. Bewegungstest weiter ausstehend.
+  Nutzer nennt anschließend etwa100cm Basis-Mittelpunktabstand und hält Gazebo
+  optisch für passend. Laufendes /uwa_cell/robot_description in Domain64 geprüft:
+  Basenx±0,45m, also90cm wie Hardwaremodell. Kein unterschiedliches Live-Gazebo-
+  Layout als Ursache gefunden. Bei90cm ergibt ursprüngliche Greifergeometrie
+  entlangVerbindung8–11cm statt4,23cm Hüllabstand; Hüllen allein erklären30cm
+  nicht. Diese Schätzungen noch nicht als globale Kalibrierung übernehmen.
 
 - Nutzer beauftragt kleine gemeinsame Realbewegung mit Wächter und bestätigt
   freie Bereiche/Not-Halt-Bereitschaft. Alte Bewegungscontroller alle inaktiv
@@ -32,38 +114,43 @@
   Status/Planfehler unter setup/logs/uwa-four-arm-live-*. Arbeit
   work/four-arm-live-timing.md. Nach Umstellen neueActuals/Prüfung verwenden.
 
-## Karton um 90° zur OAK drehen, Entwicklung 2026-11-16
+## Karton90°: Geometrie bestanden, Kontaktzyklus offen, 2026-11-16
 
-- Neuer Nutzerauftrag: bestehende Zweiarm-Simulation wiederverwenden, Karton um
-  Längsachse drehen und mit Öffnung zur Kamera auf Tisch abstellen. Annahme:
-  feste OAK-Übersicht. Kein Hardwareauftrag. Arbeit work/carton-roll-90.md.
-- Optionales Profil `carton_roll_90.yaml`; gemeinsamer Objektpfad/12Gelenk-
-  Zeitgesetz/GraspGroup/Guard/Stopppfade bleiben. Vollständiger Vorabzeuge und
-  erneute Vollplanung mit gemessenen eingefrorenen Greifoffsets vor Abheben.
-- Geometrie: ca146mm Hub statt30mm, Drehung am Materialschwerpunkt, Zielseitenlage
-  zur szenengebundenen OAK. Direkte rechte Absenkung kollidiert RF-Unterarm/Wrist3;
-  linke Alternative grob FCL-/IK-frei. Mit0,04rad/s Armgrenze im123Sample-Screen
-  mindestens24,739mm zusätzliche Paarreserve. Vollständige Dichtprüfung PASS
-  in Szene04, nominelle Tragezeit368,585s. **Noch kein Dreh-/Absetz-Kontaktzyklus
-  bestanden**. Homeversuch vor Bewegung verworfen; Fixtureversuch erreicht
-  vierPadkontakte, stoppt vor Abheben an170msZustandslücke. BeideHolds bestätigt,
-  unterstützt, keineÖffnung. Ein vorbereiteter RTF0,4-Wiederholungsversuch wartet
-  auf die reguläre Freigabe der aktuell fremd genutzten Greifwelt.
-- Neue räumliche Vollrezeptvorprüfung verwirft späte Fehler vor teurer dichter
-  Zeitparametrierung; volle Interpolations-/Kollisionsprüfung bleibt erhalten.
-  Erweiterte Traceauswertung verlangt freie Vierteldrehung und unterstützte
-  Freigabe in Seitenlage. File-only Modellvorschau:
-  setup/tasks/carton_roll_20261116_04/animation.html, Play/Timeline/Reset in JS-VM
-  geprüft. Kein Browserrender-/Physikbeleg. Neuer konservativer Intervallzeitbound
-  senkt die Drehzeit250,941s statt1588,609s ohne höhere Limits.
--44Pythonprüfungen sowie8CTest-Suites PASS; Logs setup/logs/uwa-carton-roll-*.
-  Workspace-MD-Inventar216Dateien/24614Zeilen unter Szene01. Alte Quellenbindungen
-  und Negativbelege erhalten. Fremde Hardwaredatei hardware_nodes.py nicht angefasst.
-- Koordinationsfehler: erste Quelländerungen invalidierten parallele Fault-Reihe02,
-  case01 stoppte vor Griff in review_strategy mit bestätigten Holds. Dokumentiert;
-  keine fremden Prozesse beendet. Fremde Reihe03 nutzt inzwischen eingefrorene
-  Quellen. Eigene Kontaktwelt erst nach deren regulärem Ende starten.
-
+- Nutzerauftrag: bestehende Zweiarm-Pipeline für Längsachsendrehung90° und
+  Absetzen mit Öffnung zur Kamera wiederverwenden. Kamera als feste OAK
+  interpretiert. Keine Hardwareaktion. Arbeitsnachweis work/carton-roll-90.md.
+- Implementiert: optionales `carton_roll_90.yaml`, geometrisch berechneter
+  Hub/Drehzentrum am Modell-COM, kameraseitig bestimmtes Vorzeichen und ganze
+  Endfläche auf einem Tisch. Aktueller nominaler Weg146mmHub/+90°/linkerTisch;
+  direkte rechte Absenkung kollidiert RF-Unterarm/Wrist3. Alter Standardlauf
+  bleibt reineTranslation; Greifstrategie/GraspGroup/12Gelenk-Zeitgesetz und
+  Kollisions-/Kontakt-/Schlupf-/Stopppfade weiterverwendet.
+- Ganze Rezeptgeometrie vor Einfahrt und nach Kontakt mit gemessenen festen
+  Offsets vor Abheben prüfen. Kein künstliches Anheften/Offsetnachführen.
+  Intervallweise konservative gemeinsame Zeitgrenzen:55,76sHub/250,94sDrehung/
+  61,88sAbsenken im Nominalbeleg04; alte1588,61sDrehzeit separat erhalten.
+- Dichte nominelle Planprüfung und Anfahrt/Einfahrt bestanden.44Pythonfälle,
+ 8CTest-Suites und JS-VM-Play/Reset/Timeline/COMPLETE-Anzeige PASS. Browserrender
+  nicht geprüft. Modellvorschau: setup/tasks/carton_roll_20261116_04/animation.html.
+- Vier Kontaktversuche, **kein vollständiger90°-Kontaktzyklus**:01Home vor
+  Bewegung verworfen;02Fixture vor Abheben170msSTATE STALE;03RTF0,4 hebt
+ 147,734mm frei und dreht8,927°, dann RR-Relativfehler2,0303mm>2mm;
+ 04stärkerer virtueller Motor(100Nm/rad/2Nm) vor Abheben169msSTATE STALE.
+  Alle Stops bestätigt, keine automatische Öffnung/Rückfahrt. VierPads bei
+ 02–04 am Stopp erhalten;03 frei getragen,02/04 unterstützt. Eigene Welten beendet.
+- Alle vier Krafttraces vollständig; größte Backen-Peakobergrenze8,105N.
+  Kein Kraft-/Material-/Hardwarefreigabenachweis. Beim Drehen zusätzliche
+  Schwerkraftmomente durch hohen Griff plausibel; Schlupf vs elastische
+  Getriebebewegung nicht isoliert. Niedriger COM-Griff kollidiert mit beiden
+  Greiferpalmen und wurde nur offline verworfen. Prototypquellen erhalten,
+  nicht in aktiven Code übernommen. Schutzgrenzen unverändert.
+- Versiegelte Zusammenfassung: setup/tasks/carton_roll_summary_20261116/result.json.
+  Offen: Zustandslücken stabilisieren, Drehsteifigkeit qualifizieren, vollständige
+  Vierteldrehung/unterstützte Freigabe/Wiederholung mit Kraftaudit nachweisen.
+- Koordinationsfehler zu Beginn: Quelländerungen invalidierten fremde Reihe02,
+  case01 vor Griff mit bestätigten Holds. Dokumentiert, keine fremden Prozesse
+  beendet. Später fremde Welt vollständig abgewartet. Ein aus sandboxed `ps`
+  unsichtbarer Prozess ist kein freier Weltnachweis; Host-Prozesssicht verwenden.
 
 ## Literaturvergleich für vier URs mit gleichzeitig bewegten Basen, 2026-11-16
 

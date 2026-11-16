@@ -1,6 +1,7 @@
 # Karton um Längsachse drehen
 
-- Status: in Arbeit, 2026-11-16 (Australia/Perth), Codex dieser Sitzung.
+- Status: Implementierung und vierteilige Versuchsserie abgeschlossen; vollständiger
+  Kontakt-Drehzyklus nicht erreicht, 2026-11-16 (Australia/Perth), Codex dieser Sitzung.
 - Auftrag: vorhandene Zweiarm-Kontaktpipeline wiederverwenden; Karton 90° um
   Längsachse drehen, Öffnung zur Kamera, in Seitenlage auf Tisch abstellen.
 - Annahme: Kamera = feste OAK-Übersicht; Drehrichtung aus deren Weltpose.
@@ -89,3 +90,47 @@
   wartender eigener Starter wait_carton_roll_retry_20261116.py startet erst
   nach Ende fremder Experimentdriver/Greifwelt und10s freier Prozesssicht.
   Keine fremden Dienste/Prozesse stoppen. Log uwa-carton-roll-contact03.log.
+
+## Kontaktphysik der Drehung in Gazebo, 2026-11-16
+
+- contact03/RTF0,4: alle Reviews bestanden, vierBackenkontakte bestätigt und
+  Gruppe gebildet. Mit tatsächlichen eingefrorenen Offsets vollständiger
+  Trageplan neu geprüft. Tatsächlicher COM-Hub147,734mm, frei gehalten.
+- Bei tatsächlicher Boxrotation8,927° stoppt unveränderte Relativprüfung:
+  RR-Positionsfehler2,0303mm>2mm; Winkel0,015536rad<1°. Primärursache
+  `GRASP RIGIDITY ERROR / SLIP`, nicht erneut STATE STALE. BeideArmholds
+  bestätigt, vierPads unter freierLast erhalten, keine Öffnung/Rückfahrt.
+  Krafttrace lückenlos, maxBacken-Peakobergrenze5,355N. Kein90°-PASS.
+- Mögliche Ursache: Griffpunkte etwa46mm oberhalb des modellierten COM;
+  beim Rollen erhöht dies das zu haltende Schwerkraftmoment. Kein isolierter
+  Beweis für Reibungsgrenze statt elastischer Finger-/Getriebebewegung.
+- Geometrischer Prototyp mit Griffhöhe/Tangente durch Material-COM abgewiesen:
+  beide Robotiq-Basiskörper kollidieren mit Karton. Keine Kontaktfahrt dafür.
+  Szene05/failures.json/Log und exakt hashpassende Prototypquellen unter
+  Szene05/implementation_snapshot erhalten. Feature aus aktiven Quellen
+  entfernt; aktuelle Quellen stimmen wieder mit erfolgreichem Nominalbeleg04.
+- Ein zusätzlicher getrennter Vorspannversuch contact04 ist aktiv: K_motor100
+  statt30Nm/rad, Motorcap2 statt0,7Nm (bestehendeExplorationsobergrenze), feine
+  Schließrate0,01 statt0,02rad/s. Gear-/Reibungs-/Schlupf-/Geschwindigkeits-/
+  Stoppgrenzen unverändert; RTF0,4/0,5ms und alter kollisionsfreier obererGriff.
+  setup/tasks/carton_roll_strong_20261116.yaml. Kein Hardwarekraft-Mapping und
+  keine nachgewiesene Materialfestigkeit aus diesem virtuellen Profil ableiten.
+
+
+## Abschluss der Versuchsserie
+
+- contact04 ebenfalls kontrolliert gestoppt, vor Lastübernahme: STATE STALE
+  0,168872s bei150msGrenze. BeideHolds und vierBackenkontakte bestätigt,
+  unterstützt. Keine Aussage über verbesserte Drehhaltefähigkeit dieses Profils.
+  Krafttrace vollständig, höchste Backen-Peakobergrenze8,105N; unter50N-
+  Vergleichswert, aber kein Material-/Hardwarekraftnachweis.
+- Alle eigenen Driver/Greifwelten/Wartestarter beendet, Host-Prozesssicht geprüft.
+  Kein vollständiges90°-Drehen/Absetzen behaupten. Tests44Python/8CTest PASS;
+  UI-VM prüft zusätzlich eindeutigePREVIEW COMPLETE-Anzeige. KeinBrowserrender.
+- Zusammenfassung mit Szenen-/Reporthashes und allen Fehlfällen:
+  setup/tasks/carton_roll_summary_20261116/result.json.
+- Konkrete offene Arbeit: gemeinsame Frischelücken im nativen Zustandsfluss
+  ohne Grenzlockerung beheben, rotatorische Griffrigidität/Übertragung prüfen,
+  vollständige unterstützte Seitenlagenfreigabe und Wiederholung nachweisen.
+  Aktiver Rollprofil-Standard bleibt experimentell: ursprüngliche Vorspannung,
+  RTF0,4. StärkereVorspannung separat unter setup/tasks, nicht als Gewinner übernommen.

@@ -2,6 +2,9 @@
 
 Stand: 16. November 2026. Ziel ist ein Vergleich klassischer und aktueller
 Verfahren als Grundlage für die spätere Anwendung auf die UWA-Zelle.
+**Nachfolgend präzisiert:** Aktueller Umfang ist ausschließlich Offlineplanung
+mit bekannten Bewegungen aller Roboter/Basen. Die unten recherchierten MPC-/CBF-
+Ansätze bleiben Literaturausblick, kein aktueller Implementierungsschwerpunkt.
 Der Nutzer hat ausdrücklich **gleichzeitige Basis- und Armbewegungen** als
 Ziel bestätigt. Zwei Tische mit je zwei starr montierten URs bilden das erste
 Fallbeispiel; vier unabhängig mobile Manipulatoren sind der allgemeinere Fall.
@@ -305,6 +308,9 @@ Interpolation. [FCL-Funktionen](https://github.com/flexible-collision-library/fc
 
 ## Vorläufige Auswahl für die UWA-Anwendung
 
+Die folgende Erstempfehlung ist durch die anschließende Nutzerpräzisierung
+zugunsten von Offline-Zeitkoordination konkretisiert; siehe nächsten Abschnitt.
+
 Als belastbare Referenz vorhandenes MoveIt/FCL und gemeinsame Samplingplanung
 beibehalten. Als erste Koordinationsalternative priorisierte Raum-Zeit-Planung
 mit Konfliktauflösung untersuchen. Für das eigentliche Ziel gleichzeitig
@@ -318,3 +324,85 @@ Vergleich bleiben sie zunächst getrennt messbar. Unabhängige volle
 Geometrieprüfung und Ausführungsüberwachung bleiben nötig; weder das Wort
 „safe“ im Titel noch ein fehlerfreier kleiner Benchmark beweist die
 Kollisionsfreiheit der realen beweglichen Zelle.
+
+## Präzisierung auf Offlineplanung und gelernte Kollisionsmodelle
+
+Nutzerentscheidung am selben Tag: gemeinsame Samplingplanung als Vergleich
+vorsehen, Schwerpunkt auf mehreren aufgabengültigen Zielkonfigurationen,
+glatten Einzelwegen und priorisierter beziehungsweise zeitlicher Konfliktlösung.
+MoveJ/MoveL möglichst als bewährte Bewegungsfunktionen verwenden. Reaktive
+Online-Regelung und unbekannte externe Störungen sind zunächst ausgeschlossen.
+Ein moderner Vergleich bleibt gewünscht; schlechte cuRoboV1-Erfahrung ist eine
+Nutzerangabe, deren konkrete Ursache noch nicht bestimmt ist.
+
+Vorgeschlagene Architektur: Aufgabe → mehrere IK-/Greifkandidaten je Arm →
+kompatible Zielkombinationen und wenige alternative Einzelwege → zeitliche
+Koordination → vollständige Prüfung der finalen Trajektorien. Zielwahl und
+Koordination müssen Rückkopplung erlauben: eine lokal günstige Zielstellung
+kann andere Arme blockieren. Nicht jeder Konflikt ist durch Warten lösbar.
+
+MoveJ ist Gelenkraumbewegung, MoveL TCP-Bewegung im Basisframe. Blending verändert
+die Zwischenbahn. Eine beliebige optimierte Splinebahn wird durch ihre Endpose
+als MoveJ-/MoveL-Befehl nicht reproduziert. Daher Primitive mit modellierten
+Übergängen planen oder eine dichte Trajektorienschnittstelle verwenden; nicht
+beides gleichsetzen. Die genaue PolyScope-Version und spätere Ausführung sind
+separat abzugleichen. Eine weltgerade TCP-Bahn auf bewegter Basis ist im
+Allgemeinen keine einzelne basisfeste MoveL-Bahn.
+[UR MoveJ](https://www.universal-robots.com/manuals/EN/HTML/SW5_26/Content/prod-scriptmanual/all_scripts/movej_qa14v105t0r.htm),
+[UR MoveL](https://www.universal-robots.com/manuals/EN/HTML/SW5_26/Content/prod-scriptmanual/all_scripts/movel_posea12v025t.htm),
+[UR Blending](https://www.universal-robots.com/manuals/EN/HTML/SW5_24/Content/prod-usr-man/software/PolyScope/content/BasicProgNodes/commandtab_way_blend_traj.htm).
+
+**Diskretisierung:** Workspace-Voxel eignen sich für konservative Raum-Zeit-
+Reservierungen und Vorfilter. Ganze Link-/Werkzeugvolumina einschließlich
+Zwischenbewegung berücksichtigen; TCP-Zellen genügen nicht. Grobe gemeinsame
+Zellen können falsche Konflikte erzeugen. Für feste Einzelwege ist der
+Koordinationsraum attraktiver: q_i(s_i), s_i in [0,1]. Für jedes der sechs
+Armpaare eine Konfliktkarte über (s_i,s_j) berechnen. Planung sucht einen
+monotonen gemeinsamen Fortschritt von (0,0,0,0) nach (1,1,1,1), unter
+Geschwindigkeits-/Beschleunigungsbedingungen. Anhalten braucht Bremsweg;
+Geschwindigkeit ist für dynamische Zulässigkeit zusätzlicher Zustand.
+Bei extern zeitlich vorgegebenen Basisbahnen hängt der Konflikt zusätzlich
+von t ab. Statische 2D-Fortschrittskarten allein reichen dann nicht.
+[Stop-N-Go](https://arxiv.org/abs/2410.07606) und
+[xCBS/xECBS](https://arxiv.org/abs/2404.00143) sind passende Referenzen.
+
+**Lernmodell:** Die vorgeschlagene Sample→Abstand/Klasse-Idee ist überwachtes
+Lernen, kein notwendiges Clustering. Geometrische Labels entstehen aus FK und
+Distanzberechnung der Körper; bei allgemeinen Meshes nicht als einfache
+geschlossene analytische Formel darstellen. Ein MLP oder ein Graphmodell passt
+zu Gelenkzuständen meist unmittelbarer als ein CNN, dessen räumliche Struktur
+erst eine Voxel-/Bildrepräsentation voraussetzen würde.
+
+Abstandsregression liefert mehr Information als nur Kollisionsklassen. Ein
+Modell d_hat_ij(q_i,q_j,T_i^-1 T_j) kann sechs paarweise Abstände liefern;
+Selbst- und Umgebungskollisionen kommen getrennt hinzu. Bei fixer relativer
+Basislage besitzt jede Paarabfrage zwölf Armkoordinaten statt 24 für alle Arme.
+Relative Basispose als Eingabe erlaubt grundsätzlich auch bewegte Basen,
+innerhalb des trainierten Bereichs. Werkzeuge/Greiferzustände müssen erfasst
+oder konservativ umhüllt werden. Das ist unser Architekturvorschlag, kein
+bereits trainiertes UWA-Modell.
+
+Ein kartesisches Gelenkraster mit nur zehn Werten pro Gelenk hätte 10^24
+Gesamtzustände. Daher Zufall-/gezieltes Sampling, Nachsampling nahe Kontakt,
+schwierige Bahnabschnitte und getrennte Tests auf zurückgehaltenen Szenarien
+verwenden. Wichtig sind übersehene Kollisionen, überschätzte Abstände und
+Gradientenfehler nahe der Grenze. Gute mittlere Klassifikationsgenauigkeit
+allein genügt nicht. Das Modell zunächst zur Suchführung/Bewertung einsetzen,
+die finalen Übergänge geometrisch prüfen.
+
+Ein gelerntes Modell des kartesischen Mindestabstands in Metern ist kein
+Original-CDF: dieses misst Entfernung zur Kontaktmenge im Gelenkraum.
+[DiffCo](https://arxiv.org/abs/2102.07413) ist eine direkte Referenz für einen
+differenzierbaren gelernten Kollisionsproxy (nichtparametrisch, kein CNN).
+[Diffusion-Guided Multi-Arm Planning](https://arxiv.org/html/2509.08160v1)
+erzeugt dagegen Einzelarm-Bewegungsvorschläge und löst Konflikte mit einem
+Zweiarmsmodell; es klassifiziert nicht bloß Zustände. Beide Ansätze lassen
+sich als getrennte moderne Vergleichsvarianten untersuchen.
+
+**cuRoboV2:** Der [Technical Report](https://arxiv.org/html/2603.05493v2)
+beschreibt B-Spline-Optimierung, inverse Dynamik/Drehmomentgrenzen,
+überarbeitete Kollisions-/Kostenarchitektur und Werkzeuge zur Modellkonfiguration.
+Das adressiert konkrete V1-Schwächen, belegt aber weder die Behebung der
+individuellen Nutzerprobleme noch eine fertige MoveJ/MoveL-Abbildung. V2 als
+optionalem Vergleich eine kleine identische UWA-Suite geben, keine pauschale
+Überlegenheit oder lokale Funktionsfähigkeit behaupten.

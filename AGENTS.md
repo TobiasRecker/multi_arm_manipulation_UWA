@@ -2,6 +2,15 @@
 
 ## Forschungsziel bewegte Basen und vier URs (2026-11-16)
 
+- Neueste Präzisierung: zunächst ausschließlich **Offlineplanung**, vollständige
+  Wege aller Arme/Basen als bekannt annehmen; keine externen Störungen oder
+  reaktive Online-Regelung als aktuellen Entwicklungsumfang hinzufügen.
+- Gemeinsame Samplingplanung ausdrücklich als Vergleich gewünscht; persönlicher
+  Schwerpunkt des Nutzers ist Zielkonfigurationsauswahl mit mehreren Kandidaten,
+  glatte Einzelwege möglichst über bewährte MoveJ/MoveL-Funktionen und anschließende
+  Priorisierung/Zeitkoordination. Ein moderner lernbasierter Vergleich gewünscht.
+- Nutzer berichtet schlechte Erfahrungen mit cuRoboV1; Ursache noch unbekannt.
+  V2-Verbesserungen aus Quellen von eigenen Integrationsergebnissen unterscheiden.
 - Nutzerziel: kollisionsfreie Bahn- und Trajektorienplanung für vier URs mit
   veränderlichen relativen Basislagen. Ausdrücklich auch **gleichzeitige Basis-
   und Armbewegungen** berücksichtigen, nicht nur Umstellen vor der Planung.
@@ -53,6 +62,11 @@
 
 ## Modulare Manipulation und starre Greifverbünde (2026-11-13)
 
+- Neuer Auftrag16.11.: langsamen Realtest des Zweiarm-Kartongriffs vorbereiten;
+  Nutzer startet URs erst auf Bereitschaft. Während Vorbereitung keine Power-,
+  Bremsen-/Programm-, Fahr- oder Greiferbefehle. Realbackend/Greifer/Geometrie
+  prüfen; Simulationsnachweise nicht als Realgreifnachweis übertragen.
+
 - Nutzerangaben16.11.: leerer Karton500g;50N beziehen sich auf eine einzelne
   Backe/Wandkontaktfläche. Als Belastungsreferenz behandeln, nicht als
   gemessene Bruchgrenze oder Summe über mehrere Backen.
@@ -97,6 +111,13 @@
   als Simulationsannahmen kennzeichnen, keine Hardwaregenauigkeit daraus ableiten.
 
 ## Vierarm-Kollisionswächter und PTP-Vergleich (2026-11-13)
+
+- Nutzer-Messbezug16.11.: hintere Basis-Montagezentren laut Zollstock100cm,
+  Greifer offen und ungefähr20cm Spalt; frühere30cm-Schätzung ersetzt.
+  Nominales Modell90cm ist damit abzugleichen. Vorhandene Tischboard-/Basis-
+  Kalibrierungen und gemeinsame OAK-Sicht zur relativen Vermessung verwenden;
+  bekannte Boardbefestigung und passende K/D prüfen. Keine Armstellungen an
+  fragliche nominale Weltanker anpassen oder Wächtergrenzen zum Freigeben senken.
 
 - Nutzerauftrag16.11.: kleinen realen gleichzeitigen Vierarmweg bei laufendem
   Wächter testen, nur auf vorgeprüftem freiem Weg zur Messung von Rechenzeit,

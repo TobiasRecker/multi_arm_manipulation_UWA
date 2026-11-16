@@ -635,8 +635,12 @@ also fail collision, reach or stopping-reserve checks. A left-table alternative 
 interval-wise conservative timing bound passes in scene04 (55.76s lift,
 250.94s turn,61.88s descent). Contact evidence remains separate. The first Home
 contact attempt was rejected before motion; the fixture attempt reached all
-four pads but stopped before lifting on a170ms state gap. A lower-RTF repeat
-is pending; no physical quarter-turn pass is claimed. Consult work/carton-roll-90.md for current
+four pads but stopped before lifting on a170ms state gap. The RTF0.4 repeat lifts147.7mm but stops
+near9degrees at2.03mm relative error. A model-COM-height pinch collides with
+the palms and was rejected before contact. The stronger virtual preload trial also stopped before pickup on a169ms
+state gap. All four cases retain their raw evidence and confirmed holds; no
+physical quarter-turn pass is claimed. The sealed summary is
+`$UWA_WS/setup/tasks/carton_roll_summary_20261116/result.json`. Consult work/carton-roll-90.md for current
 results. Do not execute by bypassing collision checks. Earlier translation-only
 passes do not qualify this recipe. No second grasp world may run concurrently.
 

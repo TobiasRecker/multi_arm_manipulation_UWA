@@ -1,0 +1,14 @@
+# Raw Robotiq0..255 settings, NOT metres or newtons. Activation may move fingers.
+uint8 MOVE=1
+uint8 ACTIVATE=2
+uint8 operation
+uint8 position_raw
+uint8 speed_raw
+uint8 force_raw
+float64 timeout_s
+---
+bool success
+string message
+string status_json
+---
+string status_json

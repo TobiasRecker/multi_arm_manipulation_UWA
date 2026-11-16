@@ -2,6 +2,26 @@
 
 - Status: **Modell-/Realabgleich benötigt – Bewegung noch nicht ausgeführt**,
   2026-11-16 (Australia/Perth), Hauptagent dieses Chats.
+- Aktuelle Nutzerkorrektur: Greifer offen, physischer Abstand eher20cm;
+  hintere Montagezentren mit Zollstock recht genau100cm. Ersetzt frühere
+ 30cm-/ungefähre100cm-Angaben. Keine Messunsicherheit des Zollstocks bestimmt.
+  Bei sonst identischer Montage ergibt ursprüngliches offenes Mesh bei100cm
+  Basisabstand ungefähr21cm Greiferabstand; damit plausibel konsistent.
+- Nutzer schlägt vorhandene Tischboards/OAK zum Basisabgleich vor. Kamera-only-
+  Prüfung über bestehende Foto-Lease; keine UR-Aktion/Dienstneustarts oder
+  Profilaktivierung. Beide hinteren T_base_board-Matrizen liegen validiert vor,
+  Frame ist jeweils base_link, Boardursprung OpenCV-Musterecke. Relative Kette:
+  T_L_R = T_L_boardL inv(T_cam_boardL) T_cam_boardR inv(T_R_boardR).
+  Keine OAK-Weltpose nötig, aber unveränderte Boardbefestigung/K/D erforderlich.
+- Ergebnis Boardcheck: gespeicherte12.11.-PnP-Posen kombiniert mit akzeptierten
+  Rear-Fits ergeben99,115cm Basisabstand. Historischer Plausibilitätscheck,
+  keine aktuelle Genauigkeitsfreigabe (damaliger Fokus nicht protokolliert).
+  Neue Standard-/HQ-Fotos16.11.15:46/15:48: linkesBoard nur1Marker/0Ecken,
+  rechtes24Ecken, ausgeschlossene8Prüfecken1,835/1,924pxRMS >1px. Daher keine
+  neue relative Basispose übernommen. Kamera geschlossen/Lease freigegeben.
+ 100zufällige starreTransformationsketten PASS; keine globaleKalibrierung,
+  Schwellen-/Controller-/Roboteraktion. Nachweis docs/rear_base_spacing_review_2026-11-16.md
+  und setup/research/four-arm-model-distance-review/board-base-review.json.
 - Nutzer beauftragt reale kleine simultane Bewegung aller4URs auf vorgeprüftem
   kollisionsfreiem Weg, mit laufender Kollisionsvermeidung und Laufzeitmessung.
   Geometrie-/Takt-/Datenalterprüfung, keine absichtliche Kollisionsannäherung
@@ -49,3 +69,25 @@
   passend zu fraglichen Modellannahmen umstellen. Visualisierung/Nachweis
   setup/research/four-arm-model-distance-review/{geometry.json,rear-envelope-gap.png}.
   Keine neue Geräteabfrage/Fahrt/Schwellwertänderung in diesem Klärungsschritt.
+- Nutzer bestätigt Ausrichtung der hinteren Arme aufeinander, schätzt realen
+  Greiferabstand aber auf etwa30cm. Als grobe Vor-Ort-Beobachtung festhalten,
+  nicht als metrische Kalibrierung/Anlass für pauschales Verschieben der Tische.
+  Basis-Mittelpunktabstand angefragt(Modell90cm); Öffnungs-/Kugelhülleneinfluss
+  getrennt offline untersuchen. Keine erneute Aufforderung zum Umstellen.
+- Nutzer ergänzt: Gazebo-Modell sehe passend aus, reale Montagezentren ungefähr
+ 100cm auseinander (weiterhin Schätzung). Laufendes normales Gazebo-Modell in
+  Domain64 reinlesend abgeglichen: tatsächlich90cm, identisch zum Hardwaremodell;
+  kein Beleg für einen unterschiedlichen Geometriequellstand. Snapshot
+  setup/research/four-arm-model-distance-review/gazebo-bases.json.
+- Öffnungs-/Hüllanalyse bei unveränderten90cm: Modellgreifer-Spaltprojektion
+  offen11,03cm/geschlossen8,41cm, überÖffnungen8,35cm; Hardwarekugelhülle4,23cm.
+  Kugelreserve erklärt einen Teil, aber nicht allein die grobe30cm-Beobachtung.
+  Nicht die Tabellen global um10cm verschieben oder Schwellen senken, bevor
+  Montage-/Werkzeugbezug metrisch geklärt ist. Keine Bewegung/Schreibaktion.
+- Zusätzlicher geometrischer Gegencheck begrenzt den ursprünglichen Mesh-
+  Oberflächenabstand bei90cm Basisabstand auf11,026–11,034cm(offen) bzw.
+ 8,406–8,414cm(geschlossen). Damit ist4,23cm ein zusätzlicher Hülleneffekt,
+  aber die grobe30cm-Beobachtung noch nicht vollständig erklärt. Quellen
+  setup/research/four-arm-model-distance-review/tool-distance-bounds.json.
+  Nächster benötigter Realbezug: gemessener Montagezentren-Abstand und aktuelle
+  Greiferöffnung; keine Freigabe allein aus den gerundeten100cm ableiten.

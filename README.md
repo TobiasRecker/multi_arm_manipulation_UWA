@@ -496,6 +496,11 @@ calibrate rigid camera mounts separately, then estimate changing table relations
 
 ## Move the arms
 
+[Real carton commissioning preparation](docs/carton_hardware_commissioning.md)
+now includes a monitor-only ROS Robotiq adapter, real GET observations and
+loopback action tests. Physical activation, geometry alignment and coupled
+loaded execution still require commissioning; UR startup runs no task.
+
 The [modular manipulation harness](docs/manipulation_pipeline.md) adds versioned
 skills, agent review points and an opt-in physical-contact carton scene. After
 grasping, the carrying arms follow one rigid object's motion on a common time
