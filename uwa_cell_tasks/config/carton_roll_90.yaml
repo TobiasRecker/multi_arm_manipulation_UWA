@@ -14,7 +14,7 @@ wall_thickness_m: 0.0025
 finger_joint_damping_nm_s: 0.08
 gripper_transmission: elastic_gear
 physics_engine: dartsim
-simulation_real_time_factor: 0.6
+simulation_real_time_factor: 0.4
 gripper_gear_stiffness_nm_rad: 100.0
 gripper_motor_stiffness_nm_rad: 30.0
 gripper_coarse_velocity_rad_s: 0.1

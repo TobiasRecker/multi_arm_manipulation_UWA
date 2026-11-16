@@ -5,6 +5,9 @@ carton, 30 mm lift, two-second dwell, set down and release. The task transport
 cannot address hardware. It requires domain64, `uwa_cell_sim`, LOCALHOST and an
 isolated `/uwa_grasp_*` namespace. No real power, brake or program commands exist.
 
+See the compact [500g force/speed/stop report](carton_dynamic_validation_2026-11-16.md)
+for current measured results, profile differences and remaining limits.
+
 ## Exploration objective (clarified2026-11-16)
 
 Use contact simulation to explore fast task execution and find the limiting
@@ -45,8 +48,9 @@ A configured envelope can be rejected before any movement if its reserve does
 not fit the start geometry. An optional arm `joint_jerk_rad_s3` uniformly retimes the complete approach, entry
 and object motion using exact extrema of the controller’s quintic segments.
 This bounds planned command jerk, not measured servo jerk or stop behavior.
-Faster loaded stop qualification and a physical maximum remain open. Failed
-attempts remain evidence.
+Three loaded stop cases now pass for the explicit10mm/s/0.2rad/s-finger
+profile below. A physical maximum remains unmeasured. Failed attempts remain
+evidence.
 
 Start `tools/trace_manipulation.py RUN --prepare` before arming: it now records
 full received native force windows in `force-trace.jsonl` as well as the20Hz
@@ -88,8 +92,26 @@ cycle and **two complete10mm/s Home cycles** with500g. The Home repeats measured
 per-jaw peak upper bound. Both full force traces are gap-free; all pads remain
 under load until supported release, and final holds are confirmed. No real
 force-setting calibration or maximum physical speed follows from these cases.
-Evidence: `setup/tasks/carton_preload_home_20261116_01/`. Loaded member/runner/
-guard fault tests at the same speed are in progress separately.
+Evidence: `setup/tasks/carton_preload_home_20261116_01/` (finger bound0.15rad/s).
+The separate `carton_preload_faults_20261116_03/` passes all three loaded
+member/runner/guard stop tests at10mm/s with finger bound0.2rad/s and its larger
+full stopping reserve. All four pads remain engaged, relative error<=0.240mm,
+gap-free per-jaw peak upper bounds<=5.394N; implementation binding and scoped
+cleanup pass. Two complete Home repeats with exactly this0.2rad/s profile now
+also pass (`carton_preload_home_20261116_02/`):29.924mm lift, relative error
+<=0.274mm, gap-free per-jaw peak upper bounds<=5.504N. All five cases use the
+same bound implementation and profile; their sealed index and exact profile are
+in `setup/tasks/manipulation_qualification_20261116/`. The earlier0.15rad/s Home
+results retain their original profile.
+
+These last tests use the immutable baseline under
+`setup/tasks/carton_frozen_baseline_20261116_01/` to preserve concurrent carton-
+rotation development. Source the normal cell environment, then that snapshot's
+`environment.bash` to reproduce its implementation; file hashes and copied
+tools are retained there. This does not qualify the separate rotation recipe.
+For a new fast translation task, use the index's explicit `qualified-profile.yaml`
+and frozen environment as shown in the compact report; the package default
+remains the historical slow commissioning profile.
 
 `cell_task skills` now lists16contracts including force reference validation,
 load observation, virtual fixture preparation, experiment cases and loaded-stop
@@ -608,8 +630,13 @@ requires the unsupported turn and supported sideways release.
 This is experimental software, **not a qualified contact cycle**. The first
 offline nominal path can lift and turn geometrically, but its direct descent
 encounters a front-arm forearm/wrist self-collision. Other original candidates
-also fail collision, reach or stopping-reserve checks. A left-table alternative passes the coarse geometry screen; dense timing
-and contact evidence remain separate. Consult work/carton-roll-90.md for current
+also fail collision, reach or stopping-reserve checks. A left-table alternative passes the complete dense geometry/timing check
+(scene03). Its original global derivative bound makes the turn very slow; an
+interval-wise conservative timing bound passes in scene04 (55.76s lift,
+250.94s turn,61.88s descent). Contact evidence remains separate. The first Home
+contact attempt was rejected before motion; the fixture attempt reached all
+four pads but stopped before lifting on a170ms state gap. A lower-RTF repeat
+is pending; no physical quarter-turn pass is claimed. Consult work/carton-roll-90.md for current
 results. Do not execute by bypassing collision checks. Earlier translation-only
 passes do not qualify this recipe. No second grasp world may run concurrently.
 

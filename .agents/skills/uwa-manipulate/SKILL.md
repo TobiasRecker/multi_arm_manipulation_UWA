@@ -33,14 +33,17 @@ verify its trace file exists and allow discovery to settle before reset/arming.
 Avoid introducing new ROS participants while armed. A constructor-only RunStore
 does not persist state; `--prepare` explicitly creates the CREATED state.
 
-The nominal Home recipe defaults to0.5mm/s object speed. Read the case-specific
-evidence in `setup/tasks/manipulation_qualification_20261114/result.json` under
-the workspace root: earlier1mm/s passes use different start/mass profiles.
-Nominal Home at1mm/s and the0.4kg/friction0.8 case failed the passive-finger
-speed limit. Do not infer an untested operating region from successful cases.
-The nominal0.5mm/s repetition also failed this limit before pickup (run74),
-despite the completed individual run71. Nominal grasp repeatability remains
-unresolved; keep the default labelled experimental and report aborted attempts.
+For a new500g translation task use the tested fast profile from
+`setup/tasks/manipulation_qualification_20261116/result.json` under the workspace
+root: source the normal cell environment, then the recorded frozen
+`environment.bash`, and pass its explicit `qualified-profile.yaml`. The compact
+report `docs/carton_dynamic_validation_2026-11-16.md` contains the exact command.
+Two full10mm/s Home cycles and three loaded stops pass with the same0.2rad/s
+finger envelope and fully retained stopping reserve. This is a finite observed
+profile, not a physical speed maximum or a rotation/hardware qualification.
+The package default remains the old slow commissioning profile; do not select it
+merely because no config was supplied. Old14November evidence used other masses
+and includes repeat failures; preserve it without applying it to500g.
 
 Keep the runner alive while reviewing from a second tool invocation. At each
 `WAITING_REVIEW`, read the current `review.json`, actual images/overlays and
@@ -79,6 +82,20 @@ evaluation and scoped cleanup. Both carried500g to29.4mm and stopped at a
 configured passive-finger speed bound during descent. After increasing only
 virtual motor preload, a5mm/s fixture cycle and two complete10mm/s Home cycles
 with500g passed (gap-free forces,29.924mm lift,<=0.274mm relative position error,
-<=5.556N per-jaw peak upper bound). Loaded fault qualification at this profile
-is in progress. No physical speed maximum or hardware setting is qualified.
+<=5.556N per-jaw peak upper bound). The final0.2rad/s-finger profile additionally passes two full Home repeats
+and all three loaded faults; the sealed16November index binds their common
+profile/implementation. Its largest per-jaw peak upper bound is5.504N. No physical speed maximum or hardware setting is qualified.
 Preserve the older negative evidence and narrower source-binding scope.
+
+For the optional longitudinal quarter turn, read `work/carton-roll-90.md` and
+`config/carton_roll_90.yaml`. The original end-wall pinch, fixed grasp offsets,
+shared object compiler and guard are reused. Nominal geometry needs about146mm
+clearance lift, not30mm. The checked left-table placement keeps the opening
+facing the fixed OAK camera; direct right-table descent self-collides. Scene04
+passes complete dense geometry/timing checks and has a labelled file-only model
+animation. This does not establish contact-supported rolling. Initial Home
+entry was rejected; the fixture attempt reached four pad contacts but stopped
+before pickup on a170ms state gap. A single lower-RTF repeat is pending. Never
+weaken freshness limits to make the experiment pass or present planned motion
+as a completed contact cycle. Phase budgets come from the reviewed trajectory;
+the old short lift's generic120s skill metadata does not describe a250s turn.

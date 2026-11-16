@@ -19,7 +19,7 @@ from match_cooperative_handling.rigid_object import rigid, interpolate, pose_err
 from .core import ARMS, seal
 from .scene import apply_object,mass_properties,inherit_pad_adjacency
 from .operating import motion_configuration,TaskSphereModel
-from .timing import limit_shared_jerk
+from .timing import limit_shared_jerk,object_law_duration
 
 
 def support_exemptions(problem,object_pose):
@@ -372,8 +372,11 @@ def object_trajectory(problem, group, start, object_start, object_end, cfg, *, p
     # Rescale the WHOLE object law to satisfy the most restrictive joint.
     fractions=np.linspace(0,1,len(samples));spline=CubicSpline(fractions,samples,axis=0)
     gradient=spline(np.linspace(0,1,steps*4+1),1);curvature=spline(np.linspace(0,1,steps*4+1),2)
-    duration=max(duration,1.875*float(np.max(abs(gradient)))/cfg['joint_velocity_rad_s'],
-        np.sqrt((float(np.max(abs(curvature)))*1.875**2+float(np.max(abs(gradient)))*5.774)/cfg['joint_acceleration_rad_s2']))*1.02
+    if cfg.get('roll_long_axis'):
+        duration=max(duration,object_law_duration(spline,cfg['joint_velocity_rad_s'],cfg['joint_acceleration_rad_s2']))*1.02
+    else:
+        duration=max(duration,1.875*float(np.max(abs(gradient)))/cfg['joint_velocity_rad_s'],
+            np.sqrt((float(np.max(abs(curvature)))*1.875**2+float(np.max(abs(gradient)))*5.774)/cfg['joint_acceleration_rad_s2']))*1.02
     points=[]
     # Uniform time, quintic object progress, common C2 joint spline; supply
     # derivatives so the action controller preserves smooth interpolation.

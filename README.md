@@ -502,10 +502,12 @@ grasping, the carrying arms follow one rigid object's motion on a common time
 law. Its isolated validation world does not restart this cell. Development and
 actual grasp evidence are recorded separately in HANDOVER; software availability
 alone is not a successful physical-contact lift.
-Five complete contact cycles and three loaded fault cases have passed their
-recorded checks. Nominal grasp repeatability remains unresolved: some repeated
-attempts hit passive-finger speed limits and stop retaining grip. The default
-is an experimental simulation profile; see the guide's full evidence matrix.
+The latest [500g force and speed tests](docs/carton_dynamic_validation_2026-11-16.md)
+include two complete10mm/s Home cycles and three loaded stop cases with retained
+grip using exactly the same version-bound profile. The report preserves earlier
+profiles and failures. Direct force-reference checks pass. The
+default remains the historical slow experimental profile; no hardware speed
+or physical maximum is qualified by these simulations.
 
 An optional [90° carton-roll recipe](docs/manipulation_pipeline.md#experimental-longitudinal-quarter-turn-2026-11-16)
 reuses the same object-led pipeline for sideways placement facing OAK. It remains

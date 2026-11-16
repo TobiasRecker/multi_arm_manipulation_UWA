@@ -19,6 +19,7 @@ def evaluate(run,scene_directory):
     checks['holds_confirmed']=bool(state.get('stop',{}).get('confirmed'))
     try:verify_scene(scene_directory);checks['current_implementation_bound']=True
     except (ValueError,OSError,KeyError) as error:checks['current_implementation_bound']=False;notes.append(str(error))
+    motion=None
     try:
         plan=verify(json.loads((run/'plan.json').read_text()))
         checks['plan_scene_binding']=plan['scene_sha256']==scene['sha256']
@@ -34,7 +35,7 @@ def evaluate(run,scene_directory):
             expected_lift=targets['lift_m']
             turn=verify(json.loads((run/'object-turn.json').read_text()))
             down=verify(json.loads((run/'object-set-down.json').read_text()))
-            checks['complete_object_recipe_bound']=all(m['kind']=='rigid_object' and len(m['joint_names'])==12
+            checks['complete_object_recipe_bound']=bool(motion) and all(m['kind']=='rigid_object' and len(m['joint_names'])==12
                 and m['scene_sha256']==scene['sha256'] and m['group']['object_to_tcp']==motion['group']['object_to_tcp']
                 for m in (turn,down))
         except (OSError,KeyError,ValueError) as error:

@@ -1,6 +1,6 @@
 # Modulare Karton-Greifpipeline
 
-- Status: **in Arbeit**, 2026-11-13, Hauptagent Greifpipeline.
+- Status: **abgeschlossen – erste Kraft-/Dynamikstufe**, 2026-11-16 (Australia/Perth), Hauptagent Greifpipeline.
 - Auftrag: wiederverwendbare Skills/CLI/Reviews, zuerst Simulation mit beiden
   rechten URs, leerer Karton, physischer Kontakt, kurzer Hub und Absetzen.
 - Nutzerentscheidung: Agent prüft und setzt im konkreten Auftrag selbst fort;
@@ -14,10 +14,21 @@
 - Gemeinsame Simulation: laufender Vierarmvergleich hat Vorrang; keine fremden
   Dienste stoppen/neustarten. Zunächst Offlinearbeit. Eigene Kontaktprüfungen
   getrennt benennen; Zellneustart erst nach tatsächlicher Nutzungsprüfung.
-- Annahmen: starrer leerer Karton, 0,3kg, Reibwert0,6; ungemessen. Hub30mm,
-  Halten2s, keine künstliche Objektbefestigung als Haltenachweis.
-- Noch offen: vollständige Kontakt-/Hubprüfung und fünf volle Zellläufe.
-  Nur tatsächlich ausgeführte Nachweise als bestanden dokumentieren.
+- Aktuell:500g laut Nutzer;50N je einzelne Backe/Wandkontaktfläche als
+  Nutzerreferenz. Starrmodell/Reibwert0,6 bleiben Annahmen. Hub30mm/Halten2s,
+  kein künstliches Anheften. Ältere0,3-/0,2kg-Belege nur historisch verwenden.
+- Nachgewiesen16.11.:12Kraftreferenzfälle,500g-Leerlaufintegration, zwei ganze
+  Home-Zyklen10mm/s bei0,15Finger sowie3/3geladene Stoppfälle bei0,2Finger.
+  Siehe docs/carton_dynamic_validation_2026-11-16.md.
+- Abschließend2/2Home-Zyklen und3/3Laststopps mit exakt identischem0,2Finger-
+  Profil/gebundenem Code bestanden. Versiegelter Index/exaktes Profil unter
+  `setup/tasks/manipulation_qualification_20261116/`; eigene Prozesse sauber
+  beendet, kein Hardwarekommando. Direkte Messung genügt für diese Simversuche,
+  daher keine schwimmende Basis gebaut. Weiteres Temposweeping/Variation,
+  physisches Maximum und Hardwareabgleich bleiben spätere Arbeit.
+
+## Historische Entwicklung ab13.11.
+
 - Implementiert/gebaut: uwa_cell_tasks, geometrischer Cooperative-Kern,
   Skill-/Review-/Plan-/Run-/Stop-CLI, Kontaktbackend und isolierter Zell-Launch.
  9Softwaretests PASS. Kontaktgeometrie STL mit Normalen, exakt konvex
@@ -795,3 +806,35 @@ beendet; eigene Liveprüfung wartet auf freie Greifwelt. Details work/carton-rol
   Danach Runner-/Guard-Pause; anschließend zwei volle Home-Zyklen mit exakt
   demselben eingefrorenen0,2Finger-Profil vorgesehen. Keine fremden Welten
   oder Hardwareprozesse verändern.
+
+- Matrix03 vollständig **3/3 PASS**: member_stop/runner_pause/guard_pause,
+  maxRelativfehler0,240/0,238/0,237mm; Kräfte lückenlos, Backenmittel<=5,146N,
+  Peakobergrenze<=5,394N. Beide Holds einschließlich Stillstandsfenster nach
+  1,285/1,600/1,370s bestätigt (keine reine Bremszeit). Alle Versionen gebunden,
+  alle eigenen Launchkinder sauber beendet, äußerer Exit0; cleanup-audit.json.
+- Home02-Start korrekt abgewiesen, weil paralleler Drehauftrag inzwischen
+  `carton_roll_contact_20261116_01` in gleicher Greifwelt gestartet hat. Keine
+  eigene zweite Welt/neuen ROS-Teilnehmer in dessen aktivem Lauf starten.
+  Zwei Home-Wiederholungen mit0,2Finger bleiben bis freier Welt ausstehend;
+  ursprüngliche zwei Home-PASS gelten für0,15Finger. Kein Profil nachträglich
+  umqualifizieren und keinen fremden Lauf zum Freimachen beenden.
+
+- Nach Ende des fremden Drehversuchs startet die begrenzte Warteschlange
+  `carton_preload_home_20261116_02`, zwei ganze10mm/s-Zyklen abHome mit
+  identischem0,2Finger-/0,5ms-/Motor30/0,7-Profil. Case00-Strategie/Bahn
+  tatsächlich geprüft:50,826sAnfahrt,7,041sEinfahrt,5,738sObjekthub.
+
+### Abschluss dieser Kraft-/Dynamikstufe, 2026-11-16
+
+- Home02 beide vollständigen Zyklen PASS, COM29,92485/29,92425mm; maximale
+  Relativfehler0,252/0,274mm. Beide Krafttraces lückenlos, Backenmittel<=5,379N,
+  Peakobergrenze<=5,504N. Alle ursprünglichen Negativdaten erhalten.
+- Gemeinsamer Index prüft alle5Fälle, gleiche Konfiguration/Implementierung,
+  Kraftreferenz und Leerlaufintegration, Versionshashes und Cleanup-Audits.
+  Eigene Welten/Recorder/Runner beendet, beide äußeren Kampagnen Exit0.
+- Schnelles Profil explizit über Index+Frozen-Umgebung in Skill/Bedienung
+  auswählbar. Langsamer Paketdefault bleibt historische Inbetriebnahme; keine
+  pauschale Übertragung auf parallel geänderte Drehquellen oder Hardware.
+- Repositoryprüfung gezielt: geänderter Experimenttreiber2Tests PASS;
+  vorheriger Task-Build mit42Tests PASS dokumentiert. Keine gemeinsamen
+  Motionquellen dieser Arbeit verändert, fremde Änderungen erhalten.

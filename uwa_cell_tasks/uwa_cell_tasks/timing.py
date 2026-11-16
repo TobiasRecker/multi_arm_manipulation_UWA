@@ -37,3 +37,29 @@ def limit_shared_jerk(trajectory, limit):
         controller_interpolation_peak_rad_s3=interpolation_peak(result,3),
         interpretation='Planned quintic command jerk; not measured actuator jerk or stop qualification')
     return result
+
+
+def object_law_duration(spline, velocity_limit, acceleration_limit):
+    """Conservative local bounds for q(s(u)), s(u)=10u³-15u⁴+6u⁵.
+
+    Unlike multiplying unrelated global maxima, each spline interval is paired
+    with its own quintic time interval. All joints still share one duration.
+    """
+    from scipy.optimize import brentq
+    def progress(u):return 10*u**3-15*u**4+6*u**5
+    times=np.array([0. if x==0 else 1. if x==1 else brentq(lambda u:progress(u)-x,0,1,xtol=1e-14) for x in spline.x])
+    speed_bound=0.;acceleration_bound=0.
+    for i,(lo,hi) in enumerate(zip(times[:-1],times[1:])):
+        width=spline.x[i+1]-spline.x[i];c3,c2,c1,_=spline.c[:,i]
+        grad=np.maximum(abs(c1),abs(3*c3*width**2+2*c2*width+c1))
+        root=np.divide(-c2,3*c3,out=np.zeros_like(c2),where=c3!=0)
+        valid=(c3!=0)&(root>0)&(root<width)
+        grad=np.maximum(grad,np.where(valid,abs(3*c3*root**2+2*c2*root+c1),0.))
+        curvature=np.maximum(abs(2*c2),abs(6*c3*width+2*c2))
+        candidates=[lo,hi]+[u for u in (.5,) if lo<u<hi]
+        ds=max(abs(30*u*u*(1-u)**2) for u in candidates)
+        candidates=[lo,hi]+[u for u in ((3-np.sqrt(3))/6,(3+np.sqrt(3))/6) if lo<u<hi]
+        dds=max(abs(60*u-180*u*u+120*u**3) for u in candidates)
+        speed_bound=max(speed_bound,float(np.max(grad))*ds)
+        acceleration_bound=max(acceleration_bound,float(np.max(curvature))*ds**2+float(np.max(grad))*dds)
+    return max(speed_bound/velocity_limit,np.sqrt(acceleration_bound/acceleration_limit))

@@ -1,5 +1,37 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Echter Vierarm-Timingtest vorbereitet, Bewegung durch Startreserve blockiert, 2026-11-16
+
+- Nutzer widerspricht dem implizierten realen Engstand: Arme seien recht weit
+  getrennt. Physische Startvorbereitung vorerst zurückgestellt; zuerst Modell-
+  Realabgleich.42,3mm ist Abstand modellierter Fingerhüllkugeln, kein Messwert
+  der Zelle. Modell setzt90cm Basisabstand/43,7cm Flanschabstand und nachinnen
+  gerichtete Greifer aufca1,98m an. Basis-/Tischanker/Montagewinkel weiterhin
+  nominal, Werks-FK/optischeKalibrierung ersetzt keinen Basisextrinsikabgleich.
+  Ansicht setup/research/four-arm-model-distance-review/rear-envelope-gap.png.
+  Keine Aufforderung, reale Arme passend zu diesen Modellannahmen umzustellen.
+
+- Nutzer beauftragt kleine gemeinsame Realbewegung mit Wächter und bestätigt
+  freie Bereiche/Not-Halt-Bereitschaft. Alte Bewegungscontroller alle inaktiv
+  nachgelesen,6Joint-Holds inaktiv geladen. Bringup meldete alle4bereitsbereit,
+  commands[]/keine eigenenPower-/Brake-/Play-/Treiberstartbefehle. Kein Fahrziel.
+- Vorhandener reinlesender Hardwaremonitor neu gestartet mit Zeitdiagnostik.
+  RR5.10braucht556ms für RTDE-Protokollanmeldung; separate2s-Verhandlung,
+  unveränderte200ms-Datenfrische/Streamtimeout.121RegressionenPASS.
+- Reale15s-Messung mit4URs/141Samples: Callbackmedian5,385ms/max54,486ms
+  unter100msBudget; Zyklusmax102,888ms. Quell-Empfangsalter beimGuardmax48,25ms,
+  GuardalterbeimSupervisormax146,43ms. Observer-Zustellalterbis272,64ms,
+  also Rechenzeitbeleg im Stillstand, keine allgemeine End-to-End-Garantie.
+- +0,03rad letztesHandgelenk jeArm vorgeplant, aber INVALID_START: Mesh/FCL
+  undGelenkgrenzenklar, hintereGreiferhüllen nur42,3mm Abstandgegen172,9mm
+  Planungsreserve/zuletzt155,8mm LiveSchwelle. KeinArming/keineFahrt, Grenzwerte
+  unverändert. Vierarme meldenROSREADY, MonitorUWA_MOTION_ARMED=0.
+- Startvorbereitung ausstehend: Nutzer nach separaterPlanung(nochkeineFahrt)
+  oder manuellerAusrichtung gefragt. KeineBewegungs-/Bremsabnahme behaupten.
+  Bericht setup/research/four-arm-live-timing-20261116/report.html, Rohdaten/
+  Status/Planfehler unter setup/logs/uwa-four-arm-live-*. Arbeit
+  work/four-arm-live-timing.md. Nach Umstellen neueActuals/Prüfung verwenden.
+
 ## Karton um 90° zur OAK drehen, Entwicklung 2026-11-16
 
 - Neuer Nutzerauftrag: bestehende Zweiarm-Simulation wiederverwenden, Karton um
@@ -11,13 +43,20 @@
 - Geometrie: ca146mm Hub statt30mm, Drehung am Materialschwerpunkt, Zielseitenlage
   zur szenengebundenen OAK. Direkte rechte Absenkung kollidiert RF-Unterarm/Wrist3;
   linke Alternative grob FCL-/IK-frei. Mit0,04rad/s Armgrenze im123Sample-Screen
-  mindestens24,739mm zusätzliche Paarreserve. Vollständige Dichtprüfung läuft;
-  **noch kein Dreh-/Absetz-Kontaktzyklus bestanden**.
+  mindestens24,739mm zusätzliche Paarreserve. Vollständige Dichtprüfung PASS
+  in Szene04, nominelle Tragezeit368,585s. **Noch kein Dreh-/Absetz-Kontaktzyklus
+  bestanden**. Homeversuch vor Bewegung verworfen; Fixtureversuch erreicht
+  vierPadkontakte, stoppt vor Abheben an170msZustandslücke. BeideHolds bestätigt,
+  unterstützt, keineÖffnung. Ein vorbereiteter RTF0,4-Wiederholungsversuch wartet
+  auf die reguläre Freigabe der aktuell fremd genutzten Greifwelt.
 - Neue räumliche Vollrezeptvorprüfung verwirft späte Fehler vor teurer dichter
   Zeitparametrierung; volle Interpolations-/Kollisionsprüfung bleibt erhalten.
   Erweiterte Traceauswertung verlangt freie Vierteldrehung und unterstützte
-  Freigabe in Seitenlage. File-only Modellvorschau vorgesehen, kein Physikbeleg.
--43Pythonprüfungen sowie8CTest-Suites PASS; Logs setup/logs/uwa-carton-roll-*.
+  Freigabe in Seitenlage. File-only Modellvorschau:
+  setup/tasks/carton_roll_20261116_04/animation.html, Play/Timeline/Reset in JS-VM
+  geprüft. Kein Browserrender-/Physikbeleg. Neuer konservativer Intervallzeitbound
+  senkt die Drehzeit250,941s statt1588,609s ohne höhere Limits.
+-44Pythonprüfungen sowie8CTest-Suites PASS; Logs setup/logs/uwa-carton-roll-*.
   Workspace-MD-Inventar216Dateien/24614Zeilen unter Szene01. Alte Quellenbindungen
   und Negativbelege erhalten. Fremde Hardwaredatei hardware_nodes.py nicht angefasst.
 - Koordinationsfehler: erste Quelländerungen invalidierten parallele Fault-Reihe02,
@@ -588,9 +627,28 @@
   Neue isolierte Matrix03 nutzt Snapshot `carton_frozen_baseline_20261116_01`
   mit erfolgreichen Home-Taskmodulen und erweiterter Abhängigkeitsbindung.
   Gemeinsamer Checkout/90°-Drehauftrag wird nicht zurückgesetzt.
-  Matrix03/case00 member_stop PASS: vierPads erhalten, maxRelativfehler0,240mm,
-  passive Spitze0,173818rad/s innerhalb neuer0,2-Grenze; lückenlose Kräfte,
-  current_implementation_bound=true. Runner-/Guard-Ausfall noch in Prüfung.
+  Matrix03 **3/3 PASS**: member_stop/runner_pause/guard_pause bei getragenem
+  500g-Karton und10mm/s-Profil, vierPads erhalten, maxRelativfehler
+  0,240/0,238/0,237mm. Beide Holds einschließlich Stillstandsfenster nach
+  1,285/1,600/1,370s bestätigt (keine reine Bremszeit). Passive Spitze maximal
+  0,173818rad/s innerhalb neuer0,2-Grenze; lückenlose Kräfte, Backenmittel
+  <=5,146N/10ms, Peakobergrenze<=5,394N, Implementierungsbindung überall gültig.
+  Alle eigenen Launchkinder sauber beendet/äußerer Exit0, cleanup-audit.json.
+  Home02-Start zunächst wegen aktiver fremder Kartondrehwelt abgewiesen;
+  begrenzte Warteschlange startet erst nach deren Ende. Anschließend
+  `carton_preload_home_20261116_02` **2/2 komplette Home-Zyklen PASS** mit
+  exakt demselben0,2Finger-Profil/gebundenen Code wie Stoppmatrix03:
+  COM29,92485/29,92425mm, maxRelativfehler0,252/0,274mm und0,001797/0,001780rad.
+  Lückenlose Kräfte, je Backe höchstens5,379N/10ms und5,504N Peakobergrenze;
+  vierPads bis unterstützter Öffnung, finale Holds, Cleanup/äußerer Exit0.
+  Gemeinsamer versiegelter5-Fälle-Index und exaktes Profil:
+  `setup/tasks/manipulation_qualification_20261116/result.json`.
+  Keine Maximum-/Hardware-/Drehfreigabe; alte Home-PASS behalten0,15Finger.
+  Kompakter Prüfbericht docs/carton_dynamic_validation_2026-11-16.md;
+  Skill wählt für neue schnelle Translationen explizit Profil+Frozen-Umgebung,
+  historischer langsamer Default bleibt separat. Aktueller Experimenttreiber
+  verlangt auch bei Fault-PASS zusätzlich gültige Implementierungsbindung;
+  zwei gezielte Treibertests PASS (uwa-exploration-driver-test09.log).
 - Aktionskatalog auf16Verträge erweitert: Kraftreferenzprüfung, Lastbeobachtung,
   rein virtuelle Fixturevorbereitung, endlicher Experimentfall und geladener
   Fehler-/Stoppversuch. Lokale Planungs-/Wächterabhängigkeiten inklusive

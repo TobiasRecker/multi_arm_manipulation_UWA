@@ -27,3 +27,20 @@ def test_extrema_inside_segments_are_included():
     assert interpolation_peak(trajectory,3)==pytest.approx(2.4)
     for limit in (0.,-1.,np.inf):
         with pytest.raises(ValueError):limit_shared_jerk(trajectory,limit)
+
+
+def test_local_object_timing_bounds_endpoint_curvature_without_global_slowdown():
+    from scipy.interpolate import CubicSpline
+    from uwa_cell_tasks.timing import object_law_duration
+    # High curvature near rest must be paired with the near-zero object speed.
+    x=np.r_[0.,.0001,.0002,.001,.01,.1,.5,1.]
+    q=np.column_stack([x+.001*np.exp(-x/.0001),np.sin(2*x)])
+    spline=CubicSpline(x,q,axis=0)
+    duration=object_law_duration(spline,.04,.25)*1.02
+    u=np.linspace(0,1,200001);s=10*u**3-15*u**4+6*u**5
+    ds=30*u**2*(1-u)**2;dds=60*u-180*u**2+120*u**3
+    assert np.max(abs(spline(s,1)*ds[:,None]))/duration<=.04
+    assert np.max(abs(spline(s,2)*ds[:,None]**2+spline(s,1)*dds[:,None]))/duration**2<=.25
+    gradient=spline(np.linspace(0,1,100001),1);curvature=spline(np.linspace(0,1,100001),2)
+    old=max(1.875*np.max(abs(gradient))/.04,np.sqrt((np.max(abs(curvature))*1.875**2+np.max(abs(gradient))*5.774)/.25))
+    assert duration<old/2
