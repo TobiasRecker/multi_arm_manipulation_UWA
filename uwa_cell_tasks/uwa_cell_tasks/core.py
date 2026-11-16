@@ -69,10 +69,12 @@ def configuration(path=None):
         path = Path(get_package_share_directory('uwa_cell_tasks')) / 'config/carton.yaml'
     cfg = yaml.safe_load(Path(path).read_text())
     cfg.setdefault('simulation_real_time_factor',.7)
+    cfg.setdefault('force_observation',False)
+    if not isinstance(cfg['force_observation'],bool):raise ValueError('force_observation must be boolean')
     if cfg.get('schema_version') != 1 or tuple(cfg.get('arms', [])) != ARMS:
         raise ValueError('v1 requires schema1 and the two right arms in stable order')
     for key, value in cfg.items():
-        if key in ('schema_version', 'arms', 'object_id', 'simulation_assumptions','gripper_transmission','physics_engine'): continue
+        if key in ('schema_version', 'arms', 'object_id', 'simulation_assumptions','gripper_transmission','physics_engine','force_observation'): continue
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
             raise ValueError('Expected positive finite ' + key)
     if cfg['lift_m'] > .05 or cfg['joint_velocity_rad_s'] > .05 or cfg['joint_acceleration_rad_s2'] > .10:

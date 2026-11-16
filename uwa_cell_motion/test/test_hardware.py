@@ -111,3 +111,33 @@ def test_native_rrt_uses_same_hardware_srdf_and_envelope(problem):
     path,error=problem.rrt(request,4,3.)
     assert path is not None,error
     assert problem.time_parameterize(request,path)['points']
+
+
+def test_native_stop_transport_sends_only_stop_to_local_fake_server():
+    import socket,threading
+    from uwa_cell_motion.hardware_state import dashboard_stop
+    server=socket.socket();server.bind(('127.0.0.1',0));server.listen();commands=[]
+    def serve():
+        connection,_=server.accept()
+        with connection:
+            connection.sendall(b'Connected: test Dashboard\n');data=b''
+            while not data.endswith(b'\n'):data+=connection.recv(100)
+            commands.append(data);connection.sendall(b'Stopped\n')
+    worker=threading.Thread(target=serve);worker.start()
+    try:assert dashboard_stop(dict(ip='127.0.0.1',dashboard_port=server.getsockname()[1]))=='Stopped'
+    finally:worker.join(timeout=2.);server.close()
+    assert commands==[b'stop\n']
+
+
+def test_simulation_plan_cannot_be_sent_to_hardware_backend(monkeypatch,tmp_path):
+    from uwa_cell_motion.hardware_execution import execute
+    monkeypatch.setenv('ROS_DOMAIN_ID','67');monkeypatch.setenv('ROS_AUTOMATIC_DISCOVERY_RANGE','LOCALHOST')
+    with pytest.raises(ValueError,match='explicitly bound'):
+        execute(dict(success=True,simulation_only=True),tmp_path/'result.json','mock')
+
+
+def test_unknown_finger_visuals_and_simulator_actuators_are_absent_from_hardware_model(problem):
+    root=ET.fromstring(problem.description)
+    assert root.find('gazebo') is None and root.find('ros2_control') is None
+    for row in problem.envelope_audit:
+        assert not root.find(f"link[@name='{row['link']}']").findall('visual')

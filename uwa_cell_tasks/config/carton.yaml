@@ -3,7 +3,11 @@ object_id: avocado_carton
 arms: [right_front, right_rear]
 lift_m: 0.03
 dwell_s: 2.0
-mass_kg: 0.3
+mass_kg: 0.5
+# User report2026-11-16: one jaw/wall contact patch tolerates50N comfortably.
+# Reference for exploration reports, not a calibrated breaking-force limit.
+pad_load_reference_n: 50.0
+force_observation: true
 friction: 0.6
 wall_thickness_m: 0.0025
 finger_joint_damping_nm_s: 0.08
@@ -23,4 +27,4 @@ relative_position_tolerance_m: 0.002
 relative_angle_tolerance_rad: 0.017453292519943295
 maximum_observation_age_s: 5.0
 maximum_attempts: 3
-simulation_assumptions: [rigid_empty_carton, upright_carton_on_horizontal_support, unmeasured_mass, unmeasured_friction, approximate_geometry, unmeasured_finger_damping, unmeasured_transmission_stiffness, idealized_parallel_transmission, idealized_arm_actuators]
+simulation_assumptions: [rigid_empty_carton, upright_carton_on_horizontal_support, user_reported_mass, unmeasured_friction, approximate_geometry, unmeasured_finger_damping, unmeasured_transmission_stiffness, idealized_parallel_transmission, idealized_arm_actuators]

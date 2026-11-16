@@ -306,6 +306,10 @@ def prepare_scene(layout, cfg, directory):
     if (directory/'scene.json').exists():raise FileExistsError('Scene is immutable; prepare into a new directory')
     directory.mkdir(parents=True, exist_ok=True)
     from ament_index_python.packages import get_package_prefix
+    force_backend=None
+    if cfg.get('force_observation'):
+        force_backend=(Path(get_package_prefix('uwa_cell_tasks'))/'lib/libforce_telemetry.so').resolve()
+        if not force_backend.is_file():raise FileNotFoundError('Build native force telemetry first')
     vendor=Path(get_package_prefix('gz_physics_vendor'))
     library='libgz-physics-'+cfg['physics_engine'].replace('_','-')+'-plugin.so'
     engines=[base/'lib'/library for base in (vendor,vendor/'opt/gz_physics_vendor')]
@@ -356,6 +360,12 @@ def prepare_scene(layout, cfg, directory):
     overview_model=ET.fromstring(model_sdf(overview)).find('model');overview_model.set('name','uwa_grasp_oak');w.append(overview_model)
     oak_joint=ET.SubElement(overview_model,'joint',name='fixed_camera_tripod',type='fixed')
     ET.SubElement(oak_joint,'parent').text='rgb_camera';ET.SubElement(oak_joint,'child').text='tripod'
+    if force_backend is not None:
+        observer=ET.SubElement(w,'plugin',filename=str(force_backend),name='uwa_cell_tasks::ForceTelemetry')
+        ET.SubElement(observer,'ros_namespace').text='/uwa_grasp_validation'
+        ET.SubElement(observer,'object_model').text='uwa_grasp_carton'
+        watched=[a+'_'+j+'_joint' for a in ARMS for j in ('shoulder_pan','wrist_3')]
+        ET.SubElement(observer,'joints').text=' '.join(watched)
     (directory/'world.sdf').write_text(ET.tostring(world,encoding='unicode'))
     from ament_index_python.packages import get_package_prefix
     backend=Path(get_package_prefix('uwa_cell_tasks'))/'lib/libcontact_gripper.so'
@@ -387,6 +397,13 @@ def prepare_scene(layout, cfg, directory):
         controllers_sha256=hashlib.sha256(controllers.read_bytes()).hexdigest(),
         mass_and_friction_measured=False, contact_model=('torque-limited motor with native parallel gear constraints'
             if cfg['gripper_transmission']=='native_gear' else 'experimental force-limited elastic gear approximation')))
+    if force_backend is not None:
+        record=seal(dict(record,force_backend_binary=str(force_backend),
+            force_backend_sha256=hashlib.sha256(force_backend.read_bytes()).hexdigest(),
+            force_observation=dict(contact_body_attribution_trusted=False,
+                contact_loads='Unsigned normal/tangential load per unique collision pair; physics-step peaks and10ms integrals.',
+                joint_reactions='Joint-frame SI forces/torques; idealized arm actuation remains unqualified.',
+                pad_load_reference_source='User report2026-11-16, per jaw/wall patch; no measured failure limit.')))
     write_json(directory/'scene.json', record)
     return record
 
@@ -450,6 +467,8 @@ def verify_scene(directory):
             raise ValueError('Task implementation changed; prepare and relaunch the scene')
     if hashlib.sha256(Path(scene['backend_binary']).read_bytes()).hexdigest()!=scene['backend_sha256']:
         raise ValueError('Contact backend changed; prepare and relaunch the scene')
+    if scene.get('force_backend_binary') and hashlib.sha256(Path(scene['force_backend_binary']).read_bytes()).hexdigest()!=scene['force_backend_sha256']:
+        raise ValueError('Force observer changed; prepare and relaunch the scene')
     if hashlib.sha256(Path(scene['clock_bridge_binary']).read_bytes()).hexdigest()!=scene['clock_bridge_sha256']:
         raise ValueError('Clock backend changed; prepare and relaunch the scene')
     if hashlib.sha256(Path(scene['physics_engine_binary']).read_bytes()).hexdigest()!=scene['physics_engine_sha256']:

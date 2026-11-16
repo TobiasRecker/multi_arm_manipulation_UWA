@@ -262,6 +262,10 @@
   FoundationPose zunächst in eigenem Ordner/eigener Umgebung auf Datenlaufwerk
   prüfen, Last und freien Platz beachten. Keine Robotersteuerung über diesen
   Rechner. Stand und Bedienung in docs/foundationpose_titanpc.md nachführen.
+  Seit16.11. realer statischer Karton-Replay mit manueller Startmaske geprüft,
+ 640×480-Arbeitsbilder und korrekt skaliertes K verwenden.1280×960 erreicht
+  aktuelles45%-GPU-Speicherlimit; nicht pauschal erhöhen. Keine Szene-/Boardpose
+  des Assets als Schätzprior. ROS-Livebackend/Genauigkeitsabnahme weiterhin offen.
 
 - Weiteres Nutzerobjekt13.11.: L-Konstruktion aus PTFE und Aluminium, eigene
   Asset-ID ptfe_l_assembly_v1. Nutzerangaben20×20mm-Profile/10mm-Platten von

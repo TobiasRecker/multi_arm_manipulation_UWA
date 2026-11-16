@@ -1,6 +1,6 @@
 # Digitalisierung für einen schnellen ausführenden Agenten vorbereiten
 
-- Status: **Aufnahmewege geprüft; wartet auf aktuelle Bedienerbereitschaft**, 2026-11-16 (Australia/Perth),
+- Status: **Realer Mehransichtsscan freigegeben; in Durchführung**, 2026-11-16 (Australia/Perth),
   Hauptagent Digitalisierung.
 - Nutzer16.11.: Roboter vermutlich wieder erreichbar, damit Hardwareverfügbar-
   keitsunterbrechung für diese Prüfung aufgehoben. Zunächst nur Status/Kameras,
@@ -35,6 +35,10 @@
   Abstandsschranke349,7mm, geplante gemeinsame Fahrzeit59,1s ohne Fotos.
   Vollständiger Live-Preflight CHECKED/motion_sentfalse/3Runden; Ergebnis unter
   resume_20261116/{view_plan,separation,preflight}/. Noch keine Fahrziele.
+- Nutzer bestätigt jetzt ausdrücklich Nothaltbereitschaft/freie Fahrbereiche
+  einschließlich Kabel und beauftragt Fortsetzung. Geprüfter Vierarm-Runner mit
+  separater STOP-GUI, drei Runden und Pause zur ersten Bildprüfung. Kein
+  geplanter Dienstneustart; Hardware-Motion-/FoundationPose-Arbeit erhalten.
 - Nutzerziel: deutlich kürzere Durchlaufzeit mit geringerem Reasoning-Aufwand,
   geprüfte Qualität und bestehende Sicherheitsfunktionen erhalten.
 - Neuer Auftrag: Pipeline implementieren und an studentischem Roboternachbau

@@ -41,6 +41,7 @@ class HardwareClient(MotionClient):
     def accept(self,peer,msg):
         try:
             value=json.loads(msg.data)
+            if not isinstance(value,dict):return None
             if type(value.get('armed')) is not bool:return None
             return value if peer.receive(value,time.monotonic(),self.expected,value['armed']) else None
         except (ValueError,TypeError):return None
@@ -95,6 +96,7 @@ class HardwareClient(MotionClient):
     def manager(self,rid,kind,endpoint,request):
         return self.service(kind,self.problem.profiles[rid]['namespace']+'/controller_manager/'+endpoint,request)
     def activate(self,arms):
+        if not set(arms)<=set(self.selected):raise RuntimeError('Arm was not selected for verified hardware execution')
         self.health();blocked=set(self.guard['blocked_arms'])|set(self.supervisor['blocked_arms'])
         if blocked&set(arms):raise RuntimeError('Hardware stop latch requires explicit reset')
         for rid in arms:

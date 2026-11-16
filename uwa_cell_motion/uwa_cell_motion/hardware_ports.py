@@ -44,7 +44,8 @@ def provision(node,profiles,cfg,mode):
             file=Path(directory)/(rid+'.yaml');file.write_text(yaml.safe_dump({p['namespace']+'/'+HOLD:{'ros__parameters':dict(
                 type='uwa_cell_motion/CollisionHold',joints=p['joint_names'],deceleration=cfg['braking_acceleration_rad_s2'],use_sim_time=False)}}))
             result=subprocess.run(['ros2','run','controller_manager','spawner',HOLD,'--inactive','-c',p['namespace']+'/controller_manager',
-                '--param-file',str(file),'--controller-manager-timeout','10','--service-call-timeout','5'],capture_output=True,text=True,timeout=30.)
+                '--param-file',str(file),'--controller-manager-timeout','10','--service-call-timeout','5',
+                '--ros-args','-r','__ns:='+p['namespace']],capture_output=True,text=True,timeout=30.)
             if result.returncode:raise RuntimeError(result.stdout+result.stderr)
 
 

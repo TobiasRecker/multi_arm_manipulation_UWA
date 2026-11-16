@@ -41,6 +41,8 @@ def setup(context):
     physics_file=directory/'robot.physics.urdf';physics_file.write_text(physics_description(description))
     world=directory/'world.live.sdf';wroot=ET.parse(directory/'world.sdf').getroot()
     wroot=ET.fromstring(ET.tostring(wroot,encoding='unicode').replace('/uwa_cell/',ns+'/'))
+    observer=wroot.find("world/plugin[@name='uwa_cell_tasks::ForceTelemetry']")
+    if observer is not None:observer.find('ros_namespace').text=ns
     for model in wroot.find('world').findall('model'):
         for link in model.findall('link'):
             for sensor in list(link.findall('sensor')):link.remove(sensor)

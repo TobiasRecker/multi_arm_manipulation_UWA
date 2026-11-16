@@ -1,5 +1,25 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Reale Kartonpose auf FoundationPose-GPU erstmals geprüft, 2026-11-16
+
+- Nutzer stellt bekannten Avocado-Karton neben studentischen Roboter, bestätigt
+  ruhende Aufnahme. Neue aufrechte Seitenlage;8RGB-D-Paare unter
+  setup/oak4/rgbd/20261116-111619-rgbd-5a8d0ae9/.
+- Manuelle sichtbare Startkontur, gehashte Eingangsdaten,292Dreieck-Meter-Mesh
+  mit Texturatlas im unveränderten Assetframe. Kein gespeicherter Szenen-/
+  Board-/Weltposeprior, keine globale Kalibrier- oder ROS-Backendänderung.
+-1280×960 scheitert am unveränderten45%-GPU-Limit. Wiederholung640×480 mit
+  korrektem Pixelzentrum-K und nearest-Tiefen-/Maskensampling bestanden:
+ 1,623s Registrierung/18,806ms mediane Trackingkernzeit,8statische Frames.
+- Box und Textur-Rückrender visuell plausibel. Masken-IoU0,913, Tiefenrest
+ 7,08mm reine Eingabekonsistenz, keine unabhängige Genauigkeit. Reale Bewegung/
+  Verdeckung/LOST und WLAN-Livepfad offen. PyTorchmax5068MiB reserviert.
+- Eigene Kamera-/GPU-Prozesse beendet, Kamera-Lease frei, GPU175MiB/0%.
+  Heutiger Workstation-Metadatenvergleich unverändert.38OAK-Tests/9Subtests
+  und3Exportprüfungen PASS. Keine Arm-/Programmaktion oder Dienstneustarts.
+- Nachweise setup/tracking/foundationpose_carton_20261116/, Anleitung
+  docs/foundationpose_titanpc.md; Arbeit work/foundationpose-carton-real.md.
+
 ## Studentischer Roboter: Kameras und ROS wiederhergestellt, 2026-11-16
 
 - Nutzer bestätigt unveränderten Aufbau. Offener Fokus-/HTTP-Restore verifiziert;
@@ -195,6 +215,33 @@
 
 ## Aktive Umsetzung der Kraftvalidierung, 2026-11-16
 
+- Neue Nutzerwerte: leerer Karton500g; laut Nutzer hält eine einzelne Backe/
+  Wandkontaktfläche50N locker aus. Masse als Nutzerangabe übernommen,50N als
+  vorläufige Lastreferenz pro Kontaktfläche, ausdrücklich keine vermessene
+  Bruchgrenze. Defaultmasse jetzt0,5kg, Reibung bleibt Annahme. Alte0,3kg-
+  und0,2kg-Prüfnachweise unverändert/historisch, nicht auf0,5kg übertragen.
+- Referenzmatrix `setup/tasks/force_reference_20261116_matrix01/` besteht alle
+  zwölf Fälle (0,3/0,6kg ×1/0,5/0,25ms ×2Wiederholungen). Statische Kontakte,
+  dynamische Kräftebilanz, freie bekannte Beschleunigung, Gelenkreaktion und
+  90°-Messframe sowie Fallimpuls geprüft. Impulsstreuung0,1574%, harter
+  Aufprallpeak vervierfacht sich bei Viertelung des Zeitschritts. Keine
+  Material-/UR-Dynamikfreigabe daraus ableiten; Rohdaten und Fehlanalyse erhalten.
+- Zusätzliche Datenwegfehler: Link-WorldVelocity/-Acceleration können nach
+  Stillstand auf alten Werten bleiben. Impuls unabhängig aus Positionsänderungen
+  prüfen. Ganze Kontaktmanifolds pro ungeordnetem Kollisionspaar auswählen;
+  punktweise Rundungs-Dedup scheitert an separat bis1µm gecachten Geometrien
+  und zählte Impulse doppelt. Fehlanalyse vor Korrektur archiviert.
+- Neuer separater `force_telemetry`-Plugin: unsigned Kontaktlasten/Impulse,
+  physikschrittweise Peaks und10ms-Mittel, Gelenkreaktionen im jeweiligen
+  Gelenkframe. Eigener privater Topic `tasks/forces`; Szene bindet Observer-
+  Binärhash. Vorhandener Clock-/Kontaktwächterpfad nicht ersetzt. Gerichtete
+  Kraftzuordnung über Collision1→body1 weiterhin ausdrücklich nicht vertrauen.
+- Build/alle5CTest-Suites PASS,28Pythonfälle+nativer Getriebetest. Neuer
+  Beobachter/Recorder liest ohne Fahraktionen. Zellintegration force01 mit
+  500g **PASS**:421Nachrichten, davon315stabile; Tisch-Normalkraft4,904986N
+  statt erwartet4,905N. Alle4beobachteten Gelenkreaktionen vorhanden, keine
+  fehlenden/invaliden Wrenches, physics-step-Peaks vorhanden. Kein Griff-/Hub-
+  Nachweis. Daten `setup/tasks/carton_force_observation_20261116_01/`.
 - Nutzer hat Beginn der Umsetzung beauftragt; bei fehlenden Angaben gezielt
   nachfragen. Aktives Ziel umfasst instrumentierte Simulation und darauf
   aufbauende dynamische Grenzsuche, nicht nur langsamere Wiederholung.
@@ -204,19 +251,19 @@
   Hebelarm0,15m, gedrehter Gelenkframe und Fallkontakt. Originalgreifwelt nicht
   gestartet; vorhandene Nachweise nicht überschrieben.
 - Erster tatsächlicher Befund smoke01/02: Gelenkreaktion2,943N und−0,44145Nm,
-  nach1N Zusatzlast3,943N/−0,59145Nm, gedrehter Frame plausibel. Noch keine
-  vollständige Zeitschritt-/Wiederholungsabnahme behaupten.
+  nach1N Zusatzlast3,943N/−0,59145Nm, gedrehter Frame plausibel. Spätere
+  vollständige Zeitschritt-/Wiederholungsabnahme steht oben.
 - Kritischer Datenwegfehler tatsächlich reproduziert: ContactSensorData liegt
   pro Kollision vor; dasselbe Paar wird doppelt und mit vertauschten Collision1/2
   gemeldet, rohe body1/2-Kräfte behalten dabei ihre Reihenfolge. Daher keine
   allgemeine gerichtete Körperkraft aus Collision1→body1 ableiten. Native
   GazeboPhysics-Quelle bestätigt diese Umordnung ohne Kraftumordnung/BodyIDs.
-- Neue `force_metrics.py` dedupliziert Punkte und liefert vorzeichenunabhängige
+- Neue `force_metrics.py` dedupliziert Manifolds und liefert vorzeichenunabhängige
   Normal-/Tangentiallasten; fehlende/widersprüchliche Kräfte nicht als0 behandeln.
-  Drei Regressionstests bestanden. Analytische Richtungszuordnung nur im
+  Vier Regressionstests bestanden. Analytische Richtungszuordnung nur im
   bekannten horizontalen Referenzfall, nicht als generische Korrektur nutzen.
 - Rohdaten unter setup/tasks/force_reference_20261116_smoke01 und_smoke02.
-  Aktuell Referenzauswertung/Mehrschritt-Matrix und Pipeline-Anschluss in Arbeit;
+  Aktuell Pipeline-Auswertung und anschließende Temposuche in Arbeit;
   keine Kraftgrenze oder schnellere Roboter-/Hardwareausführung freigegeben.
 
 ## Neue Zielrichtung: dynamische Simulationsgrenzen ausloten, 2026-11-16

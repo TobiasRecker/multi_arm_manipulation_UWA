@@ -51,6 +51,7 @@ class HardwareGuard(MotionNode):
         self.publisher=self.create_publisher(String,'/uwa_cell/collision_guard/decision',1)
         self.state_pub=self.create_publisher(String,'/uwa_cell/hardware_state',1)
         self.joints_pub=self.create_publisher(JointState,'/uwa_cell/joint_states',qos_profile_sensor_data)
+        self.model_joints_pub=self.create_publisher(JointState,'/uwa_cell/model_joint_states',qos_profile_sensor_data)
         self.markers=self.create_publisher(MarkerArray,'/uwa_cell/collision_guard/markers',1)
         self.description_pub=self.create_publisher(String,'/uwa_cell/robot_description',QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL))
         self.description_pub.publish(String(data=self.problem.description))
@@ -111,7 +112,7 @@ class HardwareGuard(MotionNode):
         if blocked-self.previous_blocked:self.get_logger().error(('STOP LATCHED: ' if self.armed else 'MONITOR WOULD STOP: ')+json.dumps(status.get('latched_causes',status['faults'])))
         self.previous_blocked=blocked
         self.sequence+=1
-        status.update(packet(self.hardware_signature,self.armed,self.instance,self.sequence),pairs=self.pairs,
+        status.update(packet(self.hardware_signature,self.armed,self.instance,self.sequence),evaluated_monotonic_s=now,pairs=self.pairs,
             model_signature=self.signature,model_match=all(self.model_match.values()),guard_config_signature=self.hardware_signature,
             source_time_s=now,stop_adapter_available=available,state_ages_s={r:now-v['received'] for r,v in self.records.items()},
             runtime_label=self.mode.upper()+('\nSTOP-GUARD-ARMED' if self.armed else '\nMONITOR-ONLY')+'\nStop-reserve:UNMEASURED\nTool:opening-envelope',
@@ -124,7 +125,14 @@ class HardwareGuard(MotionNode):
         message=JointState();message.header.stamp=self.get_clock().now().to_msg()
         for rid,v in self.records.items():
             message.name.extend(self.names[rid][:6]);message.position.extend(v['q']);message.velocity.extend(v['v'])
-        self.joints_pub.publish(message);self.show(world,status)
+        self.joints_pub.publish(message)
+        # A separate, explicitly model-only stream supplies the fixed zero
+        # coordinate of swept envelopes. It is not gripper telemetry.
+        model_message=JointState();model_message.header=message.header
+        model_message.name=list(message.name);model_message.position=list(message.position);model_message.velocity=list(message.velocity)
+        for rid in self.records:
+            if len(self.names[rid])>6:model_message.name.append(self.names[rid][6]);model_message.position.append(0.);model_message.velocity.append(0.)
+        self.model_joints_pub.publish(model_message);self.show(world,status)
     def reset(self,request,response):
         now=time.monotonic()
         try:self.update(now);response.success,response.message=self.core.reset(self.pairs,now,now)

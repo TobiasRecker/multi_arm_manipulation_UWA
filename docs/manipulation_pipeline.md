@@ -60,14 +60,21 @@ benchmark has yet been implemented under this extension.
 
 ## Existing commissioning evidence
 
-Current-code contact evidence (2026-11-14): runs64/65/67/68/71 completed the full
+Current input update2026-11-16: the user reports an empty-carton mass of0.5kg
+and comfortable50N loading at one jaw/wall contact patch. The default mass is
+updated accordingly;50N is an exploratory comparison reference, not a measured
+failure limit. Force observation is enabled for newly prepared scenes.
+The older cases below used their own declared mass/source versions and do not
+qualify the new0.5kg profile or the new observer.
+
+Historical commissioning evidence (2026-11-14): runs64/65/67/68/71 completed the full
 recipe and passed independent trace evaluation, including fixture/repeat and
 light-carton Home/repeat cases. Lift is explicitly measured at the uniform-
 material model centre of mass; the asset corner is reported separately.
 All pads were retained under load, offsets remained fixed, opening was measured
 on support and final holds confirmed. Nominal Home run71 passed at0.5mm/s:
-29.893mm COM lift and0.511mm maximum relative error. The default now uses this
-slower profile. Nominal Home at1mm/s (run70) and0.4kg/friction0.8 (run69) were
+29.893mm COM lift and0.511mm maximum relative error. The default retains that
+slow speed but uses the new mass above. Nominal Home at1mm/s (run70) and0.4kg/friction0.8 (run69) were
 rejected by the strict passive-finger speed limit; neither is qualified.
 The nominal0.5mm/s repetition in run74 also stopped before its planned fault
 injection at0.052335rad/s. Run71 is a positive individual result, not evidence

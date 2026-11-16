@@ -1,8 +1,9 @@
 # FoundationPose auf titanpc
 
-Stand: 2026-11-13. Isolierter Versuch auf der gemeinsam genutzten Workstation
+Stand: 2026-11-16. Isolierter Versuch auf der gemeinsam genutzten Workstation
 `titanpc`/`192.168.2.137`, erreichbar über WLAN und `ssh uwa-ubuntu22`.
-FoundationPose ist installiert; kurze RGB-D- und Bewegungsprüfung bestanden.
+FoundationPose ist installiert; offizielle RGB-D-/Bewegungsdemo und erster
+realer statischer Kartonversuch bestanden (visuelle Konsistenz, keine Messfreigabe).
 Alle eigenen Rechenprozesse sind beendet.
 
 ## Ziel und Zusammenhang
@@ -11,8 +12,9 @@ Bekannte metrische Assets sollen aus Kamerabildern als `T_camera_object`
 wiedergefunden werden: statische Lokalisierung vor Manipulation und dynamische
 Verfolgung. Der [CPU-Tracker](object_tracking.md) bleibt erhalten. Beim neuen
 [PTFE-/Aluminiumobjekt](ptfe_l_assembly.md) scheitert dessen Texturwiedererkennung
-bisher; FoundationPose nutzt zusätzlich Geometrie/Tiefe und wird getrennt geprüft.
-Ein bestandener Demolauf ist keine nachgewiesene Erkennung unserer Assets.
+bisher. FoundationPose ist ein eigener GPU-Testpfad; der reale Avocado-Karton
+wurde am16.11. mit manueller Startmaske lokalisiert. PTFE und bewegter realer
+Karton sind noch nicht GPU-geprüft. Der bestehende ROS-Tracker bleibt unverändert.
 
 ## Isolation und Ressourcen
 
@@ -71,9 +73,13 @@ bash src/multi_arm_manipulation_UWA/scripts/foundationpose_remote.sh smoke
 
 # Hundert Bilder einschließlich Anheben/Bewegen in der gespeicherten Demo.
 bash src/multi_arm_manipulation_UWA/scripts/foundationpose_remote.sh smoke-motion
+
+# Bereits übertragenes, gehashtes reales Kartonpaket,640×480/achtBilder:
+bash src/multi_arm_manipulation_UWA/scripts/foundationpose_remote.sh input carton_20261116_111619_640
 ```
 
-Beide Tests verwenden jeden dritten Frame, eigene Ausgabeordner, einen
+Die offiziellen Demos verwenden jeden dritten Frame, der Eingabetest jeden
+Frame. Alle verwenden eigene Ausgabeordner, einen
 gemeinsamen Versuch-Lock und maximal10min Laufzeit. Sie öffnen keine lokale
 oder ferne Kamera und starten keine Roboter-/ROS-Dienste. Erster Start kann
 zusätzliche CUDA-Kernels bauen. `DONE` wird erst nach erfolgreichem Abschluss
@@ -82,16 +88,58 @@ ausgegeben. Es wird kein dauerhafter Rechendienst eingerichtet.
 ## Grenze zur echten UWA-Zelle
 
 Die offizielle modellbasierte API benötigt metrisches Mesh, RGB, dazu passende
-Tiefe und Intrinsics sowie zur Initialisierung eine Objektmaske. Der vorhandene
-OAK-HQ-Tiefenmodus liefert rektifizierte Mono-Tiefe, noch keine RGB-ausgerichtete
-Tiefe. Er darf nicht einfach pixelweise mit RGB kombiniert werden. Wrist-Kameras
+Tiefe und Intrinsics sowie zur Initialisierung eine Objektmaske. Der neue
+OAK-RGB-D-Modus liefert diese Bildgeometrie seit16.11. Der separate ältere
+HQ-Tiefenmodus bleibt rektifizierte Mono-Tiefe und darf nicht einfach pixelweise
+mit RGB kombiniert werden. Wrist-Kameras
 liefern für diesen Versuch ebenfalls noch keinen geprüften RGB-D-Eingang.
 
-Nach erfolgreichem Demolauf: passende OAK-RGB-D-Aufnahme und Objektmaske prüfen,
-unsere Meshes im unveränderten Assetframe zuführen, lokale/remote Zeiten und
-Bildalter über WLAN messen. Welt-/Roboterpose benötigt zusätzlich eine zeitlich
+Realer Offlinepfad für den Karton ist jetzt geprüft; noch offen sind laufender
+WLAN-Transport, Bildalter/LOST-Verhalten und echte Bewegung. Die Welt-/Roboterpose benötigt eine zeitlich
 passende Kameraregistrierung. Weder Demolauf noch niedriger Pixelrestfehler sind
 Manipulationsfreigabe oder Nachweis absoluter Millimetergenauigkeit.
+
+## Realer Kartonversuch16.11.2026
+
+- Nutzer stellt bekannten Avocado-Karton neben studentischen Roboter und
+  bestätigt ruhende Aufnahme. Neue Pose: Karton steht auf einer Seite.
+  Acht originale1280×960-RGB-D-Paare unter
+  `setup/oak4/rgbd/20261116-111619-rgbd-5a8d0ae9/`.
+- Initialmaske: vom Assistenten am ersten Farbbild visuell nachgezeichneter
+  sichtbarer Umriss einschließlich Ausschnitt; keine automatische Detektion
+  oder unabhängige Ground Truth. Polygon/Bildhash bleiben gespeichert.
+- `foundationpose_prepare_input.py` prüft Asset-/Capturehashes, Metereinheit,
+  Ausgabe-K, Formate und Maskenzuordnung. Unverändertes GLB-Assetframe,292
+  Dreiecke, Materialien in ein2048×4096-Texturatlas exportiert; OBJ-Rückimport
+  prüft Geometrie/Bounds. `reference_pose` aus asset.json wird nicht verwendet.
+- Erster1280×960-Lauf erreicht45%-Allocatorlimit; eigener Prozess beendet,
+  Fehlerlog erhalten. Danach Arbeitsbilder640×480, RGB Lanczos, Tiefe/Maske
+  nearest-neighbour, keine Tiefenfüllung. Ausgabe-K mit Pixelzentrumkonvention
+  angepasst: sx=sy0,5 und Verschiebung−0,25px. Originaldaten unverändert.
+- Acht-Frame-Lauf erfolgreich:1,623s globale Registrierung,18,806ms mediane
+  Trackingkernzeit,6,55s Gesamtprozess aufGPU einschließlich Start/Datei-I/O/
+  Auswertung. Weder Live-FPS noch WLAN-Ende-zu-Ende-Latenz gemessen.
+- Endliche starre Kameraposen, projizierte Box und Textur-Rückrender visuell
+  plausibel. Startmasken-IoU0,913; medianer Eingabe-Tiefenrest7,08mm. Das sind
+  Konsistenzwerte am zur Schätzung verwendeten Material, keine absolute
+  Genauigkeit. Geschätzte Schwankung über0,7s≤1,97mm/0,29° ebenfalls kein
+  unabhängiger Genauigkeits- oder Bewegungsnachweis.
+- PyTorch4326MiB maximal belegt/5068MiB reserviert, Limit unverändert45%.
+  Eigene Prozesse beendet, GPU wieder175MiB/0%. Paket-/Conda-/Shell-/Docker-
+  Metadaten vor/nach dem heutigen Versuch identisch; kein Systemeingriff.
+- Kamera-Lease danach frei; keine UR-/ROS-/RViz-/Kalibrierprofiländerung.
+ 38OAK-Tests/9Subtests sowie3Exporttests bestanden: fremder Maskenframe,
+  Millimeter/Nullwerte bei Verkleinerung und Unabhängigkeit vom Szenenposefeld.
+
+Lokale Daten: `setup/tracking/foundationpose_carton_20261116/`, darin
+`input_640/`, `result_640/report.json`, `visual-review.json`, Box-/Textur-Overlays
+und Workstation-Audits. Erfolg remote:
+`results/carton_20261116_111619_640_20261116T032608Z_2990307/`.
+Logs lokal `setup/logs/foundationpose-carton-real[-640]-20261116.log`.
+Werkzeuge: `foundationpose_prepare_input.py`, `foundationpose_render_result.py`,
+CLI `foundationpose_remote.sh input NAME`. Es wird kein permanenter GPU-Dienst
+oder neuer ROS-Backend aktiviert. Reale Bewegung, Verdeckung, Wiederfinden
+und unabhängige metrische Prüfung stehen aus.
 
 ## Vorgeschlagener Weg zu realen Eingaben, 2026-11-16
 

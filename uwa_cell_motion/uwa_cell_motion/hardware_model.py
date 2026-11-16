@@ -32,7 +32,12 @@ def inventory_path():
 def arm_origins(description,rid):
     from uwa_cell_control.view_geometry import origin
     root=ET.fromstring(description)
-    return {j:origin(root.find(f"joint[@name='{j}']/origin")) for j in joint_names(rid)}
+    result={}
+    for name in joint_names(rid):
+        joint=root.find(f"joint[@name='{name}']")
+        if joint is None:raise ValueError('Driver joint missing: '+name)
+        result[name]=origin(joint.find('origin'))
+    return result
 
 
 def matching_arm(description,expected,rid):
@@ -59,6 +64,8 @@ def opening_envelope(description,names,step=.1):
             # Remove original moving bodies once, before adding sweep spheres.
             if body.index==0:
                 for collision in original:link.remove(collision)
+                # Unknown fingers must not appear as a measured open pose.
+                for visual in list(link.findall('visual')):link.remove(visual)
             centres,radii=box_spheres(body.visual_vertices.min(axis=0),body.visual_vertices.max(axis=0),.05)
             centres=centres@body.fixed[:3,:3].T+body.fixed[:3,3]
             inverse=np.linalg.inv(frames0[body.link]);inflation=float(body.radii[6]*half)
@@ -72,6 +79,8 @@ def opening_envelope(description,names,step=.1):
                     ET.SubElement(ET.SubElement(collision,'geometry'),'sphere',radius=str(float(radius)+inflation))
             audit.append(dict(arm=rid,link=body.link,source_collision=body.index,range_rad=[lo,hi],samples=len(samples),
                 between_sample_inflation_m=inflation,method='whole-volume spheres plus analytic joint-motion bound'))
+    for element in list(root):
+        if element.tag in ('gazebo','ros2_control'):root.remove(element)
     return ET.tostring(root,encoding='unicode'),audit
 
 

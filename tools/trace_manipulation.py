@@ -30,9 +30,10 @@ def main():
     rclpy.init();node=Node('task_evaluation_trace');data={};rows=0;last_saved=0.;origin=time.monotonic()
     def message(key):return lambda msg:data.update({key:json.loads(msg.data)})
     for key,topic in [('object','tasks/object_truth'),('contacts','tasks/contacts'),
+                      ('forces','tasks/forces'),
                       ('guard','collision_guard/decision'),('supervisor','collision_supervisor/status')]:
         node.create_subscription(String,args.namespace+'/'+topic,message(key),
-            qos_profile_sensor_data if key in ('object','contacts') else 10)
+            qos_profile_sensor_data if key in ('object','contacts','forces') else 10)
     node.create_subscription(String,args.namespace+'/tasks/group',message('group'),
         QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL))
     def joints(msg):
@@ -52,7 +53,7 @@ def main():
                     state=terminal,object=data['object'],contacts={k:data['contacts'][k] for k in ('stamp','pads','supported')},
                     joints=data['joints'],group=data.get('group'),
                     blocked_arms=data['supervisor']['blocked_arms'],held_arms=data['supervisor']['held_arms'],
-                    faults=data['guard']['latched_causes'])
+                    faults=data['guard']['latched_causes'],forces=data.get('forces'))
                 output.write(json.dumps(row)+'\n');rows+=1;last_saved=now
                 if rows%20==0:output.flush()
                 if terminal in ('DONE','FAILED'):break

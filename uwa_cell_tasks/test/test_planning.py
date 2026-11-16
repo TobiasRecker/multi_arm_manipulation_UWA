@@ -64,7 +64,10 @@ def test_contact_scene_keeps_open_geometry_mass_and_actual_fingers(tmp_path):
     assert np.linalg.eigvalsh(inertia).min()>0
     sdf=ET.fromstring((tmp_path/'carton.sdf').read_text())
     assert sdf.find('model/static').text=='false'
-    assert sdf.find('model/link/inertial/mass').text=='0.3'
+    assert cfg['mass_kg']==.5  # User-weighed carton,2026-11-16.
+    assert float(sdf.find('model/link/inertial/mass').text)==cfg['mass_kg']
+    assert record['force_backend_sha256']
+    assert ET.parse(tmp_path/'world.sdf').getroot().find("world/plugin[@name='uwa_cell_tasks::ForceTelemetry']") is not None
     # Main wall contact patches are single analytic boxes; cutouts stay in
     # separate exact prisms above them instead of a seam through the pinch.
     assert len(sdf.findall('model/link/collision/geometry/box'))>=4

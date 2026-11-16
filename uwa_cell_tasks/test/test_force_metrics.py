@@ -24,6 +24,13 @@ def test_distinct_pairs_and_reversed_normals_are_handled_separately():
     assert data['normal_load_n']==6
 
 
+def test_cached_manifold_geometry_does_not_double_count_impulse():
+    cached=sample('load','floor');cached['points'][0]['position_world'][2]=.000001
+    data=contact_loads([sample(),cached])
+    assert data['unique_points']==1 and data['duplicate_points_removed']==1
+    assert data['normal_load_n']==3
+
+
 def test_missing_nonfinite_and_inconsistent_measurements_are_not_zero_force():
     bad=sample();bad['points'][0]['wrench_present']=False
     with pytest.raises(ValueError,match='missing'):contact_loads([bad])

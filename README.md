@@ -123,8 +123,11 @@ validation. Start camera-only: `bash src/multi_arm_manipulation_UWA/scripts/obje
 An isolated [FoundationPose setup on the shared TITAN RTX workstation](docs/foundationpose_titanpc.md)
 now passes a100-frame recorded RGB-D motion test, with24.6ms median tracking
 computation. Its own environment and caches live on a data drive; system
-packages, drivers and existing environments were preserved. Real OAK input and
-our object assets still need a separate integration and validation.
+packages, drivers and existing environments were preserved. On2026-11-16 a real
+stationary avocado-carton replay also produced visually plausible poses from
+aligned OAK RGB-D and a manually annotated initial mask:1.62s registration,
+18.8ms median tracking computation at640×480. Live transport, actual object
+motion and independent metric accuracy remain unvalidated.
 
 
 The new [PTFE L assembly asset](docs/ptfe_l_assembly.md) includes real photo
