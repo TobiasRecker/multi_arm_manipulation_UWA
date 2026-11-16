@@ -76,5 +76,9 @@ loaded stops.50N is a user-reported reference per jaw/wall patch, not a measured
 material failure limit. Direct force reference tests passed; no floating base
 is presently required. The finite experiment driver completed two negative5/10mm/s cases with force
 evaluation and scoped cleanup. Both carried500g to29.4mm and stopped at a
-configured passive-finger speed bound during descent. No complete fast500g
-cycle or physical speed boundary is qualified; preserve the current evidence.
+configured passive-finger speed bound during descent. After increasing only
+virtual motor preload, a5mm/s fixture cycle and two complete10mm/s Home cycles
+with500g passed (gap-free forces,29.924mm lift,<=0.274mm relative position error,
+<=5.556N per-jaw peak upper bound). Loaded fault qualification at this profile
+is in progress. No physical speed maximum or hardware setting is qualified.
+Preserve the older negative evidence and narrower source-binding scope.

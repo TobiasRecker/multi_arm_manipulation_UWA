@@ -21,6 +21,16 @@ def test_per_joint_limits_do_not_raise_unselected_obstacle_limits():
     np.testing.assert_allclose(velocity_limits(names,dict(joint_velocity_rad_s=.1,finger_velocity_limit_rad_s=.5)),[.1,.5,.05])
 
 
+def test_motor_torque_increase_is_explicit_exploration(tmp_path):
+    cfg=configuration();cfg['gripper_motor_torque_limit_nm']=.7
+    path=tmp_path/'profile.yaml';path.write_text(yaml.safe_dump(cfg))
+    with pytest.raises(ValueError,match='motor torque'):configuration(path)
+    cfg['exploration_mode']=True;path.write_text(yaml.safe_dump(cfg))
+    assert configuration(path)['gripper_motor_torque_limit_nm']==.7
+    cfg['gripper_motor_torque_limit_nm']=2.01;path.write_text(yaml.safe_dump(cfg))
+    with pytest.raises(ValueError,match='motor torque'):configuration(path)
+
+
 @pytest.mark.parametrize('step,accepted',[(.0005,True),(.00025,True),(.00001,False),(.002,False)])
 def test_physics_step_is_explicit_and_bounded(tmp_path,step,accepted):
     cfg=configuration();cfg['physics_step_s']=step

@@ -20,6 +20,7 @@ def main():
     parser.add_argument('--namespace',default='/uwa_grasp_validation')
     parser.add_argument('--timeout',type=float,default=900.)
     parser.add_argument('--prepare',action='store_true',help='Create an unused CREATED run before ROS discovery; start recorder before runner')
+    parser.add_argument('--terminal-tail-s',type=float,default=0.,help='Read-only wall-time recording after terminal state, for loaded-stop evaluation')
     args=parser.parse_args();simulation_only()
     if args.prepare:
         if args.run.exists():parser.error('--prepare requires a new run directory')
@@ -51,7 +52,7 @@ def main():
             positions={j:q for j,q in zip(msg.name,msg.position) if j.startswith(('right_front_','right_rear_'))},
             velocities={j:v for j,v in zip(msg.name,msg.velocity) if j.startswith(('right_front_','right_rear_'))})
     node.create_subscription(JointState,args.namespace+'/joint_states',joints,qos_profile_sensor_data)
-    terminal=None
+    terminal=None;terminal_since=None
     try:
         with path.open('x') as output:
             while time.monotonic()-origin<args.timeout:
@@ -66,7 +67,9 @@ def main():
                     faults=data['guard']['latched_causes'],forces=data.get('forces'))
                 output.write(json.dumps(row)+'\n');rows+=1;last_saved=now
                 if rows%20==0:output.flush()
-                if terminal in ('DONE','FAILED'):break
+                if terminal in ('DONE','FAILED'):
+                    if terminal_since is None:terminal_since=now
+                    if now-terminal_since>=args.terminal_tail_s:break
     finally:
         force_stream.close()
         write_json(args.run/'evaluation-trace-summary.json',dict(evaluation_only=True,rows=rows,

@@ -88,10 +88,10 @@ class Problem:
         state=self.state(request,q)
         if not self.collision.check(state)[0]:return False
         if margin:
-            world=self.spheres.world(state)
+            world,bounds=self.spheres.planning_world(state)
             for pair in self.thresholds():
                 a,b=pair['arms']
-                if self.spheres.nearest(world,a,b)['clearance_m']<=pair['threshold_m']:return False
+                if not self.spheres.pair_clear(world,bounds,a,b,pair['threshold_m']):return False
         return True
 
     def rrt(self,request,seed,budget):

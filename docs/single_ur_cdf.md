@@ -10,6 +10,10 @@ This is an **offline/simulation research prototype**. No Gazebo physics run or
 real movement was performed in this implementation. Existing hardware planners,
 hardware arming and the independent collision guard are unchanged.
 
+The shared plan validation now has a [conservative AABB prefilter](collision_prefilter.md)
+and frozen-arm cache. The historical timings below predate this optimization;
+the linked before/after comparison uses an identical CDF bank and trajectory.
+
 ## Relationship to the paper and code
 
 Reference: [Li et al., RSS2024](https://arxiv.org/abs/2406.01137),

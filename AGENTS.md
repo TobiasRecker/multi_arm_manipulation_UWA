@@ -1,5 +1,17 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Anschauliche HTML-Vorschauen (Nutzerwunsch 2026-11-16)
+
+- Nutzer findet die eigenständige CDF-HTML-Animation hilfreich und wünscht
+  solche bedienbaren Übersichten häufiger bei passenden Bewegungs-/Geometrie-
+  Aufgaben. Play/Pause, Zeitschieber und frei drehbare Ansicht bevorzugen.
+  Modellanimation, Physiksimulation und reale Bewegung deutlich unterscheiden.
+- Bei CDF-Darstellungen Gelenkradian und kartesische Meter trennen. Ungerichtete
+  CDF-Farbwerte nicht als Kollisionsmaske ausgeben. Bei niedrigdimensionalen
+  Schnitten fixierte Gelenke nennen; projizierte6D-Bahnen sind kein Bahnverlauf
+  auf genau diesem Schnitt. Abstand zur Kontaktmenge des ganzen modellierten
+  Arms von TCP-Abstand unterscheiden.
+
 ## Startmenü-App UWA Robot Power (2026-11-16)
 
 - Kurze Pausen: [UWA Robot Power](docs/ur_power_gui.md). **Standby** stoppt
@@ -64,6 +76,14 @@
   als Simulationsannahmen kennzeichnen, keine Hardwaregenauigkeit daraus ableiten.
 
 ## Vierarm-Kollisionswächter und PTP-Vergleich (2026-11-13)
+
+- Nutzerauftrag16.11.: zuerst konservativen Arm-Hüllquader-Vorfilter für
+  boolesche Planungs-Abstandsprüfungen umsetzen. Ganze Kugelvolumina/Tools
+  und unveränderte Mindestabstände umfassen; Überlappung nur als Kandidat
+  behandeln. Exakte Nächstabstände/Gradienten und Wächterstatus nicht durch
+  Hüllabstände ersetzen. Gleichheit zu bisheriger Prüfung und echte Laufzeit
+  nachweisen; Modelldaten unverändert, eingefrorene Geometrie nur mit gültiger
+  Zustands-/Abhängigkeitsbindung wiederverwenden.
 
 - Nutzerauftrag: unabhängiger10Hz-Kugelwächter für genau LF/RF, LF/LR,
   RF/RR, LR/RR; Diagonalen aus dieser Paarüberwachung ausnehmen. Greifer

@@ -217,7 +217,7 @@ def fingertip_contact_primitives(root):
 
 def contact_description(description, controllers_path, finger_damping=.04,coarse=.02,fine=.004,fine_start=.65,geometry_metadata=None,
                         gear_stiffness=10.,motor_stiffness=10.,transmission='native_gear',
-                        arm_velocity=.05,arm_acceleration=.5,finger_velocity_limit=.05):
+                        arm_velocity=.05,arm_acceleration=.5,finger_velocity_limit=.05,motor_torque_limit=.35):
     """Opt-in profile; default cell description/controllers stay unchanged.
 
     Contact fingers are force servos with measured independent joints. URDF
@@ -243,7 +243,7 @@ def contact_description(description, controllers_path, finger_damping=.04,coarse
     ET.SubElement(hardware, 'plugin').text = 'uwa_cell_tasks/ContactGripper'
     ET.SubElement(hardware,'param',name='native_mimic').text='true' if transmission=='native_gear' else 'false'
     ET.SubElement(hardware,'param',name='velocity_limit').text=str(finger_velocity_limit)
-    for name, value in [('kp',gear_stiffness),('motor_kp',motor_stiffness),('kd','0.003'),('max_torque','0.35'),('coarse_velocity',coarse),('fine_velocity',fine),('fine_start',fine_start)]:
+    for name, value in [('kp',gear_stiffness),('motor_kp',motor_stiffness),('kd','0.003'),('max_torque','0.35'),('motor_max_torque',motor_torque_limit),('coarse_velocity',coarse),('fine_velocity',fine),('fine_start',fine_start)]:
         ET.SubElement(hardware, 'param', name=name).text = str(value)
     for joint in list(control.findall('joint')):
         name = joint.get('name')
@@ -340,7 +340,8 @@ def prepare_scene(layout, cfg, directory):
     description = contact_description(description, controllers, cfg['finger_joint_damping_nm_s'],
         cfg['gripper_coarse_velocity_rad_s'],cfg['gripper_fine_velocity_rad_s'],cfg['gripper_fine_start_rad'],finger_geometry,
         cfg['gripper_gear_stiffness_nm_rad'],cfg['gripper_motor_stiffness_nm_rad'],cfg['gripper_transmission'],
-        cfg['joint_velocity_rad_s'],cfg.get('braking_acceleration_rad_s2',.5),cfg.get('finger_velocity_limit_rad_s',.05))
+        cfg['joint_velocity_rad_s'],cfg.get('braking_acceleration_rad_s2',.5),cfg.get('finger_velocity_limit_rad_s',.05),
+        cfg.get('gripper_motor_torque_limit_nm',.35))
     (directory/'robot.urdf').write_text(description)
     sdf = dynamic_sdf(instance, shapes, cfg); (directory/'carton.sdf').write_text(sdf)
     world = ET.Element('sdf', version='1.9'); w = ET.SubElement(world, 'world', name='uwa_grasp_lab')
@@ -381,6 +382,22 @@ def prepare_scene(layout, cfg, directory):
     sources=set(Path(__file__).resolve().parent.glob('*.py'))
     sources.add(Path(rigid_object.__file__).resolve())
     sources.add(Path(motion_node.__file__).resolve())
+    # These local planning/watchdog dependencies can change independently in
+    # the shared workspace. Bind them as well as the task adapter itself.
+    import uwa_cell_control,uwa_cell_calibration,uwa_cell_gazebo,uwa_cell_description
+    dependency_groups=[(Path(motion_node.__file__).resolve().parent,
+        ('common.py','geometry.py','planning.py','guard_core.py','interlock.py','supervisor.py','status_markers.py')),
+        (Path(uwa_cell_control.__file__).resolve().parent,
+         ('scan_separation.py','view_geometry.py','parallel_scan.py','parking.py')),
+        (Path(uwa_cell_calibration.__file__).resolve().parent,('model.py',)),
+        (Path(uwa_cell_gazebo.__file__).resolve().parent,('charuco_views.py','configuration.py','charuco.py')),
+        (Path(uwa_cell_description.__file__).resolve().parent,('configuration.py','calibration_profile.py','scene_assets.py'))]
+    for base,files in dependency_groups:
+        sources.update(base/name for name in files)
+    motion_prefix=Path(get_package_prefix('uwa_cell_motion'))
+    sources.add((motion_prefix/'lib/libcollision_hold.so').resolve())
+    sources.add((motion_prefix/'lib/uwa_cell_motion/rrt_worker').resolve())
+    sources.add((Path(get_package_share_directory('uwa_cell_motion'))/'config/motion.yaml').resolve())
     sources.add((Path(get_package_share_directory('uwa_cell_tasks'))/'launch/grasp.launch.py').resolve())
     implementation={str(path):hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted(sources)}
     record = seal(dict(schema_version=1, cfg=cfg, object_id=instance['id'],
@@ -392,6 +409,7 @@ def prepare_scene(layout, cfg, directory):
         carton_sdf_sha256=hashlib.sha256((directory/'carton.sdf').read_bytes()).hexdigest(),
         clock_bridge_binary=str(clock_bridge.resolve()),clock_bridge_sha256=hashlib.sha256(clock_bridge.read_bytes()).hexdigest(),
         implementation_sha256=implementation,
+        implementation_binding_scope='task_and_local_motion_dependencies_v2',
         telemetry_source='native_physics_ecm',
         lift_reference_point_object_m=mass_properties(shapes,cfg['mass_kg'])[0],
         lift_reference_kind='uniform_material_model_centre_of_mass',

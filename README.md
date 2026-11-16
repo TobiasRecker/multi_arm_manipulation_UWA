@@ -523,6 +523,8 @@ nonparametric contact-template distances in joint radians and plans with a
 paper-style reactive QP. One UR moves, the other three are frozen obstacles.
 The offline demo includes RRT/Circular comparisons and a standalone motion
 preview; neural training and physical execution are separate future steps.
+Shared planning checks now use an [arm-AABB prefilter and frozen-arm cache](docs/collision_prefilter.md)
+to avoid unnecessary fine sphere comparisons while retaining full collision validation.
 
 Select `/uwa_cell/controller_manager` and one of the four trajectory
 controllers in the **rqt Joint Trajectory Controller** window. Enable control

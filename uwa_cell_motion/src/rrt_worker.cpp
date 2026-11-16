@@ -13,6 +13,8 @@
 #include <ompl/geometric/SimpleSetup.h>
 #include <ompl/geometric/planners/rrt/RRTConnect.h>
 #include <ompl/util/RandomNumbers.h>
+#include <set>
+#include <uwa_cell_motion/sphere_prefilter.hpp>
 
 using json = nlohmann::json;
 std::string read(const std::string &path) { std::ifstream f(path); if (!f) throw std::runtime_error("Cannot read "+path); return {std::istreambuf_iterator<char>(f), {}}; }
@@ -51,6 +53,25 @@ int main(int argc, char **argv)
       for (const auto &s : arm.value()) spheres[arm.key()].push_back(
         {s["link"], Eigen::Vector3d(s["centre"][0],s["centre"][1],s["centre"][2]),s["radius"]});
     auto names=request.at("joint_names").get<std::vector<std::string>>();
+    const bool prefilter=request.value("sphere_prefilter",true);
+    const std::set<std::string> variables(names.begin(),names.end());
+    std::map<std::string,bool> dynamic;
+    std::map<std::string,std::vector<Eigen::Vector3d>> world;
+    std::map<std::string,uwa_cell_motion::SphereAabb> arm_bounds;
+    for (const auto &[arm,shapes] : spheres) {
+      dynamic[arm]=false;
+      for (const auto &s : shapes) {
+        const auto *link=robot->getLinkModel(s.link);
+        if (!link) throw std::runtime_error("Sphere link missing from model");
+        for (auto *p=link;p && p->getParentJointModel();p=p->getParentLinkModel())
+          for (auto *joint=p->getParentJointModel();joint;joint=joint->getMimic())
+            for (const auto &variable : joint->getVariableNames())
+              if (variables.count(variable)) dynamic[arm]=true;
+        world[arm].push_back(state.getGlobalLinkTransform(s.link)*s.centre);
+        const auto &point=world[arm].back();arm_bounds[arm].include(point.x(),point.y(),point.z(),s.radius);
+      }
+    }
+    size_t pair_queries=0,prefilter_clear=0,fine_queries=0,cached_arm_uses=0;
     auto space=std::make_shared<ompl::base::RealVectorStateSpace>(names.size());
     ompl::base::RealVectorBounds bounds(names.size());
     for (size_t i=0; i<names.size(); ++i) {
@@ -67,11 +88,23 @@ int main(int argc, char **argv)
       // Match CollisionModel::check's 1e-8rad tolerance. Simulated gripper
       // drives at their zero limit can report tiny negative roundoff.
       if (!state.satisfiesBounds(1e-8) || scene.isStateColliding(state)) return false;
-      std::map<std::string,std::vector<Eigen::Vector3d>> world;
-      for (const auto &[arm, shapes] : spheres) for (const auto &s : shapes)
-        world[arm].push_back(state.getGlobalLinkTransform(s.link)*s.centre);
+      for (const auto &[arm,shapes] : spheres) {
+        if (prefilter && !dynamic[arm]) { ++cached_arm_uses; continue; }
+        uwa_cell_motion::SphereAabb bounds;
+        for (size_t i=0;i<shapes.size();++i) {
+          const auto &s=shapes[i];auto point=state.getGlobalLinkTransform(s.link)*s.centre;
+          world[arm][i]=point;
+          if (prefilter) bounds.include(point.x(),point.y(),point.z(),s.radius);
+        }
+        if (prefilter) arm_bounds[arm]=bounds;
+      }
       if (request.contains("pair_thresholds")) for (const auto &pair : request["pair_thresholds"]) {
         const std::string a=pair["arms"][0], b=pair["arms"][1];
+        ++pair_queries;
+        if (prefilter && uwa_cell_motion::aabbSeparated(arm_bounds.at(a),arm_bounds.at(b),pair["threshold_m"].get<double>())) {
+          ++prefilter_clear;continue;
+        }
+        ++fine_queries;
         for (size_t i=0; i<spheres[a].size(); ++i) for (size_t j=0; j<spheres[b].size(); ++j) {
           const double limit=spheres[a][i].radius+spheres[b][j].radius+pair["threshold_m"].get<double>();
           if ((world[a][i]-world[b][j]).squaredNorm()<=limit*limit) return false;
@@ -103,6 +136,8 @@ int main(int argc, char **argv)
       }
       output={{"success",true},{"path",points},{"algorithm","OMPL geometric::RRTConnect / MoveIt FCL"}};
     }
+    output["sphere_prefilter"]={{"enabled",prefilter},{"pair_queries",pair_queries},{"prefilter_clear",prefilter_clear},
+                                {"fine_queries",fine_queries},{"cached_arm_uses",cached_arm_uses}};
   } catch (const std::exception &e) { output={{"success",false},{"error",e.what()}}; }
   std::ofstream(argv[2]) << output.dump(2) << '\n';
   return output.value("success",false) ? 0 : 1;

@@ -758,3 +758,11 @@ preserve initial pregrasp provenance; none is a Home-start claim.
   gehalten.20082Kraftfenster lückenlos, max4,801N/10ms bzw6,419N-Peakobergrenze.
   Automatisches Cleanup/Weitergehen zum10mm/s-Fall funktioniert. **FAIL** des
   Gesamtzyklus nicht als PASS oder physische Kartonlastgrenze umdeuten.
+
+-0,5ms-Gegenprobe ebenfalls passiver Speed-Stopp beim Lastübergang (0,210320
+  über0,2rad/s,0,970mm Hub); Kräfte lückenlos bis3,035N/10ms bzw6,576N Peak.
+  Kein Konvergenznachweis. Supervisor-Cleanup danach sauber/Exec0.
+- Neue rein virtuelle Vorpositions-Fixture per Tool erzeugt; gleiche Kollisions-
+  und Kinematiksignatur geprüft. Kein Reset einer geladenen Welt/kein Anheften.
+  Isolierter Kontaktversuch mit0,025Arm/0,6Finger läuft, volle Stoppreserve
+  bleibt erhalten; keine Home-Anfahrtsqualifikation aus der Fixture ableiten.

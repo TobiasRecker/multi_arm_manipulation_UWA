@@ -24,6 +24,20 @@ def box_spheres(lo, hi, spacing):
     return centres, np.full(count, np.linalg.norm(half)+1e-9)
 
 
+def sphere_aabb(centres,radii):
+    """Outward-rounded bounds of complete spheres, not their centres."""
+    return np.array([np.nextafter(np.min(centres-radii[:,None],axis=0),-np.inf),
+                     np.nextafter(np.max(centres+radii[:,None],axis=0),np.inf)])
+
+
+def aabb_separated(a,b,threshold):
+    # A lower bound above the required clearance proves this pair clear.
+    # Near equality/roundoff always falls back to the original fine query.
+    gap=np.maximum(np.maximum(a[0]-b[1],b[0]-a[1]),0.)
+    reserve=1e-12*(1+abs(threshold)+np.max(abs(a))+np.max(abs(b)))
+    return bool(np.dot(gap,gap)>(threshold+reserve)**2)
+
+
 class SphereModel:
     def __init__(self, description, names, spacing=.05):
         self.geometry = Geometry(description, names)
@@ -48,6 +62,43 @@ class SphereModel:
                                           spheres=len(r), method='exact sphere primitive' if body.kind=='sphere' else 'complete local AABB slice circumspheres'))
             self.local[rid], self.radii[rid] = np.asarray(centres), np.asarray(radii)
             self.links[rid], self.motion_radii[rid] = links, np.asarray(motion)
+        # Cache is used only by offline/planning threshold checks. Keys include
+        # every upstream moving/mimic source, so changed tools/ancestors cannot
+        # silently reuse frozen geometry. Each model instance owns its cache.
+        joints={j[0]:j for j in self.geometry.fk.joints};dependencies={'world':set()}
+        def source(name):
+            mimic=joints[name][6]
+            return source(mimic.get('joint')) if mimic is not None else name
+        for name,kind,parent,child,fixed,axis,mimic in self.geometry.fk.joints:
+            dependencies[child]=dependencies[parent]|({source(name)} if kind in ('revolute','continuous','prismatic') else set())
+        self.planning_dependencies={r:tuple(sorted(set().union(*(dependencies[l] for l in self.links[r])))) for r in names}
+        self._planning_cache={}
+        self.planning_stats=dict(cache_hits=0,cache_misses=0,pair_queries=0,prefilter_clear=0,fine_queries=0)
+
+    def planning_world(self,positions):
+        required={j for n in self.names.values() for j in n}
+        if not required<=positions.keys() or not np.isfinite([positions[j] for j in required]).all():
+            raise ValueError('Missing/nonfinite measured arm or gripper joints')
+        keys={r:tuple(positions.get(j,0.) for j in deps) for r,deps in self.planning_dependencies.items()}
+        if not all(np.isfinite(k).all() for k in keys.values()):raise ValueError('Nonfinite upstream joint state')
+        changed=[r for r,k in keys.items() if r not in self._planning_cache or self._planning_cache[r][0]!=k]
+        frames=self.geometry.fk.frames(positions) if changed else None
+        for rid in changed:
+            transforms=np.asarray([frames[l] for l in self.links[rid]])
+            points=np.einsum('nij,nj->ni',transforms[:,:3,:3],self.local[rid])+transforms[:,:3,3]
+            bounds=sphere_aabb(points,self.radii[rid]);points.setflags(write=False);bounds.setflags(write=False)
+            self._planning_cache[rid]=(keys[rid],points,bounds)
+        self.planning_stats['cache_misses']+=len(changed);self.planning_stats['cache_hits']+=len(keys)-len(changed)
+        return ({r:self._planning_cache[r][1] for r in keys},{r:self._planning_cache[r][2] for r in keys})
+
+    def pair_clear(self,world,bounds,a,b,threshold):
+        """Same strict threshold decision as nearest(), with a broad phase."""
+        if not np.isfinite(threshold) or threshold<0:raise ValueError('Invalid clearance threshold')
+        self.planning_stats['pair_queries']+=1
+        if aabb_separated(bounds[a],bounds[b],threshold):
+            self.planning_stats['prefilter_clear']+=1;return True
+        self.planning_stats['fine_queries']+=1
+        return bool(self.nearest(world,a,b)['clearance_m']>threshold)
 
     def world(self, positions, partial=False):
         required = {j for names in self.names.values() for j in names}

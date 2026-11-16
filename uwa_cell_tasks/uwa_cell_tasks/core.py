@@ -75,6 +75,7 @@ def configuration(path=None):
     cfg.setdefault('grasp_entry_min_duration_s',30.)
     cfg.setdefault('braking_acceleration_rad_s2',.5)
     cfg.setdefault('physics_step_s',.001)
+    cfg.setdefault('gripper_motor_torque_limit_nm',.35)
     if not isinstance(cfg['force_observation'],bool):raise ValueError('force_observation must be boolean')
     if not isinstance(cfg['exploration_mode'],bool):raise ValueError('exploration_mode must be boolean')
     if cfg.get('schema_version') != 1 or tuple(cfg.get('arms', [])) != ARMS:
@@ -86,6 +87,8 @@ def configuration(path=None):
     exploration=cfg['exploration_mode']
     if not .0001<=cfg['physics_step_s']<=.001:
         raise ValueError('Physics step must be between0.1ms and1ms')
+    if cfg['gripper_motor_torque_limit_nm']>(2. if exploration else .35):
+        raise ValueError('Task exceeds the simulation motor torque envelope')
     if cfg['lift_m'] > .05 or cfg['joint_velocity_rad_s'] > (1. if exploration else .05) or cfg['joint_acceleration_rad_s2'] > (2. if exploration else .10):
         raise ValueError('Task exceeds the first simulation operating envelope')
     if cfg['finger_velocity_limit_rad_s']>(2. if exploration else .05) or cfg['braking_acceleration_rad_s2']>5.:
@@ -165,6 +168,24 @@ def skills():
         Skill('move_object', ('GraspGroup', 'object-frame path'), ('group active', 'whole-scene validation',), ('shared-time object-derived motion',), ARMS, 120),
         Skill('set_down', ('GraspGroup', 'support telemetry'), ('group active',), ('stationary supported object',), ARMS, 120),
         Skill('release', ('supported object',), ('support independently confirmed', 'stationary group'), ('open grippers; dissolved group',), ARMS, 240),
+        Skill('validate_force_backend',('engine/plugin hashes','known loads','physics steps/repeats'),
+            ('own finite reference world','no robot commands'),('force/frame/impulse reference evidence',),
+            timeout_s=300,stop_behavior='end own finite reference world; never commands robots',
+            evidence='12-case known-load matrix passed; consult force_reference_20261116_matrix01'),
+        Skill('observe_loads',('bound native force windows','scene'),
+            ('validated force backend','recorder started before arming'),
+            ('per-jaw means/peaks/impulses','joint-frame reactions','coverage report'),
+            stop_behavior='read-only observation; no motion or release commands'),
+        Skill('prepare_contact_fixture',('verified pregrasp plan','source scene'),
+            ('new output directory','unchanged collision/kinematic signature'),('new virtual initial-state layout',),
+            stop_behavior='files only; never resets an existing world or loaded group'),
+        Skill('run_simulation_experiment',('explicit exploration profile','speed/repeat matrix','image reference'),
+            ('fresh isolated world','bound source/binaries','pre-armed recorder','agent reviews'),
+            ('retained positive/negative cases','motion/load/coverage reports'),ARMS,1500),
+        Skill('test_loaded_group_stop',('same experiment scene/run','scoped fault','injection lift'),
+            ('existing task owner','unsupported four-pad grasp','frozen group','probe ready before arming'),
+            ('measured group hold','contact/rigidity retention','separate intentional-failure report'),ARMS,1500,
+            stop_behavior='retain grip, latch whole group; resume only own paused process for cleanup, never motion'),
     ]
     return [asdict(spec) for spec in specs]
 

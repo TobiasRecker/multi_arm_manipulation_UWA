@@ -9,16 +9,21 @@ from uwa_cell_tasks.planning import grasp_candidates, actual_names
 
 
 def test_contact_scene_keeps_open_geometry_mass_and_actual_fingers(tmp_path):
-    layout=load_layout();cfg=configuration();cfg['physics_step_s']=.0005
+    layout=load_layout();cfg=configuration();cfg.update(physics_step_s=.0005,
+        exploration_mode=True,gripper_motor_torque_limit_nm=.7)
     record=prepare_scene(layout,cfg,tmp_path)
     verify(record)
     com,_=mass_properties(record['shapes'],cfg['mass_kg'])
     assert np.allclose(record['lift_reference_point_object_m'],com)
     assert any(path.endswith('/rigid_object.py') for path in record['implementation_sha256'])
     assert any(path.endswith('/runtime.py') for path in record['implementation_sha256'])
+    assert any(path.endswith('/geometry.py') for path in record['implementation_sha256'])
+    assert any(path.endswith('/libcollision_hold.so') for path in record['implementation_sha256'])
     description=(tmp_path/'robot.urdf').read_text();root=ET.fromstring(description)
     backend=root.find("ros2_control[@name='ContactGrippers']")
     assert len(backend.findall('joint'))==12
+    assert float(backend.find("hardware/param[@name='motor_max_torque']").text)==.7
+    assert float(backend.find("hardware/param[@name='max_torque']").text)==.35
     arms=root.find("ros2_control[@name='ContactArms']")
     assert len(arms.findall('joint'))==12
     assert all([c.get('name') for c in j.findall('command_interface')]==['position','velocity'] for j in arms.findall('joint'))
@@ -65,7 +70,7 @@ def test_contact_scene_keeps_open_geometry_mass_and_actual_fingers(tmp_path):
     assert np.linalg.eigvalsh(inertia).min()>0
     sdf=ET.fromstring((tmp_path/'carton.sdf').read_text())
     assert sdf.find('model/static').text=='false'
-    assert cfg['mass_kg']==.5  # User-weighed carton,2026-11-16.
+    assert cfg['mass_kg']==.5  # User-reported carton mass,2026-11-16.
     assert float(sdf.find('model/link/inertial/mass').text)==cfg['mass_kg']
     assert record['force_backend_sha256']
     assert float(ET.parse(tmp_path/'world.sdf').getroot().find('world/physics/max_step_size').text)==.0005

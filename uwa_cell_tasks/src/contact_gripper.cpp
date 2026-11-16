@@ -99,7 +99,7 @@ class ContactGripper : public gz_ros2_control::GazeboSimSystemInterface
   gz::sim::EntityComponentManager * ecm_{nullptr};
   std::vector<Finger> fingers_;
   std::map<std::string,double> targets_;
-  double kp_{3.}, motor_kp_{10.}, kd_{.003}, torque_{.35};
+  double kp_{3.}, motor_kp_{10.}, kd_{.003}, torque_{.35},motor_torque_{.35};
   double coarse_{.02},fine_{.004},fine_start_{.65};
   std::atomic<bool> latch_requested_{false};
   bool latched_{false};
@@ -122,11 +122,13 @@ public:
       motor_kp_=std::stod(info.hardware_parameters.at("motor_kp"));
       kd_=std::stod(info.hardware_parameters.at("kd"));
       torque_=std::stod(info.hardware_parameters.at("max_torque"));
+      motor_torque_=info.hardware_parameters.count("motor_max_torque") ?
+        std::stod(info.hardware_parameters.at("motor_max_torque")):torque_;
       coarse_=std::stod(info.hardware_parameters.at("coarse_velocity"));
       fine_=std::stod(info.hardware_parameters.at("fine_velocity"));
       fine_start_=std::stod(info.hardware_parameters.at("fine_start"));
       native_mimic_=info.hardware_parameters.at("native_mimic")=="true";
-      if (!std::isfinite(kp_+motor_kp_+kd_+torque_) || kp_<=0 || motor_kp_<=0 || kd_<=0 || torque_<=0) return false;
+      if (!std::isfinite(kp_+motor_kp_+kd_+torque_+motor_torque_) || kp_<=0 || motor_kp_<=0 || kd_<=0 || torque_<=0 || motor_torque_<=0) return false;
       const double limit=info.hardware_parameters.count("velocity_limit") ? std::stod(info.hardware_parameters.at("velocity_limit")):.05;
       if(!std::isfinite(coarse_+fine_+fine_start_+limit) || limit<=0 || limit>2. || fine_<=0 || fine_>coarse_ || coarse_>limit || fine_start_<=0 || fine_start_>=.8)return false;
       for (const auto & joint:info.joints) {
@@ -143,7 +145,7 @@ public:
         if(f.name==f.driver || !native_mimic_) {
           if (!ecm.Component<gz::sim::components::JointForceCmd>(f.entity))
             ecm.CreateComponent(f.entity,gz::sim::components::JointForceCmd({0.}));
-          ecm.CreateComponent(f.entity,ServoTarget({0.,kp_,kd_,torque_,0.,coarse_,fine_,fine_start_,
+          ecm.CreateComponent(f.entity,ServoTarget({0.,kp_,kd_,f.name==f.driver ? motor_torque_:torque_,0.,coarse_,fine_,fine_start_,
             static_cast<double>(joints.at(f.driver)),f.multiplier,f.name==f.driver ? 1. : 0.,0.,motor_kp_}));
         }
         fingers_.push_back(f);

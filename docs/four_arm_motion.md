@@ -3,6 +3,8 @@
 This first version commands **Gazebo simulation only**, ROS domain64,
 partition `uwa_cell_sim`. It does not start or stop real UR programs.
 The model's physical world/table anchors remain provisional.
+Planning reserve checks use a [conservative arm-AABB prefilter](collision_prefilter.md)
+with unchanged fine geometry/thresholds and full MoveIt validation.
 The separately implemented [hardware backend](four_arm_hardware_motion.md)
 has its own domain, tool-envelope policy and unmeasured stopping profile;
 simulation execution never forwards commands to hardware.

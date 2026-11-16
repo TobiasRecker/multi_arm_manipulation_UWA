@@ -27,10 +27,16 @@ def evaluate(run,scene_directory):
             and tuple(motion['group']['members'])==ARMS and motion['scene_sha256']==scene['sha256'])
     except (OSError,KeyError,ValueError) as error:
         checks['one_object_trajectory']=False;notes.append('Missing or invalid compiled object motion: '+str(error))
-    peaks=[abs(v) for phase in state.get('measured_peak_speeds_rad_s',{}).values() for v in phase.values()]
+    measured=state.get('measured_peak_speeds_rad_s',{});peak_source='state.json';diagnostic_sha=None
+    if not measured and (run/'stop-diagnostic.json').exists():
+        diagnostic=run/'stop-diagnostic.json';measured=json.loads(diagnostic.read_text()).get('measured_peak_speeds_rad_s',{})
+        peak_source='stop-diagnostic.json';diagnostic_sha=hashlib.sha256(diagnostic.read_bytes()).hexdigest()
+    peaks=[abs(v) for phase in measured.values() for v in phase.values()]
     checks['measured_speed_bound']=bool(peaks) and all(
         abs(speed)<=velocity_limits([joint],cfg)[0]+1e-8
-        for phase in state.get('measured_peak_speeds_rad_s',{}).values() for joint,speed in phase.items())
+        for phase in measured.values() for joint,speed in phase.items())
+    arm_peaks=[abs(v) for phase in measured.values() for j,v in phase.items() if '_robotiq_' not in j]
+    finger_peaks=[abs(v) for phase in measured.values() for j,v in phase.items() if '_robotiq_' in j]
     trace=run/'evaluation-trace.jsonl';loaded=[];released=[];moving=[]
     if trace.exists():
         for line in trace.open():
@@ -49,6 +55,8 @@ def evaluate(run,scene_directory):
     metrics=dict(loaded_samples=len(loaded),actual_hub_m=None,asset_origin_hub_m=None,max_rigidity_error_m=None,max_rigidity_error_rad=None,
                  near_target_unsupported_duration_s=0.,maximum_measured_joint_speed_rad_s=max(peaks) if peaks else None,
                  motion_trace_samples=len(moving))
+    metrics.update(maximum_measured_arm_speed_rad_s=max(arm_peaks) if arm_peaks else None,
+        maximum_measured_finger_speed_rad_s=max(finger_peaks) if finger_peaks else None)
     if loaded:
         description=(scene_directory/'robot.urdf').read_text()
         chains={a:Chain(description,'world',a+'_tool0') for a in ARMS}
@@ -77,15 +85,19 @@ def evaluate(run,scene_directory):
         metrics=metrics,notes=notes,trace_sampling_allowance_s=.05,
         lift_reference_point_object_m=reference,lift_reference_kind=scene.get('lift_reference_kind','legacy_asset_origin'),
         validator_source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        measured_peak_source=peak_source,stop_diagnostic_sha256=diagnostic_sha,
         interpretation='Simulation evaluation only; near-target interval includes settling, runner separately enforces dwell.',
         assumptions=cfg['simulation_assumptions']))
 
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--scene',required=True,type=Path);p.add_argument('runs',nargs='+',type=Path)
+    p.add_argument('--report-name',default='validation-report.json',help='New report filename; raw evidence and previous reports are retained')
     args=p.parse_args();results=[]
+    if Path(args.report_name).name!=args.report_name or not args.report_name.endswith('.json'):p.error('Use a JSON basename')
+    if any((run/args.report_name).exists() for run in args.runs):p.error('Choose a new report name; previous reports must remain')
     for run in args.runs:
-        report=evaluate(run,args.scene);write_json(run/'validation-report.json',report);results.append(report)
+        report=evaluate(run,args.scene);write_json(run/args.report_name,report);results.append(report)
         print(run.name, 'PASS' if report['passed'] else 'INCOMPLETE / FAIL',report['metrics'])
     print('Completed contact runs:',sum(r['passed'] for r in results),'/',len(results))
 

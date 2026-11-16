@@ -114,7 +114,7 @@ def execute(args):
                 and not set(ARMS).intersection(supervisor.get('held_arms',[]))
                 and group.get('members')==list(ARMS) and not group.get('released')
                 and not contact.get('supported',True) and all(all(contact['pads'][a].values()) for a in ARMS)
-                and data['object']['T_world_object'][2][3]-origin[2,3]>=.005)
+                and data['object']['T_world_object'][2][3]-origin[2,3]>=args.minimum_lift_m)
             if not ready:ready_since=None;continue
             if grasp_offsets is None:raise RuntimeError('No supported group-formation baseline recorded before pickup')
             if ready_since is None:ready_since=now
@@ -202,7 +202,9 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('run',type=Path)
     parser.add_argument('--scene',type=Path,required=True)
     parser.add_argument('--fault',choices=['member_stop','runner_pause','guard_pause'],required=True)
+    parser.add_argument('--minimum-lift-m',type=float,default=.005,help='Unsupported lift before injecting, for a selected point on the common object law')
     parser.add_argument('--namespace',default='/uwa_grasp_validation');args=parser.parse_args();simulation_only()
+    if not np.isfinite(args.minimum_lift_m) or not 0<args.minimum_lift_m<.03:parser.error('Minimum lift must be in(0,0.03)m')
     if not args.namespace.startswith('/uwa_grasp_'):parser.error('Isolated simulation namespace required')
     if not (args.run/'state.json').is_file():parser.error('Existing running task required')
     with (args.run/'fault-test.lock').open('x') as lock:

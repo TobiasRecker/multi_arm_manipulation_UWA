@@ -70,8 +70,32 @@ reference is explicitly separate from peak forces and material damage.
 The first two-case ladder completed at5/10mm/s: both carried500g to29.4mm
 and stopped on passive finger-speed bounds during descent. Both full force
 traces are gap-free and below the user load reference. No complete fast500g
-cycle or material-speed boundary is qualified. `physics_step_s` supports
-explicit0.1–1ms refinement; the0.5ms comparison is currently running.
+cycle was qualified by that initial soft-preload profile. `physics_step_s` supports
+explicit0.1–1ms refinement. The0.5ms comparison also stopped on the configured
+passive-finger bound during initial load transfer; convergence is unproven.
+
+For isolated contact experiments `tools/prepare_manipulation_fixture.py --scene
+SCENE --run RUN --output NEW_FIXTURE` derives a new initial pregrasp layout from
+a verified plan. It verifies unchanged collision geometry/kinematics. Pass its
+`layout.yaml` with `explore_manipulation.py --layout`. It changes no existing
+world and provides no Home-approach qualification. The current contact-dynamics
+candidate increases the finger observation bound while reducing the arm bound
+so the complete stopping reserve still fits; no guard check is disabled.
+
+The stronger virtual motor preload subsequently passed a full5mm/s fixture
+cycle and **two complete10mm/s Home cycles** with500g. The Home repeats measured
+29.924mm COM lift,0.274mm maximum relative position error and5.556N maximum
+per-jaw peak upper bound. Both full force traces are gap-free; all pads remain
+under load until supported release, and final holds are confirmed. No real
+force-setting calibration or maximum physical speed follows from these cases.
+Evidence: `setup/tasks/carton_preload_home_20261116_01/`. Loaded member/runner/
+guard fault tests at the same speed are in progress separately.
+
+`cell_task skills` now lists16contracts including force reference validation,
+load observation, virtual fixture preparation, experiment cases and loaded-stop
+tests. New scenes also bind local planning/watchdog dependencies, the shared
+motion configuration, native hold library and RRT worker (`binding_scope v2`).
+Older sealed reports retain their original, narrower dependency binding.
 
 ### Force sensing first; compliant mount as fallback
 
@@ -541,3 +565,19 @@ the carton remained supported and no fault was injected. A fresh world was used
 for77. Every failed attempt is retained. Test worlds were explicitly ended after
 confirmed holds, without opening or resuming a loaded group. The ordinary cell
 simulation and physical robots were untouched.
+
+### Gripper preload is part of the experimental model
+
+The low-force contact-dynamics case stopped on2mm relative TCP/object error
+after allowing larger passive-finger motion. This can include compliance as
+well as slip. Increase of an observation bound alone does not establish holding
+quality. `gripper_motor_torque_limit_nm` now controls only the virtual motor;
+the elastic transmission retains its separate0.35Nm limit. Defaults remain
+0.35Nm motor/10Nm/rad feedback. The explicit preload candidate tests0.7Nm motor
+and30Nm/rad feedback, with measured pad loads deciding the comparison. These
+are model parameters, not calibrated hardware force settings.
+
+Robotiq lists20–235N Grasp Force for2F-85 in its
+[manufacturer specifications](https://assets.robotiq.com/website-assets/support_documents/document/online/2F-85_2F-140_Instruction_Manual_Gen_HTML_20190524.zip/2F-85_2F-140_Instruction_Manual_Gen_HTML/Content/6.%20Specifications.htm).
+That device-level specification is not automatically the force on one carton
+wall patch; a real setting-to-contact-force calibration remains necessary.

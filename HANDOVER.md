@@ -1,6 +1,45 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Arm-Hüllquader-Vorfilter implementiert und geprüft, 2026-11-16
+
+- Nutzeridee: ganzerArm→Glieder→feineKugeln, entfernte Paare früh aussortieren.
+  Entspricht Broadphase/BVH; MoveIt/FCL nutzt dies bereits, eigene zusätzlichen
+  Kugelreserveabfragen waren bislang dicht. Nutzer beauftragt anschließend
+  ausdrücklich den ersten Vorfilter. Implementiert im gemeinsamen Python-
+  Planungscheck und nativen RRT-Worker, Details work/collision-hierarchy-review.md.
+-150Zustände bestehender RR-CDF-Bahn mit3festen Armen: Basis-Hüllkugeln
+  verwerfen0/600Paarabfragen, engere vollständige Arm-AABBs587/600. Diese erste
+  reine Potenzialanalyse ist getrennt vom folgenden Laufzeitvergleich erhalten.
+  Mikroprofil FK/Kugeln0,524ms, FCL0,115ms,4Kugelabfragen0,333ms proZustand.
+  Daten setup/logs/uwa-collision-hierarchy-profile.json. Einarm-Beispiel nicht
+  auf beliebige Vierarmaufgaben verallgemeinern.
+- Vorfilter umfasst ganze Kugelvolumina/Tools, nach außen gerundet, gleiche
+  Schwellen. Nahe Grenze/Überlappung führt zur alten Feinprüfung. Cache proArm
+  berücksichtigt bewegliche Vorfahren/Mimic-Quellen/Greifer; ungültige Zustände
+  werden vor Cachezugriff abgelehnt. Ganze FCL-Prüfung und genaue Wächter-/CDF-
+  Abstände/Gradienten unverändert, keine Trajektorienabschnitte pauschal freigegeben.
+- Lyrical-Build und120Paketchecks PASS,270identische Suite-Zustandsentscheidungen,
+  3000native Zufallsfälle plus Grenzen/Volumen, Hardware-Öffnungshüllen und
+  Greifer-Cacheinvalidierung. setup/logs/uwa-prefilter-{build,tests}.log.
+- Offline-Laufzeit mit5rotierten Wiederholungen: gleicherTrajektoriencheck
+  1,051→0,734ms/Zustand,30Aufgaben1,035→0,771ms. GanzerCDF-Plan inklusive
+  Endprüfung3,112→2,304s, exakt identische zeitparametrierte Bahn; Bankvorbereitung
+  ausgenommen. Ein nativerRRT-Lauf6,913→1,194s, beide Wege vollständig validiert;
+  kein allgemeiner5,8×-Faktor und keine identischenRRT-Bahnen behauptet.
+- Bericht setup/research/aabb-prefilter-v1/report.html/result.json, Anleitung
+  docs/collision_prefilter.md, wiederholbares benchmark_prefilter.py im Motion-
+  Testordner. Keine Dienste neu gestartet, keine reale Bewegung/Physikreplay.
+
 ## Einzel-UR-CDF mit eingefrorener Restzelle implementiert, 2026-11-16
+
+- Nutzer lobt HTML-Animation und wünscht solche Übersichten häufiger; Präferenz
+  in AGENTS festgehalten. Erklärung der Darstellung: Kugeln stammen aus dem
+  vorhandenen konservativen Geometriemodell und sind keine CDF-Vorschrift.
+  Heatmap zeigt unsigned Kontaktkonfigurationsabstand in Gelenkradian für den
+  ganzen Arm gegen feste Hindernisse; keine Innen-/Außen-Kollisionsmaske.
+  Oben rechts q1/q2-Schnitt bei Start-q3…q6, weiße Linie lediglich Projektion
+  der tatsächlichen6D-Bahn mit veränderlichen q3…q6; Farben entlang dieser
+  Linie entsprechen deshalb nicht allgemein den tatsächlichen Bahn-CDF-Werten.
 
 - Nutzer nimmt CDF wieder auf: zunächst ein UR bewegt, drei andere starre
   Hindernisse. Originalprojekt/Code gelesen, MIT/Commit
@@ -428,11 +467,74 @@
   vollständig geschriebenem Zwei-Fälle-Ergebnis; nicht als sauberer Exit ausgeben.
   Eigener Supervisor-CLI jetzt Python-Signalhandler wie Runner: ROS-Kontext erst
   nach Executor-Join schließen, gemeinsamen Motioncode nicht verändert.
-  Nachweis dieser Shutdown-Korrektur im nächsten Versuch noch offen.
+  Halbschrittfolge endet danach mit Exit0 und allen Launchkindern sauber;
+  einmaliger positiver Cleanup-Nachweis, alte−11/143-Protokolle erhalten.
 - Physikschritt explizit0,1–1ms konfigurierbar;0,5ms-Welt-Export geprüft,
   Build/8CTest-Suites und41Tests PASS. Gleicher500g-/5mm/s-Versuch mit0,5ms
-  läuft unter `carton_exploration_20261116_halfstep01`. Ziel: Zeitschrittfehler
-  vom elastischen Greifermodell unterscheiden, keine Grenzlockerung.
+  unter `carton_exploration_20261116_halfstep01` abgeschlossen: **FAIL** schon
+  beim Lastübergang wegen RR-Tip0,210320rad/s über0,2. Nur0,970mm Hub,
+  maxRelativfehler1,425mm/0,002857rad; Kräfte lückenlos, 10ms-Mittel bis3,035N,
+  Peakobergrenze6,576N. Halbierung allein behebt die passive Geschwindigkeits-
+  grenze nicht; Konvergenz/physische Belastungsgrenze ausdrücklich unbewiesen.
+- Wiederverwendbare Vorpositions-Fixture: tools/prepare_manipulation_fixture.py
+  aus geprüftem Plan, nur Anfangszustand einer neuen Welt, kein Reset/Anheften.
+  Kollisions-/Kinematiksignatur gegenüber Quellszene gleich nachgeprüft.
+  `carton_pregrasp_fixture_20261116_01/layout.yaml`; Runner unterstützt--layout
+  konsistent in Prepare/Launch/Task. Kein Home-Anfahrtsnachweis daraus ableiten.
+- Isolierter Kontaktversuch `carton_contact_dynamics_20261116_01` läuft:
+  0,5ms, gleiche Masse/Reibung/Getriebe/0,1grobe+0,02feine Schließrate und2rad/s²
+  Bremsgrenze. Beobachtungsgrenze Finger0,6 statt0,2; Armgrenze dafür0,025 statt
+  0,05, damit volle worst-age-Stoppreserven erhalten bleiben (Vorprüfung14,6mm
+  minimale Restreserve). **FAIL** beim Lastübergang wegen Relativfehler/Schlupf:
+  2,023mm-Schwellenauslösung, insgesamt2,029mm/0,003740rad; nur1,135mm Hub.
+  VierPads/Verbund beim Stopp gehalten; lückenlose Backenlasten bis3,062N im
+  10ms-Mittel bzw5,413N-Peakobergrenze. Relative Verschiebung kann auch
+  Greifercompliance enthalten, nicht allein als Reibschlupf interpretieren.
+  Exakte22Quell-/Binärbindungen unter implementation_snapshot archiviert.
+- Virtuelle Motorvorspannung getrennt vom Getriebe parametriert. Default weiter
+  0,35Nm; höhere Motorgrenze nur explizit im Explorationsmodus, maximal2Nm.
+  Native Getriebegrenze unverändert0,35Nm, gleiche100Nm/rad Getriebesteifigkeit.
+  Neue Probe `carton_contact_preload_20261116_01`: Motorsteifigkeit30 statt10Nm/rad,
+  Motorgrenze0,7 statt0,35Nm; restliche Dynamik-Fixture gleich. **PASS** des
+  vollständigen5mm/s-Kontaktzyklus ab Vorposition:29,925mm Hub, maxRelativfehler
+  0,252mm/0,001648rad, vierPads bis unterstützter Freigabe, finale Holds bestätigt.
+  Armpeak0,024526rad/s, Fingerpeak0,099781rad/s. Kräfte lückenlos; Backenmittel
+  maximal5,141N (10ms), Peakobergrenze5,356N. Beide deutlich unter50N-Nutzerreferenz.
+  Exakte Quell-/Binärbindungen archiviert; World-Cleanup und äußerer Exit0 sauber.
+  Keine kalibrierte Zuordnung zu echten Robotiq-Force-Settings. Build/42Tests PASS.
+- Vollständiges Home-Profil mit gleicher Motorvorspannung,0,05Arm/0,15Finger,
+  0,5ms und10mm/s unter `carton_preload_home_20261116_01`: beide Fälle **PASS**,
+  lückenlose Kräfte. Hub29,9244/29,9243mm, maxRelativfehler0,274/0,244mm und
+  0,001692/0,001637rad. Backenmittel bis5,380N (10ms), Peakobergrenze5,556N.
+  Unterstützte Freigaben/finale Holds bestätigt, gleiche gebundene Taskquellen
+  und vier Binärversionen archiviert. Keine maximale physische Geschwindigkeit.
+  Geladene Stoppmatrix `carton_preload_faults_20261116_01` läuft noch.
+- Fault-Runner unterstützt jetzt die drei alten scoped Fehlerarten unter neuem
+  Profil, Injektion ab gewählter Hubhöhe (hier12mm nahe Tempopeak). Recorder
+  kann nach Terminalzustand2s weiter rein lesend erfassen. Testcode vorhanden;
+  neue geladene Stopps erst nach tatsächlichem Matrixlauf als bestanden melden.
+- Stoppmatrix01/case00 member_stop **PASS**: absichtlicher Armstopp bei
+  getragenem500g-Karton/10mm/s, vierPads erhalten, maxRelativfehler0,233mm,
+  beide Holds mit Stillstandsfenster bestätigt (0,796s inklusive Messfenster,
+  keine reine Bremszeit). Lückenlose Kräfte, Root-Fall accepted=true.
+  Case01 runner_pause wurde **vor Injektion** durch verpasstes Agentenreview
+  nach300s beendet; bestätigte Holds, kein geladener Ausfallnachweis. Eigenen
+  Bedienfehler/Negativdaten erhalten, gezielter neuer Fall ist erforderlich.
+  Case02 guard_pause läuft noch; kein automatisches Resume/Öffnen.
+- Aktionskatalog auf16Verträge erweitert: Kraftreferenzprüfung, Lastbeobachtung,
+  rein virtuelle Fixturevorbereitung, endlicher Experimentfall und geladener
+  Fehler-/Stoppversuch. Lokale Planungs-/Wächterabhängigkeiten inklusive
+  gemeinsamer Motionkonfiguration, Holdbibliothek und RRT-Binärdatei werden in
+  neuen Szenen zusätzlich gehasht (binding_scope v2). Vorherige Messberichte
+  bleiben mit ihrer engeren ursprünglichen Bindung historisch erhalten; die
+  aktuellen gemeinsamen Motiondateien anderer Arbeiten werden nicht verändert.
+- Kräftevergleich muss tatsächliche Padlasten verwenden. Hersteller nennt für
+  2F-85 eine Grasp-Force-Spanne20–235N; diese Geräteangabe nicht ungeprüft mit
+  einzelnen Wandkontakten gleichsetzen. Primärquelle in docs/manipulation_pipeline.md.
+- Validator liest bei Fehlversuchen Peaks aus gebundenem Stop-Diagnosebericht,
+  getrennte Arm-/Fingermaxima und Dateihash. Vorhandene Reports werden nicht
+  überschrieben, neuer Berichtname nötig. Historische Negativdaten nicht neu
+  für geänderte Implementierung qualifizieren.
 - Endlicher automatischer Geschwindigkeitsleiter-Runner implementiert unter
   tools/explore_manipulation.py; Agentenreviews bleiben Pflicht. Eigene Szenen,
   Recorder vor Arming, scoped Cleanup nur nach bestätigtem Stopp, gemeinsame
