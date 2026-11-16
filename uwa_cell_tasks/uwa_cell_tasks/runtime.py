@@ -25,7 +25,7 @@ from uwa_cell_motion.common import simulation_only
 from uwa_cell_gazebo.charuco_views import Chain
 from match_cooperative_handling.rigid_object import pose_error,interpolate
 from .core import ARMS,CAMERAS,RunStore,GraspGroup,verify,write_json,seal,resource_lease,gripper_profile,measured_open,object_point_height
-from .planning import TaskProblem,grasp_candidates,plan_approach,object_trajectory,grasp_entry,PlannedObjectConstraint
+from .planning import TaskProblem,grasp_candidates,plan_approach,object_trajectory,grasp_entry,PlannedObjectConstraint,carton_motion_poses,compile_object_recipe
 from .scene import verify_scene
 
 
@@ -345,11 +345,17 @@ def _run_task(directory,scene_directory,layout_file,namespace,reference):
                     pre_state=dict(start,**dict(zip(plan['request']['joint_names'],plan['request']['target'])))
                     entry,grasp_state=grasp_entry(witness,pre_state,candidate,cfg)
                     predicted=PlannedObjectConstraint(obj,candidate['tcp_targets'])
-                    lifted=obj.copy();lifted[2,3]+=cfg['lift_m']
+                    poses=carton_motion_poses(scene,layout,obj,cfg)
+                    lifted=poses['lifted']
                     # This geometric witness is distinct from the actual
                     # contact-bound plan recomputed after grasp confirmation.
-                    lift_witness=object_trajectory(witness,predicted,grasp_state,obj,lifted,cfg)
-                    plan=seal(dict(plan,entry=entry,lift_witness=lift_witness))
+                    extra={}
+                    if cfg.get('roll_long_axis'):
+                        recipe=compile_object_recipe(witness,predicted,grasp_state,obj,cfg)
+                        lift_witness=recipe['motions']['lift']
+                        extra=dict(object_recipe_witness=recipe)
+                    else:lift_witness=object_trajectory(witness,predicted,grasp_state,obj,lifted,cfg)
+                    plan=seal(dict(plan,entry=entry,lift_witness=lift_witness,**extra))
                     break
                 except ValueError as error:
                     failures.append(dict(candidate=candidate['id'],reason=str(error)));plan=None
@@ -400,16 +406,20 @@ def _run_task(directory,scene_directory,layout_file,namespace,reference):
             group=GraspGroup(cfg['object_id'],obj,tcps,sim.contact['pads'],cfg,plan['candidate']['contacts'])
             record=group.record();write_json(directory/'group.json',record)
             sim.group_pub.publish(String(data=json.dumps(record,default=lambda v:v.tolist())))
-            lifted=obj.copy();lifted[2,3]+=cfg['lift_m']
+            poses=carton_motion_poses(scene,layout,obj,cfg)
+            write_json(directory/'object-targets.json',seal(poses))
+            lifted=poses['lifted']
             sim.phase='move_object';store.event('RUNNING','move_object')
-            trajectory=object_trajectory(contact_problem,group,dict(sim.q),obj,lifted,cfg)
+            recipe=compile_object_recipe(contact_problem,group,dict(sim.q),obj,cfg) if cfg.get('roll_long_axis') else None
+            if recipe:write_json(directory/'object-recipe.json',seal(recipe))
+            trajectory=recipe['motions']['lift'] if recipe else object_trajectory(contact_problem,group,dict(sim.q),obj,lifted,cfg)
             truth_before=np.array(sim.object['T_world_object'])
             write_json(directory/'object-lift.json',trajectory);sim.follow(trajectory)
             truth=np.array(sim.object['T_world_object'])
             truth_start=truth_before
             reference=scene['lift_reference_point_object_m']
             actual_hub=object_point_height(truth,reference)-object_point_height(truth_start,reference)
-            if sim.contact['supported'] or abs(actual_hub-cfg['lift_m'])>.002:
+            if sim.contact['supported'] or abs(actual_hub-poses['lift_m'])>.002:
                 raise RuntimeError('Actual load pickup was not established')
             end=sim.now()+cfg['dwell_s'];wall_deadline=time.monotonic()+30.
             while sim.now()<end:
@@ -417,10 +427,22 @@ def _run_task(directory,scene_directory,layout_file,namespace,reference):
                 if time.monotonic()>wall_deadline:raise TimeoutError('Simulation dwell did not complete')
                 if sim.contact['supported']:raise RuntimeError('Support contact during free hold')
                 time.sleep(.02)
+            carried=lifted
+            if 'turned' in poses:
+                # Keep the existing move_object guard phase throughout rotation.
+                store.event('RUNNING','move_object',step='longitudinal_quarter_turn')
+                turn=recipe['motions']['turn']
+                write_json(directory/'object-turn.json',turn);sim.follow(turn)
+                carried=poses['turned']
+                measured=np.asarray(sim.object['T_world_object'])
+                if pose_error(measured,carried)[1]>.0174533 or sim.contact['supported']:
+                    raise RuntimeError('Unsupported quarter-turn orientation was not established')
             sim.phase='set_down';store.event('RUNNING','set_down')
-            back=object_trajectory(contact_problem,group,dict(sim.q),lifted,obj,cfg)
+            back=recipe['motions']['set_down'] if recipe else object_trajectory(contact_problem,group,dict(sim.q),carried,poses['placed'],cfg)
             write_json(directory/'object-set-down.json',back);sim.follow(back)
             sim.wait(lambda:sim.contact['supported'],5.,health=True)
+            if cfg.get('roll_long_axis') and pose_error(sim.object['T_world_object'],poses['placed'])[1]>.0174533:
+                raise RuntimeError('Supported sideways orientation differs from target')
             release_request=dict(group.record(),release_requested=True)
             sim.group_pub.publish(String(data=json.dumps(release_request,default=lambda v:v.tolist())))
             sim.call('latch',SetBool.Request(data=False));sim.phase='release';store.event('RUNNING','release');sim.grippers(0.)
@@ -434,6 +456,10 @@ def _run_task(directory,scene_directory,layout_file,namespace,reference):
             sim.wait(lambda:sim.guard.get('active_grasp_members')==[],5.,health=True)
             stop_report=sim.stop()
             if not stop_report['confirmed']:raise RuntimeError('Final resource holds not confirmed')
+            if cfg.get('roll_long_axis') and (not sim.contact['supported'] or
+                    pose_error(sim.object['T_world_object'],poses['placed'])[1]>.0174533):
+                raise RuntimeError('Released carton did not retain supported sideways orientation')
+            write_json(directory/'object-targets.json',seal(poses))
             store.event('DONE','done',group=group.record(),actual_hub_m=actual_hub,
                 asset_origin_hub_m=float(truth[2,3]-truth_start[2,3]),
                 lift_reference_point_object_m=reference,lift_reference_kind=scene['lift_reference_kind'],stop=stop_report,

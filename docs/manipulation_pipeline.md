@@ -581,3 +581,58 @@ Robotiq lists20–235N Grasp Force for2F-85 in its
 [manufacturer specifications](https://assets.robotiq.com/website-assets/support_documents/document/online/2F-85_2F-140_Instruction_Manual_Gen_HTML_20190524.zip/2F-85_2F-140_Instruction_Manual_Gen_HTML/Content/6.%20Specifications.htm).
 That device-level specification is not automatically the force on one carton
 wall patch; a real setting-to-contact-force calibration remains necessary.
+
+## Experimental longitudinal quarter turn (2026-11-16)
+
+`config/carton_roll_90.yaml` opts into lifting, a 90-degree roll about the
+carton's longer horizontal asset axis, and placement on a side wall. The sign
+faces the opening toward the scene-bound OAK optical pose. The material-model
+centre of mass is the fixed rotation pivot. Geometry determines the required
+clearance lift (about146mm in the current nominal scene); the old30mm lift
+cannot clear this rotation. The carton starts across the table gap; the final
+footprint is shifted wholly onto one horizontal table. The current experimental
+profile selects the left table; the direct right-table descent has a checked
+front-arm forearm/wrist collision. The arm speed cap is0.04rad/s to retain the
+full stopping reserve; collision thresholds and guard deadlines are unchanged.
+
+This reuses the same grasp proposals, approach planner, `GraspGroup`, immutable
+offsets, common12-joint object-path compiler, supervisor and contact/slip guard.
+Before entry the review includes a complete geometric carrying-path witness.
+After real contact the full recipe is compiled again with measured TCP offsets
+before pickup. All carrying motions keep a common time law. Opening requires
+support and the measured sideways orientation; final orientation is checked
+again after release. `object-targets.json`, `object-recipe.json` and
+`object-turn.json` retain explicit evidence. The trace validator additionally
+requires the unsupported turn and supported sideways release.
+
+This is experimental software, **not a qualified contact cycle**. The first
+offline nominal path can lift and turn geometrically, but its direct descent
+encounters a front-arm forearm/wrist self-collision. Other original candidates
+also fail collision, reach or stopping-reserve checks. A left-table alternative passes the coarse geometry screen; dense timing
+and contact evidence remain separate. Consult work/carton-roll-90.md for current
+results. Do not execute by bypassing collision checks. Earlier translation-only
+passes do not qualify this recipe. No second grasp world may run concurrently.
+
+
+Prepare this optional recipe with the existing interface:
+
+```bash
+source src/multi_arm_manipulation_UWA/scripts/env.bash
+ros2 run uwa_cell_tasks cell_task prepare \
+  --config src/multi_arm_manipulation_UWA/uwa_cell_tasks/config/carton_roll_90.yaml \
+  --output setup/tasks/my-quarter-turn-scene
+```
+
+Use the existing isolated launch/recorder/review workflow above after confirming
+there is no other active grasp world. `cell_task plan` also includes the complete
+carrying-path witness for this profile; the default recipe stays translation-only.
+The optional file-only preview tool consumes a sealed offline preflight packet:
+
+```bash
+python3 src/multi_arm_manipulation_UWA/tools/preview_carton_motion.py \
+  --scene SCENE --plan PREFLIGHT.json --output NEW_PREVIEW.html
+```
+
+Play/pause, timeline, orbit and zoom are display-only. This animation represents
+commanded model geometry, never successful contact physics. The regular
+`cell_task preview RUN` shows the actual review and complete motion stages.

@@ -27,6 +27,9 @@ def preview(directory):
             parts.append('<p>Candidate: '+escape(evidence['candidate']['id'])+'</p><table><tr><th>Stage</th><th>Duration (s)</th><th>Samples</th></tr>')
             for name in ('trajectory','entry','lift_witness'):
                 motion=evidence[name];parts.append('<tr><td>'+escape(name)+'</td><td>'+escape(round(motion['points'][-1]['time'],3))+'</td><td>'+escape(len(motion['points']))+'</td></tr>')
+            if 'object_recipe_witness' in evidence:
+                for name,motion in evidence['object_recipe_witness']['motions'].items():
+                    parts.append('<tr><td>'+escape(name)+' (full recipe witness)</td><td>'+escape(round(motion['duration_s'],3))+'</td><td>'+escape(len(motion['points']))+'</td></tr>')
             parts.append('</table><p>Lift witness is geometry only; physical holding is still to be proved.</p>')
         if 'delta_m_rad' in evidence:
             parts.append('<p>Object alignment delta (m, rad): '+escape(evidence['delta_m_rad'])+'</p>')

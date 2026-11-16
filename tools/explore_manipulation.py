@@ -127,11 +127,16 @@ def case(root,cfg,reference,index,timeout,layout=None,fault=None,minimum_lift=.0
                 phase=row['phase'];phase_times[phase]=phase_times.get(phase,0.)+row['elapsed_wall_s']-previous['elapsed_wall_s']
             previous=row
         fault_report=read(run/'fault-test-report.json') if fault else None
-        accepted=(fault_report['passed'] if fault_report else validation['passed']) and loads['coverage_complete'] and below
+        # A physically successful injected stop cannot qualify a different
+        # implementation. Fault reports intentionally expect FAILED, so the
+        # normal full-cycle verdict alone cannot supply this binding check.
+        implementation_bound=validation['checks']['current_implementation_bound']
+        accepted=implementation_bound and (fault_report['passed'] if fault_report else validation['passed']) and loads['coverage_complete'] and below
         return dict(directory=str(directory),object_speed_m_s=cfg['max_object_speed_m_s'],
             task_passed=validation['passed'],force_coverage_complete=loads['coverage_complete'],
             per_jaw_10ms_mean_below_user_reference=below,
             accepted=accepted,fault=fault,fault_test_passed=fault_report['passed'] if fault_report else None,
+            current_implementation_bound=implementation_bound,
             classification=('loaded_group_fault_pass' if accepted else 'loaded_group_fault_or_measurement_failure')
                 if fault else classify(state,validation,loads,diagnostic),
             sampled_phase_wall_durations_s=phase_times,

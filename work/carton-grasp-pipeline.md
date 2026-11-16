@@ -766,3 +766,32 @@ preserve initial pregrasp provenance; none is a Home-start claim.
   und Kinematiksignatur geprüft. Kein Reset einer geladenen Welt/kein Anheften.
   Isolierter Kontaktversuch mit0,025Arm/0,6Finger läuft, volle Stoppreserve
   bleibt erhalten; keine Home-Anfahrtsqualifikation aus der Fixture ableiten.
+
+### Koordinationshinweis Kartondrehung, 2026-11-16
+
+Parallelauftrag erweitert uwa_cell_tasks um optionales 90°-Drehrezept. Dabei
+stoppte die Quellenbindung case01 von carton_preload_faults_20261116_02 bereits
+in review_strategy mit `Task implementation changed`; beide Holds bestätigt.
+Dieser Fall ist kein erfolgreicher Fault-Test. Alte Szenen nicht erneut mit
+geänderten Quellen verwenden. Keine fremden Prozesse durch den Drehauftrag
+beendet; eigene Liveprüfung wartet auf freie Greifwelt. Details work/carton-roll-90.md.
+
+### Isolierte Wiederholung nach Versionskonflikt, 2026-11-16
+
+- Matrix02 hat keinen gültigen Fault-PASS: case00/01 Quellenänderung vor
+  Injektion, case02 Guard/Supervisor wegen Versionsabweichung nicht gestartet.
+  Keine eigenen Testprozesse danach vorhanden; Originaldaten erhalten.
+- Parallelentwicklung zum90°-Drehen bleibt unverändert. Neue Stoppmatrix03
+  verwendet eigenen Snapshot `setup/tasks/carton_frozen_baseline_20261116_01`:
+  erfolgreiche Home-Taskmodule, aktuelle erweiterte Szenenbindung sowie kopierte
+  lokale Pythonabhängigkeiten/native Task-/Motionbibliotheken. Umgebung und
+  Dateihashes im Snapshot; kein Rollback des gemeinsam bearbeiteten Checkouts.
+- Neue eigene Greifwelt für matrix03; drei Fehlerarten ab12mm getragenem Hub.
+  Noch kein Ergebnis vor tatsächlichem Lauf/Review. Keine Hardwareaktion.
+
+- Matrix03/case00 member_stop **PASS**, neue0,2Finger-Stoppreserve im Plan:
+  vierPads erhalten, maxRelativfehler0,240mm, passiver Peak0,173818rad/s,
+  Kräfte lückenlos und unter50N, Implementierungsbindung gültig.
+  Danach Runner-/Guard-Pause; anschließend zwei volle Home-Zyklen mit exakt
+  demselben eingefrorenen0,2Finger-Profil vorgesehen. Keine fremden Welten
+  oder Hardwareprozesse verändern.

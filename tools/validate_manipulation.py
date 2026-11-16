@@ -27,6 +27,18 @@ def evaluate(run,scene_directory):
             and tuple(motion['group']['members'])==ARMS and motion['scene_sha256']==scene['sha256'])
     except (OSError,KeyError,ValueError) as error:
         checks['one_object_trajectory']=False;notes.append('Missing or invalid compiled object motion: '+str(error))
+    expected_lift=cfg['lift_m'];targets=None
+    if cfg.get('roll_long_axis'):
+        try:
+            targets=verify(json.loads((run/'object-targets.json').read_text()))
+            expected_lift=targets['lift_m']
+            turn=verify(json.loads((run/'object-turn.json').read_text()))
+            down=verify(json.loads((run/'object-set-down.json').read_text()))
+            checks['complete_object_recipe_bound']=all(m['kind']=='rigid_object' and len(m['joint_names'])==12
+                and m['scene_sha256']==scene['sha256'] and m['group']['object_to_tcp']==motion['group']['object_to_tcp']
+                for m in (turn,down))
+        except (OSError,KeyError,ValueError) as error:
+            checks['complete_object_recipe_bound']=False;notes.append('Missing turn evidence: '+str(error))
     measured=state.get('measured_peak_speeds_rad_s',{});peak_source='state.json';diagnostic_sha=None
     if not measured and (run/'stop-diagnostic.json').exists():
         diagnostic=run/'stop-diagnostic.json';measured=json.loads(diagnostic.read_text()).get('measured_peak_speeds_rad_s',{})
@@ -68,7 +80,7 @@ def evaluate(run,scene_directory):
             height=object_point_height(obj,reference)-object_point_height(origin,reference);heights.append(height)
             origin_heights.append(float(obj[2,3]-origin[2,3]))
             for a in ARMS:errors.append(pose_error(chains[a].forward(row['joints']['positions']),obj@baseline[a]))
-            near=(not row['contacts']['supported'] and abs(height-cfg['lift_m'])<=.002)
+            near=(not row['contacts']['supported'] and abs(height-expected_lift)<=.002)
             stamp=row['object']['stamp']
             if near:
                 if near_start is None:near_start=stamp
@@ -76,8 +88,18 @@ def evaluate(run,scene_directory):
             else:near_start=None
         metrics.update(actual_hub_m=max(heights),asset_origin_hub_m=max(origin_heights),max_rigidity_error_m=max(e[0] for e in errors),
             max_rigidity_error_rad=max(e[1] for e in errors),near_target_unsupported_duration_s=longest)
-    checks['physical_lift_observed']=metrics['actual_hub_m'] is not None and abs(metrics['actual_hub_m']-cfg['lift_m'])<=.002
+    checks['physical_lift_observed']=metrics['actual_hub_m'] is not None and abs(metrics['actual_hub_m']-expected_lift)<=.002
     checks['unsupported_hold_observed']=metrics['near_target_unsupported_duration_s']>=cfg['dwell_s']-.05
+    if cfg.get('roll_long_axis'):
+        checks['released_sideways_orientation_observed']=False
+        checks['unsupported_quarter_turn_observed']=False
+        if targets and loaded and released:
+            angle=pose_error(loaded[0]['object']['T_world_object'],targets['placed'])[1]
+            checks['commanded_longitudinal_quarter_turn']=abs(angle-np.pi/2)<.02
+            checks['unsupported_quarter_turn_observed']=any(not r['contacts']['supported'] and
+                pose_error(r['object']['T_world_object'],targets['turned'])[1]<.0174533 for r in loaded)
+            checks['released_sideways_orientation_observed']=all(r['contacts']['supported'] and
+                pose_error(r['object']['T_world_object'],targets['placed'])[1]<.0174533 for r in released)
     checks['rigidity_corridor_observed']=(metrics['max_rigidity_error_m'] is not None
         and metrics['max_rigidity_error_m']<=cfg['relative_position_tolerance_m']
         and metrics['max_rigidity_error_rad']<=cfg['relative_angle_tolerance_rad'])

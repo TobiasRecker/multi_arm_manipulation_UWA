@@ -66,8 +66,10 @@ class RtdeStates(DeviceStates):
         while not self.done.is_set():
             reader=None
             try:
-                began=time.monotonic();reader=MotionOutputReader(ip)
-                if time.monotonic()-began>self.timeout:raise RuntimeError('RTDE subscription handshake exceeds state budget')
+                # Protocol negotiation is not a cached state sample. Older UR
+                # firmware can need >200ms here; publish no state until actual
+                # output arrives, then keep the original short freshness bound.
+                reader=MotionOutputReader(ip)
                 reader.socket.settimeout(self.timeout)
                 with self.lock:self.readers[rid]=reader
                 # Reconnection does not release any guard/supervisor latch.
@@ -99,13 +101,14 @@ from uwa_cell_control.capture_rtde import OutputReader
 
 class MotionOutputReader(OutputReader):
     def __init__(self,host):
-        self.socket=socket.create_connection((host,30004),timeout=.2);self.socket.settimeout(.2)
+        self.socket=socket.create_connection((host,30004),timeout=.2);self.socket.settimeout(2.)
         try:
             if self.request(86,struct.pack('>H',2))!=b'\x01':raise RuntimeError('RTDE protocol2 rejected')
             recipe=self.request(79,struct.pack('>d',20.)+b'timestamp,actual_q,actual_qd,runtime_state,robot_mode,safety_mode')
             if len(recipe)<2 or recipe[0]==0 or recipe[1:]!=b'DOUBLE,VECTOR6D,VECTOR6D,UINT32,INT32,INT32':raise RuntimeError('Unexpected motion RTDE output recipe')
             self.recipe=recipe[0]
             if self.request(83)!=b'\x01':raise RuntimeError('RTDE output streaming rejected')
+            self.socket.settimeout(.2)
         except BaseException:self.socket.close();raise
     def sample(self):
         while True:

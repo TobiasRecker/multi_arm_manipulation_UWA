@@ -45,6 +45,7 @@ class HardwareGuard(MotionNode):
         self.names=self.problem.names;self.model=self.problem.spheres;self.cfg=cfg;self.core=GuardState(cfg)
         self.signature=self.problem.signature;self.hardware_signature=signature(self.problem,mode)
         self.mode,self.armed=mode,armed;self.instance=str(uuid.uuid4());self.sequence=0
+        self.last_tick_start=None;self.last_tick_duration_s=None;self.tick_overruns=0
         self.positions={};self.pairs=[];self.records={};self.playing={};self.supervisor_status={};self.supervisor=Peer();self.model_match={r:False for r in ROBOT_IDS}
         self.source=source or (RtdeStates(self.problem.profiles,cfg['state_timeout_s']) if mode=='hardware' else DeviceStates())
         self.last_source={};self.epochs={};self.source_faults=[];self.previous_blocked=set()
@@ -103,6 +104,8 @@ class HardwareGuard(MotionNode):
         return world,available
     def tick(self):
         now=time.monotonic()
+        interval=None if self.last_tick_start is None else now-self.last_tick_start
+        self.last_tick_start=now
         try:world,available=self.update(now);status=self.core.evaluate(self.pairs,now,now)
         except Exception as error:
             self.core.latched.update(ROBOT_IDS);world={};available=False
@@ -113,6 +116,9 @@ class HardwareGuard(MotionNode):
         self.previous_blocked=blocked
         self.sequence+=1
         status.update(packet(self.hardware_signature,self.armed,self.instance,self.sequence),evaluated_monotonic_s=now,pairs=self.pairs,
+            timing=dict(evaluation_ms=1000*(time.monotonic()-now),interval_ms=None if interval is None else interval*1000,
+                previous_callback_ms=None if self.last_tick_duration_s is None else self.last_tick_duration_s*1000,
+                budget_ms=1000/self.cfg['rate_hz'],callback_overruns=self.tick_overruns),
             model_signature=self.signature,model_match=all(self.model_match.values()),guard_config_signature=self.hardware_signature,
             source_time_s=now,stop_adapter_available=available,state_ages_s={r:now-v['received'] for r,v in self.records.items()},
             stationary_arms=[r for r in ROBOT_IDS if self.core.fresh(r,now,now) and self.core.stationary(r,now)],
@@ -134,6 +140,8 @@ class HardwareGuard(MotionNode):
         for rid in self.records:
             if len(self.names[rid])>6:model_message.name.append(self.names[rid][6]);model_message.position.append(0.);model_message.velocity.append(0.)
         self.model_joints_pub.publish(model_message);self.show(world,status)
+        self.last_tick_duration_s=time.monotonic()-now
+        if self.last_tick_duration_s>1/self.cfg['rate_hz']:self.tick_overruns+=1
     def reset(self,request,response):
         now=time.monotonic()
         try:self.update(now);response.success,response.message=self.core.reset(self.pairs,now,now)

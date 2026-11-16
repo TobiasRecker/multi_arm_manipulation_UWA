@@ -1,5 +1,22 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Forschungsziel bewegte Basen und vier URs (2026-11-16)
+
+- Nutzerziel: kollisionsfreie Bahn- und Trajektorienplanung für vier URs mit
+  veränderlichen relativen Basislagen. Ausdrücklich auch **gleichzeitige Basis-
+  und Armbewegungen** berücksichtigen, nicht nur Umstellen vor der Planung.
+- Zwei bewegliche Tische mit je zwei starr montierten Armen sind das erste
+  Fallbeispiel; langfristig vier mobile Manipulatoren. Bewegungsfreiheitsgrade,
+  Antriebsmodell und Verfügbarkeit vorgegebener Basisbahnen bleiben zu klären.
+- Aktueller Auftrag ist zunächst Literatur-/Methodenvergleich einschließlich
+  CDF und unserer Vorarbeiten; danach Anwendungskonzept. Keine neue reale
+  Bewegung oder Umrüstung allein aus diesem Forschungsziel ableiten.
+- Bei variabler Basislage alle potenziell kollidierenden Paare berücksichtigen;
+  die bisherige feste Vier-Nachbarpaar-Auswahl nicht ungeprüft übertragen.
+  Kollisionsprüfung, globale Planung, zeitliche Koordination und lokale
+  Reaktion getrennt bewerten. Szenenabhängige CDF-Kontaktbank vom
+  szenenunabhängigen punktkonditionierten Originalansatz unterscheiden.
+
 ## Anschauliche HTML-Vorschauen (Nutzerwunsch 2026-11-16)
 
 - Nutzer findet die eigenständige CDF-HTML-Animation hilfreich und wünscht
@@ -35,6 +52,10 @@
   ROS-Treiber-Launch allein führt weiterhin keine Dashboard-Schreibaktion aus.
 
 ## Modulare Manipulation und starre Greifverbünde (2026-11-13)
+
+- Nutzerangaben16.11.: leerer Karton500g;50N beziehen sich auf eine einzelne
+  Backe/Wandkontaktfläche. Als Belastungsreferenz behandeln, nicht als
+  gemessene Bruchgrenze oder Summe über mehrere Backen.
 
 - Nutzeralternative16.11.: zuerst direkte simulierte Kraftmessung auf Robustheit
   prüfen. Nur bei unbrauchbaren Werten UR-Basis in eigener Simulation optional
@@ -76,6 +97,12 @@
   als Simulationsannahmen kennzeichnen, keine Hardwaregenauigkeit daraus ableiten.
 
 ## Vierarm-Kollisionswächter und PTP-Vergleich (2026-11-13)
+
+- Nutzerauftrag16.11.: kleinen realen gleichzeitigen Vierarmweg bei laufendem
+  Wächter testen, nur auf vorgeprüftem freiem Weg zur Messung von Rechenzeit,
+  Takt und Zustandsalter. Keine absichtliche Kollision/Annäherung daraus ableiten.
+  Bewegungsüberlappung anhand echter Gelenkgeschwindigkeiten belegen; identische
+  Zielversandzeit ist kein Nachweis. Reale Stoppreserve bleibt getrennte Abnahme.
 
 - Nutzerauftrag16.11.: zuerst konservativen Arm-Hüllquader-Vorfilter für
   boolesche Planungs-Abstandsprüfungen umsetzen. Ganze Kugelvolumina/Tools
@@ -726,3 +753,17 @@
   und die Bedienung in der README mitpflegen. Bestehende lokale Änderungen erhalten.
 - Dokumentation: belegte Erfolge mit Datum/Logpfad und offene Einschränkungen nennen;
   keine neuen Tests oder Hardware-Freigaben behaupten, die nicht erfolgt sind.
+
+## Karton-Seitenlage (Nutzerauftrag 2026-11-16)
+
+- Bestehende Zweiarm-Simulation um 90°-Drehung des Kartons um seine Längsachse
+  erweitern; Öffnung zur Kamera und in dieser Orientierung auf Tisch absetzen.
+  Vorhandene Manipulationspipeline möglichst wiederverwenden. Arbeitsannahme:
+  Kamera ist die feste OAK-Übersicht; keine neue Hardwarefreigabe.
+- Volle Hebe-/Dreh-/Absetzgeometrie vor Einfahrt prüfen; reine 30mm-Translation
+  ist kein Prüfnachweis einer Vierteldrehung. Drehzentrum als Objektpunkt
+  erhalten, Objekt→TCP-Offsets bleiben eingefroren. Tisch-/Selbstkollisionen
+  und Stoppreserven auch beim Absenken erhalten.
+- Vor Arbeiten an SHA-gebundenen Taskquellen laufende Greifwelten über Host-
+  Prozesssicht prüfen: sandboxed `ps` kann andere Prozesse ausblenden. Neue
+  Quellen invalidieren bestehende Szenen, auch ohne Neustart ihrer Prozesse.

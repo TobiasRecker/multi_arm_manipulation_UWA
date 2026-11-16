@@ -174,3 +174,34 @@ def test_snapshot_renderer_has_no_commands_and_preserves_measured_fk(tmp_path):
     assert all(j.get('type')=='fixed' for j in snapshot.findall('joint'))
     for frame in ('right_front_tool0','right_front_robotiq_85_left_finger_tip_link','right_rear_wrist_camera_optical_frame'):
         assert np.allclose(Chain(original,'world',frame).forward(state),Chain(frozen,'world',frame).forward({}),atol=1e-10)
+
+
+def test_quarter_turn_clearance_pivot_and_sideways_support():
+    from uwa_cell_tasks.planning import carton_motion_poses,object_pose_at
+    from itertools import product
+    # Full corners conservatively represent the carton envelope. Origin at a
+    # corner deliberately detects rotation around the wrong asset point.
+    vertices=np.array(list(product([0.,.4],[0.,.34],[0.,.16])))
+    camera=np.eye(4);camera[:3,3]=[1.2,.05,1.85]
+    scene=dict(shapes=[dict(vertices=vertices)],lift_reference_point_object_m=[.2,.17,.05],T_world_overview_optical=camera)
+    layout=load_layout();obj=np.eye(4);obj[:3,3]=[.06,-.2,.9]
+    cfg=dict(lift_m=.03,roll_long_axis=True,rotation_clearance_m=.02,maximum_roll_lift_m=.25)
+    poses=carton_motion_poses(scene,layout,obj,cfg)
+    assert poses['axis_object']==0 and abs(poses['angle_rad'])==pytest.approx(np.pi/2)
+    assert poses['lift_m']>.03 and poses['opening_camera_cosine']>0
+    pivot=np.array(poses['pivot'])
+    centre=poses['lifted'][:3,:3]@pivot+poses['lifted'][:3,3]
+    for u in np.linspace(0,1,1001):
+        pose=object_pose_at(poses['lifted'],poses['turned'],u,pivot)
+        assert np.allclose(pose[:3,:3]@pivot+pose[:3,3],centre)
+        assert (vertices@pose[:3,:3].T+pose[:3,3])[:,2].min()>=.92
+    world=vertices@poses['placed'][:3,:3].T+poses['placed'][:3,3]
+    assert world[:,2].min()==pytest.approx(.9)
+    table=layout['tables'][poses['support_table']]
+    assert np.max(abs(world[:,0]-table['xyz'][0]))<=table['width']/2-.005+1e-12
+    assert np.max(abs(world[:,1]-table['xyz'][1]))<=table['length']/2-.005+1e-12
+    cfg['maximum_roll_lift_m']=.04
+    with pytest.raises(ValueError,match='lift envelope'):carton_motion_poses(scene,layout,obj,cfg)
+    legacy=carton_motion_poses(scene,layout,obj,dict(lift_m=.03))
+    assert 'turned' not in legacy and legacy['pivot'] is None
+    assert np.allclose(legacy['placed'],obj)

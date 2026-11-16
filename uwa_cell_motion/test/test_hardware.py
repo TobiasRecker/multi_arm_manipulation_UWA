@@ -54,6 +54,19 @@ def test_rtde_codec_reads_native_program_and_safety_without_input_recipes():
     assert status==dict(runtime_state=2,robot_mode=7,safety_mode=1)
 
 
+def test_rtde_subscription_negotiation_does_not_relax_runtime_state_timeout(monkeypatch):
+    from uwa_cell_motion import hardware_state
+    timeouts=[]
+    class Socket:
+        def settimeout(self,value):timeouts.append(value)
+        def close(self):pass
+    monkeypatch.setattr(hardware_state.socket,'create_connection',lambda *a,**k:Socket())
+    def request(self,kind,payload=b''):
+        return b'\x01DOUBLE,VECTOR6D,VECTOR6D,UINT32,INT32,INT32' if kind==79 else b'\x01'
+    monkeypatch.setattr(MotionOutputReader,'request',request)
+    reader=MotionOutputReader('fake');assert timeouts==[2.,.2];reader.close()
+
+
 def test_resource_blocker_covers_unknown_joint_owner_and_native_modes_not_gripper():
     def controller(name,claimed=(),state='active',kind='test'):return NS(name=name,state=state,type=kind,claimed_interfaces=claimed)
     joints=['q'+str(i) for i in range(6)]

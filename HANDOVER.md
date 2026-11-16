@@ -1,5 +1,60 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Karton um 90° zur OAK drehen, Entwicklung 2026-11-16
+
+- Neuer Nutzerauftrag: bestehende Zweiarm-Simulation wiederverwenden, Karton um
+  Längsachse drehen und mit Öffnung zur Kamera auf Tisch abstellen. Annahme:
+  feste OAK-Übersicht. Kein Hardwareauftrag. Arbeit work/carton-roll-90.md.
+- Optionales Profil `carton_roll_90.yaml`; gemeinsamer Objektpfad/12Gelenk-
+  Zeitgesetz/GraspGroup/Guard/Stopppfade bleiben. Vollständiger Vorabzeuge und
+  erneute Vollplanung mit gemessenen eingefrorenen Greifoffsets vor Abheben.
+- Geometrie: ca146mm Hub statt30mm, Drehung am Materialschwerpunkt, Zielseitenlage
+  zur szenengebundenen OAK. Direkte rechte Absenkung kollidiert RF-Unterarm/Wrist3;
+  linke Alternative grob FCL-/IK-frei. Mit0,04rad/s Armgrenze im123Sample-Screen
+  mindestens24,739mm zusätzliche Paarreserve. Vollständige Dichtprüfung läuft;
+  **noch kein Dreh-/Absetz-Kontaktzyklus bestanden**.
+- Neue räumliche Vollrezeptvorprüfung verwirft späte Fehler vor teurer dichter
+  Zeitparametrierung; volle Interpolations-/Kollisionsprüfung bleibt erhalten.
+  Erweiterte Traceauswertung verlangt freie Vierteldrehung und unterstützte
+  Freigabe in Seitenlage. File-only Modellvorschau vorgesehen, kein Physikbeleg.
+-43Pythonprüfungen sowie8CTest-Suites PASS; Logs setup/logs/uwa-carton-roll-*.
+  Workspace-MD-Inventar216Dateien/24614Zeilen unter Szene01. Alte Quellenbindungen
+  und Negativbelege erhalten. Fremde Hardwaredatei hardware_nodes.py nicht angefasst.
+- Koordinationsfehler: erste Quelländerungen invalidierten parallele Fault-Reihe02,
+  case01 stoppte vor Griff in review_strategy mit bestätigten Holds. Dokumentiert;
+  keine fremden Prozesse beendet. Fremde Reihe03 nutzt inzwischen eingefrorene
+  Quellen. Eigene Kontaktwelt erst nach deren regulärem Ende starten.
+
+
+## Literaturvergleich für vier URs mit gleichzeitig bewegten Basen, 2026-11-16
+
+- Nutzerziel präzisiert: auch gleichzeitige Basis- und Armbewegungen, zuerst
+  zwei Tische mit je zwei starr montierten Armen als Fallbeispiel. Langfristig
+  vier mobile Manipulatoren. Aktueller Auftrag: Ansätze zusammentragen und
+  einordnen; Anwendung ist der nächste Schritt, noch keine Implementierungswahl.
+- Relevante lokale Originalgespräche und Projektnachweise geprüft. Sammlung
+  [docs/mobile_multiarm_planning_survey_2026-11-16.md](docs/mobile_multiarm_planning_survey_2026-11-16.md)
+  enthält klassische Verfahren, aktuelle Primärquellen bis November2026,
+  Publikations-/Versuchsgrenzen, CDF-Einordnung und vorgeschlagenen Vergleich.
+- Forschungsableitung: gemeinsame Sampling-/Raum-Zeit-Planung als Referenz,
+  priorisierte/CBS-artige Konfliktauflösung als Alternative, gekoppelte
+  Trajektorienoptimierung/NMPC für simultane Basis-/Armbewegung. GCDF2026 als
+  Abstandsmodell besonders relevant; MR-STORM2026 zeigt vier UR5e mit festen
+  Basen. Keine allgemeine Überlegenheit oder neue Hardwarefreigabe abgeleitet.
+- Bestand bleibt enger: feste Tisch-Welt-Gelenke, CDF mit einem bewegten Arm
+  und szenengebundener Kontaktbank. Punktkonditionierte Original-CDF-Modelle
+  können Hindernisse im aktuellen Basisframe abfragen; Tischverschiebung
+  verlangt daher nicht grundsätzlich Neutraining. Gekoppelte Ableitungen,
+  Basisgeometrie und Zeitkoordination sind zusätzliche Arbeit.
+- Offen: tatsächliche Basisfreiheitsgrade, vorgegebene/steuerbare/extern bewegte
+  Tische, Pose-/Geschwindigkeitsmessung und Basis-Stoppmöglichkeit. Feste
+  Vier-Nachbarpaarliste nicht auf variable Aufstellungen übertragen. Volle
+  Modellprüfung ist kein Nachweis kalibrierter Realgeometrie oder CCD.
+- Prüfung: lokale Ergebniszahlen mit Originalnachweisen abgeglichen,
+  Primärquellen und lokale Links geprüft, unabhängige fachliche Reviews von
+  Bestand/CDF/Mehrarmmethoden. Ausschließlich Recherche und Dokumentation;
+  keine ROS-/Hardware-/Kameraaktion oder Dienstneustart.
+
 ## Arm-Hüllquader-Vorfilter implementiert und geprüft, 2026-11-16
 
 - Nutzeridee: ganzerArm→Glieder→feineKugeln, entfernte Paare früh aussortieren.
@@ -424,7 +479,8 @@
 - Build PASS, colcon meldet37Tests ohne Fehler (8CTest-Suites einschließlich Treiber-Cleanup/Klassifikation). Geplante
   Ruckgrenze ergänzt: exakte Extrema der JTC-Quintik, gleichmäßige Retimierung
   aller beteiligten Gelenke. Keine Aussage zum gemessenen Servo-/Stoppruck.
-  Noch kein schneller geladener Durchlauf oder neue Stoppabnahme nachgewiesen.
+  Spätere erfolgreiche500g-/10mm/s-Durchläufe und Stoppprüfungen stehen unten;
+  die folgenden ursprünglichen Fehlschläge bleiben erhalten.
 - Run78/explore01:0,1rad/s Arm,0,5rad/s Finger,1rad/s² Bremsen vor Fahrt
   abgewiesen. Home-Abstand rechts0,221m, erforderliche Reserve0,334m. Kein
   Kartonlastfehler; Arme bestätigt gehalten. Rohdaten/Fehler erhalten. Nächster
@@ -508,7 +564,7 @@
   0,001692/0,001637rad. Backenmittel bis5,380N (10ms), Peakobergrenze5,556N.
   Unterstützte Freigaben/finale Holds bestätigt, gleiche gebundene Taskquellen
   und vier Binärversionen archiviert. Keine maximale physische Geschwindigkeit.
-  Geladene Stoppmatrix `carton_preload_faults_20261116_01` läuft noch.
+  Nachfolgende Stoppmatrix01 mit getrennt dokumentierten Positiv-/Negativfällen unten.
 - Fault-Runner unterstützt jetzt die drei alten scoped Fehlerarten unter neuem
   Profil, Injektion ab gewählter Hubhöhe (hier12mm nahe Tempopeak). Recorder
   kann nach Terminalzustand2s weiter rein lesend erfassen. Testcode vorhanden;
@@ -520,7 +576,21 @@
   Case01 runner_pause wurde **vor Injektion** durch verpasstes Agentenreview
   nach300s beendet; bestätigte Holds, kein geladener Ausfallnachweis. Eigenen
   Bedienfehler/Negativdaten erhalten, gezielter neuer Fall ist erforderlich.
-  Case02 guard_pause läuft noch; kein automatisches Resume/Öffnen.
+  Case02 guard_pause hat beide Holds/Kontakte bestätigt, maxRelativfehler0,238mm,
+  aber **FAIL**: passiver Fingerpeak0,167661rad/s über0,15-Profilgrenze.
+  Frische/Stationarität/Griff gut, kein Lastproblem; Grenze nicht nachträglich
+  gelockert. Originalmatrix mit beiden Fehlschlägen und äußerem Exit143 erhalten.
+  Neue Matrix `carton_preload_faults_20261116_02` testet0,2Finger statt0,15 mit
+  größerer vollständiger Geometrie-/Stoppreserve, sonst gleichem Profil.
+  Matrix02 wurde durch parallele Taskquellenänderungen vor Injektion ungültig
+  (case00/01); case02 konnte deshalb Guard/Supervisor nicht starten. Kein
+  Fault-PASS, keine eigenen Prozesse verbleibend. Daten unverändert erhalten.
+  Neue isolierte Matrix03 nutzt Snapshot `carton_frozen_baseline_20261116_01`
+  mit erfolgreichen Home-Taskmodulen und erweiterter Abhängigkeitsbindung.
+  Gemeinsamer Checkout/90°-Drehauftrag wird nicht zurückgesetzt.
+  Matrix03/case00 member_stop PASS: vierPads erhalten, maxRelativfehler0,240mm,
+  passive Spitze0,173818rad/s innerhalb neuer0,2-Grenze; lückenlose Kräfte,
+  current_implementation_bound=true. Runner-/Guard-Ausfall noch in Prüfung.
 - Aktionskatalog auf16Verträge erweitert: Kraftreferenzprüfung, Lastbeobachtung,
   rein virtuelle Fixturevorbereitung, endlicher Experimentfall und geladener
   Fehler-/Stoppversuch. Lokale Planungs-/Wächterabhängigkeiten inklusive
@@ -538,8 +608,8 @@
 - Endlicher automatischer Geschwindigkeitsleiter-Runner implementiert unter
   tools/explore_manipulation.py; Agentenreviews bleiben Pflicht. Eigene Szenen,
   Recorder vor Arming, scoped Cleanup nur nach bestätigtem Stopp, gemeinsame
-  Bewegungs-/Kraftauswertung. Zwei negative Fälle mit Messauswertung/Cleanup durchlaufen;
-  weiterhin kein bestandener schneller500g-Gesamtzyklus.
+  Bewegungs-/Kraftauswertung. Erste zwei Fälle negativ; spätere stärkere
+  Motorvorspannung besteht die oben dokumentierten500g-Gesamtzyklen.
 - Recorder schreibt jedes empfangene100Hz-Kraftfenster zusätzlich zur20Hz-
   Bewegungsaufzeichnung. Neue Lastauswertung summiert je Backe/Wandfläche,
   vergleicht50N-Nutzerreferenz und meldet Lücken. Historische Nachweise nicht

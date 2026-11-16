@@ -244,18 +244,107 @@ class PlannedObjectConstraint:
     def record(self):return dict(kind='predicted_geometry_only',members=ARMS,object_to_tcp=self.offsets,contact_confirmed=False)
 
 
-def object_trajectory(problem, group, start, object_start, object_end, cfg):
-    """One common object parameter. IK resolves actuator states, not arm paths.
+def object_pose_at(start, end, fraction, pivot=None):
+    """Interpolate an asset pose, optionally about a declared material point."""
+    pose=interpolate(start,end,float(fraction))
+    if pivot is not None:
+        pivot=np.asarray(pivot)
+        a=np.asarray(start);b=np.asarray(end)
+        world=(1-fraction)*(a[:3,:3]@pivot+a[:3,3])+fraction*(b[:3,:3]@pivot+b[:3,3])
+        pose[:3,3]=world-pose[:3,:3]@pivot
+    return pose
 
-    Dense interpolation validation bounds deviation of the resulting shared
-    joint controller interpolation from the rigid-object constraint.
-    """
+
+def carton_motion_poses(scene, layout, object_start, cfg):
+    """Lift/roll/place geometry; camera selects the sign, never truth pose."""
+    obj=rigid(object_start)
+    if not cfg.get('roll_long_axis',False):
+        lifted=obj.copy();lifted[2,3]+=cfg['lift_m']
+        return dict(lifted=lifted,placed=obj,lift_m=cfg['lift_m'],pivot=None)
+    vertices=np.asarray([v for shape in scene['shapes'] for v in shape['vertices']])
+    extent=np.ptp(vertices,axis=0);axis=int(np.argmax(extent[:2]))
+    pivot=np.asarray(scene['lift_reference_point_object_m'])
+    centre=obj[:3,:3]@pivot+obj[:3,3]
+    camera=np.asarray(scene['T_world_overview_optical'])[:3,3]
+    choices=[]
+    for sign in (-1,1):
+        rotation=obj[:3,:3]@Rotation.from_rotvec(np.eye(3)[axis]*sign*np.pi/2).as_matrix()
+        choices.append((float(rotation[:,2]@(camera-centre)),sign,rotation))
+    score,sign,rotation=max(choices,key=lambda item:item[0])
+    if score<=0:raise ValueError('No longitudinal quarter turn faces the overview camera')
+    placed=obj.copy();placed[:3,:3]=rotation;placed[:3,3]=centre-rotation@pivot
+    # The existing carton spans the gap between two coplanar tables. Allow
+    # that initial support, but place the whole final footprint on one table.
+    support=[]
+    from uwa_cell_description.scene_assets import transform
+    for name,table in layout['tables'].items():
+        if cfg.get('placement_table') and name!=cfg['placement_table']:continue
+        frame=transform(table['xyz'],table['rpy'])
+        if not np.allclose(frame[:3,2],[0,0,1],atol=1e-8):continue
+        points=(vertices@obj[:3,:3].T+obj[:3,3]-frame[:3,3])@frame[:3,:3]
+        half=np.array([table['width'],table['length']])/2
+        if abs(points[:,2].min()-table['height'])>.005:continue
+        if np.any(points[:,:2].max(0)<-half) or np.any(points[:,:2].min(0)>half):continue
+        footprint=(vertices@rotation.T+placed[:3,3]-frame[:3,3])@frame[:3,:3]
+        low=-half+.005-footprint[:,:2].min(0)
+        high=half-.005-footprint[:,:2].max(0)
+        if np.any(low>high):continue
+        shift=np.clip(np.zeros(2),low,high)
+        target=placed.copy();target[:3,3]+=frame[:3,:2]@shift
+        height=frame[2,3]+table['height']
+        target[2,3]+=height-(vertices@rotation.T+target[:3,3])[:,2].min()
+        support.append((float(np.linalg.norm(shift)),name,target,height))
+    if not support:raise ValueError('Roll requires horizontal support and a table fitting the sideways footprint')
+    _,name,placed,height=min(support,key=lambda item:(item[0],item[1]))
+    turned=obj.copy();turned[:3,:3]=rotation;turned[:3,3]=centre-rotation@pivot
+    lowest=min((vertices@object_pose_at(obj,turned,u,pivot)[:3,:3].T+
+                object_pose_at(obj,turned,u,pivot)[:3,3])[:,2].min() for u in np.linspace(0,1,721))
+    # Sampling error is bounded by radius*dtheta/2; keep it in the reserve.
+    radius=float(np.linalg.norm(vertices-pivot,axis=1).max())
+    clearance=cfg.get('rotation_clearance_m',.02)+radius*np.pi/2880
+    lift=max(cfg['lift_m'],height+clearance-lowest)
+    if lift>cfg.get('maximum_roll_lift_m',.25):raise ValueError('Roll clearance exceeds configured lift envelope')
+    lifted=obj.copy();lifted[2,3]+=lift
+    turned[2,3]+=lift
+    return dict(lifted=lifted,turned=turned,placed=placed,lift_m=float(lift),pivot=pivot,
+                axis_object=axis,angle_rad=sign*np.pi/2,support_table=name,
+                opening_camera_cosine=float(rotation[:,2]@(camera-centre)/np.linalg.norm(camera-centre)),
+                statement='Geometric target only; contact holding and release require simulation evidence')
+
+
+def compile_object_recipe(problem, group, start, obj, cfg):
+    """Preflight the entire carrying path before entry, with fixed grasp offsets."""
+    poses=carton_motion_poses(problem.scene_record,problem.layout,obj,cfg)
+    stages=[('lift',poses['lifted'])]+([('turn',poses['turned'])] if 'turned' in poses else [])+[('set_down',poses['placed'])]
+    # Reject a blocked late phase before spending time on dense timed splines
+    # of earlier phases. This is an additional screen, never a final approval.
+    state=dict(start);origin=obj
+    for name,target in stages:
+        try:samples,_,_,names,_,_=_object_samples(problem,group,state,origin,target,cfg,poses['pivot'])
+        except ValueError as error:raise ValueError(name+': '+str(error)) from error
+        state.update(zip(names,samples[-1]));origin=target
+    state=dict(start);origin=obj;motions={}
+    for name,target in stages:
+        try:trajectory=object_trajectory(problem,group,state,origin,target,cfg,pivot=poses['pivot'])
+        except ValueError as error:raise ValueError(name+': '+str(error)) from error
+        motions[name]=trajectory
+        state.update(zip(trajectory['joint_names'],trajectory['points'][-1]['positions']))
+        origin=target
+    return dict(poses=poses,motions=motions)
+
+
+def _object_samples(problem,group,start,object_start,object_end,cfg,pivot=None):
     distance,angle=pose_error(object_start,object_end)
+    if pivot is not None:
+        # Bound translation of the asset origin along the pivoted arc.
+        a=np.asarray(object_start);b=np.asarray(object_end);p=np.asarray(pivot)
+        travel=np.linalg.norm((b[:3,:3]@p+b[:3,3])-(a[:3,:3]@p+a[:3,3]))
+        distance=max(distance,float(travel+np.linalg.norm(p)*angle))
     steps=max(2,int(np.ceil(distance/.0005)),int(np.ceil(angle/.002)))
     names=[j for a in group.members for j in joint_names(a)]
     qprev=dict(start);samples=[];poses=[]
     for u in np.linspace(0,1,steps+1):
-        obj=interpolate(object_start,object_end,float(u));targets=group.targets(obj)
+        obj=object_pose_at(object_start,object_end,float(u),pivot);targets=group.targets(obj)
         q=dict(qprev)
         for arm,(target,_) in targets.items():q.update(zip(joint_names(arm),problem.solve_tcp(arm,qprev,target)))
         apply_object(problem.collision,problem.scene_record,obj,touching=True)
@@ -266,8 +355,20 @@ def object_trajectory(problem, group, start, object_start, object_end, cfg):
             if problem.spheres.nearest(world,*pair['arms'])['clearance_m']<=pair['threshold_m']:
                 raise ValueError('Object motion violates interarm stopping reserve')
         samples.append([q[n] for n in names]);poses.append(obj);qprev=q
+    return samples,poses,steps,names,distance,angle
+
+
+def object_trajectory(problem, group, start, object_start, object_end, cfg, *, pivot=None):
+    """One common object parameter. IK resolves actuator states, not arm paths.
+
+    Dense interpolation validation bounds deviation of the resulting shared
+    joint controller interpolation from the rigid-object constraint.
+    """
+    samples,poses,steps,names,distance,angle=_object_samples(problem,group,start,object_start,object_end,cfg,pivot)
     samples=np.array(samples)
     duration=max(2.,1.875*distance/cfg['max_object_speed_m_s'])
+    if angle>1e-9:
+        duration=max(duration,1.875*angle/cfg.get('max_object_angular_speed_rad_s',.05))
     # Rescale the WHOLE object law to satisfy the most restrictive joint.
     fractions=np.linspace(0,1,len(samples));spline=CubicSpline(fractions,samples,axis=0)
     gradient=spline(np.linspace(0,1,steps*4+1),1);curvature=spline(np.linspace(0,1,steps*4+1),2)
@@ -285,7 +386,7 @@ def object_trajectory(problem, group, start, object_start, object_end, cfg):
         acceleration=spline(progress,2)*ds**2+spline(progress,1)*dds
         if np.max(abs(velocity))>cfg['joint_velocity_rad_s'] or np.max(abs(acceleration))>cfg['joint_acceleration_rad_s2']:
             raise ValueError('Common object timing exceeds joint operating limits')
-        obj=interpolate(object_start,object_end,float(progress))
+        obj=object_pose_at(object_start,object_end,float(progress),pivot)
         state=dict(start,**dict(zip(names,q)))
         for arm,(expected,_) in group.targets(obj).items():
             d,a=pose_error(problem.chains[arm].forward(state),expected)

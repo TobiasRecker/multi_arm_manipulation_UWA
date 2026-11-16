@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 import sys
-from .core import configuration,skills,RunStore,write_json,verify
+from .core import configuration,skills,RunStore,write_json,verify,seal
 
 
 def main():
@@ -41,8 +41,18 @@ def main():
             candidates=grasp_candidates(description,scene,scene['cfg'],obj)
             start=json.loads(args.snapshot.read_text())['positions'];failures=[];result=None
             for candidate in candidates:
-                try:result=plan_approach(problem,start,candidate);break
-                except ValueError as error:failures.append(str(error))
+                try:
+                    result=plan_approach(problem,start,candidate)
+                    if scene['cfg'].get('roll_long_axis'):
+                        from .planning import grasp_entry,PlannedObjectConstraint,compile_object_recipe
+                        witness=TaskProblem(args.output/('witness-'+candidate['id']),description,load_layout(args.layout),scene,obj,static=False)
+                        pre=dict(start,**dict(zip(result['request']['joint_names'],result['request']['target'])))
+                        entry,grasp=grasp_entry(witness,pre,candidate,scene['cfg'])
+                        recipe=compile_object_recipe(witness,PlannedObjectConstraint(obj,candidate['tcp_targets']),grasp,obj,scene['cfg'])
+                        result=seal(dict(result,entry=entry,lift_witness=recipe['motions']['lift'],object_recipe_witness=recipe))
+                    break
+                except ValueError as error:failures.append(dict(candidate=candidate['id'],reason=str(error)));result=None
+            write_json(args.output/'candidate_failures.json',failures)
             if result is None:raise ValueError('No feasible grasp: '+str(failures))
             write_json(args.output/'plan.json',result)
         print(json.dumps(dict(output=str(args.output.resolve()),sha256=result['sha256'])));return

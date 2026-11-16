@@ -81,9 +81,12 @@ def configuration(path=None):
     if cfg.get('schema_version') != 1 or tuple(cfg.get('arms', [])) != ARMS:
         raise ValueError('v1 requires schema1 and the two right arms in stable order')
     for key, value in cfg.items():
-        if key in ('schema_version', 'arms', 'object_id', 'simulation_assumptions','gripper_transmission','physics_engine','force_observation','exploration_mode'): continue
+        if key in ('schema_version', 'arms', 'object_id', 'simulation_assumptions','gripper_transmission','physics_engine','force_observation','exploration_mode','roll_long_axis','placement_table'): continue
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
             raise ValueError('Expected positive finite ' + key)
+    if cfg.get('placement_table') not in (None,'left','right'):raise ValueError('placement_table must be left or right')
+    if not isinstance(cfg.get('roll_long_axis',False),bool):raise ValueError('roll_long_axis must be boolean')
+    if cfg.get('maximum_roll_lift_m',.25)>.25:raise ValueError('Roll lift exceeds simulation envelope')
     exploration=cfg['exploration_mode']
     if not .0001<=cfg['physics_step_s']<=.001:
         raise ValueError('Physics step must be between0.1ms and1ms')

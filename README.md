@@ -507,6 +507,10 @@ recorded checks. Nominal grasp repeatability remains unresolved: some repeated
 attempts hit passive-finger speed limits and stop retaining grip. The default
 is an experimental simulation profile; see the guide's full evidence matrix.
 
+An optional [90° carton-roll recipe](docs/manipulation_pipeline.md#experimental-longitudinal-quarter-turn-2026-11-16)
+reuses the same object-led pipeline for sideways placement facing OAK. It remains
+experimental; translation-only contact results do not qualify this new motion.
+
 For the new **simulation-only four-arm collision guard and PTP comparison**,
 see [the motion guide](docs/four_arm_motion.md). It provides a10Hz neighbor-pair
 sphere guard with latched per-arm resource holds, independent watchdog,
@@ -525,6 +529,13 @@ The offline demo includes RRT/Circular comparisons and a standalone motion
 preview; neural training and physical execution are separate future steps.
 Shared planning checks now use an [arm-AABB prefilter and frozen-arm cache](docs/collision_prefilter.md)
 to avoid unnecessary fine sphere comparisons while retaining full collision validation.
+
+The [mobile multi-arm planning survey](docs/mobile_multiarm_planning_survey_2026-11-16.md)
+compares classical planning, conflict resolution, predictive optimization and
+CDF/GCDF for simultaneous base and arm motion. It records the research target
+of two moving tables with two arms each; the current cell model still has fixed
+table-to-world joints. The survey is a research comparison, not an implemented
+mobile-base planner.
 
 Select `/uwa_cell/controller_manager` and one of the four trajectory
 controllers in the **rqt Joint Trajectory Controller** window. Enable control
