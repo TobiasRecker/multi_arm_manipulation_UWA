@@ -1,5 +1,13 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Startmenü-App UWA Robot Power (2026-11-16)
+
+- Kurze Pausen: [UWA Robot Power](docs/ur_power_gui.md). **Standby** stoppt
+  das konfigurierte `ros.urp` und schaltet die Antriebe ab; **Start + ROS**
+  nutzt den bestehenden UR-Startablauf. Sichtbare Einzelresultate, englische
+  GUI. Steuerbox und Pendant bleiben an. Öffnen und Refresh sind rein lesend.
+  Keine Shutdown-, Sicherheitsquittierungs- oder Fahrbefehle in der App.
+
 ## Gemeinsamer UR-Start für Agenten (2026-11-16)
 
 - Für lesende Zustandsprüfung und ausdrücklich beauftragte Vorbereitung der
@@ -82,7 +90,17 @@
   Brems-/Latenzabnahme. Bestehende manuelle UWA-/MATCH-Bediengates unverändert.
 - PTP vorab planen; zeitversetzte Starts/Warten sind erlaubt. RRTConnect und
   unabhängige zirkulare Felder mit derselben Zielauflösung/Endprüfung vergleichen,
-  kein versteckter RRT-Fallback im Feldansatz. CDF zunächst zurückgestellt.
+  kein versteckter RRT-Fallback im Feldansatz. Nutzererweiterung16.11.: CDF
+  wieder aufnehmen, erster Paper-/Code-Nachbau für einen bewegten UR mit drei
+  eingefrorenen Armen als starre Hindernisse. Zunächst offline/Simulation,
+  Original-CDF in Gelenkradian von kartesischem Abstand unterscheiden; gleiche
+  volle MoveIt-Endprüfung behalten. Noch keine Multiarm-/Hardware-CDF-Freigabe.
+- CDF-Prototyp: nichtparametrische szenenabhängige Kontaktbank + logarithmischer
+  Gelenkraum-QP. Datenvorbereitung getrennt von Onlineplanung/Endprüfung messen;
+  geänderte Fremdarm-/Greiferzustände invalidieren die Bank. Kein Franka-Netz
+  oder kartesisches SDF als fertig trainiertes UR-CDF ausgeben. Min-/Präfix-CDF
+  bleibt Näherung, FCL/Selbst-/Werkzeug-/Tischprüfung und Wächter erhalten.
+  Anleitung docs/single_ur_cdf.md, CLI cell_cdf; kein Hardware-CDF-Execute.
 - Vergleich30Aufgaben×5Seeds×2Verfahren,10s Planungsbudget. Fehlschläge behalten;
   Planungszeit, Validierungszeit, geplante und tatsächlich gemessene Fahrzeit
   trennen. Anleitung docs/four_arm_motion.md, Paket uwa_cell_motion.

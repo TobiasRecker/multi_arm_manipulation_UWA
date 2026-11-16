@@ -66,7 +66,9 @@ def main():
     import rclpy
     from uwa_cell_description.configuration import default_layout_path
     layout=str(getattr(args,'layout',None) or default_layout_path())
-    if args.command=='run':
+    if args.command in ('run','supervisor'):
+        # Keep the supervisor's ROS context alive until its executor workers
+        # have joined; native signal shutdown can race pending controller RPCs.
         import signal
         from rclpy.signals import SignalHandlerOptions
         rclpy.init(args=ros_args,signal_handler_options=SignalHandlerOptions.NO)

@@ -74,6 +74,7 @@ def configuration(path=None):
     cfg.setdefault('finger_velocity_limit_rad_s',cfg['joint_velocity_rad_s'])
     cfg.setdefault('grasp_entry_min_duration_s',30.)
     cfg.setdefault('braking_acceleration_rad_s2',.5)
+    cfg.setdefault('physics_step_s',.001)
     if not isinstance(cfg['force_observation'],bool):raise ValueError('force_observation must be boolean')
     if not isinstance(cfg['exploration_mode'],bool):raise ValueError('exploration_mode must be boolean')
     if cfg.get('schema_version') != 1 or tuple(cfg.get('arms', [])) != ARMS:
@@ -83,6 +84,8 @@ def configuration(path=None):
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
             raise ValueError('Expected positive finite ' + key)
     exploration=cfg['exploration_mode']
+    if not .0001<=cfg['physics_step_s']<=.001:
+        raise ValueError('Physics step must be between0.1ms and1ms')
     if cfg['lift_m'] > .05 or cfg['joint_velocity_rad_s'] > (1. if exploration else .05) or cfg['joint_acceleration_rad_s2'] > (2. if exploration else .10):
         raise ValueError('Task exceeds the first simulation operating envelope')
     if cfg['finger_velocity_limit_rad_s']>(2. if exploration else .05) or cfg['braking_acceleration_rad_s2']>5.:

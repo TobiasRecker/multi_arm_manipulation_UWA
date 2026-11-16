@@ -15,12 +15,14 @@ def main():
     if reference is None:p.error('Scene must declare its per-jaw comparison reference')
     path=a.run/'force-trace.jsonl';full_rate=path.exists()
     if not full_rate:path=a.run/'evaluation-trace.jsonl'
-    totals={};joints={};count=0;bad=0;phases={};previous_stamp=None;gaps=0
+    totals={};joints={};count=0;bad=0;phases={};previous_stamp=None;gaps=[]
     for line in path.open():
         row=json.loads(line);force=row.get('forces')
         if force is None:bad+=1;continue
         stamp=force['stamp']
-        if previous_stamp is not None and abs(stamp-previous_stamp-force['window_duration_s'])>1e-5:gaps+=1
+        if previous_stamp is not None and abs(stamp-previous_stamp-force['window_duration_s'])>1e-5:
+            gaps.append(dict(phase=row['phase'],previous_stamp=previous_stamp,stamp=stamp,
+                estimated_missing_windows=max(0,round((stamp-previous_stamp)/force['window_duration_s'])-1)))
         previous_stamp=stamp
         report=pad_load_window(force,reference);count+=1
         if not report['usable']:bad+=1
@@ -37,7 +39,9 @@ def main():
     result=seal(dict(kind='recorded_manipulation_load_summary',observed_windows=count,missing_or_invalid_windows=bad,
         scene_sha256=scene['sha256'],trace_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
         source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),pad_load_reference_n=reference,
-        full_rate_force_trace=full_rate,missing_force_windows=gaps,coverage_complete=full_rate and not gaps and not bad,
+        full_rate_force_trace=full_rate,force_gap_intervals=gaps,
+        missing_force_windows=sum(g['estimated_missing_windows'] for g in gaps),
+        coverage_complete=full_rate and bool(count) and not gaps and not bad,
         reference_scope='User report per jaw/wall patch; not a measured break limit',pads=totals,joint_reactions=joints,phases=phases,
         damage_assessed=False,hardware_capacity_assessed=False,
         interpretation='Joint reactions include robot/tool gravity and inertia. Contact peaks depend on rigid-contact timestep.'))

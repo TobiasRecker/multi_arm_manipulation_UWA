@@ -741,3 +741,20 @@ preserve initial pregrasp provenance; none is a Home-start claim.
   Run78 wegen erforderlicher Home-Stoppreserve0,334m bei0,221m Abstand vor
   Fahrt abgewiesen; Stillstand bestätigt. Negative Evidenz bleibt erhalten.
   Schneller Griff mit500g, Ruckgrenzen und geladene Stoppabnahme noch offen.
+
+- Run79: Stoppreserve mit Datenalter; Run80: Runner-Empfangslücke0,203s,
+  getrennte Kraftaufzeichnung bleibt aktuell. Alle Episoden beendet/erhalten.
+- Run81 nach stabiler Startverbindung: echter500g-Griff,16,495mm Hub bis
+  konfigurierter passiver Fingergrenze0,15rad/s (gemessen0,153791). Bestätigter
+  Verbundstopp mit vier Kontakten, ohne Öffnung. Noch kein kompletter Zyklus.
+  Backenlast max3,289N/10ms bzw6,051N-Peakobergrenze;14Kraftfenster fehlen vor
+  Arming, keine Lücke im geladenen Abschnitt beobachtet. Details HANDOVER.
+- Geplanter Armruck jetzt szenengebunden und analytisch in JTC-Quintiken
+  begrenzt;8CTest-Suites/37Tests PASS. Endlicher5/10mm/s-Runner gestartet,
+  Pflichtreviews bleiben beim Agenten. Geladene Stoppqualifikation offen.
+
+- Ladder01/case00 (5mm/s) erreicht29,371mm und hält; Stopp beim Absenken wegen
+  passivem RR-Peak0,477701rad/s über0,2. MaxRelativfehler1,041mm; vierPads
+  gehalten.20082Kraftfenster lückenlos, max4,801N/10ms bzw6,419N-Peakobergrenze.
+  Automatisches Cleanup/Weitergehen zum10mm/s-Fall funktioniert. **FAIL** des
+  Gesamtzyklus nicht als PASS oder physische Kartonlastgrenze umdeuten.

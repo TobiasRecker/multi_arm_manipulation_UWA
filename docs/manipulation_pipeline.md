@@ -42,7 +42,7 @@ braking/latency in stopping reserves. The minimum grasp-entry duration is
 configurable and entry uses a checked C2 spline with one common quintic law.
 Object carrying always retains its single object path and common time law.
 A configured envelope can be rejected before any movement if its reserve does
-not fit the start geometry. An optional `joint_jerk_rad_s3` uniformly retimes the complete approach, entry
+not fit the start geometry. An optional arm `joint_jerk_rad_s3` uniformly retimes the complete approach, entry
 and object motion using exact extrema of the controller’s quintic segments.
 This bounds planned command jerk, not measured servo jerk or stop behavior.
 Faster loaded stop qualification and a physical maximum remain open. Failed
@@ -67,7 +67,11 @@ launch. Each case keeps profile, logs and raw evidence. No automatic image or
 plan approval is supplied. The result lists observed cases without assuming a
 monotonic speed boundary. A comparison of10ms pad means with the user’s50N
 reference is explicitly separate from peak forces and material damage.
-This runner is implemented; its end-to-end ladder validation is still pending.
+The first two-case ladder completed at5/10mm/s: both carried500g to29.4mm
+and stopped on passive finger-speed bounds during descent. Both full force
+traces are gap-free and below the user load reference. No complete fast500g
+cycle or material-speed boundary is qualified. `physics_step_s` supports
+explicit0.1–1ms refinement; the0.5ms comparison is currently running.
 
 ### Force sensing first; compliant mount as fallback
 

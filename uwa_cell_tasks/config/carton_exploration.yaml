@@ -40,6 +40,6 @@ simulation_assumptions:
 - idealized_arm_actuators
 exploration_mode: true
 braking_acceleration_rad_s2: 2.0
-finger_velocity_limit_rad_s: 0.15
+finger_velocity_limit_rad_s: 0.2
 grasp_entry_min_duration_s: 3.0
 joint_jerk_rad_s3: 1.0

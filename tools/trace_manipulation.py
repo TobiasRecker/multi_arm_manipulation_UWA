@@ -7,7 +7,7 @@ import time
 
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import qos_profile_sensor_data,QoSProfile,DurabilityPolicy
+from rclpy.qos import qos_profile_sensor_data,QoSProfile,DurabilityPolicy,ReliabilityPolicy
 from sensor_msgs.msg import JointState
 from std_msgs.msg import String
 from uwa_cell_motion.common import simulation_only
@@ -42,7 +42,8 @@ def main():
                       ('forces','tasks/forces'),
                       ('guard','collision_guard/decision'),('supervisor','collision_supervisor/status')]:
         node.create_subscription(String,args.namespace+'/'+topic,message(key),
-            qos_profile_sensor_data if key in ('object','contacts','forces') else 10)
+            QoSProfile(depth=50,reliability=ReliabilityPolicy.BEST_EFFORT) if key=='forces'
+            else qos_profile_sensor_data if key in ('object','contacts') else 10)
     node.create_subscription(String,args.namespace+'/tasks/group',message('group'),
         QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL))
     def joints(msg):

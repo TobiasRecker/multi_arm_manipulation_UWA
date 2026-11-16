@@ -21,6 +21,15 @@ def test_per_joint_limits_do_not_raise_unselected_obstacle_limits():
     np.testing.assert_allclose(velocity_limits(names,dict(joint_velocity_rad_s=.1,finger_velocity_limit_rad_s=.5)),[.1,.5,.05])
 
 
+@pytest.mark.parametrize('step,accepted',[(.0005,True),(.00025,True),(.00001,False),(.002,False)])
+def test_physics_step_is_explicit_and_bounded(tmp_path,step,accepted):
+    cfg=configuration();cfg['physics_step_s']=step
+    path=tmp_path/'profile.yaml';path.write_text(yaml.safe_dump(cfg))
+    if accepted:assert configuration(path)['physics_step_s']==step
+    else:
+        with pytest.raises(ValueError,match='Physics step'):configuration(path)
+
+
 def test_stopping_budget_accounts_for_faster_fingers_and_actual_overspeed():
     model=TaskSphereModel.__new__(TaskSphereModel)
     model.names={'right_front':['right_front_wrist_3_joint','right_front_robotiq_85_left_knuckle_joint']}

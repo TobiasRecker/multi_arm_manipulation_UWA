@@ -9,7 +9,8 @@ from uwa_cell_tasks.planning import grasp_candidates, actual_names
 
 
 def test_contact_scene_keeps_open_geometry_mass_and_actual_fingers(tmp_path):
-    layout=load_layout();cfg=configuration();record=prepare_scene(layout,cfg,tmp_path)
+    layout=load_layout();cfg=configuration();cfg['physics_step_s']=.0005
+    record=prepare_scene(layout,cfg,tmp_path)
     verify(record)
     com,_=mass_properties(record['shapes'],cfg['mass_kg'])
     assert np.allclose(record['lift_reference_point_object_m'],com)
@@ -67,6 +68,7 @@ def test_contact_scene_keeps_open_geometry_mass_and_actual_fingers(tmp_path):
     assert cfg['mass_kg']==.5  # User-weighed carton,2026-11-16.
     assert float(sdf.find('model/link/inertial/mass').text)==cfg['mass_kg']
     assert record['force_backend_sha256']
+    assert float(ET.parse(tmp_path/'world.sdf').getroot().find('world/physics/max_step_size').text)==.0005
     assert ET.parse(tmp_path/'world.sdf').getroot().find("world/plugin[@name='uwa_cell_tasks::ForceTelemetry']") is not None
     # Main wall contact patches are single analytic boxes; cutouts stay in
     # separate exact prisms above them instead of a seam through the pinch.

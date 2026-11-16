@@ -61,7 +61,7 @@ def classify(state,validation,loads,diagnostic):
     return 'observed_simulation_pass'
 
 
-def case(root,cfg,reference,index,timeout):
+def case(root,cfg,reference,index,timeout,layout=None):
     directory=root/f'case{index:02d}';directory.mkdir()
     scene=directory/'scene';run=directory/'run';profile=directory/'profile.yaml'
     profile.write_text(yaml.safe_dump(cfg,sort_keys=False))
@@ -69,13 +69,15 @@ def case(root,cfg,reference,index,timeout):
     def checked(args,log):
         with (directory/log).open('w') as output:
             subprocess.run(args,stdout=output,stderr=subprocess.STDOUT,check=True)
-    checked(['ros2','run','uwa_cell_tasks','cell_task','prepare','--config',str(profile),'--output',str(scene)],'prepare.log')
+    layout_args=['--layout',str(layout)] if layout else []
+    checked(['ros2','run','uwa_cell_tasks','cell_task','prepare','--config',str(profile),'--output',str(scene)]+layout_args,'prepare.log')
     logs=[];launch=recorder=runner=None
     def start(args,name):
         output=(directory/name).open('w');logs.append(output)
         return subprocess.Popen(args,stdout=output,stderr=subprocess.STDOUT,start_new_session=True)
     try:
-        launch=start(['ros2','launch','uwa_cell_tasks','grasp.launch.py','scene:='+str(scene)],'launch.log')
+        launch=start(['ros2','launch','uwa_cell_tasks','grasp.launch.py','scene:='+str(scene)]+
+            (['layout:='+str(layout)] if layout else []),'launch.log')
         recorder=start([sys.executable,str(tools/'trace_manipulation.py'),str(run),'--prepare','--timeout',str(timeout+90)],'trace.log')
         deadline=time.monotonic()+100.
         while True:
@@ -88,7 +90,7 @@ def case(root,cfg,reference,index,timeout):
             time.sleep(1.)
         time.sleep(10.)  # DDS discovery before arming, never during motion.
         runner=start(['taskset','-c','6-11','ros2','run','uwa_cell_tasks','cell_task','run',
-            '--scene',str(scene),'--output',str(run),'--reference',str(reference)],'runner.log')
+            '--scene',str(scene),'--output',str(run),'--reference',str(reference)]+layout_args,'runner.log')
         write_json(directory/'processes.json',dict(launch=launch.pid,runner=runner.pid,recorder=recorder.pid))
         print('CASE RUNNING; REVIEW FILE: '+str(run/'review.json'),flush=True)
         deadline=time.monotonic()+timeout;last_review=None
@@ -147,6 +149,7 @@ def main():
     p.add_argument('--config',type=Path,required=True);p.add_argument('--reference',type=Path,required=True)
     p.add_argument('--output',type=Path,required=True);p.add_argument('--object-speeds',type=float,nargs='+',required=True)
     p.add_argument('--repeats',type=int,default=2);p.add_argument('--case-timeout',type=float,default=1500.)
+    p.add_argument('--layout',type=Path,help='Optional explicit initial-state fixture; does not qualify Home execution')
     args=p.parse_args();simulation_only()
     if live_grasp_launches():p.error('An own grasp world is already running; finish it first')
     cfg=configuration(args.config)
@@ -156,11 +159,13 @@ def main():
     root=args.output.resolve();root.mkdir(parents=True,exist_ok=False)
     result=dict(kind='finite_simulation_speed_ladder',complete=False,cases=[],
         source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        initial_layout=str(args.layout.resolve()) if args.layout else 'default_home',
         interpretation='Observed cases only; no monotonic boundary, material damage model or hardware qualification')
     try:
         for speed in args.object_speeds:
             for repeat in range(args.repeats):
-                entry=case(root,dict(cfg,max_object_speed_m_s=speed),args.reference.resolve(),len(result['cases']),args.case_timeout)
+                entry=case(root,dict(cfg,max_object_speed_m_s=speed),args.reference.resolve(),len(result['cases']),args.case_timeout,
+                    args.layout.resolve() if args.layout else None)
                 entry['repeat']=repeat;result['cases'].append(entry)
                 write_json(root/'result.json',seal(result))
         result['complete']=True

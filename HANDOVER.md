@@ -1,5 +1,62 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Einzel-UR-CDF mit eingefrorener Restzelle implementiert, 2026-11-16
+
+- Nutzer nimmt CDF wieder auf: zunächst ein UR bewegt, drei andere starre
+  Hindernisse. Originalprojekt/Code gelesen, MIT/Commit
+ 08a725718e748366c5b4da5cbc4c67e991961f0f dokumentiert. Neue CLI `cell_cdf`,
+  Anleitung docs/single_ur_cdf.md; keine reale Geräte-/Fahraktion, kein
+  gemeinsamer Gazebo-Neustart. Andere Agentenarbeiten erhalten.
+- Nichtparametrischer szenenbezogener Paperansatz: analytische Batch-UR-FK,
+  konservatives Ganzkörper-Sphere/Box-SDF, L-BFGS-B-Kontaktzustände, CDF als
+  Gelenkradiannorm über Kontaktpräfixe/Minfusion, reaktiver logarithmischer QP.
+  Eigenes UR-/Tool-/Modell-/Fremdarm-Binding, geänderte eingefrorene Gelenke
+  invalidieren Bank. Keine Franka-Gewichte, kein neuronales Training, keine
+  RRT-Führung/Rückfallstrategie. Selbstkollisionen in voller MoveIt-Endprüfung.
+- Vorlage von0-Level-Kontakten bleibt endlich/approximiert; CDF-Wert/Projektion
+  ist kein Freiraumnachweis. Jeder Schritt und fertig zeitparametrierte Bahn
+  bestehen gleiche FCL-/Werkzeug-/Tisch-/Kamera-/Wächterprüfung wie Referenzen.
+  Hardware-Problem/mehrere ausgewählte Arme abgelehnt; bestehender Sim-Execute
+  kann erfolgreiche Ausgabe mit seinem aktuellen Start/Wächter übernehmen.
+- Erster RR-Nachweis: setup/research/cdf-ur-comparison-v2/report.html und
+  animation.html.27Offlineversuche(3Aufgabentypen×3Seeds×3Verfahren). Jeweils
+  freier und wirklich blockierter gültiger Weg3/3PASS bei allen Verfahren;
+  unzulässiges Ziel jeweils3/3INVALID_GOAL. Nur zwei gültige Aufgaben,
+  keine repräsentative Erfolgsstatistik oder Paper-Benchmarkreproduktion.
+-63/50/57Kontaktzustände aus1024Seeds, Vorbereiten17,65/13,15/12,14s.
+  Blockierte CDF-Planung0,546–0,554s, inklusiveEndprüfung3,13–3,21s;
+  QP-Abstandsbedingung verändert5–6Schritte. RRT7,28–9,01s, Circular1,21–1,28s
+  ohne jeweiligeEndprüfung. CDF-Vorbereitung zusätzlich/reusabel je Szene;
+  keinen pauschalen Geschwindigkeitsgewinner daraus ableiten.
+- Zwei ursprüngliche SLSQP-Abbrüche waren numerische falsche Unlösbarkeit.
+  Alte v1-Ergebnisse erhalten. Exakter skalarer Dual-Löser für denselben
+  konvexen QP, mit unabhängigem SciPy-Optimum und konkretem UR-Regressionstest
+  geprüft; v2 verwendet identische unveränderte Kontaktbanken, keine
+  gelockerten Bedingungen. Alle drei blockierten Seeds danach PASS.
+- Lyrical-Build/Paketregression107PASS(101pytest+6CTest),
+  setup/logs/uwa-cdf-all-tests.log. Batch-FK aller4URs und SDF/CDF-Gradienten
+  gegen numerische Gegenprüfung. Offlineplot visuell geprüft, interaktive
+  Viewerlogik in JS-VM bestanden; Browserhost für echten GUI-Check nicht
+  verfügbar. Viewer ist Modellanimation, kein Gazebo-/Bewegungsnachweis.
+  Installierte Query/Plan/Preview-Kette am blockierten Fall ebenfalls PASS,
+  setup/research/cdf-cli-smoke/ und setup/logs/uwa-cdf-cli-smoke.log.
+- Keine Physikausführung/Hardware-CDF-Freigabe aus diesem Arbeitsschritt.
+  Nächste Forschung: größere feste Suite, Projektionsgenauigkeit/Abdeckung,
+  Physikreplay, danach ggf. szenenunabhängige Punkt-/neuronale UR-Repräsentation.
+  Eigene HTTP-Vorschauserver beendet; keine neuen Dauerdienste.
+
+## UWA Robot Power installiert, 2026-11-16
+
+- Kleines Startmenüfenster mit eigenem Symbol und zwei Vierarmaktionen:
+  Standby (ros.urp stoppen, dann Antriebe abschalten) und Start + ROS
+  (vorhandener Bringup). Je Arm bestätigter Status oder Bedienhinweis.
+  Exklusiver Bringup-Lock, laufende andere Programme werden nicht gestoppt.
+- Installierter Desktop-Eintrag erfolgreich geöffnet; doppelter Aufruf
+  zeigt dieselbe Instanz. Status las alle vier als ROS READY. 29
+  Dashboard-Tests im Simulator und Qt-Klicktest mit simuliertem Backend
+  bestanden. Im echten Test wurden keine Schaltbefehle gesendet.
+  [Bedienung und Neuinstallation](docs/ur_power_gui.md).
+
 ## Alle vier URs in aufrechter Parkpose, 2026-11-16
 
 - Nutzerauftrag: seitlich ausladende Arme kompakt parken. Vier aufrechte
@@ -325,7 +382,7 @@
   gleiche per-DOF-Stoppreserve in Planung und Wächter. C2-Einfahrt mit gemeinsamer
   Zeitparametrierung ersetzt feste30s-Untergrenze nur bei explizitem Profil.
   Kontaktservo-/Holdgrenzen szenengebunden, keine shared Motionmodule verändert.
-- Build/7CTest-Suites PASS, colcon meldet35Tests ohne Fehler. Geplante
+- Build PASS, colcon meldet37Tests ohne Fehler (8CTest-Suites einschließlich Treiber-Cleanup/Klassifikation). Geplante
   Ruckgrenze ergänzt: exakte Extrema der JTC-Quintik, gleichmäßige Retimierung
   aller beteiligten Gelenke. Keine Aussage zum gemessenen Servo-/Stoppruck.
   Noch kein schneller geladener Durchlauf oder neue Stoppabnahme nachgewiesen.
@@ -340,12 +397,47 @@
   Kraftrecorder ohne Fensterlücke, maximaler Wall-Empfangsabstand0,0744s.
   Alle drei Episoden bestätigt stillgelegt und eigene Welt beendet, Rohdaten
   inklusive Kraftauswertung erhalten. Keine Kraft-/Materialgrenze erreicht.
-- Diagnoseversuch81/explore04 läuft mit5s stabiler Telemetrie vor Reset/Arming
-  und Threadstack-Dump bei Runner-Frischefehler. Keine Frist gelockert.
+- Diagnoseversuch81/explore04 mit5s stabiler Telemetrie vor Reset/Arming
+  und Threadstack-Dump bei Runner-Frischefehler erreichte echten Kontaktgriff
+  und16,495mm500g-Hub. Anfahrt50,582s, Einfahrt7,042s, geplanter30mm-Hub11,475s.
+  Abbruch wegen passivem RR-Tip0,153791rad/s über Profilgrenze0,15. VierPads
+  und tragender Griff beim bestätigten Stopp erhalten; maximaler Relativfehler
+  im aufgezeichneten geladenen Abschnitt1,091mm/0,003697rad. Kein fertiger Zyklus.
+  Last je Backe bis3,289N/10ms, Peakobergrenze6,051N, unter50N-Nutzerreferenz.
+  Kräfte gültig, aber eine Empfangslücke vor Arming:14fehlende10ms-Fenster in
+  observe. Altes Lastreportfeld zählt1Lückenintervall; neuer Analyzer zählt
+  fehlende Fenster und listet Intervalle explizit. Kein vollständiger Datensatz.
+  Eigene Welt nach bestätigtem Stopp ohne Öffnung beendet. Keine Frist gelockert.
+- Recorder erhält jetzt50BestEffort-Pufferplätze für Kräfte statt5; Messlücken
+  bleiben sichtbar. Neuer Kandidat0,05Arm/0,2Finger, gleiche Mechanik und
+  eingehaltene Stoppreserven. `carton_exploration_20261116_ladder01` läuft als
+  echte endliche Versuchsfolge5/10mm/s, je eine Wiederholung, noch kein PASS.
+- Ladder01/case00 (5mm/s) tatsächlich bis29,371mm getragen und gehalten,
+  maxRelativfehler1,041mm/0,003387rad. Beim Absenken passive RR-Gelenke bis
+  0,477701rad/s über0,2-Profilgrenze: **FAIL**, kein vollständiger Zyklus.
+  VierPads/Grip beim bestätigten Stopp erhalten.20082Kraftfenster ohne Lücke,
+  Backenmittel max4,801N/10ms, Peakobergrenze6,419N. Eigenes Welt-Cleanup und
+  nächste Fallvorbereitung automatisch erfolgt. Case01/10mm/s ebenfalls29,371mm erreicht; Stopp beim Absenken wegen RR
+  0,447932rad/s. MaxRelativfehler1,104mm/0,003388rad, Backenmittel max3,281N,
+  Peakobergrenze5,946N, lückenlose Kräfte. Beide Gesamtabläufe **FAIL** wegen
+  konfigurierter Fingergrenze, keine gemessene Kartonlastgrenze. Folge komplett.
+  Ergebnis `setup/tasks/carton_exploration_20261116_ladder01/result.json`.
+- Cleanup-Audit Ladder01: beide Verbundstopps bestätigt, keine eigenen
+  Testprozesse mehr vorhanden. Case00 sauber beendet; Case01 Supervisor erst
+  beim SIGINT-Cleanup mit−11 beendet. Äußere Exec-Sitzung meldet143 trotz
+  vollständig geschriebenem Zwei-Fälle-Ergebnis; nicht als sauberer Exit ausgeben.
+  Eigener Supervisor-CLI jetzt Python-Signalhandler wie Runner: ROS-Kontext erst
+  nach Executor-Join schließen, gemeinsamen Motioncode nicht verändert.
+  Nachweis dieser Shutdown-Korrektur im nächsten Versuch noch offen.
+- Physikschritt explizit0,1–1ms konfigurierbar;0,5ms-Welt-Export geprüft,
+  Build/8CTest-Suites und41Tests PASS. Gleicher500g-/5mm/s-Versuch mit0,5ms
+  läuft unter `carton_exploration_20261116_halfstep01`. Ziel: Zeitschrittfehler
+  vom elastischen Greifermodell unterscheiden, keine Grenzlockerung.
 - Endlicher automatischer Geschwindigkeitsleiter-Runner implementiert unter
   tools/explore_manipulation.py; Agentenreviews bleiben Pflicht. Eigene Szenen,
   Recorder vor Arming, scoped Cleanup nur nach bestätigtem Stopp, gemeinsame
-  Bewegungs-/Kraftauswertung. End-to-end-Nachweis dieses Runners noch offen.
+  Bewegungs-/Kraftauswertung. Zwei negative Fälle mit Messauswertung/Cleanup durchlaufen;
+  weiterhin kein bestandener schneller500g-Gesamtzyklus.
 - Recorder schreibt jedes empfangene100Hz-Kraftfenster zusätzlich zur20Hz-
   Bewegungsaufzeichnung. Neue Lastauswertung summiert je Backe/Wandfläche,
   vergleicht50N-Nutzerreferenz und meldet Lücken. Historische Nachweise nicht

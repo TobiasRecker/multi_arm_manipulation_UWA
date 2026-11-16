@@ -1,5 +1,10 @@
 # UWA four-arm laboratory cell
 
+Open **UWA Robot Power** from the application menu for all four arms.
+**Standby** stops ROS on the robots and switches off the drives; **Start + ROS**
+prepares them again. The control boxes stay online. See the
+[operator guide](docs/ur_power_gui.md).
+
 Prepare the four physical arms for ROS with the [UR bringup command](docs/ur_bringup.md).
 It defaults to read-only status and reports any Teach Pendant action per arm.
 Explicit `--apply` loads and starts the configured External Control program
@@ -512,6 +517,12 @@ simulated arms until a stationary reset. The separate
 six-joint resource holds and native STOP fallback in domain66; it defaults to
 monitor-only. Its controller/planner paths are mock-tested; real stopping
 reserves remain unmeasured and no physical commissioning is claimed.
+
+A first [single-UR CDF prototype](docs/single_ur_cdf.md) now constructs
+nonparametric contact-template distances in joint radians and plans with a
+paper-style reactive QP. One UR moves, the other three are frozen obstacles.
+The offline demo includes RRT/Circular comparisons and a standalone motion
+preview; neural training and physical execution are separate future steps.
 
 Select `/uwa_cell/controller_manager` and one of the four trajectory
 controllers in the **rqt Joint Trajectory Controller** window. Enable control

@@ -345,7 +345,7 @@ def prepare_scene(layout, cfg, directory):
     sdf = dynamic_sdf(instance, shapes, cfg); (directory/'carton.sdf').write_text(sdf)
     world = ET.Element('sdf', version='1.9'); w = ET.SubElement(world, 'world', name='uwa_grasp_lab')
     physics=ET.SubElement(w,'physics', name='default', type='ignored')
-    ET.SubElement(physics,'max_step_size').text='.001'
+    ET.SubElement(physics,'max_step_size').text=str(cfg.get('physics_step_s',.001))
     ET.SubElement(physics,'real_time_factor').text=str(cfg['simulation_real_time_factor'])
     for filename,name in [('physics','Physics'),('user-commands','UserCommands'),('scene-broadcaster','SceneBroadcaster'),('contact','Contact')]:
         plugin=ET.SubElement(w,'plugin',filename='gz-sim-'+filename+'-system',name='gz::sim::systems::'+name)

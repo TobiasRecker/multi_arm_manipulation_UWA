@@ -25,7 +25,8 @@ with current pending status, image paths, candidate data and trajectory bounds.
 It never approves a review. A saved packet with pending=false is not a request
 to continue.
 
-Use the documented0.6 real-time-factor/1ms physics profile and workstation CPU
+Use the documented0.6 real-time-factor/1ms commissioning profile (or an
+explicit0.1–1ms exploration refinement with separate evidence) and workstation CPU
 configuration before recipes. For independent validation, start the recorder
 with `tools/trace_manipulation.py RUN --prepare` before starting the runner;
 verify its trace file exists and allow discovery to settle before reset/arming.
@@ -73,5 +74,7 @@ reserves and the single shared object law. Commissioning reports do not qualify
 new speed profiles. Planned jerk limits do not qualify real actuator jerk or
 loaded stops.50N is a user-reported reference per jaw/wall patch, not a measured
 material failure limit. Direct force reference tests passed; no floating base
-is presently required. The finite experiment driver still needs end-to-end
-validation; do not present its existence as a passed speed sweep.
+is presently required. The finite experiment driver completed two negative5/10mm/s cases with force
+evaluation and scoped cleanup. Both carried500g to29.4mm and stopped at a
+configured passive-finger speed bound during descent. No complete fast500g
+cycle or physical speed boundary is qualified; preserve the current evidence.
