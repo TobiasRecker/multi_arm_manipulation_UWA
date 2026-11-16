@@ -40,7 +40,7 @@ class SphereModel:
             centres, radii, links, motion = [], [], [], []
             for body in bodies:
                 vertices = body.visual_vertices
-                c, r = box_spheres(vertices.min(axis=0), vertices.max(axis=0), spacing)
+                c,r=(np.zeros((1,3)),np.asarray([body.radius])) if body.kind=='sphere' else box_spheres(vertices.min(axis=0),vertices.max(axis=0),spacing)
                 c = c @ body.fixed[:3, :3].T + body.fixed[:3, 3]
                 centres.extend(c); radii.extend(r); links.extend([body.link]*len(r))
                 motion.extend([body.radii]*len(r))

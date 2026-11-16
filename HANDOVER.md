@@ -1,5 +1,55 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Erster realer OAK-RGB-D-Datensatz für FoundationPose, 2026-11-16
+
+- Nutzer beauftragt Schritt1; aktuell steht studentischer Roboter an früherer
+  Kartonstelle. Für Aufnahmetest kein Mesh nötig, keine automatische Poseerkennung.
+- Neuer OAK-CLI-Modus `capture --mode rgbd`, vorhandene Kamerasperre/SDK-Isolation.
+  Acht entzerrte RGB-/ausgerichtete Tiefenpaare1280×960, Fokus116, maxZeitabstand
+  1,727ms; tatsächliche Ausgabe-K beider Frames identisch. Paarrate10,00Hz.
+- Datensatz setup/oak4/rgbd/20261116-102913-rgbd-fa320e7a/, preview.png und
+  initial-check.json geprüft; Roboter/Board sichtbar, Tiefe mit Lücken. Lease
+  danach frei.31Offlineprüfungen/9Subtests PASS; keine UR-/GPU-/Dienstaktion.
+- Anleitung OAK-Repo OAK4_RGBD.md. Nächste Stufe: Board/K-/Tiefengeometrie prüfen,
+  danach Mesh/Initialmaske. Noch keine Genauigkeits- oder Manipulationsfreigabe.
+
+## Gemeinsamer UR-Start für ROS (2026-11-16)
+
+- Neuer Befehl `scripts/ur_bringup.py`: Standard/--status rein lesend,
+  --apply bereitet die ausgewählten realen Arme vor; Standardauswahl alle vier.
+  Bedienung, JSON-Status und Hinweise am Pendant: [UR Bringup](docs/ur_bringup.md).
+- `/programs/ros.urp` pro Arm im Inventar nach dem Backup verifiziert;
+  Seriennummer und PolyScope-Generation live abgleichen. Bereits laufende
+  Programme erhalten, bei Safety/Local/ungespeichert Bedienerhinweis. Keine
+  Sicherheitsquittierung und keine Bewegungsziele.
+- Live am 16.11.: alle vier per Ethernet erreichbar, `ros.urp` bereits
+  geladen und gestoppt. Fehlende lokale Treiber über den realen Launch
+  gestartet (`uwa-ur-bringup-drivers.service`). `--apply`: beide hinteren
+  Arme eingeschaltet und Bremsen gelöst, Programm auf allen vier gestartet.
+  Alle vier danach RUNNING/NORMAL/PLAYING und mit ROS verbunden.
+- `--apply` startet fehlende Treiber jetzt selbst, ohne aktive Instanzen zu
+  ersetzen. 22 Simulationstests bestanden, darunter der Treiberstart vor
+  Dashboard-Schreibbefehlen und der Abbruch bei fehlendem Treiber. Der
+  erneute reale Aufruf meldete alle vier bereit und sendete keine Befehle.
+
+## Beschaffung realer FoundationPose-Eingaben eingeordnet, 2026-11-16
+
+- Nutzer fragt nach dem besten Weg zu den fehlenden Informationen. Bestands-
+  und Quellenprüfung, keine neue Aufnahme, Installation oder Hardwareaktion.
+- Vorhanden: Meter-Assets, OAK-Werkskalibrierung/Ausgabe-K, separate RGB-/
+  Mono-Tiefenpfade und vorläufige OAK-Weltregistrierung. Hauptlücke ist ein
+  zusammengehöriger entzerrter und RGB-ausgerichteter RGB-D-Datensatz.
+- Empfehlung, noch keine Nutzerentscheidung zur Umsetzung: feste OAK zuerst,
+  RVC4 ImageAlign+Sync mit gemessener Zeitdifferenz, tatsächliche Ausgabe-K,
+  erster Objektumriss manuell. Statischer Karton-Replay auf GPU, dann PTFE/
+  Bewegung/Verdeckung und erst anschließend WLAN-Livepfad. Keine Neuaufnahme
+  sämtlicher Wrist-/Hand-Auge-Kalibrierungen für reine Kameraposen nötig.
+- Werksdaten/Alignment am Board und an unabhängigen Kontrollmaßen prüfen;
+  OAK→Roboterbasis separat vor Manipulation validieren. Existierende HQ-Bursts
+  nicht als zeitgleiche RGB-D-Paare oder bewegungstauglich deklarieren.
+- Vorgehen/Quellen in docs/foundationpose_titanpc.md, Abschnitt16.11.; eigene
+  Statusdatei work/foundationpose-input-plan.md. Aktive UR-Vorbereitung erhalten.
+
 ## Wiederaufnehmbare Digitalisierung implementiert; Robotertest offline vorbereitet, 2026-11-13
 
 - Nutzer beauftragt Umsetzung des schnellen Workflows und Test an komplexem
@@ -103,6 +153,39 @@
   ebenfalls erfolglos, Diagnosen erhalten, bisherigen Trackerstandard beibehalten.
 - Laufende Karton-Simulations-/Greifarbeit unverändert; neues Asset installiert,
   noch keine aktive Szeneinstanz. Anleitung und Vorschau docs/ptfe_l_assembly.md.
+
+## Sichtbare Karton-Demonstration, 2026-11-16
+
+- Laufzeitdiagnose auf Nachfrage: Die Ausführung nutzt ein konservatives
+  Inbetriebnahmeprofil, keine ausgereizte Roboterleistung. Armgrenze0,05rad/s,
+  gemeinsame8cm-Einfahrt mindestens30sim-s; Finger0,02rad/s frei/öffnend und
+  0,004rad/s im Kontaktbereich; Objekt0,5mm/s. Quintische30mm-Hubtrajektorie
+  benötigt114,75sim-s, mitRTF0,6 ca191Wand-s je Richtung (~24s im8×-Replay).
+  Gemessene Phasen71: Anfahrt84s, Griff inkl. Einfahrt/Beobachtung185s,
+  Hub inkl. Kompilierung/Halten224s, Absetzen inkl. Kompilierung228s, Öffnen68s.
+  Achtfach bezieht sich auf aufgezeichnete Wandzeit, daher ca4,8×Simutempo.
+  Native Armantriebe begrenzen zusätzlich fest auf0,05rad/s; YAML allein zu
+  erhöhen reicht nicht. Diagnose ändert keine Grenzwerte/Quellen der Bewegung.
+- Nutzer möchte einen Ablauf sehen. Erfolgreichen Kontaktlauf71 vom14.11. als
+  ausdrücklich gekennzeichnete8×-Wiedergabe gemessener Gelenke/Kartonpose in
+  eigenem RViz und kontrastreichem englischem Bedienfenster geöffnet.
+- Neuer rein visueller Player `tools/replay_manipulation.py`, Anleitung
+  `docs/manipulation_pipeline.md`. Prüft Originaltrace/Robotermodell/Ergebnis
+  gegen gespeicherte Qualifikationshashes. Keine neue Kontaktphysik, keine
+  Änderung des Originalnachweises, keine Controller/Actions/Fahrbefehle.
+- Eigene Displaytopics `/uwa_grasp_replay/{joint_states,robot_description,tf,
+  tf_static,markers}` auf64/LOCALHOST. Tatsächliche passive Gelenkwerte im
+  visuellen Modell statt neu berechneter Mimicwerte. Keine Originalmodelle ändern.
+- Aktuelle Ansicht `setup/tasks/carton_replay_20261116_03/`; Wiedergabe mit
+  Play/Pause/Restart, Zeitleiste und Tempoauswahl.8× etwa2min, Ende bleibt
+  sichtbar; Restart setzt zurück und pausiert, danach Play replay. Schließen
+  beendet nur eigene RViz-/State-Publisher-Kinder. Hardware unberührt.
+- Zwei GUI-Startfehler erhalten:01erbte Snap-GTK-Laufzeit,02Qt5-Enum unter
+  Qt6. Behebung prozesslokale GTK-Pfadbereinigung/Qt6-Enum; exakt eigene
+  verwaiste02-Anzeigekinder beendet, keine anderen Dienste.03läuft.
+- Externe Bildschirmaufnahme auf diesem Wayland-Desktop nicht verfügbar;
+  keine daraus behauptete Screenshotprüfung. RViz-Start/GL-Log, Playerzustände
+  und vollständige Ablaufphasen direkt geprüft; kein neuer Griff-PASS.
 
 ## Modulare Karton-Greifpipeline: aktuelle Qualifikation, 2026-11-14
 

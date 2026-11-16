@@ -126,7 +126,7 @@ class CollisionGuard(MotionNode):
         notice=Marker();notice.header.frame_id='world';notice.ns='model_uncertainty';notice.id=0;notice.type=Marker.TEXT_VIEW_FACING
         notice.pose.orientation.w=1.;notice.pose.position.z=2.4;notice.scale.z=.08
         notice.color.r=notice.color.g=notice.color.b=notice.color.a=1.
-        notice.text='SIMULATION\nWorld/table:provisional';markers.append(notice)
+        notice.text=status.get('runtime_label','SIMULATION')+'\nWorld/table:provisional';markers.append(notice)
         for rid in self.names:
             if rid in world:continue
             label=Marker();label.header.frame_id=rid+'_base_link';label.ns='unknown';label.id=number;number+=1
@@ -152,7 +152,7 @@ class CollisionGuard(MotionNode):
                 state='STOPPED (HOLD)' if rid in self.supervisor_status.get('held_arms',[]) and self.core.stationary(rid,time.monotonic()) else 'STOPPING (HOLD)'
             else:state='CLEAR'
             record=self.core.records[rid];age=1000*(time.monotonic()-record['received'])
-            source_age=1000*(self.get_clock().now().nanoseconds/1e9-record['stamp'])
+            source_age=1000*(status.get('source_time_s',self.get_clock().now().nanoseconds/1e9)-record['stamp'])
             label.text=rid+'\n'+state.replace(' ','\n')+f'\ndata:{age:.0f}ms/source:{source_age:.0f}ms'; markers.append(label)
         if status['state']!='CLEAR' or self.supervisor_status.get('blocked_arms'):
             alert=Marker();alert.header.frame_id='world';alert.ns='alert';alert.id=0;alert.type=Marker.TEXT_VIEW_FACING

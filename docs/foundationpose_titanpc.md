@@ -93,6 +93,68 @@ Bildalter über WLAN messen. Welt-/Roboterpose benötigt zusätzlich eine zeitli
 passende Kameraregistrierung. Weder Demolauf noch niedriger Pixelrestfehler sind
 Manipulationsfreigabe oder Nachweis absoluter Millimetergenauigkeit.
 
+## Vorgeschlagener Weg zu realen Eingaben, 2026-11-16
+
+Nach der folgenden Bestandsprüfung hat der Nutzer Schritt1 beauftragt. Dieser
+ist jetzt umgesetzt: [OAK-RGB-D-Modus](../../oak_camera_calibration/OAK4_RGBD.md),
+erster Datensatz mit studentischem Roboter statt Karton erfolgreich. Acht
+entzerrte1280×960-Paare, maxZeitdifferenz1,727ms; K und Formate geprüft, Board- /
+Genauigkeitsprüfung noch offen. Daten unter
+`setup/oak4/rgbd/20261116-102913-rgbd-fa320e7a/`. Ein bekanntes Mesh wird erst
+für die spätere Objektpose benötigt. Weitere Planstufen sind noch Empfehlungen.
+
+GPU-/Demoergebnisse oben stammen vom13.11., nicht aus einer
+erneuten Erreichbarkeitsprüfung. Zuerst eine feste OAK verwenden; vorhandene
+Wrist-/Hand-Auge-Kalibrierungen müssen für die reine Kamerapose nicht neu entstehen.
+
+| Eingabe | Vorhanden | Nächster Schritt |
+|---|---|---|
+| Metrisches Objektmodell | Karton-/PTFE-Assets mit festem Frame, teilweise vereinfachter Geometrie | Meter-Mesh übernehmen, Kontrollmaße prüfen, Ursprung erhalten |
+| RGB und Tiefe | RGB-Vorschau und separater Mono-HQ-Tiefenmodus | Gemeinsame SDK-Pipeline: RGB entzerren, Stereo-Tiefe in diese RGB-Perspektive reprojizieren |
+| Intrinsics und interne Sensorlage | OAK-Werkskalibrierung und auslesbare Ausgabe-K | Tatsächliche K der gewählten Ausgabe/Fokus speichern und am Board prüfen |
+| Initialmaske | Für UWA-Objekte noch nicht als FoundationPose-Eingabe angelegt | Im ersten Farbbild einmal sichtbaren Objektumriss markieren; Automatisierung später |
+| Zeitbezug/Frische | Gerätezeiten und Bildalter teilweise vorhanden | RGB-/Tiefenpaare gruppieren, Zeitdifferenz messen, verspätete Paare abweisen |
+| Pose zur Roboterbasis | Vorläufig akzeptierte OAK-Weltregistrierung | Für Greifen gesondert über gemeinsame Boardbeobachtung und gültige Kamera-/Roboterkette unabhängig prüfen |
+
+Luxonis dokumentiert für RVC4 `StereoDepth → ImageAlign → Sync`; RGB wird
+mittels `enableUndistortion=True` angefordert. ImageAlign verwendet die interne
+Sensor-Kalibrierung, Sync gruppiert anhand Zeitstempeln. Das ist kein Nachweis
+gleichzeitiger Belichtung und noch keine Kalibrierung zur Roboterbasis.
+Nicht einfach aktuelle, getrennte HQ-RGB-/HQ-Tiefenbilder zusammenlegen.
+Die16Frame-HQ-Fusion bleibt für ruhende Szenen; dynamisch einzelne passende Paare.
+
+Vorgeschlagene Reihenfolge:
+
+1. Eigenen opt-in-RGB-D-Aufnahmemodus an vorhandene Kamera-Lease anbinden;
+   bestehende Kameranutzer erhalten. Ein moderates Profil testen, z.B.
+   1280×960RGB und5–10fps; das ist ein Startvorschlag, keine gemessene Zusage.
+2. Ein statisches Paket mit RGB, RGB-ausgerichteter Z-Tiefe, Gültigkeitsmaske,
+   Ausgabe-K, Fokus, Framekonvention, Sequenzen und Zeitstempeln speichern.
+   Tiefeneinheit explizit; Factory-D nicht auf bereits entzerrte Bilder anwenden.
+3. Kantenüberlagerung, Board-Reprojektion und Tiefe an einer vermessenen
+   Referenz prüfen. Fehlende Tiefe auf glatten/weißen/reflektierenden Teilen
+   sichtbar lassen. Nur bei unzureichender Prüfung gezielt nachkalibrieren.
+4. Startmaske manuell zeichnen und vorhandenes Meter-Mesh zuführen. Zuerst
+   gespeicherten Karton-Datensatz auf titanpc auswerten, danach PTFE. Modell
+   in Bildern/Tiefe zurückprojizieren und Wiederholungen sowie unabhängige
+   Kontrolllagen prüfen; deren Posen niemals zur Schätzung initialisieren.
+5. Nach statischem Erfolg kurze Bewegungs-/Verdeckungssequenz aufnehmen und
+   offline prüfen. Danach erst Live-Übertragung über WLAN mit gemessenem
+   Ende-zu-Ende-Alter, Verwerfen alter Bilder und LOST/STALE-Ausgabe anbinden.
+6. Für Roboterkoordinaten die zusätzliche OAK→Basis-Registrierung unabhängig
+   prüfen, z.B. gemeinsames Board in OAK und gültig kalibrierter Wrist mit
+   zeitlich passenden Gelenken. Vorläufige Weltanker nicht als Messwahrheit
+   verwenden; keine automatische Armfahrt aus diesem Plan.
+
+Software kann Kalibrierdaten auslesen, Aufnahmepaare bilden, exportieren und
+auswerten. Physisches Bereitstellen des Objekts/Boards und unabhängige
+Kontrollmaße/-lagen benötigen Bedienerarbeit bzw. vorhandene Messmittel.
+
+Offizielle Quellen: [RVC4 Depth Align](https://docs.luxonis.com/software-v3/depthai/examples/image_align/depth_align),
+[ImageAlign](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/image_align),
+[Sync](https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/sync),
+[FoundationPose-Demo](https://github.com/NVlabs/FoundationPose/blob/main/run_demo.py).
+
 ## Prüfergebnisse
 
 - CUDA-Matrixrechnung auf TITAN RTX/Compute7.5 bestanden.

@@ -1,5 +1,10 @@
 # UWA four-arm laboratory cell
 
+Prepare the four physical arms for ROS with the [UR bringup command](docs/ur_bringup.md).
+It defaults to read-only status and reports any Teach Pendant action per arm.
+Explicit `--apply` loads and starts the configured External Control program
+when the robot and local driver are ready.
+
 Native Wrist photographs now avoid a redundant format switch, with actual
 V4L2 format/interval verification and fallback. With the same LED workflow:
 right front18.2→15.3s, left front16.5→13.7s. LEDs follow shared photo/video use;

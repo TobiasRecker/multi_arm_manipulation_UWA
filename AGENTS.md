@@ -1,5 +1,19 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Gemeinsamer UR-Start für Agenten (2026-11-16)
+
+- Für lesende Zustandsprüfung und ausdrücklich beauftragte Vorbereitung der
+  echten Zelle den gemeinsamen Einstieg [UR Bringup](docs/ur_bringup.md)
+  verwenden: `python3 scripts/ur_bringup.py --status --json`, bei genehmigtem
+  Start `--apply`. `manual_action` je Arm an den Bediener weitergeben.
+- `--apply` verwendet vorhandene ROS-Treiber und startet fehlende lokale
+  Treiber über den MATCH-Hardware-Launch. Anschließend lädt der Befehl bei
+  Bedarf das Inventarprogramm, schaltet ein, löst die Bremsen und startet
+  External Control. Kein Quittieren von Stopps, kein Umgehen von Local
+  Control oder UR-Sicherheit, keine Fahrziele. Erfolg verlangt laufendes
+  `ros.urp` und die passende ROS-Reverse-Verbindung. Der separate
+  ROS-Treiber-Launch allein führt weiterhin keine Dashboard-Schreibaktion aus.
+
 ## Modulare Manipulation und starre Greifverbünde (2026-11-13)
 
 - Nutzer möchte agentbedienbare wiederverwendbare Skills mit Voraussetzungen,
@@ -213,6 +227,10 @@
   Offener Fokus-Restore und unvollständige Fotos bleiben fehlgeschlagen.
   Neuer Hardwarestart braucht frische Zustände/Wegprüfung; historischer
   RTDE-Planungssnapshot ist keine aktuelle Fahrfreigabe. docs/student_robot_digitization.md.
+  Nutzer16.11. meldet Verfügbarkeit wieder und bestätigt unveränderten Aufbau.
+  Lesetest: alle vier RUNNING/NORMAL, ros.urp/Reverse aktiv; Kamerarestore
+  inzwischen bestätigt. Vor Fahrten neue Gelenkzustände/Wege und aktuelle
+  Bedienerbereitschaft prüfen; bisher keine Scan-Bewegung aus der Wiederaufnahme.
 
 - NVIDIA-Compute seit13.11. ausdrücklich verfügbar: gemeinsame Workstation
   titanpc/192.168.2.137, aktuell WLAN. Vorhandene Nutzerumgebungen, Dienste,

@@ -1,7 +1,16 @@
 # Digitalisierung für einen schnellen ausführenden Agenten vorbereiten
 
-- Status: **Offline-MVP fertig, reale Mehransicht durch Nutzer unterbrochen**, 2026-11-13,
+- Status: **Wiederaufnahme: lesende Geräte-/Kameraprüfung**, 2026-11-16 (Australia/Perth),
   Hauptagent Digitalisierung.
+- Nutzer16.11.: Roboter vermutlich wieder erreichbar, damit Hardwareverfügbar-
+  keitsunterbrechung für diese Prüfung aufgehoben. Zunächst nur Status/Kameras,
+  offener Restore und frische Startwerte; keine Power/Brake/Play- oder Fahraktion
+  allein aus dieser Meldung. Aktive Hardware-Motion-Implementierung erhalten.
+-16.11. lesend vier Dashboards RUNNING/NORMAL/ros.urp/Reverse bestätigt,
+  alle vier Kameras HTTP/SSH erreichbar; Original-Fokuskonfiguration wieder-
+  hergestellt. ROS nurLR frisch: dort5Broadcaster, übrigeManager ohneController.
+  Standard-Loader für Zustands-Broadcaster und ausschließlich inaktive
+  Bewegungscontroller vorbereitet; keine Treiberneustarts/Power/Brake/Play/Fahrt.
 - Nutzerziel: deutlich kürzere Durchlaufzeit mit geringerem Reasoning-Aufwand,
   geprüfte Qualität und bestehende Sicherheitsfunktionen erhalten.
 - Neuer Auftrag: Pipeline implementieren und an studentischem Roboternachbau

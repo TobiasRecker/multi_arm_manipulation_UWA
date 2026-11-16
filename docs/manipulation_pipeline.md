@@ -53,6 +53,33 @@ no grasp offset, perception pose or trajectory is rewritten for the metric.
 
 ## Agent workflow
 
+### Watch the recorded successful cycle
+
+For a visual demonstration, replay the measured joints and carton poses of
+qualified run71 in a separate RViz window. This is a labelled recording,
+not a new contact simulation or a new validation result. The private
+`/uwa_grasp_replay` topics are display-only; no controllers or robot commands
+are started. The original trace and models are checked against their stored
+qualification hashes. The source files and other simulations stay unchanged.
+
+```bash
+source src/multi_arm_manipulation_UWA/scripts/env.bash
+python3 src/multi_arm_manipulation_UWA/tools/replay_manipulation.py \
+  --run setup/tasks/carton_grasp_run71 \
+  --scene setup/tasks/carton_contact_20261114_v95 \
+  --qualification setup/tasks/manipulation_qualification_20261114/result.json \
+  --output setup/tasks/my-carton-replay --speed 8
+```
+
+Use a new output directory. Click **Play replay**; **Pause**, the speed selector
+and timeline control playback. **Restart**, then **Play replay**, shows it again.
+The complete recording takes about two minutes at8×. The high-contrast control
+window labels the recorded phase, actual COM lift, four pad contacts and table
+support. **Close replay** also closes only its own RViz/state-publisher children.
+The player uses host Qt6 and clears inherited Snap GTK paths for this process.
+
+### Run a fresh contact simulation
+
 For subsequent agent tasks, load the repository skill
 [`uwa-manipulate`](../.agents/skills/uwa-manipulate/SKILL.md). It routes to this
 interface and current evidence without rediscovering the implementation.
