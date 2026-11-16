@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 from uwa_cell_control.object_scan_plan import box_points, look_at, solve_ik, checked_schedule
+from uwa_cell_control.object_scan_plan import extra_view_targets
 from uwa_cell_description.configuration import joint_names
 
 
@@ -35,6 +36,18 @@ def test_local_ik_cannot_use_distant_branch_for_small_camera_offset():
     np.testing.assert_allclose(q[:3], desired[:3, 3], atol=1e-5)
     desired[0, 3] = 1.
     assert solve_ik(chain, names, desired, np.zeros(6), [(-2, 2)] * 6, max_change=.35) is None
+
+
+def test_orbit_views_change_angle_keep_distance_and_look_at_object():
+    target=np.array([.1,-.2,.3]);centre=look_at([.7,-.4,.8],target)
+    config=dict(extra_camera_orbit_deg=[-12,12],extra_camera_xy_offsets_m=[[.02,0]])
+    views=list(extra_view_targets(centre,target,config));assert len(views)==3
+    for info,T in views[:2]:
+        np.testing.assert_allclose(np.linalg.norm(T[:3,3]-target),np.linalg.norm(centre[:3,3]-target),atol=1e-12)
+        np.testing.assert_allclose(T[:3,2],(target-T[:3,3])/np.linalg.norm(target-T[:3,3]),atol=1e-12)
+        assert np.linalg.norm(T[:3,3]-centre[:3,3])>.1
+    np.testing.assert_allclose(views[2][1][:3,3],centre[:3,3]+centre[:3,0]*.02)
+    with pytest.raises(ValueError):list(extra_view_targets(centre,target,dict(config,extra_camera_orbit_deg=[180])))
 
 
 def test_small_move_with_blocked_midpoint_is_rejected_not_endpoint_only():

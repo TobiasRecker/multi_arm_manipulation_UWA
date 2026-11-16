@@ -16,6 +16,47 @@ from uwa_cell_description.configuration import gripper_joint, joint_names
 from .core import ARMS, seal, write_json, verify
 
 
+def wall_strips(polygons, axis):
+    """Exact vertical-envelope decomposition with a seam-free lower wall.
+
+    Accept only a wall without internal holes: its envelope area must equal
+    its source polygon area. Upper cutouts and lower bevels remain unchanged.
+    The central rectangle is an analytic box in the contact simulator.
+    """
+    tangent=1-axis;coordinates=np.unique(np.concatenate(polygons)[:,tangent])
+    lower=[];upper=[]
+    for left,right in zip(coordinates,coordinates[1:]):
+        coordinate=(left+right)/2;edges=[]
+        for polygon in polygons:
+            for a,b in zip(polygon,np.roll(polygon,-1,axis=0)):
+                if min(a[tangent],b[tangent])<coordinate<max(a[tangent],b[tangent]):
+                    edges.append([a[2]+(b[2]-a[2])*(x-a[tangent])/(b[tangent]-a[tangent]) for x in (left,right)])
+        # Use the open interval's edges: a vertical upper-contour step has
+        # distinct one-sided heights at its endpoint.
+        edges.sort(key=lambda z:sum(z));lower.append(edges[0]);upper.append(edges[-1])
+    source_area=sum(ConvexHull(p[:,[tangent,2]]).volume for p in polygons)
+    envelope_area=sum((b-a)*np.mean(np.array(u)-l) for a,b,u,l in zip(coordinates,coordinates[1:],upper,lower))
+    if not np.isclose(source_area,envelope_area,atol=1e-10,rtol=1e-7):
+        raise ValueError('Carton wall has holes/overlaps; vertical decomposition would alter its geometry')
+    bottom=float(np.max(lower));top=float(np.min(upper));plane=polygons[0][0,axis]
+    if top<=bottom:raise ValueError('No continuous lower wall')
+    def polygon(points):
+        points=np.unique(points,axis=0)
+        if len(points)<3:return None
+        try:hull=ConvexHull(points)
+        except Exception:return None
+        if hull.volume<1e-12:return None
+        result=np.zeros((len(hull.vertices),3));result[:,axis]=plane
+        result[:,[tangent,2]]=points[hull.vertices];return result
+    result=[polygon([(coordinates[0],bottom),(coordinates[-1],bottom),(coordinates[-1],top),(coordinates[0],top)])]
+    for i,(a,b) in enumerate(zip(coordinates,coordinates[1:])):
+        for points in [[(a,top),(b,top),(b,upper[i][1]),(a,upper[i][0])],
+                       [(a,lower[i][0]),(b,lower[i][1]),(b,bottom),(a,bottom)]]:
+            part=polygon(points)
+            if part is not None:result.append(part)
+    return result,top
+
+
 def carton_shapes(instance, directory, thickness):
     """Extrude external skin triangles inward; preserve observed upper cutouts.
 
@@ -35,11 +76,14 @@ def carton_shapes(instance, directory, thickness):
         projection=[i for i in range(3) if i!=axis]
         # Merge adjacent triangles iff their union is exactly convex. This
         # reduces dynamic collision bodies without filling a cutout or cavity.
+        wall_base_top=None
+        if axis!=2:polygons,wall_base_top=wall_strips(polygons,axis)
         changed=True
         while changed:
             changed=False
             for i in range(len(polygons)):
                 if changed:break
+                if wall_base_top is not None and i==0:continue
                 for j in range(i+1,len(polygons)):
                     a,b=polygons[i],polygons[j]
                     if len({tuple(v) for v in a}.intersection(tuple(v) for v in b))<2:continue
@@ -63,9 +107,11 @@ def carton_shapes(instance, directory, thickness):
                 normal=np.cross(triangle[1]-triangle[0],triangle[2]-triangle[0]);normal/=np.linalg.norm(normal)
                 binary.extend(struct.pack('<12fH',*normal,*triangle.ravel(),0))
             path.write_bytes(binary)
+            outline=vertices[:len(vertices)//2]
+            box=bool(len(outline)==4 and all(len(np.unique(outline[:,k]))==2 for k in projection))
             result.append(dict(vertices=vertices.tolist(), triangles=faces.tolist(), uri=path.as_uri(),
                                sha256=hashlib.sha256(path.read_bytes()).hexdigest(), axis=axis, side=side,
-                               outline_vertices=len(triangle)))
+                               outline_vertices=len(vertices)//2,analytic_box=box,wall_base_top_m=wall_base_top))
     if len(result) < 5: raise ValueError('Source does not describe the expected thin-wall carton')
     return result
 
@@ -100,7 +146,12 @@ def dynamic_sdf(instance, shapes, cfg, *, model_name='uwa_grasp_carton'):
         ET.SubElement(tensor, key).text = str(inertia[i, j])
     for index, shape in enumerate(shapes):
         collision = ET.SubElement(link, 'collision', name=f'shell_{index}')
-        ET.SubElement(ET.SubElement(ET.SubElement(collision, 'geometry'), 'mesh'), 'uri').text = shape['uri']
+        geometry=ET.SubElement(collision,'geometry')
+        if shape.get('analytic_box'):
+            vertices=np.array(shape['vertices']);centre=(vertices.max(axis=0)+vertices.min(axis=0))/2
+            ET.SubElement(collision,'pose').text=' '.join(map(str,[*centre,0,0,0]))
+            ET.SubElement(ET.SubElement(geometry,'box'),'size').text=' '.join(map(str,np.ptp(vertices,axis=0)))
+        else:ET.SubElement(ET.SubElement(geometry,'mesh'),'uri').text=shape['uri']
         ode = ET.SubElement(ET.SubElement(ET.SubElement(collision, 'surface'), 'friction'), 'ode')
         ET.SubElement(ode, 'mu').text = str(cfg['friction']); ET.SubElement(ode, 'mu2').text = str(cfg['friction'])
     visual = ET.SubElement(link, 'visual', name='photo_texture')
@@ -118,25 +169,87 @@ def dynamic_sdf(instance, shapes, cfg, *, model_name='uwa_grasp_carton'):
     return ET.tostring(root, encoding='unicode')
 
 
-def contact_description(description, controllers_path):
+def fingertip_contact_primitives(root):
+    """Conservative housing/pad boxes; preserve the source's inner pad plane.
+
+    Split at2mm behind the innermost surface. Include clipped triangle-edge
+    intersections so the union contains the original complete triangle mesh.
+    Separate fixed pad links allow only actual gripping surfaces to touch.
+    """
+    from urllib.parse import urlparse,unquote
+    metadata=[]
+    for arm in ARMS:
+        for side in ('left','right'):
+            name=arm+'_robotiq_85_'+side+'_finger_tip_link';link=root.find(f"link[@name='{name}']")
+            collision=link.find('collision');mesh=collision.find('geometry/mesh');uri=mesh.get('filename')
+            path=Path(unquote(urlparse(uri).path));data=path.read_bytes();count=struct.unpack_from('<I',data,80)[0]
+            if len(data)!=84+50*count:raise ValueError('Expected binary fingertip STL')
+            triangles=np.array([[struct.unpack_from('<3f',data,84+k*50+12+i*12) for i in range(3)] for k in range(count)])
+            triangles*=np.array(list(map(float,mesh.get('scale','1 1 1').split())))
+            vertices=triangles.reshape(-1,3);direction=1 if side=='right' else -1
+            cut=float((vertices[:,0]*direction).max()-.002)
+            clipped=list(vertices[vertices[:,0]*direction>=cut])
+            for a,b in zip(triangles.reshape(-1,3),np.roll(triangles,-1,axis=1).reshape(-1,3)):
+                u,v=a[0]*direction,b[0]*direction
+                if (u-cut)*(v-cut)<0:clipped.append(a+(cut-u)/(v-u)*(b-a))
+            clipped=np.array(clipped);pad_bounds=[clipped.min(axis=0),clipped.max(axis=0)]
+            body_bounds=[vertices.min(axis=0),vertices.max(axis=0)]
+            body_bounds[1 if direction>0 else 0][0]=direction*cut
+            original=collision.find('origin')
+            xyz=np.array(list(map(float,original.get('xyz','0 0 0').split()))) if original is not None else np.zeros(3)
+            angles=original.get('rpy','0 0 0') if original is not None else '0 0 0'
+            rotation=Rotation.from_euler('xyz',list(map(float,angles.split()))).as_matrix()
+            def box(target,bounds):
+                for child in list(target):target.remove(child)
+                centre=(bounds[0]+bounds[1])/2
+                ET.SubElement(target,'origin',xyz=' '.join(map(str,xyz+rotation@centre)),rpy=angles)
+                ET.SubElement(ET.SubElement(target,'geometry'),'box',size=' '.join(map(str,bounds[1]-bounds[0])))
+            collision.set('name',name+'_housing_collision');box(collision,body_bounds)
+            pad_name=arm+'_robotiq_85_'+side+'_finger_tip_pad_link'
+            pad=ET.SubElement(root,'link',name=pad_name);box(ET.SubElement(pad,'collision',name=pad_name+'_collision'),pad_bounds)
+            joint=ET.SubElement(root,'joint',name=pad_name+'_mount',type='fixed')
+            ET.SubElement(joint,'parent',link=name);ET.SubElement(joint,'child',link=pad_name)
+            metadata.append(dict(link=name,pad_link=pad_name,source_mesh=uri,
+                source_sha256=hashlib.sha256(data).hexdigest(),housing_bounds=body_bounds,pad_bounds=pad_bounds,
+                inner_plane_axis=0,inner_plane_direction=direction))
+    return metadata
+
+
+def contact_description(description, controllers_path, finger_damping=.04,coarse=.02,fine=.004,fine_start=.65,geometry_metadata=None,
+                        gear_stiffness=10.,motor_stiffness=10.,transmission='native_gear'):
     """Opt-in profile; default cell description/controllers stay unchanged.
 
     Contact fingers are force servos with measured independent joints. URDF
     mimic is removed only in this profile so collision FK uses real fingers.
     """
     root = ET.fromstring(description)
+    primitives=fingertip_contact_primitives(root)
+    if geometry_metadata is not None:geometry_metadata.extend(primitives)
     control = root.find('ros2_control')
+    arm_backend=ET.SubElement(root,'ros2_control',name='ContactArms',type='system')
+    ET.SubElement(ET.SubElement(arm_backend,'hardware'),'plugin').text='uwa_cell_tasks/ContactArms'
+    for joint in list(control.findall('joint')):
+        if joint.get('name') not in [name for arm in ARMS for name in joint_names(arm)]:continue
+        control.remove(joint);arm_backend.append(joint)
+        for command in list(joint.findall('command_interface')):
+            if command.get('name') not in ('position','velocity'):joint.remove(command)
+        for state in list(joint.findall('state_interface')):
+            if state.get('name')=='effort':joint.remove(state)
     backend = ET.SubElement(root, 'ros2_control', name='ContactGrippers', type='system')
     hardware = ET.SubElement(backend, 'hardware')
     ET.SubElement(hardware, 'plugin').text = 'uwa_cell_tasks/ContactGripper'
-    for name, value in [('kp','3.0'),('kd','0.003'),('max_torque','0.35')]:
-        ET.SubElement(hardware, 'param', name=name).text = value
+    ET.SubElement(hardware,'param',name='native_mimic').text='true' if transmission=='native_gear' else 'false'
+    for name, value in [('kp',gear_stiffness),('motor_kp',motor_stiffness),('kd','0.003'),('max_torque','0.35'),('coarse_velocity',coarse),('fine_velocity',fine),('fine_start',fine_start)]:
+        ET.SubElement(hardware, 'param', name=name).text = str(value)
     for joint in list(control.findall('joint')):
         name = joint.get('name')
         if not any(name.startswith(a+'_robotiq_85_') for a in ARMS): continue
         control.remove(joint); backend.append(joint); joint.set('mimic', 'false')
         if joint.find("state_interface[@name='effort']") is None: ET.SubElement(joint, 'state_interface', name='effort')
         physical = root.find(f"joint[@name='{name}']")
+        dynamics=physical.find('dynamics')
+        if dynamics is None:dynamics=ET.SubElement(physical,'dynamics')
+        dynamics.set('damping',str(finger_damping))
         mimic = physical.find('mimic')
         if mimic is not None:
             for key, value in [('driver',mimic.get('joint')),('multiplier',mimic.get('multiplier','1'))]:
@@ -145,33 +258,89 @@ def contact_description(description, controllers_path):
         else: ET.SubElement(joint, 'param', name='driver').text = name
     plugin = root.find("gazebo/plugin[@name='gz_ros2_control::GazeboSimROS2ControlPlugin']")
     plugin.find('parameters').text = str(controllers_path)
+    from ament_index_python.packages import get_package_prefix
+    servo_library=Path(get_package_prefix('uwa_cell_tasks'))/'lib/libcontact_gripper.so'
+    ET.SubElement(ET.SubElement(root,'gazebo'),'plugin',filename=str(servo_library),name='uwa_cell_tasks::ContactServoSystem')
+    telemetry=ET.SubElement(ET.SubElement(root,'gazebo'),'plugin',filename=str(servo_library),name='uwa_cell_tasks::TaskTelemetry')
+    ET.SubElement(telemetry,'ros_namespace').text='/uwa_cell'
     return ET.tostring(root, encoding='unicode')
 
 
+def physics_description(description):
+    """Native solver gears only in the physical spawn model.
+
+    Planning/TF retain independent measured finger joints. This is an internal
+    mechanical constraint, never a robot/object attachment or pose reset.
+    ros2_control's mimic=false keeps passive joints state-only in our backend.
+    """
+    root=ET.fromstring(description)
+    # The unselected left grippers retain the stock kinematic driver. Do not
+    # add a second physical constraint beside that driver's mimic commands.
+    # Their original mimic rules remain in its robot_description parameter.
+    for joint in root.findall('joint'):
+        if joint.get('name').startswith(('left_front_','left_rear_')):
+            for mimic in list(joint.findall('mimic')):joint.remove(mimic)
+    # Bullet Featherstone supports one multibody tree per model. The ordinary
+    # cell has two table trees attached to SDF's reserved world. A non-reserved
+    # fixed anchor joins them without changing any physical frame or geometry.
+    anchor='task_cell_anchor';link=ET.SubElement(root,'link',name=anchor)
+    inertial=ET.SubElement(link,'inertial');ET.SubElement(inertial,'mass',value='1')
+    ET.SubElement(inertial,'inertia',ixx='1',iyy='1',izz='1',ixy='0',ixz='0',iyz='0')
+    for joint in root.findall('joint'):
+        parent=joint.find('parent')
+        if parent.get('link')=='world':parent.set('link',anchor)
+    fixed=ET.SubElement(root,'joint',name='world_to_task_cell_anchor',type='fixed')
+    ET.SubElement(fixed,'parent',link='world');ET.SubElement(fixed,'child',link=anchor)
+    control=root.find("ros2_control[@name='ContactGrippers']")
+    if control.find("hardware/param[@name='native_mimic']").text=='true':
+        for joint in control.findall('joint'):
+            name=joint.get('name');driver=joint.find("param[@name='driver']").text
+            if driver==name:continue
+            multiplier=joint.find("param[@name='multiplier']").text
+            ET.SubElement(root.find(f"joint[@name='{name}']"),'mimic',joint=driver,multiplier=multiplier,offset='0')
+    return ET.tostring(root,encoding='unicode')
+
+
 def prepare_scene(layout, cfg, directory):
-    directory = Path(directory).resolve(); directory.mkdir(parents=True, exist_ok=True)
+    directory = Path(directory).resolve()
+    if (directory/'scene.json').exists():raise FileExistsError('Scene is immutable; prepare into a new directory')
+    directory.mkdir(parents=True, exist_ok=True)
+    from ament_index_python.packages import get_package_prefix
+    vendor=Path(get_package_prefix('gz_physics_vendor'))
+    library='libgz-physics-'+cfg['physics_engine'].replace('_','-')+'-plugin.so'
+    engines=[base/'lib'/library for base in (vendor,vendor/'opt/gz_physics_vendor')]
+    engine=next((p.resolve() for p in engines if p.is_file()),None)
+    if engine is None:raise FileNotFoundError('Required contact physics engine not installed: '+library)
     instance = next((i for i in instances(layout) if i['id'] == cfg['object_id']), None)
     if instance is None: raise ValueError('Requested object is not in the central layout')
     shapes = carton_shapes(instance, directory/'collision', cfg['wall_thickness_m'])
     description, controllers = render_description(layout, directory/'model')
     params = yaml.safe_load(controllers.read_text())
     params['/uwa_cell/controller_manager']['ros__parameters']['update_rate']=1000
+    # Publish at the measurement cadence, not once per physics substep with
+    # repeated cached states. This keeps geometry/watchdog callbacks responsive.
+    params.setdefault('/uwa_cell/joint_state_broadcaster',{}).setdefault('ros__parameters',{})['update_rate']=100
     group_name = 'rigid_object_controller'
     params['/uwa_cell/controller_manager']['ros__parameters'][group_name] = {'type':'joint_trajectory_controller/JointTrajectoryController'}
     params['/uwa_cell/'+group_name] = {'ros__parameters': dict(
-        joints=[j for a in ARMS for j in joint_names(a)], command_interfaces=['position'],
+        joints=[j for a in ARMS for j in joint_names(a)], command_interfaces=['position','velocity'],
         state_interfaces=['position','velocity'], allow_partial_joints_goal=False,
         action_monitor_rate=50., state_publish_rate=100.,
         constraints=dict(stopped_velocity_tolerance=.003, goal_time=2.0), use_sim_time=True)}
     controllers.write_text(yaml.safe_dump(params))
-    description = contact_description(description, controllers)
+    finger_geometry=[]
+    description = contact_description(description, controllers, cfg['finger_joint_damping_nm_s'],
+        cfg['gripper_coarse_velocity_rad_s'],cfg['gripper_fine_velocity_rad_s'],cfg['gripper_fine_start_rad'],finger_geometry,
+        cfg['gripper_gear_stiffness_nm_rad'],cfg['gripper_motor_stiffness_nm_rad'],cfg['gripper_transmission'])
     (directory/'robot.urdf').write_text(description)
     sdf = dynamic_sdf(instance, shapes, cfg); (directory/'carton.sdf').write_text(sdf)
     world = ET.Element('sdf', version='1.9'); w = ET.SubElement(world, 'world', name='uwa_grasp_lab')
     physics=ET.SubElement(w,'physics', name='default', type='ignored')
-    ET.SubElement(physics,'max_step_size').text='.001'; ET.SubElement(physics,'real_time_factor').text='1'
+    ET.SubElement(physics,'max_step_size').text='.001'
+    ET.SubElement(physics,'real_time_factor').text=str(cfg['simulation_real_time_factor'])
     for filename,name in [('physics','Physics'),('user-commands','UserCommands'),('scene-broadcaster','SceneBroadcaster'),('contact','Contact')]:
-        ET.SubElement(w,'plugin',filename='gz-sim-'+filename+'-system',name='gz::sim::systems::'+name)
+        plugin=ET.SubElement(w,'plugin',filename='gz-sim-'+filename+'-system',name='gz::sim::systems::'+name)
+        if filename=='physics':ET.SubElement(ET.SubElement(plugin,'engine'),'filename').text=str(engine)
     ET.SubElement(w,'gravity').text='0 0 -9.81'
     visual_scene=ET.SubElement(w,'scene');ET.SubElement(visual_scene,'ambient').text='.7 .7 .7 1'
     light=ET.SubElement(w,'light',name='grasp_sun',type='directional')
@@ -185,20 +354,61 @@ def prepare_scene(layout, cfg, directory):
     overview_layout['overview_camera'].update(width=2000,height=1500,rate=10.)
     overview=camera_config(overview_layout)
     overview_model=ET.fromstring(model_sdf(overview)).find('model');overview_model.set('name','uwa_grasp_oak');w.append(overview_model)
+    oak_joint=ET.SubElement(overview_model,'joint',name='fixed_camera_tripod',type='fixed')
+    ET.SubElement(oak_joint,'parent').text='rgb_camera';ET.SubElement(oak_joint,'child').text='tripod'
     (directory/'world.sdf').write_text(ET.tostring(world,encoding='unicode'))
     from ament_index_python.packages import get_package_prefix
     backend=Path(get_package_prefix('uwa_cell_tasks'))/'lib/libcontact_gripper.so'
+    clock_bridge=Path(get_package_prefix('uwa_cell_tasks'))/'lib/uwa_cell_tasks/task_clock_bridge'
+    from match_cooperative_handling import rigid_object
+    from uwa_cell_motion import node as motion_node
+    from ament_index_python.packages import get_package_share_directory
+    sources=set(Path(__file__).resolve().parent.glob('*.py'))
+    sources.add(Path(rigid_object.__file__).resolve())
+    sources.add(Path(motion_node.__file__).resolve())
+    sources.add((Path(get_package_share_directory('uwa_cell_tasks'))/'launch/grasp.launch.py').resolve())
+    implementation={str(path):hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted(sources)}
     record = seal(dict(schema_version=1, cfg=cfg, object_id=instance['id'],
         asset_id=instance['manifest']['asset_id'],
         asset_manifest_sha256=hashlib.sha256((instance['mesh_file'].parent/'asset.json').read_bytes()).hexdigest(),
         backend_binary=str(backend.resolve()),backend_sha256=hashlib.sha256(backend.read_bytes()).hexdigest(),
+        physics_engine_binary=str(engine),physics_engine_sha256=hashlib.sha256(engine.read_bytes()).hexdigest(),
+        world_sha256=hashlib.sha256((directory/'world.sdf').read_bytes()).hexdigest(),
+        carton_sdf_sha256=hashlib.sha256((directory/'carton.sdf').read_bytes()).hexdigest(),
+        clock_bridge_binary=str(clock_bridge.resolve()),clock_bridge_sha256=hashlib.sha256(clock_bridge.read_bytes()).hexdigest(),
+        implementation_sha256=implementation,
+        telemetry_source='native_physics_ecm',
+        lift_reference_point_object_m=mass_properties(shapes,cfg['mass_kg'])[0],
+        lift_reference_kind='uniform_material_model_centre_of_mass',
+        fingertip_collision_models=finger_geometry,
         T_world_object=instance['T_world_object'], asset_sha256=instance['manifest']['files'],
         T_world_overview_optical=transforms(overview)[1],
         shapes=shapes, robot_sha256=hashlib.sha256(description.encode()).hexdigest(),
         controllers_sha256=hashlib.sha256(controllers.read_bytes()).hexdigest(),
-        mass_and_friction_measured=False, contact_model='force-limited coupled finger approximation'))
+        mass_and_friction_measured=False, contact_model=('torque-limited motor with native parallel gear constraints'
+            if cfg['gripper_transmission']=='native_gear' else 'experimental force-limited elastic gear approximation')))
     write_json(directory/'scene.json', record)
     return record
+
+
+def inherit_pad_adjacency(model,semantic_path=None):
+    """Fixed pad parts inherit the existing four-bar hinge exemption.
+
+    The original model already permits inner-knuckle/fingertip contact at
+    their shared mechanical hinge. No environment/interarm exemption added.
+    """
+    semantic=ET.parse(semantic_path) if semantic_path is not None else None
+    for arm in ARMS:
+        for side in ('left','right'):
+            pad=arm+'_robotiq_85_'+side+'_finger_tip_pad_link'
+            knuckle=arm+'_robotiq_85_'+side+'_inner_knuckle_link'
+            model.scene.allowed_collision_matrix.set_entry(pad,knuckle,True)
+            if semantic is not None:
+                ET.SubElement(semantic.getroot(),'disable_collisions',link1=pad,link2=knuckle,
+                    reason='Fixed pad inherits original fingertip hinge adjacency')
+    # Native RRT runs in a separate process and loads this SRDF. Its collision
+    # semantics must match the in-memory Python validator exactly.
+    if semantic is not None:semantic.write(semantic_path,encoding='unicode')
 
 
 def apply_object(model, scene, world_object, *, touching=False):
@@ -211,7 +421,7 @@ def apply_object(model, scene, world_object, *, touching=False):
     if cached is not None and cached[0]==scene['sha256'] and np.allclose(cached[1],t,atol=1e-10,rtol=0):
         for arm in ARMS:
             for side in ('left','right'):
-                model.scene.allowed_collision_matrix.set_entry(arm+'_robotiq_85_'+side+'_finger_tip_link',scene['object_id'],touching)
+                model.scene.allowed_collision_matrix.set_entry(arm+'_robotiq_85_'+side+'_finger_tip_pad_link',scene['object_id'],touching)
         return
     obj = CollisionObject(); obj.header.frame_id='world'; obj.id=scene['object_id']
     t=np.asarray(world_object); q=Rotation.from_matrix(t[:3,:3]).as_quat()
@@ -225,7 +435,7 @@ def apply_object(model, scene, world_object, *, touching=False):
     model._task_object_cache=(scene['sha256'],t.copy())
     for arm in ARMS:
         for side in ('left','right'):
-            model.scene.allowed_collision_matrix.set_entry(arm+'_robotiq_85_'+side+'_finger_tip_link',obj.id,touching)
+            model.scene.allowed_collision_matrix.set_entry(arm+'_robotiq_85_'+side+'_finger_tip_pad_link',obj.id,touching)
 
 
 def verify_scene(directory):
@@ -234,8 +444,19 @@ def verify_scene(directory):
     directory=Path(directory)
     scene=verify(json.loads((directory/'scene.json').read_text()))
     if 'backend_sha256' not in scene:raise ValueError('Unbound development scene; prepare a new scene')
+    if not scene.get('implementation_sha256'):raise ValueError('Unbound task implementation; prepare and relaunch the scene')
+    for path,expected in scene['implementation_sha256'].items():
+        if hashlib.sha256(Path(path).read_bytes()).hexdigest()!=expected:
+            raise ValueError('Task implementation changed; prepare and relaunch the scene')
     if hashlib.sha256(Path(scene['backend_binary']).read_bytes()).hexdigest()!=scene['backend_sha256']:
         raise ValueError('Contact backend changed; prepare and relaunch the scene')
+    if hashlib.sha256(Path(scene['clock_bridge_binary']).read_bytes()).hexdigest()!=scene['clock_bridge_sha256']:
+        raise ValueError('Clock backend changed; prepare and relaunch the scene')
+    if hashlib.sha256(Path(scene['physics_engine_binary']).read_bytes()).hexdigest()!=scene['physics_engine_sha256']:
+        raise ValueError('Physics engine changed; prepare and relaunch the scene')
+    for filename,key in [('world.sdf','world_sha256'),('carton.sdf','carton_sdf_sha256')]:
+        if hashlib.sha256((directory/filename).read_bytes()).hexdigest()!=scene[key]:
+            raise ValueError('Scene physics description changed; prepare a new scene')
     if hashlib.sha256((directory/'model/controllers.yaml').read_bytes()).hexdigest()!=scene['controllers_sha256']:
         raise ValueError('Scene controller configuration changed; prepare a new scene')
     if hashlib.sha256((directory/'robot.urdf').read_bytes()).hexdigest()!=scene['robot_sha256']:

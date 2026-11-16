@@ -12,6 +12,18 @@ from uwa_cell_description.configuration import ROBOT_IDS, joint_names, gripper_j
 PAIRS = (('left_front', 'right_front'), ('left_front', 'left_rear'),
          ('right_front', 'right_rear'), ('left_rear', 'right_rear'))
 
+# Measured Gazebo open-stop chatter: up to5.1urad span, 5.1mrad/s peak.
+# A separate, tighter displacement window prevents accepting a moving tool.
+TOOL_STANDSTILL_SPAN_RAD = 1e-5
+
+
+def standstill_limits(cfg,count):
+    velocity=np.full(count,cfg['standstill_velocity_rad_s'])
+    span=velocity*cfg['standstill_window_s']
+    if count>6:
+        velocity[6:]=cfg['velocity_limit_rad_s'];span[6:]=TOOL_STANDSTILL_SPAN_RAD
+    return velocity,span
+
 
 def config(path=None):
     if path is None:
@@ -68,4 +80,7 @@ def guard_signature(cfg):
     keys=('rate_hz','state_timeout_s','heartbeat_timeout_s','stop_latency_s','braking_acceleration_rad_s2',
           'velocity_limit_rad_s','model_margin_m','reset_hysteresis_m','standstill_velocity_rad_s',
           'standstill_window_s','sphere_spacing_m')
-    return sha(json.dumps(dict(interlock_protocol=3,check_timebase='steady_wall',operating_bounds={k:cfg[k] for k in keys}),sort_keys=True))
+    return sha(json.dumps(dict(interlock_protocol=5,check_timebase='steady_wall',
+        tool_standstill_velocity_rule='operating_cap_and_tight_position_span',
+        tool_standstill_span_rad=TOOL_STANDSTILL_SPAN_RAD,
+        operating_bounds={k:cfg[k] for k in keys}),sort_keys=True))

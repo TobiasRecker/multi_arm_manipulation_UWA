@@ -1,13 +1,42 @@
 from pathlib import Path
 import sys
+import time
 import numpy as np
 import pytest
 from types import SimpleNamespace
 
 sys.path.insert(0,str(Path(__file__).parents[1]))
 from uwa_cell_motion.single_execution import corridor_error
-from uwa_cell_motion.execution import check_stationary,_follow,settle_obstacles,drives_stationary
+from uwa_cell_motion.execution import check_stationary,_follow,settle_obstacles,drives_stationary,unclaimed_tools
 from uwa_cell_motion.common import joint_names
+
+
+def test_motion_node_keeps_clock_and_data_but_omits_unused_warning_waitables(monkeypatch):
+    import rclpy
+    from std_msgs.msg import String
+    from rclpy.event_handler import PublisherEventCallbacks
+    from rclpy.parameter import Parameter
+    from rclpy.executors import SingleThreadedExecutor
+    from uwa_cell_motion.node import MotionNode
+    from uwa_cell_motion.execution import motion_context
+    monkeypatch.setenv('ROS_DOMAIN_ID','64')
+    with motion_context():
+        node=MotionNode('motion_waitable_check')
+        executor=SingleThreadedExecutor();executor.add_node(node)
+        try:
+            node.set_parameters([Parameter('use_sim_time',value=True)])
+            received=[];publisher=node.create_publisher(String,'~/sample',10)
+            subscription=node.create_subscription(String,'~/sample',lambda msg:received.append(msg.data),10)
+            assert all(not entity.event_handlers for entity in list(node.publishers)+list(node.subscriptions))
+            deadline=time.monotonic()+3.
+            while not received and time.monotonic()<deadline:
+                publisher.publish(String(data='valid'));executor.spin_once(timeout_sec=.02)
+            assert received and received[-1]=='valid'
+            assert any(s.topic_name=='/clock' for s in node.subscriptions)
+            explicit=node.create_publisher(String,'~/explicit',10,event_callbacks=PublisherEventCallbacks(
+                incompatible_qos=lambda event:None,use_default_callbacks=False))
+            assert len(explicit.event_handlers)==1
+        finally:executor.shutdown();node.destroy_node()
 
 
 def test_rpc_response_is_serviced_under_continuously_ready_timer_load(monkeypatch):
@@ -67,6 +96,7 @@ def test_selected_arm_gripper_motion_invalidates_arm_only_plan_before_activation
     client=SimpleNamespace(guard={'blocked_arms':[]},supervisor={'blocked_arms':[]},
         positions={j:0. for j in names+[tool]},velocities={j:(.01 if j==tool else 0.) for j in names+[tool]})
     client.health=lambda:None
+    client.hold_idle_tools=lambda:[]
     def wait(predicate,**kwargs):
         assert not predicate()
         raise TimeoutError()
@@ -87,3 +117,22 @@ def test_preceding_obstacle_can_settle_before_start_without_looser_runtime_monit
     client.wait=wait
     settle_obstacles(client,['obstacle'])
     assert client.velocities['selected']==.05
+
+
+def test_idle_tool_hold_only_claims_configured_unowned_drive():
+    names={r:[r+str(i) for i in range(6)]+[r+'_finger'] for r in ('free','held','custom')}
+    controllers=[SimpleNamespace(name='free_gripper_controller',state='inactive',claimed_interfaces=[]),
+        SimpleNamespace(name='held_gripper_controller',state='active',claimed_interfaces=['held_finger/position']),
+        SimpleNamespace(name='custom_owner',state='active',claimed_interfaces=['custom_finger/velocity'])]
+    assert unclaimed_tools(names,controllers)=={'free':'free_finger'}
+
+
+def test_idle_tool_hold_never_preempts_collision_hold():
+    names={'arm':['q'+str(i) for i in range(7)]}
+    controllers=[SimpleNamespace(name='collision_hold',state='active',claimed_interfaces=['q6/position'])]
+    assert unclaimed_tools(names,controllers)=={}
+
+
+def test_unclaimed_drive_without_configured_controller_rejects_execution():
+    with pytest.raises(RuntimeError,match='no configured holding controller'):
+        unclaimed_tools({'arm':['q'+str(i) for i in range(7)]},[])

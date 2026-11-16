@@ -7,7 +7,6 @@ import uuid
 import numpy as np
 import rclpy
 from rclpy.clock import Clock,ClockType
-from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from rclpy.qos import QoSProfile,DurabilityPolicy,ReliabilityPolicy
 from sensor_msgs.msg import JointState
@@ -20,10 +19,11 @@ from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from .common import ROBOT_IDS, all_names, model_context, simulation_only,guard_signature
 from .geometry import SphereModel
 from .guard_core import GuardState
+from .node import MotionNode
 from uwa_cell_control.parallel_scan import collision_signature
 
 
-class CollisionGuard(Node):
+class CollisionGuard(MotionNode):
     def __init__(self, cfg, layout_path=None):
         super().__init__('collision_guard', namespace='/uwa_cell')
         self.set_parameters([rclpy.parameter.Parameter('use_sim_time', value=True)])
@@ -35,7 +35,7 @@ class CollisionGuard(Node):
         self.core = GuardState(cfg); self.cfg = cfg; self.pairs = []; self.positions = {}
         self.instance = str(uuid.uuid4()); self.sequence = 0
         self.previous_blocked=set()
-        self.supervisor_status={}
+        self.supervisor_status={};self.supervisor_received=-float('inf')
         self.publisher = self.create_publisher(String, '~/decision', 10)
         self.markers = self.create_publisher(MarkerArray, '~/markers', 1)
         self.diagnostics = self.create_publisher(DiagnosticArray, '~/diagnostics', 10)
@@ -65,8 +65,18 @@ class CollisionGuard(Node):
         except Exception:self.model_match=False
 
     def supervisor_message(self,msg):
-        try:self.supervisor_status=json.loads(msg.data)
+        try:
+            value=json.loads(msg.data)
+            if not isinstance(value,dict):return
+            if value.get('guard_config_signature')!=guard_signature(self.cfg):return
+            self.supervisor_status=value;self.supervisor_received=time.monotonic()
         except (ValueError,TypeError):pass
+
+    def external_faults(self,now):
+        self.core.external_faults=[] if self.model_match else [dict(arms=list(ROBOT_IDS),reason='MODEL UNCONFIRMED OR MISMATCHED')]
+        available=now-self.supervisor_received<=self.cfg['heartbeat_timeout_s']
+        if not available:self.core.external_faults.append(dict(arms=list(ROBOT_IDS),reason='STOP ADAPTER LOST'))
+        return available
 
     def geometry(self, now):
         velocities = {r: self.core.records[r]['v'] for r in self.core.records}
@@ -81,19 +91,22 @@ class CollisionGuard(Node):
         except Exception as e:
             self.pairs = []; error = str(e)
             self.core.latched.update(ROBOT_IDS)
-        self.core.external_faults=[] if self.model_match else [dict(arms=list(ROBOT_IDS),reason='MODEL UNCONFIRMED OR MISMATCHED')]
+        adapter_available=self.external_faults(now)
         status = self.core.evaluate(self.pairs, now, self.get_clock().now().nanoseconds/1e9)
         blocked=set(status['blocked_arms'])
         if blocked-self.previous_blocked:
             self.get_logger().error('STOP LATCHED: '+json.dumps(status['latched_causes']))
         self.previous_blocked=blocked
         if error: status.update(state='STATE STALE', geometry_error=error)
+        if not adapter_available:status['state']='STOP ADAPTER LOST'
         self.sequence += 1
         status.update(instance=self.instance, sequence=self.sequence, pairs=self.pairs,
                       model_signature=self.signature,model_match=self.model_match,
                       model_uncertainty='SIMULATION: world/table anchors provisional; no measured real stop reserve',
                       guard_config_signature=guard_signature(self.cfg),schema_version=1,
                       evaluated_monotonic_s=now,
+                      stop_adapter_available=adapter_available,
+                      stop_adapter_age_s=None if not self.supervisor_status else now-self.supervisor_received,
                       source_time_s=self.get_clock().now().nanoseconds/1e9,
                       state_ages_s={r: now-self.core.records[r]['received'] for r in self.core.records})
         self.publisher.publish(String(data=json.dumps(status, allow_nan=False)))
@@ -105,16 +118,20 @@ class CollisionGuard(Node):
         self.show(world or {}, status)
 
     def show(self, world, status):
+        # Marker construction allocates hundreds of nested ROS messages. Keep
+        # that display-only work out of headless supervision/benchmarks.
+        if not self.markers.get_subscription_count():return
+        if not status.get('stop_adapter_available',True):world={}
         markers=[Marker(action=Marker.DELETEALL)]; stamp=self.get_clock().now().to_msg(); number=0
         notice=Marker();notice.header.frame_id='world';notice.ns='model_uncertainty';notice.id=0;notice.type=Marker.TEXT_VIEW_FACING
         notice.pose.orientation.w=1.;notice.pose.position.z=2.4;notice.scale.z=.08
         notice.color.r=notice.color.g=notice.color.b=notice.color.a=1.
-        notice.text='SIMULATION · WORLD/TABLE ANCHORS PROVISIONAL';markers.append(notice)
+        notice.text='SIMULATION\nWorld/table:provisional';markers.append(notice)
         for rid in self.names:
             if rid in world:continue
             label=Marker();label.header.frame_id=rid+'_base_link';label.ns='unknown';label.id=number;number+=1
             label.type=Marker.TEXT_VIEW_FACING;label.pose.orientation.w=1.;label.pose.position.z=.8;label.scale.z=.09
-            label.color.r=label.color.g=label.color.b=label.color.a=1.;label.text=rid+' STATE UNAVAILABLE'
+            label.color.r=label.color.g=label.color.b=label.color.a=1.;label.text=rid+'\n'+('STOP\nADAPTER\nLOST' if not status.get('stop_adapter_available',True) else 'STATE\nUNAVAILABLE')
             markers.append(label)
         for rid, centres in world.items():
             blocked=rid in status['blocked_arms'] or rid in self.supervisor_status.get('blocked_arms',[])
@@ -136,14 +153,14 @@ class CollisionGuard(Node):
             else:state='CLEAR'
             record=self.core.records[rid];age=1000*(time.monotonic()-record['received'])
             source_age=1000*(self.get_clock().now().nanoseconds/1e9-record['stamp'])
-            label.text=f'{rid} {state}\ndata {age:.0f}ms / source {source_age:.0f}ms'; markers.append(label)
+            label.text=rid+'\n'+state.replace(' ','\n')+f'\ndata:{age:.0f}ms/source:{source_age:.0f}ms'; markers.append(label)
         if status['state']!='CLEAR' or self.supervisor_status.get('blocked_arms'):
             alert=Marker();alert.header.frame_id='world';alert.ns='alert';alert.id=0;alert.type=Marker.TEXT_VIEW_FACING
             alert.pose.orientation.w=1.;alert.pose.position.z=2.2;alert.scale.z=.12
             alert.color.r=alert.color.g=alert.color.b=alert.color.a=1.
             state=status['state'] if status['state']!='CLEAR' else self.supervisor_status.get('state','HOLD')
-            alert.text='COLLISION GUARD: '+state;markers.append(alert)
-        for pair in self.pairs:
+            alert.text='COLLISION-GUARD:\n'+state.replace(' ','\n');markers.append(alert)
+        for pair in self.pairs if status.get('stop_adapter_available',True) else []:
             line=Marker(); line.header.frame_id='world'; line.ns='nearest'; line.id=number; number+=1
             line.type=Marker.LINE_LIST; line.pose.orientation.w=1.; line.scale.x=.012
             line.color.r=line.color.g=line.color.a=1.
@@ -157,12 +174,14 @@ class CollisionGuard(Node):
             label.type=Marker.TEXT_VIEW_FACING; label.pose.orientation.w=1.; label.scale.z=.045
             p=np.mean(pair['centres'],axis=0); label.pose.position=Point(x=float(p[0]),y=float(p[1]),z=float(p[2]+.08))
             label.color.r=label.color.g=label.color.b=label.color.a=1.
-            label.text=f"{pair['clearance_m']*1000:.0f}mm / STOP {pair['threshold_m']*1000:.0f}mm"; markers.append(label)
+            label.text=f"{pair['clearance_m']*1000:.0f}mm\nSTOP:{pair['threshold_m']*1000:.0f}mm"; markers.append(label)
+        for marker in markers:marker.lifetime.nanosec=350_000_000
         self.markers.publish(MarkerArray(markers=markers))
 
     def reset(self, request, response):
         now=time.monotonic()
         try:
+            self.external_faults(now)
             _, pairs=self.geometry(now)
             response.success,response.message=self.core.reset(pairs,now,self.get_clock().now().nanoseconds/1e9)
         except Exception as error:

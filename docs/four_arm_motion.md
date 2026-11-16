@@ -38,6 +38,13 @@ Execution or the operator must explicitly activate them. No automatic resume.
 `motion.sh status` and `motion.sh logs` inspect the managed user service
 `uwa-cell-motion`. `motion.sh stop` first requests and confirms all four holds,
 then ends only that service. It leaves Gazebo and all hardware services alone.
+
+RViz has separate geometry and independent interlock displays. A missing
+geometric guard clears its old markers and shows `GUARD LOST` with resource
+hold progress and `STANDSTILL UNCONFIRMED`. The geometry node reciprocally
+reports and latches `STOP ADAPTER LOST` if the supervisor disappears. Recovery
+does not release either latch. Both supervision timers use monotonic wall time;
+marker expiry is an additional display safeguard while the RViz clock advances.
 For a foreground session, use `ros2 launch uwa_cell_motion guard.launch.py`
 instead; do not start a second guard beside the managed service.
 
@@ -120,11 +127,25 @@ ros2 run uwa_cell_motion cell_motion snapshot --output /tmp/uwa-start.json
 The request has `schema_version:1`, a complete `start` joint-position mapping
 (radians, including the four gripper drive joints) and `goals` keyed by arm ID.
 Use six joint angles per selected arm. Unselected arms remain scene obstacles.
+This interface positions free arms. Rigid multiarm carrying uses the cooperative
+object-pose controller and its fixed object-to-TCP constraints.
 They must stay stationary. Include every arm intended to move in `goals`;
 an unselected arm moving during execution invalidates the job and stops the
 job's owned arms. This does not globally prohibit independent ROS motion.
 Tool drives also stay at their complete-start values during these arm-only
 trajectories; external gripper movement invalidates the remaining PTP path.
+Before execution, unclaimed gripper drives are held at their measured pose by
+their configured gripper trajectory controllers. Existing resource owners are
+never preempted for this purpose. This prevents passive tool drift during arm
+motion; it does not command a new opening. Tool position and operating limits
+remain monitored.
+
+Standstill uses a300ms measured window. Arm drives retain the3mrad/s limit.
+Gazebo's fully open gripper stop produced up to5.1µrad position chatter with a
+5.1mrad/s velocity peak. Tool standstill therefore requires≤10µrad position
+span and compliance with the operating velocity cap(0.05rad/s); continuous
+slow tool motion fails the span check. The arm velocity threshold is unchanged.
+These measured simulator settings require separate determination on hardware.
 Example goal form:
 
 ```json
@@ -222,8 +243,31 @@ The final offline set is `setup/logs/uwa-motion-comparison-v4/`:300 trials,
 102/125 valid-goal attempts and the circular baseline in115/125. Both rejected
 all25 intentionally invalid goals. Neighbor-crossing success was3/25 versus
 15/25. This is evidence for this suite, not a general planner ranking.
+For free PTP tasks where completion matters more than the particular path,
+the study recommendation is to prefer the circular baseline provisionally and
+retain RRTConnect as the reference. This follows the higher measured success
+rate; individual RRT paths can be shorter, and hardware remains a separate stage.
 The250 unchanged trials retain explicit provenance to the previous comparison;
 the50 corrected crossing trials use the same frozen model/configuration.
+
+All55 distinct complete-start/timed trajectories representing217 successful
+plans were attempted in Gazebo:53 completed, two RRT crossing executions stopped
+(gripper velocity0.05835rad/s above the0.05 operating cap; a152ms state-processing
+gap). Linked trials give100/102 RRT execution successes and115/115 circular
+successes. Exact repeats share physical evidence. All earlier failed preparations,
+development versions and interruptions remain in the report's attempt history;
+the118 retained attempts/18 failures span different development conditions.
+The data audit confirms one collision model/mesh set, planned speed/acceleration
+bounds and a maximum recorded successful endpoint error of0.461mrad.
+
+The final66 motion tests passed(70 including four CTest wrappers), alongside
+36 Gazebo model/overview checks. Final live evidence is
+`setup/logs/uwa-motion-live-guard-check-executor-acceptance.json`; the report is
+`setup/logs/uwa-motion-comparison-v4/report.html`. The comparison ended with all
+four simulated arms resource-held and measured stable, without automatic resume.
+Source/runtime revisions are explicit in the manifest. Unused middleware warning
+callbacks were removed after profiling; actual clock/freshness/heartbeat checks
+and transport QoS remain. This reduces bookkeeping without guaranteeing deadlines.
 
 The live guard check injects proximity/stale-state faults in a separate test
 fixture while moving Gazebo joints. It exposes no fault-injection service in
@@ -232,6 +276,8 @@ faults, topic commands, controller reactivation, state loss and missing guard.
 It also pauses physics while all arms are held, verifies continued wall-time
 checks and `STATE STALE`, and restores physics before moving. Successful
 observed latencies are measurements, not guaranteed worst-case bounds.
+The fault-latency sample ends at the first arm-speed sample below the rest
+threshold; the production `STOPPED` state separately requires300ms history.
 Run it only with the normal motion service stopped:
 
 ```bash

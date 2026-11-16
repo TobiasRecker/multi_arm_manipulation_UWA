@@ -15,7 +15,6 @@ from itertools import combinations
 
 import numpy as np
 import rclpy
-from rclpy.node import Node
 from rclpy.action import ActionClient
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.qos import qos_profile_sensor_data
@@ -24,12 +23,13 @@ from sensor_msgs.msg import JointState
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
 from control_msgs.action import FollowJointTrajectory
-from trajectory_msgs.msg import JointTrajectoryPoint
+from trajectory_msgs.msg import JointTrajectory,JointTrajectoryPoint
 from controller_manager_msgs.srv import SwitchController,ListControllers
 from action_msgs.msg import GoalStatus
 
-from .common import ROBOT_IDS,PAIRS,config,all_names,joint_names,load_layout,default_layout_path,dump,simulation_only,guard_signature
+from .common import ROBOT_IDS,PAIRS,config,all_names,joint_names,load_layout,default_layout_path,dump,simulation_only,guard_signature,standstill_limits
 from .supervisor import hold_name
+from .node import MotionNode
 from uwa_cell_control.parallel_scan import collision_signature
 
 
@@ -51,12 +51,14 @@ def motion_context():
             if rclpy.ok():rclpy.shutdown()
 
 
-class MotionClient(Node):
+class MotionClient(MotionNode):
     def __init__(self,layout_path=None):
         simulation_only()
         super().__init__('ptp_execution',namespace='/uwa_cell')
         self.set_parameters([rclpy.parameter.Parameter('use_sim_time',value=True)])
         self.names=all_names(load_layout(layout_path or default_layout_path()))
+        self.standstill_velocity={j:float(v) for names in self.names.values() for j,v in zip(names,standstill_limits(config(),len(names))[0])}
+        self.standstill_span={j:float(v) for names in self.names.values() for j,v in zip(names,standstill_limits(config(),len(names))[1])}
         self.positions={};self.velocities={};self.received=-float('inf');self.stamp=-float('inf')
         self.source_advanced=-float('inf');self.clock_reversed=False
         self.guard=None;self.supervisor=None;self.guard_received=-float('inf');self.supervisor_received=-float('inf')
@@ -71,6 +73,8 @@ class MotionClient(Node):
         self.switch_client=self.create_client(SwitchController,'/uwa_cell/controller_manager/switch_controller')
         self.list_client=self.create_client(ListControllers,'/uwa_cell/controller_manager/list_controllers')
         self.stop_clients={r:self.create_client(Trigger,'/uwa_cell/collision_supervisor/'+r+'/stop') for r in ROBOT_IDS}
+        self.tool_publishers={r:self.create_publisher(JointTrajectory,'/uwa_cell/'+r+'_gripper_controller/joint_trajectory',10)
+                              for r,names in self.names.items() if len(names)>6}
         # Persistent attachment lets RPC responses run despite a continuously
         # ready high-rate simulation clock. Top-level spin_once reattaches the
         # node on each call and can repeatedly restart callback selection.
@@ -161,6 +165,22 @@ class MotionClient(Node):
         self.switch([r+'_trajectory_controller' for r in arms if r+'_trajectory_controller' not in active],[])
         self.owned.update(arms)
 
+    def hold_idle_tools(self):
+        """Actuate unclaimed tool drives at their measured pose; never preempt."""
+        self.health()
+        future=self.list_client.call_async(ListControllers.Request());self.wait(future.done,3.)
+        tools=unclaimed_tools(self.names,future.result().controller)
+        if not tools:return []
+        poses={r:self.positions[j] for r,j in tools.items()}
+        self.switch([r+'_gripper_controller' for r in tools],[])
+        for rid,joint in tools.items():
+            publisher=self.tool_publishers[rid]
+            self.wait(lambda:publisher.get_subscription_count()>0,3.,health=True)
+            message=JointTrajectory();message.joint_names=[joint]
+            point=JointTrajectoryPoint();point.positions=[poses[rid]];point.velocities=[0.];point.accelerations=[0.]
+            point.time_from_start.nanosec=200_000_000;message.points=[point];publisher.publish(message)
+        return list(tools)
+
     def stop(self,arms):
         arms=set(arms);errors=[];requests=[]
         for rid,handle in self.handles.items():
@@ -249,9 +269,19 @@ class MotionClient(Node):
 
 def check_stationary(client,baseline):
     """All joints outside the trajectory, including tool drives, stay fixed."""
-    if any(abs(client.positions[j]-q)>.001 or abs(client.velocities[j])>.003
-           for j,q in baseline.items()):
-        raise RuntimeError('Stationary obstacle/tool joint moved; remaining PTP path invalidated')
+    moved=[dict(joint=j,delta_rad=client.positions[j]-q,velocity_rad_s=client.velocities[j])
+           for j,q in baseline.items() if abs(client.positions[j]-q)>.001 or abs(client.velocities[j])>getattr(client,'standstill_velocity',{}).get(j,.003)]
+    if moved:raise RuntimeError('Stationary obstacle/tool joint moved; remaining PTP path invalidated: '+json.dumps(moved))
+
+
+def unclaimed_tools(names,controllers):
+    occupied={j.split('/')[0] for c in controllers if c.state=='active' for j in c.claimed_interfaces}
+    inactive={c.name for c in controllers if c.state=='inactive'};tools={}
+    for rid,joints in names.items():
+        if len(joints)<=6 or joints[-1] in occupied:continue
+        if rid+'_gripper_controller' not in inactive:raise RuntimeError(rid+': unclaimed tool drive has no configured holding controller')
+        tools[rid]=joints[-1]
+    return tools
 
 
 def settle_obstacles(client,joints):
@@ -260,7 +290,7 @@ def settle_obstacles(client,joints):
     quiet_since=None
     def quiet():
         nonlocal quiet_since
-        if any(abs(client.velocities[j])>.003 for j in joints):quiet_since=None;return False
+        if any(abs(client.velocities[j])>getattr(client,'standstill_velocity',{}).get(j,.003) for j in joints):quiet_since=None;return False
         if quiet_since is None:quiet_since=time.monotonic()
         return time.monotonic()-quiet_since>=.1
     try:client.wait(quiet,timeout=5.,health=True)
@@ -271,7 +301,7 @@ def drives_stationary(client):
     """Use the same independent drives as guard/hold, not passive mimic noise."""
     required=[j for names in client.names.values() for j in names]
     return bool(required and all(j in client.velocities and np.isfinite(client.velocities[j])
-                                 and abs(client.velocities[j])<.003 for j in required))
+                                 and abs(client.velocities[j])<getattr(client,'standstill_velocity',{}).get(j,.003) for j in required))
 
 
 def safe_targets(problem,client,desired,active):
@@ -366,9 +396,14 @@ def _execute(plan,output,restore_start=False):
         import traceback
         result['error_traceback']=traceback.format_exc()
         result['guard_status']=client.guard;result['supervisor_status']=client.supervisor
+        result['measured_positions_on_error']=dict(client.positions);result['measured_velocities_on_error']=dict(client.velocities)
         if client.owned:result['stop_result']=client.stop(client.owned)
         if isinstance(error,KeyboardInterrupt):result['error']='INTERRUPTED'
     finally:
+        result.setdefault('guard_status',client.guard)
+        result.setdefault('supervisor_status',client.supervisor)
+        if not result['success'] and not result.get('error') and result.get('stopped_arms'):
+            result['error']='Execution stopped by latched interlock: '+', '.join(result['stopped_arms'])
         result['total_wall_s']=time.monotonic()-started;dump(output,result)
         client.destroy_node()
     return result
@@ -377,6 +412,8 @@ def _execute(plan,output,restore_start=False):
 def _follow(problem,client,plan,result):
     selected=plan['request']['selected'];blocked=set(client.guard['blocked_arms'])|set(client.supervisor['blocked_arms'])
     if blocked&set(selected):raise RuntimeError('Selected arm is latched; explicit reset required')
+    tools=client.hold_idle_tools()
+    if tools:result.setdefault('tool_holds_started',[]).extend(tools)
     commanded=set(plan['trajectory']['joint_names'])
     fixed=[j for names in problem.names.values() for j in names if j not in commanded]
     settle_obstacles(client,fixed)
@@ -430,6 +467,7 @@ def reset():
         # arm states: partial resets must remain possible with one missing arm.
         client.wait(lambda:client.guard is not None and client.supervisor is not None
             and time.monotonic()-client.guard_received<.4 and time.monotonic()-client.supervisor_received<.4
+            and client.guard.get('stop_adapter_available',True)
             and client.supervisor.get('guard_age_s') is not None,timeout=15.)
         response=client.service(Trigger,'/uwa_cell/collision_supervisor/reset',Trigger.Request())
         if not response.success:raise RuntimeError(response.message)
@@ -447,7 +485,7 @@ def stop_all():
         stopped=client.stop(ROBOT_IDS)
         if not stopped['resource_holds_confirmed']:
             raise RuntimeError('STOP_UNCONFIRMED: controller resource holds not confirmed')
-        since=None;end=time.monotonic()+5.
+        since=None;reference={};end=time.monotonic()+5.
         while time.monotonic()<end:
             client.spin_once(timeout_sec=.02)
             quiet=(time.monotonic()-client.received<.15 and time.monotonic()-client.source_advanced<.15
@@ -455,7 +493,9 @@ def stop_all():
                    -.02<=client.get_clock().now().nanoseconds/1e9-client.stamp<=.15 and
                    drives_stationary(client))
             if quiet:
-                if since is None:since=time.monotonic()
+                if since is None:since=time.monotonic();reference=dict(client.positions)
+                if any(abs(client.positions[j]-reference[j])>client.standstill_span[j] for j in reference if j in client.standstill_span):
+                    since=None;continue
                 if time.monotonic()-since>=.3:
                     message='STOPPED: four resource holds active; measured drive standstill confirmed'
                     return message if stopped['latches_confirmed'] else message+'; supervisor latch acknowledgement unavailable, resource holds persist'

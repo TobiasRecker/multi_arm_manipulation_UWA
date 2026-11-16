@@ -19,7 +19,9 @@ from .capture_telemetry import StationarityAudit
 class OutputReader:
     def __init__(self,host):
         self.socket=socket.create_connection((host,30004),timeout=2)
-        self.socket.settimeout(.4)
+        # Subscription negotiation can take longer than one telemetry interval.
+        # Once streaming, keep the original short timeout/freshness contract.
+        self.socket.settimeout(2.)
         try:
             if self.request(86,struct.pack('>H',2))!=b'\x01':raise RuntimeError('RTDE protocol2 rejected')
             recipe=self.request(79,struct.pack('>d',20.)+b'timestamp,actual_q,actual_qd')
@@ -27,6 +29,7 @@ class OutputReader:
                 raise RuntimeError('Unexpected output-only RTDE recipe')
             self.recipe=recipe[0]
             if self.request(83)!=b'\x01':raise RuntimeError('RTDE output subscription rejected')
+            self.socket.settimeout(.4)
         except BaseException:self.socket.close();raise
 
     def exact(self,count):

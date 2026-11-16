@@ -6,12 +6,21 @@ dwell_s: 2.0
 mass_kg: 0.3
 friction: 0.6
 wall_thickness_m: 0.0025
-pregrasp_distance_m: 0.06
-max_object_speed_m_s: 0.005
+finger_joint_damping_nm_s: 0.08
+gripper_transmission: elastic_gear
+physics_engine: dartsim
+simulation_real_time_factor: 0.6
+gripper_gear_stiffness_nm_rad: 100.0
+gripper_motor_stiffness_nm_rad: 10.0
+gripper_coarse_velocity_rad_s: 0.02
+gripper_fine_velocity_rad_s: 0.004
+gripper_fine_start_rad: 0.65
+pregrasp_distance_m: 0.08
+max_object_speed_m_s: 0.0005
 joint_velocity_rad_s: 0.05
 joint_acceleration_rad_s2: 0.10
 relative_position_tolerance_m: 0.002
 relative_angle_tolerance_rad: 0.017453292519943295
 maximum_observation_age_s: 5.0
 maximum_attempts: 3
-simulation_assumptions: [rigid_empty_carton, unmeasured_mass, unmeasured_friction, approximate_geometry]
+simulation_assumptions: [rigid_empty_carton, upright_carton_on_horizontal_support, unmeasured_mass, unmeasured_friction, approximate_geometry, unmeasured_finger_damping, unmeasured_transmission_stiffness, idealized_parallel_transmission, idealized_arm_actuators]

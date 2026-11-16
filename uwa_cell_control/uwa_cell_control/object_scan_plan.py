@@ -254,6 +254,20 @@ def checked_schedule(model, start, candidates, final_check, *, velocity=.05, acc
     return None
 
 
+def extra_view_targets(centre_pose,target,config):
+    """Optional real orbit diversity, then the legacy local translation reserves."""
+    for angle in config.get('extra_camera_orbit_deg',[]):
+        if not np.isfinite(angle) or not 0<abs(angle)<=45:raise ValueError('Orbit angle must be finite and within45degrees')
+        offset=centre_pose[:3,3]-target
+        eye=target+Rotation.from_euler('z',angle,degrees=True).apply(offset)
+        yield dict(orbit_deg=float(angle)),look_at(eye,target,centre_pose[:3,0])
+    offsets=config['extra_camera_xy_offsets_m']+config.get('extra_camera_xy_reserve_offsets_m',[])
+    for dx,dy in offsets:
+        if not np.isfinite([dx,dy]).all():raise ValueError('Invalid view offset')
+        eye=centre_pose[:3,3]+centre_pose[:3,0]*dx+centre_pose[:3,1]*dy
+        yield dict(offset_camera_xy_m=[dx,dy]),look_at(eye,target,centre_pose[:3,0])
+
+
 def extra_views(model, layout, geometry, state, target, config, wall_check=lambda rid,frames: True):
     state = dict(state)
     steps, rejected = [], []
@@ -262,35 +276,32 @@ def extra_views(model, layout, geometry, state, target, config, wall_check=lambd
         chain = Chain(model.description, 'world', rid + '_wrist_camera_optical_frame')
         centre_pose = chain.forward(state)
         accepted_count = 0
-        offsets = config['extra_camera_xy_offsets_m'] + config.get('extra_camera_xy_reserve_offsets_m', [])
-        for dx, dy in offsets:
+        for offset,desired in extra_view_targets(centre_pose,target['centre'],config):
             if accepted_count >= config.get('target_extra_views_per_arm', len(config['extra_camera_xy_offsets_m'])):
                 break
-            desired = look_at(centre_pose[:3, 3] + centre_pose[:3, 0] * dx + centre_pose[:3, 1] * dy,
-                              target['centre'], centre_pose[:3, 0])
             seed = [state[j] for j in names]
             q = solve_ik(chain, names, desired, seed, [model.bounds[j] for j in names],
                          max_change=config['extra_max_joint_change_rad'])
             if q is None:
-                rejected.append(dict(arm=rid, offset=[dx, dy], reason='local IK unavailable'))
+                rejected.append(dict(arm=rid, offset=offset, reason='local IK unavailable'))
                 continue
             endpoint = dict(state, **dict(zip(names, q)))
             frames = geometry.frames(endpoint)
             if not wall_check(rid, frames):
-                rejected.append(dict(arm=rid, offset=[dx, dy], reason='per-arm wall buffer'))
+                rejected.append(dict(arm=rid, offset=offset, reason='per-arm wall buffer'))
                 continue
             actual = frames[rid + '_wrist_camera_optical_frame']
             view = visibility(geometry, frames, actual, target, optics(layout, rid), [rid + '_wrist_camera_link'])
             if not view['passes']:
-                rejected.append(dict(arm=rid, offset=[dx, dy], reason='object bounds/occlusion'))
+                rejected.append(dict(arm=rid, offset=offset, reason='object bounds/occlusion'))
                 continue
             try:
                 points = timed_path(model, rid, state, q, config['velocity_rad_s'], config['acceleration_rad_s2'])
             except ValueError:
-                rejected.append(dict(arm=rid, offset=[dx, dy], reason='full-cell path collision'))
+                rejected.append(dict(arm=rid, offset=offset, reason='full-cell path collision'))
                 continue
             steps.append(dict(arm=rid, start=dict(state), target=q.tolist(), points=points,
-                              camera_world=actual.tolist(), purpose='additional_object_view', offset_camera_xy_m=[dx, dy]))
+                              camera_world=actual.tolist(), purpose='additional_object_view', **offset))
             state = endpoint
             accepted_count += 1
     return steps, rejected
@@ -397,10 +408,30 @@ def read_live_snapshot(inventory):
         context.try_shutdown()
 
 
+def read_rtde_snapshot(inventory):
+    """Output-only measured start for OFFLINE planning, without ROS drivers."""
+    from concurrent.futures import ThreadPoolExecutor
+    from .capture_rtde import OutputReader
+    robots=yaml.safe_load(Path(inventory).read_text())['robots']
+    def read(rid):
+        reader=OutputReader(robots[rid]['ip'])
+        try:
+            before=reader.sample();stamp,q,qd=reader.sample()
+            if stamp<=before[0]:raise ValueError(rid+': controller timestamp did not advance')
+            if len(q)!=6 or not np.isfinite(q).all() or not np.isfinite(qd).all():raise ValueError('Invalid RTDE state')
+            return rid,dict(positions=q,velocities=qd,source='live_rtde_output',
+                controller_timestamp_s=stamp,recorded_at=datetime.now(timezone.utc).isoformat())
+        finally:reader.close()
+    with ThreadPoolExecutor(max_workers=4) as pool:arms=dict(pool.map(read,ROBOT_IDS))
+    return dict(mode='hardware',arms=arms,source='output-only RTDE; offline planning, no execution authority',
+        recorded_at=datetime.now(timezone.utc).isoformat())
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--snapshot', type=Path, help='Read-only saved mode/arms JointState snapshot')
     parser.add_argument('--read-live-state', action='store_true', help='Read all four joint states; never start drivers')
+    parser.add_argument('--read-rtde-state', action='store_true', help='Output-only measured start without ROS drivers; planning only')
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--config', type=Path)
     parser.add_argument('--layout', type=Path, default=default_layout_path())
@@ -411,15 +442,13 @@ def main():
         from .parking_preview import preview
         preview(args.output / f'review_step_{args.preview_step:03d}.json', domain=74)
         return
-    if (args.snapshot is None and not args.read_live_state) or args.config is None:
-        parser.error('Provide --config and either --snapshot or --read-live-state')
-    if args.snapshot is not None and args.read_live_state:
-        parser.error('Choose a saved snapshot or --read-live-state')
+    if sum((args.snapshot is not None,args.read_live_state,args.read_rtde_state))!=1 or args.config is None:
+        parser.error('Provide --config and exactly one of --snapshot, --read-live-state, --read-rtde-state')
     from match_ur_hardware.profiles import load_profiles
     config = yaml.safe_load(args.config.read_text())
     args.output.mkdir(parents=True, exist_ok=True)
-    if args.read_live_state:
-        snapshot = read_live_snapshot(args.inventory)
+    if args.read_live_state or args.read_rtde_state:
+        snapshot = read_live_snapshot(args.inventory) if args.read_live_state else read_rtde_snapshot(args.inventory)
         args.snapshot = args.output / 'snapshot.json'
         args.snapshot.write_text(json.dumps(snapshot, indent=2) + '\n')
     else:
@@ -428,8 +457,8 @@ def main():
         raise ValueError('Snapshot requires explicit hardware/mock provenance')
     layout = load_layout(args.layout)
     start, sources, missing = complete_state(layout, snapshot['arms'])
-    expected_source = 'live_joint_states' if snapshot['mode'] == 'hardware' else 'mock_joint_states'
-    if missing or any(sources[rid] != expected_source for rid in ROBOT_IDS):
+    expected_sources = ('live_joint_states','live_rtde_output') if snapshot['mode'] == 'hardware' else ('mock_joint_states',)
+    if missing or any(sources[rid] not in expected_sources for rid in ROBOT_IDS):
         raise ValueError('All four measured joint states are required; no home/layout substitution')
     profiles = load_profiles(args.inventory)
     model, layout = make_model(layout, profiles, args.output / 'model')

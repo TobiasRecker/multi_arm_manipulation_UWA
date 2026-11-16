@@ -6,6 +6,21 @@ test "$(id -un)" = ubuntu22
 test -O "$UWA_FP_ROOT"
 test -x "$CONDA_PREFIX/bin/python"
 cd "$UWA_FP_ROOT/FoundationPose"
+# Upstream hardcodes /tmp for OBJ plus shared material filenames. Keep those
+# temporary model files inside this experiment's private directory as well.
+python - <<'PY'
+from pathlib import Path
+p = Path('estimater.py')
+original = "self.mesh_path = f'/tmp/{uuid.uuid4()}.obj'"
+replacement = "self.mesh_path = os.path.join(os.environ['TMPDIR'], f'{uuid.uuid4()}.obj')"
+text = p.read_text()
+if original in text:
+    assert text.count(original) == 1
+    p.write_text(text.replace(original, replacement))
+elif replacement not in text:
+    raise RuntimeError('Unexpected upstream temporary mesh export path')
+PY
+git diff -- estimater.py > "$UWA_FP_ROOT/logs/upstream-local.patch"
 constraints="$UWA_FP_ROOT/tools/foundationpose_titanpc_constraints.txt"
 python -m pip install --no-cache-dir -c "$constraints" -r requirements.txt \
   pybind11 setuptools wheel ninja gdown

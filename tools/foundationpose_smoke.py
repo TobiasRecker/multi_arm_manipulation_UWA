@@ -89,9 +89,17 @@ def main():
         )
         rendered_depth = rendered_depth[0].detach().cpu().numpy()
         predicted = rendered_depth > 0
-        observed = reader.get_mask(index).astype(bool)
-        row['mask_iou'] = float((predicted & observed).sum() / max(1, (predicted | observed).sum()))
-        overlap = predicted & observed & (depth > 0)
+        mask_path = Path(reader.color_files[index].replace('/rgb/', '/masks/'))
+        row['reference_mask_available'] = mask_path.is_file()
+        if mask_path.is_file():
+            observed = reader.get_mask(index).astype(bool)
+            row['mask_iou'] = float((predicted & observed).sum() / max(1, (predicted | observed).sum()))
+            overlap = predicted & observed & (depth > 0)
+            row['depth_region'] = 'rendered silhouette intersected with provided object mask'
+        else:
+            row['mask_iou'] = None
+            overlap = predicted & (depth > 0)
+            row['depth_region'] = 'rendered silhouette; may include occluders'
         row['overlap_depth_median_abs_mm'] = (float(np.median(np.abs(rendered_depth[overlap] - depth[overlap])) * 1000)
                                               if overlap.any() else None)
         # Read annotations only AFTER estimation, solely for separate evaluation.

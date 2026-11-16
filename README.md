@@ -62,10 +62,14 @@ for agents sharing this checkout; read active entries before editing or restarti
 
 ## Image-to-CAD prototype
 
-A [proposed repeatable digitization workflow](docs/digitization_pipeline_plan.md)
-separates tested execution from new geometry development, with configurable
-shape templates and explicit checks for faster operation at lower reasoning
-effort. This is a design proposal; the generic runner is not implemented yet.
+A [resumable digitization runner](docs/digitization_workflow.md) now separates
+tested execution from new geometry development: native-set import/capture,
+fixed optics, two parametric shape recipes, data-driven texture faces, checked
+candidate export and held-out tracking checks. Use `scripts/digitize.sh`.
+Complex objects explicitly request a mesh backend, which is not registered yet.
+The [student robot test](docs/student_robot_digitization.md) has offline-checked
+view proposals; hardware capture is interrupted while the operator has the URs off.
+Actual lower-reasoning quality/latency comparison remains to be measured.
 
 A first [assisted object-digitization pipeline](docs/object_digitization.md)
 reconstructs an open three-compartment carton from saved colour photographs.
@@ -108,6 +112,12 @@ assets for separate static localization and fast online tracking. The bounded
 real-OAK test received10fps with7.5ms median tracking computation; the object
 remained stationary, so real motion/occlusion and absolute accuracy still need
 validation. Start camera-only: `bash src/multi_arm_manipulation_UWA/scripts/object_tracking.sh oak`.
+
+An isolated [FoundationPose setup on the shared TITAN RTX workstation](docs/foundationpose_titanpc.md)
+now passes a100-frame recorded RGB-D motion test, with24.6ms median tracking
+computation. Its own environment and caches live on a data drive; system
+packages, drivers and existing environments were preserved. Real OAK input and
+our object assets still need a separate integration and validation.
 
 
 The new [PTFE L assembly asset](docs/ptfe_l_assembly.md) includes real photo
@@ -470,6 +480,10 @@ grasping, the carrying arms follow one rigid object's motion on a common time
 law. Its isolated validation world does not restart this cell. Development and
 actual grasp evidence are recorded separately in HANDOVER; software availability
 alone is not a successful physical-contact lift.
+Five complete contact cycles and three loaded fault cases have passed their
+recorded checks. Nominal grasp repeatability remains unresolved: some repeated
+attempts hit passive-finger speed limits and stop retaining grip. The default
+is an experimental simulation profile; see the guide's full evidence matrix.
 
 For the new **simulation-only four-arm collision guard and PTP comparison**,
 see [the motion guide](docs/four_arm_motion.md). It provides a10Hz neighbor-pair

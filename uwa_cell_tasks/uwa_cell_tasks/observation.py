@@ -18,7 +18,7 @@ def rendered_static_pose(estimator,frames,K,D,records):
     if len(set(hashes))>=3:return static_pose(estimator,frames,K,D)
     stamps=[r['stamp'] for r in records]
     if (len(frames)<3 or len(records)!=len(frames)
-            or not all(r.get('environment')=='own_gazebo_renderer' for r in records)
+            or not all(r.get('environment') in ('own_gazebo_renderer','own_gazebo_snapshot_renderer') for r in records)
             or not np.isfinite(stamps).all() or not all(b>a for a,b in zip(stamps,stamps[1:]))):
         raise ValueError('Repeated pixels need advancing own-renderer source stamps')
     result=estimator.register(frames[-1],K,D)
@@ -34,7 +34,7 @@ def observe(sim,description,reference,directory):
         raise ValueError('Image reference belongs to a different asset revision')
     sim.wait(lambda:all(abs(sim.v.get(j,1))<.003 for j in sim.q if '_robotiq_' not in j),10.,health=True)
     from std_srvs.srv import Trigger
-    baseline=dict(sim.q);records=[]
+    baseline=dict(sim.q);initial_object=np.array(sim.object['T_world_object']);records=[]
     minimum_stamp=sim.now()
     deadline=time.monotonic()+30.
     while not records and time.monotonic()<deadline:
@@ -45,12 +45,16 @@ def observe(sim,description,reference,directory):
         except RuntimeError as error:
             if 'WAITING for' not in str(error):raise
             time.sleep(.1);continue
-        if any(r['stamp']<minimum_stamp or not 0<=sim.now()-r['stamp']<=1. for r in batch):
-            time.sleep(.1);continue
+        if any(r.get('snapshot_physics_stamp',-1)<minimum_stamp-.02 for r in batch):
+            raise RuntimeError('Renderer snapshot predates the stationary inspection')
+        movement=pose_error(initial_object,sim.object['T_world_object'])
+        if movement[0]>.0005 or movement[1]>.005:raise RuntimeError('Physical object moved during snapshot rendering')
+        if any(abs(sim.q.get(j,1e9)-q)>.001 for j,q in baseline.items() if '_robotiq_' not in j):
+            raise RuntimeError('Physical arms moved during snapshot rendering')
         for record in batch:
             arm=record['arm']
             record['T_world_camera']=(json.loads((sim.directory/'scene.json').read_text())['T_world_overview_optical'] if arm=='oak'
-                else Chain(description,'world',arm+'_wrist_camera_optical_frame').forward(baseline).tolist())
+                else Chain(description,'world',arm+'_wrist_camera_optical_frame').forward(record['snapshot_physics_joint_positions']).tolist())
         records=batch
     if not records:raise RuntimeError('No fresh calibrated camera images')
     write_json(directory/'inputs.json',records)
@@ -60,7 +64,9 @@ def observe(sim,description,reference,directory):
     if result.returncode:raise RuntimeError('Image worker failed: '+result.stderr[-1000:])
     observation=json.loads((directory/'result.json').read_text())
     if observation['status']!='VALID':raise RuntimeError('Visual localization '+observation['status']+': '+observation['reason'])
-    if sim.now()-observation['source_stamp']>5.:raise RuntimeError('Visual observation expired during processing')
+    age=sim.now()-observation['source_stamp']
+    if age<-.02 or age>scene['cfg']['maximum_observation_age_s']:
+        raise RuntimeError('Visual observation expired or has a future source stamp')
     return observation
 
 
@@ -69,7 +75,7 @@ def worker(inputs,reference,output):
     from uwa_cell_tracking.core import TexturePose
     from uwa_cell_tracking.static import static_pose
     from uwa_cell_tracking.cli import record,annotate
-    cv2.setNumThreads(2);estimator=TexturePose(Path(reference));views=[]
+    cv2.setNumThreads(2);estimator=TexturePose(Path(reference),width=2400);views=[]
     records=json.loads(Path(inputs).read_text())
     for arm in CAMERAS:
         selected=[r for r in records if r['arm']==arm]
@@ -79,7 +85,8 @@ def worker(inputs,reference,output):
         frames=[np.load(r['image'],allow_pickle=False) for r in selected]
         K=np.array(selected[-1]['K']).reshape(3,3);D=np.array(selected[-1]['D'])
         result=rendered_static_pose(estimator,frames,K,D,selected)
-        data=record(result);data.update(arm=arm,source_stamp=selected[-1]['stamp'])
+        data=record(result);data.update(arm=arm,source_stamp=selected[-1].get('snapshot_physics_stamp',selected[-1]['stamp']),
+            renderer_source_stamp=selected[-1]['stamp'],renderer_clock_domain=selected[-1].get('clock_domain','physical_world'))
         if result.status=='VALID':data['T_world_object']=(np.array(selected[-1]['T_world_camera'])@result.T_camera_object).tolist()
         cv2.imwrite(str(Path(output).parent/(arm+'-inspection.jpg')),annotate(frames[-1],result,K,D));views.append(data)
     valid=[v for v in views if v['status']=='VALID']

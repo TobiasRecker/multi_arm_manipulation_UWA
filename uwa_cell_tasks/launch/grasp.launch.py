@@ -13,14 +13,14 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from uwa_cell_description.configuration import default_layout_path,load_layout,controller_names,joint_names,gripper_joint
 from uwa_cell_tasks.guard import supervisor_remaps
-from uwa_cell_tasks.scene import verify_scene
+from uwa_cell_tasks.scene import verify_scene,physics_description
 
 
 def setup(context):
     directory=Path(LaunchConfiguration('scene').perform(context)).resolve()
     verify_scene(directory)
     ns=LaunchConfiguration('namespace').perform(context).rstrip('/')
-    if not ns.startswith('/') or ns in ('/','/uwa_hardware','/uwa_cell'):raise ValueError('Use an isolated simulation namespace')
+    if not ns.startswith('/uwa_grasp_'):raise ValueError('Use an isolated /uwa_grasp_* simulation namespace')
     layout_file=LaunchConfiguration('layout').perform(context);layout=load_layout(layout_file)
     params=yaml.safe_load((directory/'model/controllers.yaml').read_text())
     params={key.replace('/uwa_cell',ns,1):value for key,value in params.items()}
@@ -33,21 +33,22 @@ def setup(context):
     root=ET.fromstring(description)
     plugin=root.find("gazebo/plugin[@name='gz_ros2_control::GazeboSimROS2ControlPlugin']")
     plugin.find('parameters').text=str(param_file);plugin.find('ros/namespace').text=ns
+    root.find("gazebo/plugin[@name='uwa_cell_tasks::TaskTelemetry']/ros_namespace").text=ns
     ET.SubElement(plugin.find('ros'),'remapping').text='/clock:='+ns+'/clock'
-    for sensor in root.findall('gazebo/sensor'):
-        if sensor.find('update_rate') is not None:sensor.find('update_rate').text='10'
     for reference in root.findall('gazebo'):
-        if reference.get('reference','').startswith(('left_front_','left_rear_')):
-            for sensor in list(reference.findall('sensor')):reference.remove(sensor)
+        for sensor in list(reference.findall('sensor')):reference.remove(sensor)
     description=ET.tostring(root,encoding='unicode')
+    physics_file=directory/'robot.physics.urdf';physics_file.write_text(physics_description(description))
     world=directory/'world.live.sdf';wroot=ET.parse(directory/'world.sdf').getroot()
     wroot=ET.fromstring(ET.tostring(wroot,encoding='unicode').replace('/uwa_cell/',ns+'/'))
-    sensors=ET.SubElement(wroot.find('world'),'plugin',filename='gz-sim-sensors-system',name='gz::sim::systems::Sensors')
-    ET.SubElement(sensors,'render_engine').text='ogre2';world.write_text(ET.tostring(wroot,encoding='unicode'))
+    for model in wroot.find('world').findall('model'):
+        for link in model.findall('link'):
+            for sensor in list(link.findall('sensor')):link.remove(sensor)
+    world.write_text(ET.tostring(wroot,encoding='unicode'))
     clock=[('/clock',ns+'/clock')]
     server=ExecuteProcess(cmd=['gz','sim','-s','-r',str(world),'--headless-rendering','-v','2'],output='screen')
     spawn=Node(package='ros_gz_sim',executable='create',namespace=ns,
-        arguments=['-world','uwa_grasp_lab','-name','uwa_cell_grasp','-allow_renaming','false','-topic',ns+'/robot_description'],output='screen')
+        arguments=['-world','uwa_grasp_lab','-name','uwa_cell_grasp','-allow_renaming','false','-file',str(physics_file)],output='screen')
     pose=np.array(json.loads((directory/'scene.json').read_text())['T_world_object'])
     angles=Rotation.from_matrix(pose[:3,:3]).as_euler('xyz')
     pose_args=[str(v) for pair in zip(('-x','-y','-z','-R','-P','-Y'),[*pose[:3,3],*angles]) for v in pair]
@@ -56,8 +57,6 @@ def setup(context):
     actions=[server,RegisterEventHandler(OnProcessExit(target_action=server,on_exit=[EmitEvent(event=Shutdown(reason='Own grasp world exited'))])),
         Node(package='robot_state_publisher',executable='robot_state_publisher',namespace=ns,
             parameters=[dict(robot_description=description,use_sim_time=True)],remappings=clock+[('/tf',ns+'/tf'),('/tf_static',ns+'/tf_static')],output='screen'),
-        Node(package='uwa_cell_tasks',executable='cell_task',namespace=ns,
-            arguments=['bridge','--namespace',ns,'--world','uwa_grasp_lab'],output='screen'),
         Node(package='uwa_cell_tasks',executable='cell_task',namespace=ns,
             arguments=['camera','--namespace',ns,'--scene',str(directory)],output='screen')]
     sequence=[spawn,carton]

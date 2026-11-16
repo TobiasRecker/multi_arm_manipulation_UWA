@@ -47,16 +47,19 @@ def main():
             write_json(args.output/'plan.json',result)
         print(json.dumps(dict(output=str(args.output.resolve()),sha256=result['sha256'])));return
     if args.command in ('status','preview'):
+        if not (args.run/'state.json').is_file():parser.error('Existing task run with state.json required')
         store=RunStore(args.run)
         if args.command=='status':print(json.dumps(store.state,indent=2));return
         from .preview import preview
         print(preview(args.run));return
     if args.command=='review':
+        if not (args.run/'state.json').is_file():parser.error('Existing task run with state.json required')
         RunStore(args.run).submit_review(args.sha256,args.decision,args.reason);print('REVIEW RECEIVED');return
     if args.command=='stop':
         # Runner observes this and latches holds. An unavailable runner is
         # independently stopped by its heartbeat watchdog.
-        args.run.mkdir(parents=True,exist_ok=True);(args.run/'STOP').write_text('STOP REQUESTED\n')
+        if not (args.run/'state.json').is_file():parser.error('Existing task run with state.json required')
+        (args.run/'STOP').write_text('STOP REQUESTED\n')
         print('STOP REQUESTED; inspect status for confirmed standstill');return
     from uwa_cell_motion.common import simulation_only
     simulation_only()
@@ -79,8 +82,8 @@ def main():
             from .bridge import TelemetryBridge
             node=TelemetryBridge(args.namespace,args.world);rclpy.spin(node)
         elif args.command=='camera':
-            from .bridge import ImageCapture
-            node=ImageCapture(args.namespace,args.scene);rclpy.spin(node)
+            from .snapshot_camera import SnapshotCamera
+            node=SnapshotCamera(args.namespace,args.scene);rclpy.spin(node)
         elif args.command=='guard':
             from .guard import TaskGuard
             node=TaskGuard(args.scene,layout);rclpy.spin(node)

@@ -5,6 +5,7 @@ import time
 
 import numpy as np
 from scipy.optimize import least_squares
+from scipy.interpolate import CubicSpline
 from scipy.spatial.transform import Rotation
 
 from uwa_cell_description.configuration import joint_names
@@ -16,7 +17,7 @@ from uwa_cell_motion.geometry import SphereModel
 from uwa_cell_control.parallel_scan import collision_signature
 from match_cooperative_handling.rigid_object import rigid, interpolate, pose_error
 from .core import ARMS, seal
-from .scene import apply_object
+from .scene import apply_object,mass_properties,inherit_pad_adjacency
 
 
 def support_exemptions(problem,object_pose):
@@ -58,6 +59,7 @@ class TaskProblem(Problem):
         self.base_description=description;self.scene_record=scene;self.object_pose=rigid(object_pose)
         self.description=static_object_description(description,scene,object_pose) if static else description
         self.collision=CollisionModel(self.description,self.directory/'moveit')
+        inherit_pad_adjacency(self.collision,self.directory/'moveit/robot.srdf')
         self.names=actual_names(self.description,layout)
         self.spheres=SphereModel(self.description,self.names,self.cfg['sphere_spacing_m'])
         self.signature=collision_signature(self.description)
@@ -85,6 +87,29 @@ class TaskProblem(Problem):
 def grasp_candidates(description, scene, cfg, object_pose):
     """Each 85mm gripper pinches one wall, never the carton-wide span."""
     t=rigid(object_pose);dims=np.max([v for shape in scene['shapes'] for v in shape['vertices']],axis=0)
+    if t[2,2]<np.cos(np.deg2rad(2.)):
+        raise ValueError('This wall-pinch strategy requires an upright carton on horizontal support')
+    com,_=mass_properties(scene['shapes'],cfg['mass_kg'])
+    world_com=t[:3,:3]@com+t[:3,3]
+    bases={a:Chain(description,'world',a+'_base_link').forward({})[:3,3] for a in ARMS}
+    root=ET.fromstring(description);pad_top_offsets={}
+    fingers=root.find("ros2_control[@name='ContactGrippers']")
+    for arm in ARMS:
+        lowest=float('inf')
+        for angle in (.76,.8):
+            q={joint.get('name'):angle*float(joint.find("param[@name='multiplier']").text
+                if joint.find("param[@name='multiplier']") is not None else 1.)
+                for joint in fingers.findall('joint') if joint.get('name').startswith(arm+'_')}
+            for side in ('left','right'):
+                name=arm+'_robotiq_85_'+side+'_finger_tip_pad_link'
+                collision=root.find(f"link[@name='{name}']/collision");origin=collision.find('origin')
+                size=np.fromstring(collision.find('geometry/box').get('size'),sep=' ')
+                local=np.array([[x,y,z] for x in (-size[0]/2,size[0]/2)
+                    for y in (-size[1]/2,size[1]/2) for z in (-size[2]/2,size[2]/2)])
+                local=local@Rotation.from_euler('xyz',np.fromstring(origin.get('rpy','0 0 0'),sep=' ')).as_matrix().T+np.fromstring(origin.get('xyz'),sep=' ')
+                tf=Chain(description,arm+'_robotiq_85_base_link',name).forward(q)
+                lowest=min(lowest,float((local@tf[:3,:3].T+tf[:3,3])[:,2].min()))
+        pad_top_offsets[arm]=.145-lowest
     candidates=[]
     for axis in (0,1):
         tangent=1-axis
@@ -96,26 +121,49 @@ def grasp_candidates(description, scene, cfg, object_pose):
                 heights=[]
                 for shape in scene['shapes']:
                     if shape['axis']!=axis or shape['side']!=side:continue
-                    triangle=np.array(shape['vertices'])[:shape.get('outline_vertices',3)]
+                    triangle=np.array(shape['vertices'])[:len(shape['vertices'])//2]
                     for v,w in zip(triangle,np.roll(triangle,-1,axis=0)):
                         if min(v[tangent],w[tangent])-1e-9 <= point[tangent] <= max(v[tangent],w[tangent])+1e-9:
                             if abs(v[tangent]-w[tangent])<1e-9:heights.extend([v[2],w[2]])
                             else:heights.append(float(v[2]+(w[2]-v[2])*(point[tangent]-v[tangent])/(w[tangent]-v[tangent])))
-                if not heights:break
-                point[2]=max(heights)-.018
+                if not heights or max(heights)<.06:break
+                # Keep the complete pad below the exact lower-wall envelope.
+                # A pinch across artificial convex-mesh seams can produce
+                # opposing edge contacts in the rigid-body solver.
+                base_top=min(shape['wall_base_top_m'] for shape in scene['shapes']
+                    if shape['axis']==axis and shape['side']==side)
+                point[2]=min(max(heights)-.025,base_top-pad_top_offsets[arm]-.003)
                 # Closing axis across wall; fingers enter vertically from above.
-                x=np.eye(3)[axis];z=np.array([0.,0.,-1.]);y=np.cross(z,x)
-                rotation=t[:3,:3]@np.column_stack([x,y,z])
+                x=np.eye(3)[axis]
+                # Supported upright-carton strategy: project the image-derived
+                # wall yaw onto the gravity plane. Do not command small planar
+                # PnP roll/pitch errors as a tilted pinch into vertical walls.
+                # This is a declared grasp assumption, not a truth pose prior.
+                closing=t[:3,:3]@x;closing[2]=0.;closing/=np.linalg.norm(closing)
+                z=np.array([0.,0.,-1.]);y=np.cross(z,closing)
+                rotation=np.column_stack([closing,y,z])
                 base=np.eye(4);base[:3,:3]=rotation
                 world_point=t[:3,:3]@point+t[:3,3]
                 base[:3,3]=world_point-rotation@np.array([0.,0.,.145])
                 tool_base=Chain(description,arm+'_tool0',arm+'_robotiq_85_base_link').forward({})
                 targets[arm]=base@np.linalg.inv(tool_base)
                 pre[arm]=targets[arm].copy();pre[arm][:3,3]+=[0,0,cfg['pregrasp_distance_m']]
-                contacts[arm]=dict(point_object=point,normal_object=x,side=side,wall_axis=axis)
+                contacts[arm]=dict(point_object=point,normal_object=x,side=side,wall_axis=axis,
+                    nominal_pad_top_object_m=float(point[2]+pad_top_offsets[arm]),
+                    continuous_wall_top_object_m=float(base_top),pad_top_margin_m=.003)
             if len(targets)==2:
+                points=[(t[:3,:3]@contacts[a]['point_object']+t[:3,3])[:2] for a in ARMS]
+                span=points[1]-points[0]
+                beta=float((world_com[:2]-points[0])@span/(span@span))
+                if not .05<beta<.95:continue
+                offset=float(np.linalg.norm(world_com[:2]-(points[0]+beta*span)))
+                reach=float(np.mean([np.linalg.norm(pre[a][:3,3]-bases[a]) for a in ARMS]))
                 candidates.append(dict(id=f'wall_{axis}_{fraction}',tcp_targets=targets,pregrasp=pre,
-                    contacts=contacts,score=float(abs(fraction-.5)),strategy='two local upper-wall pinches'))
+                    contacts=contacts,score=reach+5*offset+.05*abs(fraction-.5),strategy='gravity-aligned upright-carton wall pinches',
+                    assumptions=['upright_carton_on_horizontal_support','image_derived_yaw'],
+                    centre_of_mass_object_m=com,gravity_projection_fraction=beta,support_line_offset_m=offset,
+                    estimated_vertical_load_n={ARMS[0]:(1-beta)*cfg['mass_kg']*9.81,ARMS[1]:beta*cfg['mass_kg']*9.81},
+                    load_estimate_kind='static point-support approximation; not contact holding proof'))
     return sorted(candidates,key=lambda c:(c['score'],c['id']))
 
 
@@ -203,16 +251,22 @@ def object_trajectory(problem, group, start, object_start, object_end, cfg):
     samples=np.array(samples)
     duration=max(2.,1.875*distance/cfg['max_object_speed_m_s'])
     # Rescale the WHOLE object law to satisfy the most restrictive joint.
-    fractions=np.linspace(0,1,len(samples));gradient=np.gradient(samples,fractions,axis=0)
-    curvature=np.gradient(gradient,fractions,axis=0)
+    fractions=np.linspace(0,1,len(samples));spline=CubicSpline(fractions,samples,axis=0)
+    gradient=spline(np.linspace(0,1,steps*4+1),1);curvature=spline(np.linspace(0,1,steps*4+1),2)
     duration=max(duration,1.875*float(np.max(abs(gradient)))/cfg['joint_velocity_rad_s'],
-        np.sqrt(float(np.max(abs(curvature)))*3.52/cfg['joint_acceleration_rad_s2']),
-        np.sqrt(float(np.max(abs(gradient)))*5.774/cfg['joint_acceleration_rad_s2']))
+        np.sqrt((float(np.max(abs(curvature)))*1.875**2+float(np.max(abs(gradient)))*5.774)/cfg['joint_acceleration_rad_s2']))*1.02
     points=[]
-    # Uniform time, quintic object progress, shared linear joint interpolation.
+    # Uniform time, quintic object progress, common C2 joint spline; supply
+    # derivatives so the action controller preserves smooth interpolation.
     for time_u in np.linspace(0,1,max(steps+1,int(np.ceil(duration/.025))+1)):
         progress=10*time_u**3-15*time_u**4+6*time_u**5
-        q=np.array([np.interp(progress,fractions,samples[:,i]) for i in range(len(names))])
+        q=spline(progress)
+        ds=(30*time_u**2-60*time_u**3+30*time_u**4)/duration
+        dds=(60*time_u-180*time_u**2+120*time_u**3)/duration**2
+        velocity=spline(progress,1)*ds
+        acceleration=spline(progress,2)*ds**2+spline(progress,1)*dds
+        if np.max(abs(velocity))>cfg['joint_velocity_rad_s'] or np.max(abs(acceleration))>cfg['joint_acceleration_rad_s2']:
+            raise ValueError('Common object timing exceeds joint operating limits')
         obj=interpolate(object_start,object_end,float(progress))
         state=dict(start,**dict(zip(names,q)))
         for arm,(expected,_) in group.targets(obj).items():
@@ -221,7 +275,8 @@ def object_trajectory(problem, group, start, object_start, object_end, cfg):
         apply_object(problem.collision,problem.scene_record,obj,touching=True)
         support_exemptions(problem,obj)
         if not problem.collision.check(state)[0]:raise ValueError('Interpolated object motion collides')
-        points.append(dict(time=float(time_u*duration),positions=q.tolist(),object_pose=obj.tolist()))
+        points.append(dict(time=float(time_u*duration),positions=q.tolist(),velocities=velocity.tolist(),
+            accelerations=acceleration.tolist(),object_pose=obj.tolist()))
     return seal(dict(kind='rigid_object',joint_names=names,points=points,duration_s=duration,
         group=group.record(),scene_sha256=problem.scene_record['sha256'],
         statement='One object path and one shared time law; no independent arm trajectory planning'))

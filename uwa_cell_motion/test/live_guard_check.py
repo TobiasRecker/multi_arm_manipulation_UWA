@@ -24,6 +24,7 @@ from std_srvs.srv import Trigger
 from std_msgs.msg import String
 from controller_manager_msgs.srv import ListControllers
 from trajectory_msgs.msg import JointTrajectory
+from visualization_msgs.msg import MarkerArray,Marker
 
 from uwa_cell_motion.common import config,dump,simulation_only,ROBOT_IDS,joint_names
 from uwa_cell_motion.execution import MotionClient
@@ -51,8 +52,10 @@ def fixture(path):
 
 def check(output,own_supervisor=False):
     simulation_only();cfg=config();results={};rclpy.init();node=MotionClient()
-    trace=[]
+    trace=[];marker_trace=[];geometry_trace=[]
     node.create_subscription(String,'/uwa_cell/collision_guard/decision',lambda msg:trace.append(json.loads(msg.data)),10)
+    node.create_subscription(MarkerArray,'/uwa_cell/collision_supervisor/markers',lambda msg:marker_trace.append(msg),10)
+    node.create_subscription(MarkerArray,'/uwa_cell/collision_guard/markers',lambda msg:geometry_trace.append(msg),10)
     child=None;supervisor_child=None
     with tempfile.TemporaryDirectory(prefix='uwa-guard-live-') as directory:
         flags=Path(directory)/'faults.json';dump(flags,{})
@@ -67,6 +70,7 @@ def check(output,own_supervisor=False):
                 executable=Path(get_package_prefix('uwa_cell_motion'))/'lib/uwa_cell_motion/cell_motion'
                 supervisor_child=subprocess.Popen([str(executable),'supervisor'],stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
             child=subprocess.Popen([sys.executable,__file__,'--fixture',str(flags)],stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+            if own_supervisor:node.wait(lambda:node.supervisor is not None,timeout=45.)
             node.connect()
             node.wait(lambda:set(node.supervisor['held_arms'])==set(ROBOT_IDS),5.)
             def wait_seconds(seconds):
@@ -163,11 +167,17 @@ def check(output,own_supervisor=False):
             child.send_signal(signal.SIGCONT);dump(flags,{});reset()
             # No MotionClient health/stop fallback during this observation:
             # the independent supervisor alone must react to missing decisions.
+            marker_start=len(marker_trace);geometry_start=len(geometry_trace)
             began=time.monotonic();child.send_signal(signal.SIGSTOP)
             node.wait(lambda:set(node.supervisor['held_arms'])==set(ROBOT_IDS),3.)
             latency=time.monotonic()-began
             assert latency<=cfg['heartbeat_timeout_s']+cfg['stop_latency_s']+.15
             results['guard_loss_hold_latency_s']=latency
+            node.wait(lambda:any('GUARD\nLOST' in m.text and 'Standstill:\nUNCONFIRMED' in m.text
+                for message in marker_trace[marker_start:] for m in message.markers),1.)
+            node.wait(lambda:any(len(message.markers)==1 and message.markers[0].action==Marker.DELETEALL
+                for message in geometry_trace[geometry_start:]),1.)
+            results['independent_guard_loss_markers_clear_old_geometry']=True
             child.send_signal(signal.SIGCONT);wait_seconds(.5)
             assert set(node.supervisor['blocked_arms'])==set(ROBOT_IDS)
             results['heartbeat_recovery_stays_latched']=True
@@ -184,6 +194,18 @@ def check(output,own_supervisor=False):
             results['partial_reset_independent_arm_continues_with_missing_neighbor_state']=True
             results['final_stop_result']=node.stop(ROBOT_IDS)
             assert results['final_stop_result']['resource_holds_confirmed'] and results['final_stop_result']['latches_confirmed']
+            if supervisor_child:
+                # Resource holds already own all drives. Check the reciprocal
+                # diagnostic while the backend is suspended, without motion.
+                dump(flags,{});wait_seconds(.5);supervisor_child.send_signal(signal.SIGSTOP)
+                try:
+                    node.wait(lambda:node.guard['state']=='STOP ADAPTER LOST' and
+                        not node.guard['stop_adapter_available'] and set(node.guard['blocked_arms'])==set(ROBOT_IDS),2.)
+                    node.wait(lambda:any('STOP\nADAPTER\nLOST' in m.text for message in geometry_trace[-10:] for m in message.markers),1.)
+                    results['stop_adapter_loss_is_visible_and_latched']=True
+                finally:supervisor_child.send_signal(signal.SIGCONT)
+                wait_seconds(.5);assert set(node.guard['blocked_arms'])==set(ROBOT_IDS)
+                results['stop_adapter_recovery_stays_latched']=True
             results['success']=True;results['final_positions']=dict(node.positions)
         except BaseException as error:
             import traceback
@@ -197,6 +219,7 @@ def check(output,own_supervisor=False):
                 try:child.wait(timeout=5.)
                 except subprocess.TimeoutExpired:child.kill();child.wait()
             if supervisor_child:
+                supervisor_child.send_signal(signal.SIGCONT)
                 supervisor_child.send_signal(signal.SIGINT)
                 try:supervisor_child.wait(timeout=5.)
                 except subprocess.TimeoutExpired:supervisor_child.kill();supervisor_child.wait()

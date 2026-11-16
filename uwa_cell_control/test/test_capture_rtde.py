@@ -8,8 +8,8 @@ def packet(kind,payload):return struct.pack('>HB',len(payload)+3,kind)+payload
 
 
 class FakeSocket:
-    def __init__(self,data):self.data=data;self.sent=[];self.closed=False
-    def settimeout(self,value):pass
+    def __init__(self,data):self.data=data;self.sent=[];self.closed=False;self.timeouts=[]
+    def settimeout(self,value):self.timeouts.append(value)
     def recv(self,count):
         part=self.data[:min(count,2)];self.data=self.data[len(part):];return part
     def sendall(self,value):self.sent.append(value)
@@ -27,6 +27,7 @@ def test_output_only_recipe_partial_reads_and_no_input_commands(monkeypatch):
     obj,sock=reader(monkeypatch)
     timestamp,q,qd=obj.sample();assert timestamp==42.;assert q==list(range(6));assert qd==list(range(6,12))
     assert [p[2] for p in sock.sent]==[86,79,83]
+    assert sock.timeouts==[2.,.4]  # Setup allowance does not relax streaming freshness.
     assert sock.sent[1][11:]==b'timestamp,actual_q,actual_qd'
     with pytest.raises(ValueError,match='Only output'):obj.request(73,b'anything')
     assert len(sock.sent)==3;obj.close();assert sock.closed

@@ -7,24 +7,27 @@ import threading
 import time
 
 import rclpy
-from rclpy.node import Node
+from rclpy.clock import Clock,ClockType
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from controller_manager_msgs.srv import ListControllers, SwitchController
 from action_msgs.srv import CancelGoal
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
+from visualization_msgs.msg import Marker,MarkerArray
 import yaml
 from rcl_interfaces.srv import GetParameters
 
 from .common import ROBOT_IDS, all_names, load_layout, default_layout_path, simulation_only,guard_signature
 from .interlock import Interlock,expired_pair_leases,SUPERVISOR_PERIOD_S
+from .status_markers import interlock_markers
+from .node import MotionNode
 
 
 def hold_name(rid):return rid+'_collision_hold_controller'
 
 
-class Supervisor(Node):
+class Supervisor(MotionNode):
     def __init__(self,cfg,layout_path=None,prepare=True):
         super().__init__('collision_supervisor',namespace='/uwa_cell')
         self.cfg=cfg; self.layout=load_layout(layout_path or default_layout_path()); self.names=all_names(self.layout)
@@ -37,6 +40,9 @@ class Supervisor(Node):
         self.cancel_clients={name:self.create_client(CancelGoal,'/uwa_cell/'+name+'/follow_joint_trajectory/_action/cancel_goal')
             for rid in ROBOT_IDS for name in (rid+'_trajectory_controller',rid+'_gripper_controller')}
         self.publisher=self.create_publisher(String,'~/status',10)
+        self.markers=self.create_publisher(MarkerArray,'~/markers',1)
+        self.geometry_markers=self.create_publisher(MarkerArray,'/uwa_cell/collision_guard/markers',1)
+        self.last_markers=-float('inf')
         self.create_subscription(String,'/uwa_cell/collision_guard/decision',self.receive,10,callback_group=self.group)
         if prepare:self.prepare()
         # prepare() spins temporary parameter futures before the multithreaded
@@ -44,7 +50,8 @@ class Supervisor(Node):
         self.create_service(Trigger,'~/reset',self.reset,callback_group=self.group)
         self.stop_services=[self.create_service(Trigger,'~/'+rid+'/stop',
             lambda request,response,rid=rid:self.stop_arm(rid,response),callback_group=self.group) for rid in ROBOT_IDS]
-        self.create_timer(SUPERVISOR_PERIOD_S,self.tick)  # independent wall clock
+        self.wall_clock=Clock(clock_type=ClockType.STEADY_TIME)
+        self.create_timer(SUPERVISOR_PERIOD_S,self.tick,clock=self.wall_clock)
         self.get_logger().info('RUNNING: resource interlocks armed; explicit reset required; simulation only')
 
     def prepare(self):
@@ -147,6 +154,10 @@ class Supervisor(Node):
                         interlock_confirmed=blocked<=held,controller_error=self.last_error,
                         guard_age_s=None if self.core.last is None else time.monotonic()-self.core.received)
             self.publisher.publish(String(data=json.dumps(status)))
+            if time.monotonic()-self.last_markers>=.1:
+                markers,lost=interlock_markers(status,self.cfg['heartbeat_timeout_s'])
+                self.markers.publish(markers);self.last_markers=time.monotonic()
+                if lost:self.geometry_markers.publish(MarkerArray(markers=[Marker(action=Marker.DELETEALL)]))
 
 
 def run(cfg,layout=None):

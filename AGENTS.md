@@ -7,6 +7,9 @@
   Erste Anwendung: beide rechten URs greifen leeren Karton, heben kurz an und
   setzen ab; zuerst Simulation mit Kontaktphysik, Chat/CLI/RViz. Agent darf im
   konkreten Auftrag selbst prüfen/fortsetzen; keine pauschale Hardwarefreigabe.
+- Bedienung neuer Manipulationsaufträge: projektspezifischen Skill
+  `.agents/skills/uwa-manipulate/SKILL.md` und aktuellen Prüfnachweis lesen.
+  Verfügbarkeit eines Skills ist kein Nachweis eines erfolgreichen Kontaktgriffs.
 - Ab bestätigtem Griff ausschließlich gemeinsames Objekt/virtuelles Objektframe
   kommandieren, feste Objekt→TCP-Transformationen der beteiligten Arme. Prinzip
   aus match_cooperative_handling wiederverwenden; keine getrennte Planung oder
@@ -47,6 +50,22 @@
   Pausierte Quellzustände bleiben STATE STALE und erfordern bewussten Reset.
   Native/Python-Grenzprüfung gemeinsam mit1e-8rad numerischer Toleranz führen,
   echte Grenzüberschreitungen weiter ablehnen.
+- Bewegungsbenchmarks dürfen Bildrendering mit image_sensors:=false abschalten;
+  dabei Kamera-/Werkzeugkörper, Inertien und TF erhalten und identische
+  Kollisionssignatur/Mesh-Hashes nachweisen. Keine Frische-/Stoppgrenzen wegen
+  renderbedingter Pausen lockern und keine Geometrie zur Beschleunigung löschen.
+- Stillstand in Gazebo: Arme weiterhin≤3mrad/s; offene Greiferanschläge zeigen
+  gemessen bis5,1µrad Zittern bei5,1mrad/s Peak. Werkzeug-Ruhe deshalb über
+  ≤10µrad Positionsspanne im300ms-Fenster und eingehaltene Betriebsgeschwindig-
+  keit(0,05rad/s) bestätigen. Echte langsame
+  Werkzeugbewegung darf diese Prüfung nicht bestehen; Hardware neu bestimmen.
+- Motion-Knoten erhalten explizite QoS-Callbacks/Transport-QoS; unbenutzte
+  Standard-Warncallbacks wegen gemessenem rclpy-Waitset-Aufwand der1kHz-Simuhr
+  vermeiden (`uwa_cell_motion.node.MotionNode`). Empfangsfrische und unabhängige
+  Watchdogs bleiben maßgeblich; CPU-Optimierung ist kein Fristgarantienachweis.
+- RViz-Verlustalarme unabhängig vom Geometrieprozess anzeigen und alte Kugeln
+  löschen. Ressourcenbesitz nicht als gemessenen Stillstand ausgeben. Kurze
+  Zeilenumbrüche verhindern überbreite Leerzeichen des aktuellen Text-Renderers.
 
 ## Native HD-Intrinsics hinten links (2026-11-12)
 
@@ -182,9 +201,18 @@
   geringeren Reasoning-Aufwand ermöglichen, geprüfte Qualität/Sicherheit
   erhalten. Wiederholbare Schritte in Runner/Formvorlagen/Prüfcode kapseln,
   schnelle Agentenausführung von neuer Geometrie-/Fehlerentwicklung trennen.
-  Konzept docs/digitization_pipeline_plan.md; noch keine Modellumstellung oder
-  Freigabe neuer Hardwarefahrten. Fehler/Tracking-LOST nicht zugunsten Tempo
+  Erste Runner-Version scripts/digitize.sh, docs/digitization_workflow.md;
+  für Routinedurchläufe .agents/skills/uwa-digitize/SKILL.md lesen. Noch keine
+  Modellumstellung. Fehler/Tracking-LOST nicht zugunsten Tempo
   umdeuten; tatsächliche Durchlaufzeit und Qualität vergleichbar messen.
+- Aktueller Test13.11.: studentischer Roboternachbau, Nutzermaße330×300×330mm,
+  ausgeschaltet/unbeweglich und Auflagehöhe bestätigt. Komplexe Meshroute;
+  keinen Quader/L als fertige Rekonstruktion ausgeben. Nutzer hat URs fürs
+  Meeting ausgeschaltet: bis zu seiner erneuten Verfügbarkeitsmeldung nur
+  offline arbeiten, auch keine laufenden UR-Status-/Restore-Versuche.
+  Offener Fokus-Restore und unvollständige Fotos bleiben fehlgeschlagen.
+  Neuer Hardwarestart braucht frische Zustände/Wegprüfung; historischer
+  RTDE-Planungssnapshot ist keine aktuelle Fahrfreigabe. docs/student_robot_digitization.md.
 
 - NVIDIA-Compute seit13.11. ausdrücklich verfügbar: gemeinsame Workstation
   titanpc/192.168.2.137, aktuell WLAN. Vorhandene Nutzerumgebungen, Dienste,

@@ -35,6 +35,7 @@ def check_optics(record,opt,image_size,camera):
             min(K[0,0],K[1,1])<=0 or list(image_size)!=opt['image_size']):
         raise ValueError('Invalid or mismatched native image optics: '+camera)
     if camera=='oak4':
+        if str(record['camera_metadata'].get('device_id'))!=str(opt['identity']):raise ValueError('OAK physical identity mismatch')
         if record['camera_metadata']['standard']['lens_position']!=opt['focus']:raise ValueError('OAK focus mismatch')
     else:
         settings=record['settings_before']
@@ -81,6 +82,7 @@ def prepare(dataset,optics,board_config,output,policy):
                     record_sha256=sha(Path(entry['image']).parent/'record.json'),round=row['round'],physical_camera=name,
                     reference='right_table_board',source_board=preferred,observation=obs,board_rms_px=rms,
                     T_camera_board=anchored.tolist(),
+                    audited_joint_positions=record.get('static_window_joint_positions'),
                     pose_source='direct observed board' if preferred=='right' else 'observed two-board bridge',
                     bridge_source=None if preferred=='right' else best[2])
                 if rms>policy['board_rms_warning_native_px']:warnings.append(key+': high board reprojection RMS')
@@ -90,11 +92,18 @@ def prepare(dataset,optics,board_config,output,policy):
             except ValueError as error:failures[key]=str(error)
     coverage={}
     for name in optics:
-        centres=[]
+        centres=[];joints=[]
         for c in models.values():
             if c['physical_camera']!=name:continue
             centre=np.linalg.inv(np.array(c['T_camera_board']))[:3,3]
-            if not any(np.linalg.norm(centre-old)<.01 for old in centres):centres.append(centre)
+            q=c.get('audited_joint_positions')
+            if q is not None:
+                q=np.asarray(q,float)
+                if q.shape!=(6,) or not np.isfinite(q).all():raise ValueError('Invalid audited joint positions')
+                if any(np.max(abs(q-old))<.005 for old in joints):continue
+            if not any(np.linalg.norm(centre-old)<.01 for old in centres):
+                centres.append(centre)
+                if q is not None:joints.append(q)
         coverage[name]=len(centres)
     return dict(cameras=models,rejected_views=failures,warnings=warnings,
         unique_camera_centres_10mm=coverage,nominal_world_pose_used=False,

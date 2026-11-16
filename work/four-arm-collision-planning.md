@@ -1,142 +1,96 @@
 # Vierarm-Kollisionswächter und PTP-Vergleich
 
-- Status: **wieder in Arbeit nach Nutzerfreigabe**, 2026-11-13, Hauptagent.
-  Neustart abgeschlossen; Nutzer hat Fortsetzung ausdrücklich beauftragt.
-- Auftrag: unabhängiger 10-Hz-Kugelwächter, nur vier Nachbarpaare,
-  verriegelter Paarstopp; RRTConnect und unabhängige zirkulare Felder offline
-  planen und unter gleichen Bedingungen in Simulation vergleichen.
-- Nutzerentscheidungen: Warten/zeitversetztes Fahren erlaubt, nur betroffenes
-  Paar stoppen, zunächst PC-/ROS-Kommandos, Simulation zuerst, kein CDF in v1.
-- Bereiche: neues Paket `uwa_cell_motion`, eigene Anleitung/Tests und
-  AGENTS/HANDOVER. Lokale Scan-Diffs und reale Hardwarearbeit erhalten.
-- Keine Hardwareaktionen. Gemeinsame Simulation vor Bewegungsprüfung auf
-  Nutzung prüfen; eigene Testprozesse gezielt verwalten. Geplante Neustarts:
-  zunächst keine vorhandenen Dienste; neuer Wächter erst nach Build/Test.
-- Nachweise und Grenzen werden nach den tatsächlichen Prüfungen ergänzt.
-- Fortsetzung nach Neustart: keine Gazebo-/motion-Dienste aktiv. Eigene
-  Zellsimulation64/uwa_cell_sim neu starten, zuerst ergänzten Paarlease-Test
-  abnehmen, danach die27offenen Replay-Bahnen. Andere Arbeitsaufträge erhalten.
-- Fortsetzungsprüfung PASS: vollständiger Live-Stoppcheck einschließlich
-  knapper Paarlease, Datei `setup/logs/uwa-motion-live-guard-check-complete.json`.
-  Fehler→Stillstand182ms, knappe Paarlease→Paarhold127ms, gesamter
-  Wächterverlust→Vierarmhold281ms. Topic-/Aktivierungssperre, Mehrfachfehler,
-  Zustandsverlust, verriegelte Wiederkehr und unabhängiger Teilreset PASS.
-  Normaler motion-Dienst danach gestartet; Replay setzt28vorhandene Erfolge fort.
--29.Bahn bestätigt, anschließend Vorbereitung wegen numerischer Greifer-
-  Nullstellung(-7e-14rad) abgewiesen: nativer Prüfer nutzte0 statt gemeinsamer
-  1e-8rad Grenztoleranz. Angeglichen; Regression akzeptiert -1e-13, verwirft
-  echte Überschreitung -1e-5. Fehlversuch/Diagnose erhalten. Offline-Suite hat
-  exakte nominelle Greiferwerte; deren Abfragegeometrie wird nicht geändert.
-- Stillstand-CLI an dieselben unabhängigen Antriebe wie Wächter/Hold angeglichen;
-  passive Gazebo-Mimic-Geschwindigkeitsgeräusche hatten die Bestätigung trotz
-  aktiver Holds unnötig verhindert. Fehlende/ungültige Antriebsdaten bleiben
-  gesperrt, Meldung lautet ausdrücklich measured drive standstill.
--31Bahnen bestätigt. Folgende Vorbereitung durch Paarlease bei CPU-bedingt
-  langsamer Simulationszeit vorsorglich gestoppt; Rohversuch in
-  development-before-wall-timer/ erhalten. Korrektur Protokollv3: Geometrie-
-  timer mit10Hz monotoner Echtzeit statt Simulationszeit, passend zu Leases
-  und Stoppbudget. Keine Grenz-/Timeoutlockerung. Pausequellen werden weiter
-  geprüft und als STATE STALE verriegelt. Gezielter Pause-Livetest ergänzt;
-  anschließend normaler Replay mit denselben Modellen/Abfragen fortsetzen.
-- Protokollv3 abgenommen: geprüfte Grundstellungsfahrt PASS, danach kompletter
-  Livecheck in `setup/logs/uwa-motion-live-guard-check-steady-wall.json` PASS.
-  Prüfung läuft bei pausierter Quelle weiter und verriegelt STATE STALE.
-  Beobachtete Latenzen63ms Abstandsfault→Stillstand,132ms knappe Paarlease,
-  321ms Wächterverlust→Hold; einzelne Beobachtungen, keine garantierte Obergrenze.
-  Ressourcen-/Topic-Sperre, unabhängige Weiterfahrt und Teilreset weiterhin PASS.
-  Replay nach explizitem Reset fortgesetzt;53automatische Prüfungen bestanden.
-- Startsequenz korrigiert: Steuer-/Resetservices erst nach Controller-
-  Vorbereitung anbieten; frühe Reset-Callbacks dürfen nicht im provisorischen
-  SingleThread-Spin der Parameterabfrage laufen. CLI-Reset wartet auf frische
-  Guard-/Supervisor-Meldungen, ohne vollständige Armzustände zu fordern
-  (Teilreset bleibt möglich). Unmittelbarer Start/Reset/Replay erneut geprüft.
--33Bahnen bestätigt. Der aufrufende Prozess wurde später mit143 beendet,
-  ohne Abschlussdatei der folgenden Vorbereitung; Ursache unbekannt. Nutzer
-  bestätigt ausdrücklich, den Prozess nicht beendet zu haben, und wünscht
-  Fortsetzung. Abbruchdatensatz unter development-process-termination/ erhalten.
-  Alle Antriebe danach gehalten; Fortsetzung als eigener systemd-Dienst
-  uwa-cell-motion-comparison vorbereitet, mit direktem Python-Hauptprozess
-  und ExecStopPost(Halt bestätigen, dann Kameraraten restaurieren).
-  Physik wird während des Vergleichs nicht mehr unnötig neu gesetzt.
-- Kaltstart-Halteclient wartet auf vorhandene Controller-RPC-Endpunkte, bevor
-  er Requests sendet; Direct-Hold-Fallback funktioniert auch ohne Supervisor-
-  Antwort. Dienstende erst nach Resource-Hold/Drive-Stillstand, keine falsche
-  Quittierung bei fehlender Rückmeldung. Geschwindigkeitsfaults protokollieren
-  jetzt zusätzlich Gelenkindex und gemessenen Wert für Ursachenanalyse.
-- ROS-Client dauerhaft an eigenen SingleThreadedExecutor binden: wiederholtes
-  globales spin_once hing den Node ständig neu ein und konnte Serviceantworten
-  unter dem hochfrequenten /clock-Strom zurückstellen. Kaltstart-Halteprüfung
-  danach PASS; Regression mit kontinuierlich bereitem Timer und Trigger-RPC
-  ergänzt. Konsistente Controller-Liste statt vierfacher Einzelabfrage;
-  Rückmeldewartezeit separat vom unveränderten Aktuator-/Abstandsbudget.
-- Verwalteter Lauf wurde korrekt bei 300ms Zustandsalter gestoppt; Ressourcen
-  anschließend bestätigt. Einfrierende Simzeit bei hochauflösenden Bildsensoren
-  statt Bewegung/Frischegrenzen zu lockern untersuchen. Neuer Startparameter
-  image_sensors:=false entfernt ausschließlich Bildsensor-Tags, Kamerabridges
-  und Bildpublikation; Geometrie, Inertien, Kalibrierung/TF bleiben erhalten.
-  OAK-Visualmodell bleibt über den Overview-Node bestehen. Gemeinsamen eigenen
-  Simdienst nach Modellgleichheitsprüfung dafür neu starten; andere Dienste
-  nicht steuern. Für einheitliche Abnahmebedingungen anschließend neue komplette
-  Ausführungsserie, bisherige Nachweise/Fehlschläge vollständig archivieren.
-- Renderfreie Variante geprüft:36Gazebo-Modell-/Overview-Tests PASS;
-  Kollisionssignatur exakt weiterhin cdeff888…461504, identische Mesh-Hashes,
-  alle68Kollisionskörper erhalten, Bildsensoren4→0. Eigener Zellneustart
-  abgeschlossen(16:12Perth), Default-Controller vollständig aktiv.
-  Alte Ausführungen unter execution-history-pre-sensor-free/ vollständig
-  erhalten; neue Serie sensor_free_v1 führt alle55unterschiedlichen Bahnen
-  unter denselben Renderbedingungen aus. OAK-Bilder aus, CAD/TF bleiben.
-- Sensorfreie Komplett-Stoppabnahme PASS, auch nach Quellenpause. Zusätzliche
-  Fehlerauslösung erst bei beiden Armen≥95%der Geschwindigkeit: gemessene
-  0,04755rad/s,80ms bis Stillstand; unabhängiger Arm erreicht sein Ziel.
-  Knappe Paarlease128ms, Wächterausfall280ms, Topic-/Aktivierungsverriegelung,
-  Mehrfachfehler, Datenverlust und Teilreset PASS. Rohdaten
-  setup/logs/uwa-motion-live-guard-check-max-speed.json. Einzelbeobachtungen,
-  keine garantierten Worst-Case-/Hardwarewerte. Eigener Vergleichsdienst
-  danach neu gestartet; Log uwa-motion-replay-sensor-free.log.
+- Status: **abgeschlossen – Simulation implementiert und ausgewertet**, 2026-11-13.
+- Nutzerauftrag umgesetzt: unabhängiger10-Hz-Nachbarwächter, verriegelter Paarstopp,
+  gemeinsame PTP-Schnittstelle, RRTConnect und unabhängiger CF-Feldplaner,
+  reproduzierbarer Vergleich. Hardware ist eine separate Ausbaustufe.
+- Ausschließlich ROS2 Lyrical, Domain64, Partition `uwa_cell_sim`, LOCALHOST.
+  Keine Hardwarekommandos; fremde Greif-/Tracking-/Digitalisierungsarbeiten erhalten.
+  Nutzer-Neustartpause erledigt; spätere Fortsetzung ausdrücklich erlaubt.
 
-## Zwischenstand
+## Ergebnisse
 
-- Neustart-Checkpoint: **28/55** verschiedene erfolgreiche Planbahnen in
-  Gazebo bestätigt,27noch offen. Offlinevergleich300/300 fertig. Zustand und
-  Fortsetzungsdaten: `setup/logs/uwa-motion-reboot-checkpoint.json`, aktueller
-  Gelenkschnappschuss `setup/logs/uwa-motion-paused-before-reboot.json`.
-- Letzter Lauf stoppte vor Zielbewegung in blocked_direct_03: vorangehend
-  bewegter Hindernisarm war noch nicht vollständig eingeschwungen. Rohversuch
-  in `executions/development-before-obstacle-settling/` erhalten. Executor
-  wartet jetzt vor dem Start auf100ms gemessene Ruhe(≤0,003rad/s), danach
-  vollständigen Start erneut gegen2mrad prüfen. Laufende Überwachung bleibt
-  strikt; auch nicht kommandierte Greifertriebe eingeschlossen. Kein Auto-Reset.
-- Alle vier Resource-Holds/Stillstand vor Pause bestätigt; eigener
-  `uwa-cell-motion`-Dienst kontrolliert gestoppt. Gazebo1ms/RTF1 bestätigt,
-  Kamera-Originalraten restauriert. Keine eigene Fahrt mehr aktiv.
-- Nach Nutzerfortsetzung Simulation64/uwa_cell_sim und motion.sh starten,
-  frische Zustände/Modellgleichheit prüfen, dann bewusster Reset und Replay
-  fortsetzen. Nach Neustart keine ungeprüfte Wiederherstellung der alten Pose;
-  Replay fährt eigene Starts durch geprüfte Vorbereitung an. Der ergänzte
-  knappe Paarlease-Livetest und die Endauswertung stehen noch aus.
+- Offline300/300:30Aufgaben×5Seeds×2Methoden,10s Querybudget. RRT102/125 gültige
+  Zielversuche, CF115/125 erfolgreich; je25absichtlich ungültige Ziele abgewiesen.
+  Insgesamt pro Methode150Versuche; sämtliche Fehlschläge bleiben im Datensatz.
+  Nachbar-Kreuzungen3/25gegen15/25. Aussage nur für die eingefrorene Suite.
+- Agentenempfehlung: freie PTPs vorläufig mit Feldansatz wegen höherer Erfolgs-
+  quote, RRT als Referenz. Keine Nutzerfestlegung/keine allgemeine Rangfolge.
+- Alle217erfolgreichen Offline-Pläne durch55verschiedene vollständige Start-/
+  zeitparametrierte Bahnen in Gazebo repräsentiert; identische Wiederholungen
+  ausdrücklich verlinkt. **Alle55Zielbahnen begonnen,53erfolgreich,2gestoppt**.
+  Verlinkte Fahrten: RRT100/102, CF115/115 erfolgreich.
+- Zwei tatsächliche RRT-Ausführungsfehler in Kreuzung03 bleiben kanonisch:
+  Seed0: Greifer0,05835rad/s über Betriebsgrenze0,05rad/s;
+  Seed1:152ms Zustandsverarbeitungslücke, betroffene Arme verriegelt.
+  Erste Cleanup-Bestätigung fehlte bei Seed1, erneuter expliziter Stopp bestätigte
+  alle vier Ressourcen und gemessene Ruhe; Post-Review im Originaldatensatz.
+- Frühere Anfahrabbrüche, Entwicklungsstände und Unterbrechungen vollständig
+  erhalten. Bericht inventarisiert118Versuche/18Fehlschläge über unterschiedliche
+  Entwicklungsbedingungen; diese nicht als homogene neue Testserie ausgeben.
+- Hauptnachweise unter `setup/logs/uwa-motion-comparison-v4/`:
+  `report.html`, `report.png`, `report.attempts.json`, `summary.json`,
+  `runtime-manifest.json`, `validation-audit.json`, vollständige Einzelresultate.
+  Audit: eine Kollisionssignatur/ein Mesh-Satz, geplantes vmax0,05rad/s,
+  amax0,09976rad/s², maximaler aufgezeichneter erfolgreicher Endfehler0,461mrad.
+- Abgeschlossene Artefakte/Bedienung: Paket `uwa_cell_motion`,
+  `docs/four_arm_motion.md`, README-Verweis, AGENTS-Regeln und HANDOVER-Ergebnis.
 
-- Paket gebaut,50Offline-Tests PASS (CTest53 einschließlich3Wrapper), auch
-  letzte Übergangs-/Greiferkorrekturen installiert. Native RRT-Schrittweite0,15rad statt
-  ungeeigneter automatischer Extent-Skalierung. Frühe Entwicklungsdaten erhalten.
-- Live-Gazebo-Stoppcheck mit Protokollv2 PASS: Paarstopp mit unabhängiger Weiterfahrt,
-  Topic-/Reaktivierungssperre, Mehrfachfehler, Zustandsverlust, Wächterausfall
-  und verriegelte Wiederkehr.125ms Fehler→Stillstand,419ms Watchdog→Hold.
-  Teilreset/WeiterfahrtRR bei fehlendemLF-Zustand ebenfalls PASS.
-- Vergleichv4 mit300Versuchen abgeschlossen; fünf neue Nachbarfälle mit
-  nachgewiesener Kugelbahnüberschneidung, tatsächlichen Meshkontakt separat
-  gespeichert. RRT102/125 gültige Zielversuche erfolgreich,CF115/125;
-  je25absichtlich ungültige Ziele abgewiesen. Eingefrorene Suite im Paket.
-- Gazebo-Replay der55verschiedenen erfolgreichen zeitparametrierten Bahnen
-  läuft, identische Wiederholungen mit gemeinsamem Ausführungsnachweis verlinkt.
-  Vollständige Einzelarmbahn mit gemessenem geometrischem Korridor statt
-  unnötiger Rest-zu-Rest-Mikrophasen; Mehrarmbarrieren unverändert konservativ.
-  SIGTERM-Cleanup mit tatsächlicher Bewegung/Persistenz der Halteverriegelung
-  geprüft: setup/logs/uwa-motion-signal-check.json. Kein automatischer Reset.
-- Beschleunigungsversuch5ms/RTF3 wegen STATE STALE vor Fahrt abgebrochen;
-  Original1ms/RTF1 und Sim-Kameraraten10Hz wiederhergestellt. Weitere Fahrten
-  unter normalen Einstellungen, für Replay temporär Kameraraten0,2Hz mit Trap.
-- Auditkorrektur: näherungsabhängige Paarlease im unabhängigen Supervisor;
-  letzter Abstand darf nicht unbesehen400ms Wächterausfall überbrücken.
-  Hashgebundenes Protokollv2, Monotonzeit/Transportalter und20ms Pollreserve.
-  Protokollv2-Livetest PASS, gezielter besonders knapper Lease-Test ergänzt;
-  endgültige Auswertung und Vollständigkeit der Gazebo-Ausführung noch offen.
+## Implementierung und Abnahme
+
+- Konservative Vollkörperhüllen für68modellierte Körper/216Kugeln, einschließlich
+  offener Greiferfinger, Wrist und Kameras. AABB-Scheiben decken Volumen ab;
+  Oberflächenabstände und Bewegungshebel sämtlicher betroffener Glieder.
+- Vier Paarungen LF/RF, LF/LR, RF/RR, LR/RR. Geometrie10Hz monotone Wanduhr,
+  unabhängiger Supervisor50Hz, Paarleases/Heartbeat und persistierende
+  Ressourcen-Haltecontroller. Mehrfachfehler vereinigen betroffene Arme;
+  Datenverlust sperrt Nachbarschaften. Teilreset unabhängiger Arme möglich.
+  Topic-Kommandos/erneute Aktivierung erfasst, kein automatischer Wiederanlauf.
+- Gemeinsame vollständige Startzustände und deterministische Zielauflösung,
+  kartesisch explizites `world`-Frame. Native OMPL-RRTConnect und unabhängige
+  CF-Rollouts ohne RRT-Fallback, gemeinsame Direktweg-/Wartekoordination.
+  MoveIt/FCL-Endprüfung nach Quintik-Timing; diskrete Prüfung≤5mrad, kein CCD.
+  Einzelarm-Geometriekorridor, Mehrarmphasen mit gemessenen Barrieren und
+  Restwegprüfung gegen gestoppte/bremsende Arme.
+- Unbeanspruchte Greifertriebe an gemessener Pose halten, vorhandene Besitzer
+  nicht verdrängen. Stillstand der unabhängigen Antriebe prüfen, passive
+  Mimic-Solvergeräusche nicht als Antriebsbewegung ausgeben. Fehlende/NaN-Daten
+  sperren. Offene Anschläge: gemessen bis5,1µrad Positionszittern; Werkzeugruhe
+  ≤10µrad Span/300ms und Betriebsgeschwindigkeitsgrenze, Armruhe3mrad/s.
+  Echte langsame Bewegung besteht Gegenprobe nicht. Alte5-mrad/s-Zwischenregel
+  überholt; keine Lockerung von Frische/Kollision/Betriebsgeschwindigkeit.
+- **66Motion-Pytests PASS,70mit4CTest-Wrappern**; zusätzlich36gezielte Gazebo-
+  Modell-/Overview-Tests PASS. Explizite QoS-Callbacks, Clock und Nachrichten-
+  empfang trotz entfernter unbenutzter Standard-Warncallbacks geprüft.
+- Finale vollständige Liveabnahme PASS:
+  `setup/logs/uwa-motion-live-guard-check-executor-acceptance.json`.
+  0,04756rad/s vor Fault;85ms bis erste Armspeed≤3mrad/s,129ms knappe Paarlease,
+  400ms Wächterverlust bis Ressourcenhalt. STOPPED verlangt zusätzlich300ms
+  gemessene Historie. Paarumfang/unabhängige Weiterfahrt, Mehrfachfehler,
+  Topic-/Aktivierungssperre, Datenverlust/Teilreset, Pause/STATE STALE,
+  Wächterausfall und verriegelte Wiederkehr PASS. Einzelbeobachtungen,
+  keine garantierten Worst-Case-/Hardwarewerte.
+- Gegenseitige Ausfalldiagnose und separate RViz-Verlustmarker löschen alte
+  Kugeln. Ressourcenbesitz nicht als Stillstand ausgeben. Stoppadapterverlust
+  bei bereits gehaltenen Armen geprüft, keine aktive Ausfall-Stoppgarantie.
+  RViz-Bilder `uwa-motion-rviz-held-final.png` / `uwa-motion-rviz-guard-lost.png`
+  geprüft. Kompakte Zeilen umgehen überbreite Leerzeichen. Verlust-Snapshot-
+  helfer stürzte erst nach gespeichertem Bild beim Beenden ab; Guard fortgesetzt.
+- Profiling:9,66→4,16Mio Aufrufe/6s nach Weglassen unbenutzter rclpy-QoS-
+  Warnwaitables; reale Wächter-CPU46→42Prozent eines Kerns. Transport-QoS,
+  explizite Callbacks, Frische/Watchdogs unverändert. Kein Nachweis, dass alle
+  nichtdeterministischen Zustandslücken verschwunden sind. Quellenrevisionen
+  samt Prüfungen im Laufzeitmanifest, frühere Rohdaten nicht überschrieben.
+
+## Endzustand und Grenzen
+
+- Vergleichsdienst beendet, keine Fahrt mehr aktiv. `uwa-cell-sim` und
+  `uwa-cell-motion` laufen; vier Ressourcen gehalten, stabile Antriebe gemessen.
+  Checkpoint `setup/logs/uwa-motion-final-checkpoint.json`, alter Neustart-
+  Checkpoint verweist auf Abschluss. Keine automatische Weiterfahrt.
+- Einheitlicher Fahrmodus ohne Bildrendering (`image_sensors:=false`), Kamera-/
+  Werkzeugkörper, Inertien, Kinematik/TF und OAK-CAD erhalten. Kollisionssignatur
+  cdeff888…461504 und Mesh-Hashes identisch; normale Zellvorgabe Bilder an.
+- Vorläufige Welt-/Tischanker, visual-only OAK-Stativ/Karton und nicht modellierte
+  Anbauten bleiben Grenzen. Reale Stoppreserve, produktive Greiferregelung und
+  Hardwareanbindung sind nicht durch diesen Simulationsvergleich abgenommen.

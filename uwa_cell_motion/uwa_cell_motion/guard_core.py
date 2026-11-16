@@ -1,6 +1,6 @@
 """Pure state machine: pair faults latch until an explicit stationary reset."""
 import numpy as np
-from .common import PAIRS
+from .common import PAIRS,standstill_limits
 
 
 class GuardState:
@@ -47,8 +47,8 @@ class GuardState:
         if len(h) < 3 or h[-1][0]-h[0][0] < window*.8:
             return False
         qs, vs = np.asarray([r[1] for r in h]), np.asarray([r[2] for r in h])
-        return bool(np.max(abs(vs)) <= self.cfg['standstill_velocity_rad_s'] and
-                    np.max(np.ptp(qs, axis=0)) <= self.cfg['standstill_velocity_rad_s']*window)
+        velocity,span=standstill_limits(self.cfg,qs.shape[1])
+        return bool(np.all(abs(vs)<=velocity) and np.all(np.ptp(qs,axis=0)<=span))
 
     def evaluate(self, pairs, now, source_now):
         faults = list(self.external_faults)

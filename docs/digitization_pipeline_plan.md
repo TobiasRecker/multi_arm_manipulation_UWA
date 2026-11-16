@@ -1,6 +1,8 @@
 # Schnellere Objektdigitalisierung mit geringem Reasoning-Aufwand
 
-Stand 13.11.2026: **Umsetzungsvorschlag**, noch keine neue ausführbare Pipeline.
+Stand 13.11.2026: **erste Runner-Version implementiert und offline geprüft**;
+Bedienung und aktuelle Grenzen in [digitization_workflow.md](digitization_workflow.md).
+Die folgenden Abschnitte beschreiben den zugrunde liegenden Ausbauplan.
 Nutzer möchte kürzere Durchlaufzeiten mit möglichst gleicher Qualität und
 Sicherheit; geringerer Reasoning-Aufwand ist erwünscht, aber noch nicht umgestellt.
 

@@ -18,7 +18,7 @@ def render(directory,output,guard_check=None):
     rows=[]
     for path in sorted(directory.glob('*.json')):
         value=json.loads(path.read_text())
-        if 'case_id' in value and 'method' in value:rows.append(value)
+        if isinstance(value,dict) and 'case_id' in value and 'method' in value:rows.append(value)
     summary=json.loads((directory/'summary.json').read_text())
     categories=['free','blocked_direct','neighbor_crossing','four_arm','tool_passage']
     methods=['rrtconnect','circular'];colors=['#2463a4','#d35e00'];labels=['RRTConnect','Circular fields (experimental)']
@@ -46,7 +46,7 @@ def render(directory,output,guard_check=None):
     if guard_check:
         guard=json.loads(Path(guard_check).read_text())
         values=[1000*guard['pair_fault_to_standstill_s'],1000*guard['guard_loss_hold_latency_s']]
-        axes[1,1].bar(['Injected distance fault\nto standstill','Missing guard\nto resource hold'],values,color=['#2463a4','#d35e00'])
+        axes[1,1].bar(['Injected distance fault\nto arm speed threshold','Missing guard\nto resource hold'],values,color=['#2463a4','#d35e00'])
         axes[1,1].set_ylabel('Measured wall latency [ms]');axes[1,1].set_title('Different stop triggers — normal simulation rate')
     else:axes[1,1].axis('off')
     fig.suptitle('UWA four-arm simulation study — provisional cell geometry',fontsize=15)
@@ -63,6 +63,13 @@ def render(directory,output,guard_check=None):
                          f'<td>{len(successes)}/{len(selected)}</td><td>{timing:.3f}</td><td>—</td>')
         table.append('<tr><th>'+category+'</th>'+''.join(cells)+'</tr>')
     execution=summary.get('execution_summary',{})
+    metric_rows=[]
+    for method in methods:
+        successful=[r for r in rows if r['method']==method and r['success']]
+        length=f"{statistics.median(r['metrics']['joint_path_length_rad'] for r in successful):.4f}" if successful else '—'
+        clearance=f"{1000*min(r['metrics']['minimum_sphere_clearance_m'] for r in successful):.1f}" if successful else '—'
+        stops=sum(r.get('execution',{}).get('guard_stops',0) for r in rows if r['method']==method)
+        metric_rows.append(f'<tr><th>{method}</th><td>{length}</td><td>{clearance}</td><td>{stops}</td></tr>')
     attempts=[]
     roots=[directory/'executions']+sorted(directory.glob('execution-history-*'))
     for path in sorted(path for root in roots for path in root.rglob('*.json')):
@@ -73,7 +80,13 @@ def render(directory,output,guard_check=None):
     history=output.with_suffix('.attempts.json');history.write_text(json.dumps(attempts,indent=2)+'\n')
     failures=[a for a in attempts if not a['success']]
     failure_rows=''.join('<li>'+html.escape(a['record'])+': '+html.escape(str(a['stage']))+' — '+html.escape(str(a['error'] or a['stopped_arms']))+'</li>' for a in failures)
-    badges=f"OFFLINE {'COMPLETE' if summary.get('complete') else 'INCOMPLETE'} · EXECUTION {'COMPLETE' if execution.get('complete') else 'INCOMPLETE'}"
+    canonical=[]
+    for path in sorted((directory/'executions').glob('*.json')):
+        value=json.loads(path.read_text())
+        if not value.get('success',False):canonical.append(dict(record=path.name,stage=value.get('stage'),
+            error=value.get('error') or value.get('post_review',{}).get('reason') or str(value.get('stopped_arms',[]))))
+    final_failure_rows=''.join('<li>'+html.escape(a['record'])+': '+html.escape(str(a['stage']))+' — '+html.escape(str(a['error']))+'</li>' for a in canonical)
+    badges=f"OFFLINE {'COMPLETE' if summary.get('complete') else 'INCOMPLETE'} · EXECUTION ATTEMPTS {'COMPLETE' if execution.get('complete') else 'INCOMPLETE'} · {execution.get('successes_unique',0)}/{execution.get('unique_trajectories',0)} UNIQUE ROUTES SUCCEEDED"
     document=f'''<!doctype html><html lang="en"><meta charset="utf-8"><title>UWA simulation study</title>
 <style>body{{background:#10141c;color:white;font:17px system-ui;max-width:1200px;margin:32px auto;padding:20px}}h1,.status{{color:#ffdf55}}table{{border-collapse:collapse;width:100%}}td,th{{border:1px solid #aab7c8;padding:9px;text-align:left}}img{{width:100%;background:white}}a{{color:#8edaff}}.status{{border:3px solid white;padding:16px}}</style>
 <h1>Four-arm collision guard and PTP comparison</h1><p class="status">{badges}</p>
@@ -82,7 +95,12 @@ def render(directory,output,guard_check=None):
 <img alt="Planning and execution comparison" src="{html.escape(figure.name)}">
 <table><thead><tr><th>Task category</th><th>RRT success</th><th>Plan [s]</th><th>Duration [sim s]</th><th>CF success</th><th>Plan [s]</th><th>Duration [sim s]</th></tr></thead><tbody>{''.join(table)}</tbody></table>
 <p>Duration medians use successful plans only; planning medians include failures. Start repositioning is checked separately and excluded from measured task duration. Identical timed trajectories share a linked execution record; physical executions and planning trials are counted separately.</p>
+<table><thead><tr><th>Method</th><th>Median joint path length [rad]</th><th>Minimum checked neighbor sphere clearance [mm]</th><th>Guard-triggered arm stops in linked final trials</th></tr></thead><tbody>{''.join(metric_rows)}</tbody></table>
+<p>Clearance is between conservative neighbor sphere surfaces, distinct from full-cell mesh validity. All individual metrics and diagnostics remain in the trial JSON files. Image rendering is disabled for the coherent Gazebo replay; camera collision bodies, inertias and TF are unchanged. Single-arm execution follows the complete checked trajectory; multiarm execution uses independent-progress phases and measured barriers, including their waiting time in measured duration.</p>
 <p>Execution status: {html.escape(json.dumps(execution))}</p>
+<p>Completion means that each unique route has an execution attempt, not that every execution succeeded. PREPARATION failures stopped before the target trajectory began. Final unsuccessful records: {len(canonical)}.</p><ul>{final_failure_rows}</ul>
+<p>The gripper simulation can report open-stop velocity chatter. Tool rest uses a10µrad position-span test over300ms plus the unchanged operating velocity cap; arms retain3mrad/s. Actual excursions above0.05rad/s are execution failures and are stopped. No collision or source-freshness limit is relaxed for these failures. Runtime revisions and their evidence are recorded in <a href="runtime-manifest.json">the runtime manifest</a>.</p>
+<p>The plotted distance-fault latency ends at the first measured arm-speed sample below the rest threshold. The production STOPPED state additionally requires the measured300ms history; resource ownership alone is insufficient. These observations do not establish a guaranteed worst-case stop time.</p>
 <p>All retained execution attempts, including development versions, changed experimental conditions and operator interruptions: {len(attempts)} attempts, {len(failures)} unsuccessful. These are separate from the final unique-trajectory coverage. <a href="{html.escape(history.name)}">Complete attempt history</a>.</p><ul>{failure_rows}</ul>
 <p>This is a simulation research comparison with provisional model anchors, approximated tool geometry and discrete mesh checks. It is not a hardware safety validation or evidence of a generally superior planner.</p></html>'''
     output.write_text(document)

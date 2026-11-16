@@ -2,7 +2,8 @@
 
 Stand: 2026-11-13. Isolierter Versuch auf der gemeinsam genutzten Workstation
 `titanpc`/`192.168.2.137`, erreichbar über WLAN und `ssh uwa-ubuntu22`.
-Installation und Prüfergebnisse werden unten nachgeführt.
+FoundationPose ist installiert; kurze RGB-D- und Bewegungsprüfung bestanden.
+Alle eigenen Rechenprozesse sind beendet.
 
 ## Ziel und Zusammenhang
 
@@ -38,6 +39,10 @@ Offizieller Quellcode: [NVlabs/FoundationPose](https://github.com/NVlabs/Foundat
 Commit `a1b694b83e633c2cb6115b9063d940a687759392`.
 Upstream-Lizenz und Modellquellen bleiben im separaten Checkout; Modelle werden
 nicht in dieses Repository kopiert.
+Ein lokaler Einzeilenpatch leitet den hartcodierten `/tmp`-Mesh-/Materialexport
+auf den privaten `TMPDIR` um; protokolliert unter `logs/upstream-local.patch`.
+PyTorch2.5.1+cu121, PyTorch3D0.7.8 und nvdiffrast0.3.3 sind in der eigenen
+Umgebung installiert. Vollständige Versionen: `logs/pip-freeze.txt`.
 
 - `tools/foundationpose_titanpc_env.bash`: Umgebung nur für eigenen Unterprozess.
 - `tools/foundationpose_titanpc_constraints.txt`: eigene Versionsgrenzen.
@@ -52,6 +57,27 @@ nicht in dieses Repository kopiert.
 
 Die Werkzeuge liegen remote im eigenen Unterordner `tools/`; Logs unter `logs/`,
 Testergebnisse unter `results/`. Keine Geheimnisse in Dokumentation oder Git.
+
+## Benutzen
+
+Aus `~/UWA_ws` auf diesem Arbeitsplatz:
+
+```bash
+# Aktuelle GPU-Nutzung, Platz und vorhandene Berichte lesen.
+bash src/multi_arm_manipulation_UWA/scripts/foundationpose_remote.sh status
+
+# Kurzer offizieller RGB-D-Test: zwölf Bilder, anfangs ruhender Gegenstand.
+bash src/multi_arm_manipulation_UWA/scripts/foundationpose_remote.sh smoke
+
+# Hundert Bilder einschließlich Anheben/Bewegen in der gespeicherten Demo.
+bash src/multi_arm_manipulation_UWA/scripts/foundationpose_remote.sh smoke-motion
+```
+
+Beide Tests verwenden jeden dritten Frame, eigene Ausgabeordner, einen
+gemeinsamen Versuch-Lock und maximal10min Laufzeit. Sie öffnen keine lokale
+oder ferne Kamera und starten keine Roboter-/ROS-Dienste. Erster Start kann
+zusätzliche CUDA-Kernels bauen. `DONE` wird erst nach erfolgreichem Abschluss
+ausgegeben. Es wird kein dauerhafter Rechendienst eingerichtet.
 
 ## Grenze zur echten UWA-Zelle
 
@@ -69,4 +95,37 @@ Manipulationsfreigabe oder Nachweis absoluter Millimetergenauigkeit.
 
 ## Prüfergebnisse
 
-Installation läuft; noch kein FoundationPose-Inferenzerfolg behauptet.
+- CUDA-Matrixrechnung auf TITAN RTX/Compute7.5 bestanden.
+- Native Erweiterungen gebaut; `pip check`: keine verletzten Abhängigkeiten.
+- Zwölf-Frame-Demo PASS: eine globale Initialisierung, elf Tracking-Schritte;
+  endliche starre Posen im originalen Meshframe. Initialisierung2,683s,
+  Trackingkern median24,57ms; Gesamtprozess18,63s einschließlich Import,
+  Modellstart, Auswertung und Bildausgabe. Keine WLAN-/Live-Ende-zu-Ende-FPS.
+- PyTorch maximal4423MiB belegt/5058MiB reserviert, eigener Prozess beendet.
+- Anfangsmaske: projizierte Silhouetten-IoU0,905; Tiefenrest auf Überlappung
+  ca4,65mm. Das ist Konsistenz mit Eingabedaten, keine unabhängige Genauigkeit.
+  Nur erste Maske vorhanden; für Folgeframes wird das Fehlen ausdrücklich
+  markiert und der Tiefenvergleich kann Verdeckungen einschließen.
+- Zusätzliche Bewegungsprüfung PASS:100Bilder, Originalindizes0..297 in
+  Dreierschritten, eine Initialisierung und99Tracking-Schritte. Initialisierung
+  1,699s, Trackingkern median24,61ms, Gesamtprozess37,82s einschließlich
+  Ein-/Ausgabe/Auswertung. Die Aufnahme zeigt Anheben/Drehen und Annäherung
+  eines zweiten Roboters. Bilder bei120/297 visuell mit passender Box geprüft.
+  Geschätzte Bewegung bis540mm/76°; keine unabhängige Weg-/Winkelmessung.
+- Die zwölf Startbilder zeigen noch überwiegend Stillstand; deren getrennte
+  Prüfung allein wäre kein Nachweis des Verfolgens eines bewegten Gegenstands.
+  Für die Bewegungsprüfung fehlen ebenfalls annotierte6D-Ground-Truth-Posen;
+  der mediane Tiefenrest1,91mm ist nur Eingabekonsistenz, keine Genauigkeitsfreigabe.
+- Vorher-/Nachherhashes von Paketdatenbank, bestehenden Conda-Verläufen und
+  Shell-/Dockerkonfigurationen identisch. Nach Test GPU wieder175MiB/0%,
+  Systempartition weiterhin5,5GiB frei. Eigener Ordner ca9,3GiB.
+
+Lokale Nachweise: `setup/tracking/foundationpose_titanpc_20261113/`
+(`report.json`, zwei Overlays, Paketversionen, Modellhashes, Metadatenvergleich).
+Bewegungsbericht und zwei zusätzliche Overlays im Unterordner `motion/`.
+Vollständige lokale Testlogs: `setup/logs/foundationpose-smoke-20261113.log`
+und `setup/logs/foundationpose-motion-20261113.log`.
+Remote-Erfolge: `results/mustard_20261113T083433Z_171062/` und
+`results/mustard_100_20261113T083738Z_173849/`.
+Vorheriger Lauf blieb wegen fehlender optionaler Folgebildmaske in der
+zusätzlichen Auswertung unvollständig; Bericht/Log erhalten, Prüfung korrigiert.

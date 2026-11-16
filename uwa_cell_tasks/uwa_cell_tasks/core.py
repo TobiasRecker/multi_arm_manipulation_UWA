@@ -5,6 +5,9 @@ import json
 import math
 from pathlib import Path
 import time
+import fcntl
+import os
+from contextlib import contextmanager
 
 import numpy as np
 import yaml
@@ -16,6 +19,17 @@ PHASES = ('observe', 'propose_grasp', 'plan_approach', 'review_plan', 'approach'
           'inspect_pregrasp', 'review_alignment', 'grasp', 'form_group', 'move_object',
           'set_down', 'release', 'done')
 REVIEWS = ('review_strategy', 'review_plan', 'review_alignment')
+
+
+@contextmanager
+def resource_lease(namespace,root=Path('/tmp')):
+    """All recipes in one simulation namespace share its controller resources."""
+    key=digest(dict(domain=64,namespace=namespace))[:24]
+    with (Path(root)/f'uwa-task-{os.getuid()}-{key}.lock').open('a') as lock:
+        try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except BlockingIOError as error:raise RuntimeError('Another task owns this simulation namespace') from error
+        try:yield
+        finally:fcntl.flock(lock,fcntl.LOCK_UN)
 
 
 def plain(value):
@@ -54,17 +68,60 @@ def configuration(path=None):
         from ament_index_python.packages import get_package_share_directory
         path = Path(get_package_share_directory('uwa_cell_tasks')) / 'config/carton.yaml'
     cfg = yaml.safe_load(Path(path).read_text())
+    cfg.setdefault('simulation_real_time_factor',.7)
     if cfg.get('schema_version') != 1 or tuple(cfg.get('arms', [])) != ARMS:
         raise ValueError('v1 requires schema1 and the two right arms in stable order')
     for key, value in cfg.items():
-        if key in ('schema_version', 'arms', 'object_id', 'simulation_assumptions'): continue
+        if key in ('schema_version', 'arms', 'object_id', 'simulation_assumptions','gripper_transmission','physics_engine'): continue
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
             raise ValueError('Expected positive finite ' + key)
     if cfg['lift_m'] > .05 or cfg['joint_velocity_rad_s'] > .05 or cfg['joint_acceleration_rad_s2'] > .10:
         raise ValueError('Task exceeds the first simulation operating envelope')
+    if cfg['simulation_real_time_factor']>1.:
+        raise ValueError('Contact qualification requires an unaccelerated simulation')
     if cfg['maximum_attempts'] != int(cfg['maximum_attempts']):
         raise ValueError('maximum_attempts must be integral')
+    if cfg['gripper_transmission'] not in ('native_gear','elastic_gear'):
+        raise ValueError('Unsupported gripper transmission model')
+    if cfg['physics_engine'] not in ('bullet_featherstone','dartsim'):
+        raise ValueError('Unsupported physics engine')
+    if cfg['gripper_transmission']=='native_gear' and cfg['physics_engine']!='bullet_featherstone':
+        raise ValueError('Native gear constraints require Bullet Featherstone in this installation')
+    if not (0<cfg['gripper_fine_velocity_rad_s']<=cfg['gripper_coarse_velocity_rad_s']<=.02
+            and 0<cfg['gripper_fine_start_rad']<.8):
+        raise ValueError('Invalid coarse/fine contact closure envelope')
     return cfg
+
+
+def object_point_height(pose,point_object):
+    """World height of an explicitly declared asset-frame verification point."""
+    t=rigid(pose);point=np.asarray(point_object,dtype=float)
+    if point.shape!=(3,) or not np.isfinite(point).all():raise ValueError('Finite object reference point required')
+    return float(t[2,:3]@point+t[2,3])
+
+
+def measured_open(names,positions,velocities):
+    """An action result is insufficient: require every actual finger DOF."""
+    return bool(names) and all(abs(positions.get(j,float('inf')))<.02
+        and abs(velocities.get(j,float('inf')))<.003 for j in names)
+
+
+def gripper_profile(starts,target,cfg):
+    """Shared schedule: coarse free closure, fine contact entry, coarse opening."""
+    coarse=cfg['gripper_coarse_velocity_rad_s'];fine=cfg['gripper_fine_velocity_rad_s'];threshold=cfg['gripper_fine_start_rad']
+    starts=np.asarray(starts,float)
+    if not np.isfinite(starts).all() or not np.isfinite(target) or not 0<=target<=.8:
+        raise ValueError('Invalid physical gripper target')
+    first=np.maximum(0.,np.minimum(target,threshold)-starts)
+    second=np.maximum(0.,target-np.maximum(starts,threshold))
+    durations=np.where(target>=starts,first/coarse+second/fine,(starts-target)/coarse)
+    duration=max(1.,float(durations.max()));points=[]
+    for t in np.linspace(0,duration,int(np.ceil(duration/.1))+2):
+        local=t*durations/duration
+        positions=np.where(target>=starts,starts+np.minimum(local*coarse,first)+np.minimum(np.maximum(0.,local-first/coarse)*fine,second),
+            starts-local*coarse)
+        points.append(dict(time=float(t),positions=positions.tolist()))
+    return dict(duration_s=duration,points=points)
 
 
 @dataclass(frozen=True)
@@ -83,17 +140,17 @@ class Skill:
 
 def skills():
     specs = [
-        Skill('observe', ('asset_id', 'camera frames/K/D/timestamps'), ('stationary scene',), ('observation with provenance/quality',)),
+        Skill('observe', ('asset_id', 'camera frames/K/D/timestamps'), ('stationary scene',), ('observation with provenance/quality',),timeout_s=90),
         Skill('propose_grasp', ('observation', 'asset', 'joint state'), ('fresh unambiguous pose',), ('ranked local wall grasps',)),
         Skill('plan_approach', ('grasp', 'complete start'), ('full collision scene',), ('bound approach plan',), timeout_s=120),
         Skill('review', ('review packet hash', 'decision', 'reason'), ('stationary owned arms',), ('version-bound review',), timeout_s=300),
         Skill('approach', ('checked plan',), ('reviewed plan', 'fresh measured start', 'guard'), ('pregrasp reached',), ARMS, 600),
-        Skill('inspect_pregrasp', ('fresh images', 'expected contacts'), ('stationary arms',), ('alignment evidence',)),
-        Skill('grasp', ('grasp', 'contact telemetry'), ('alignment reviewed', 'object supported'), ('two-sided contacts per gripper',), ARMS, 60),
+        Skill('inspect_pregrasp', ('fresh images', 'expected contacts'), ('stationary arms',), ('alignment evidence',),timeout_s=90),
+        Skill('grasp', ('grasp', 'contact telemetry'), ('alignment reviewed', 'object supported'), ('two-sided contacts per gripper',), ARMS, 1200),
         Skill('form_group', ('object pose', 'measured TCPs', 'contacts'), ('both grasps confirmed',), ('immutable object-to-TCP offsets',), ARMS),
         Skill('move_object', ('GraspGroup', 'object-frame path'), ('group active', 'whole-scene validation',), ('shared-time object-derived motion',), ARMS, 120),
         Skill('set_down', ('GraspGroup', 'support telemetry'), ('group active',), ('stationary supported object',), ARMS, 120),
-        Skill('release', ('supported object',), ('support independently confirmed', 'stationary group'), ('open grippers; dissolved group',), ARMS, 60),
+        Skill('release', ('supported object',), ('support independently confirmed', 'stationary group'), ('open grippers; dissolved group',), ARMS, 240),
     ]
     return [asdict(spec) for spec in specs]
 

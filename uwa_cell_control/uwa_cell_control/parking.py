@@ -62,7 +62,7 @@ def complete_state(layout, readings):
         if record:
             values = six(record['positions'])
             source = record['source']
-            if source not in ('live_joint_states', 'manual_pendant', 'user_nominal_home', 'mock_joint_states'):
+            if source not in ('live_joint_states', 'live_rtde_output', 'manual_pendant', 'user_nominal_home', 'mock_joint_states'):
                 raise ValueError(f'{rid}: unsupported state provenance {source}')
         else:
             values = six(layout['robots'][rid]['initial_positions'])

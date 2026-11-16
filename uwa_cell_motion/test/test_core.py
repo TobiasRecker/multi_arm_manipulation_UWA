@@ -101,6 +101,36 @@ def test_stop_not_confirmed_while_moving(cfg):
     assert not status['standstill_confirmed'] and status['state']=='STOPPING'
 
 
+def test_open_stop_tool_chatter_is_bounded_by_tight_position_span(cfg):
+    core=GuardState(cfg)
+    for i,t in enumerate(np.linspace(1,1.4,9)):
+        q=np.zeros(7);v=np.zeros(7);q[-1]=(i%2)*5.1e-6;v[-1]=.0051*(-1)**i
+        core.receive('left_front',q,v,float(t),float(t))
+    assert core.stationary('left_front',1.4)
+    core.history['left_front'][-1][1][-1]=2e-5
+    assert not core.stationary('left_front',1.4)
+
+
+def test_tool_velocity_still_cannot_exceed_operating_cap_even_with_tiny_span(cfg):
+    core=GuardState(cfg)
+    for t in np.linspace(1,1.4,9):
+        v=np.zeros(7);v[-1]=cfg['velocity_limit_rad_s']*1.1
+        core.receive('left_front',np.zeros(7),v,float(t),float(t))
+    assert not core.stationary('left_front',1.4)
+    status=core.evaluate(pairs(),1.4,1.4)
+    assert any(f['reason']=='SPEED LIMIT' for f in status['faults'])
+
+
+def test_tool_continuous_slow_motion_or_arm_chatter_cannot_confirm_standstill(cfg):
+    for arm_motion in (False,True):
+        core=GuardState(cfg)
+        for t in np.linspace(1,1.4,9):
+            q=np.zeros(7);v=np.zeros(7);index=0 if arm_motion else 6
+            q[index]=(float(t)-1)*.004;v[index]=.004
+            core.receive('left_front',q,v,float(t),float(t))
+        assert not core.stationary('left_front',1.4)
+
+
 def decision(sequence=1,instance='a',blocked=(),reset=0):
     return dict(instance=instance,sequence=sequence,blocked_arms=list(blocked),reset_sequence=reset,state='CLEAR')
 

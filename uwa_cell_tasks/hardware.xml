@@ -3,4 +3,8 @@
     base_class_type="gz_ros2_control::GazeboSimSystemInterface">
     <description>Force-limited contact servo; no kinematic finger commands.</description>
   </class>
+  <class name="uwa_cell_tasks/ContactArms" type="uwa_cell_tasks::ContactArms"
+    base_class_type="gz_ros2_control::GazeboSimSystemInterface">
+    <description>Physics-step position actuator with bounded speed and acceleration for the contact scene.</description>
+  </class>
 </library>

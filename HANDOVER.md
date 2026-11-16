@@ -1,5 +1,43 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Wiederaufnehmbare Digitalisierung implementiert; Robotertest offline vorbereitet, 2026-11-13
+
+- Nutzer beauftragt Umsetzung des schnellen Workflows und Test an komplexem
+  studentischem Roboter, grob330×300×330mm. Objekt ausgeschaltet/unbeweglich und
+  Unterseite auf Tischplattenhöhe bestätigt. Danach URs wegen Meeting aus;
+  ausdrücklich offline weiterarbeiten. Seit dieser Mitteilung keine UR-Anfrage.
+- scripts/digitize.sh und digitization_job/geometry/optics/views: eigene Jobs,
+  Hash-/Identitäts-/Fokusbindung, Stillstandsimport, wiederverwendbare Stufen,
+  Rollen für Fit/Prüfung, zwei feste Formrezepte, explizite Texturflächendaten,
+  CAD/ROS-Kandidaten und unabhängiger Einzelbild-Trackingcheck. Kurze Skill
+  .agents/skills/uwa-digitize/SKILL.md validiert. Keine Hardwarefahrfunktion.
+-61gezielteTests und Lyrical-Build bestanden. Reale gespeicherte PTFE-/Karton-
+  Datensätze offline verarbeitet und Kandidaten exportiert; technische STEP/
+  STL/GLB/DAE-Prüfungen bestanden, beide Geometrien bleiben REVIEW_REQUIRED.
+  PTFE-Prüfansicht weiterhin ohne sichere Erkennung. Keine Originalassets ersetzt.
+- CPU-Vorschau ersetzt für neue Runner-Kandidaten anfällige Qt/OpenGL-Abhängigkeit.
+  Alter VTK-Versuch ist als Entwicklungsmisserfolg erhalten. Mess-/Cacheberichte
+  unter setup/digitization/pipeline_offline_20261113/, kein Reasoning-Vergleich
+  oder universeller Scanner nachgewiesen. Noch kein dichter Mesh-Backend.
+- Ein Offlineaufruf `run` bündelt die Stufen ohne neue Aufnahme. Am gespeicherten
+  PTFE-Satz mit fertigen Annotationen7,18s einschließlich Shell-/Pythonstart,
+  Wiederholung1,33s; gemessene Qualität dabei unverändert prüfbedürftig.
+  one_call_cli_timing_final.json. Relative/absolute Jobpfade kanonisiert, damit
+  identische Inputs nicht unnötig neue Kandidaten/Cachemisses erzeugen.
+- Neuer Roboterdatensatz setup/digitization/student_robot_20261113/: OAK-Übersicht,
+  erster Fünfersatz vor Bildern abgebrochen, zweiter dreiWrist-HD+OAK, LF-SSH
+  nicht erreichbar und abschließender Stillstand/Restore unbestätigt. Nichts
+  nachträglich als gültige Aufnahme oder erfolgreicher Restore markieren.
+- Planungshülleca546×546×403mm aus OAK-Referenz/Nutzermaß/Entwurfszuschlägen.
+  Erstere Suche kein gemeinsamer Blick; zweite mit größeren Kameraabständen
+  bei unveränderten Grenzen:12modellgeprüfte Abschnitte, dreiWristansichten je
+  Arm plus OAK. Domain74/offline, gespeicherte ältere RTDE-Werte; Bericht
+  offline_view_plan_wide/report.json und Vorschau. Noch nicht ausführbar oder
+  unabhängig parallel freigegeben. Keine Arm-/Treiber-/Power-/Brake-/Playaktion.
+- Vor Fortsetzung nach Nutzer-Einschalten: Kamera-Restore/LF-HD-Zugriff klären,
+  frische Zustände und Wege prüfen, aktuelle Bedienerbereitschaft vor Fahrzielen.
+  Bedienung docs/digitization_workflow.md, Test docs/student_robot_digitization.md.
+
 ## Zusätzliche NVIDIA-Workstation für FoundationPose, 2026-11-13
 
 - Nutzer stellt titanpc/192.168.2.137 über WLAN für Compute bereit. Gemeinsame
@@ -7,16 +45,23 @@
 - TITAN RTX24GiB, Ubuntu22.04.5, Treiber570.211.01, Toolkit12.3 real gelesen.
   Docker ohne Benutzerzugriff; Systempartition nur5,5GiB frei. Deshalb eigener
   Ordner und eigene Conda-Umgebung auf Datenlaufwerk RAID1_L, keine Adminänderung.
-- FoundationPose-Installation und begrenzte offizielle RGB-D-Demo in Arbeit;
-  noch kein Inferenzerfolg. CPU-Tracker und alle lokalen Roboter-/Simdienste
-  erhalten. Stand/Bedienung: docs/foundationpose_titanpc.md,
-  laufender Status work/foundationpose-titanpc.md.
+- FoundationPose installiert: eigenePython3.11/PyTorch2.5.1+cu121-Umgebung,
+  PyTorch3D0.7.8/nvdiffrast0.3.3/mycpp gebaut, pipcheck PASS. Offizielle Gewichte
+  und RGB-D-Daten geladen. Zwölf-Frame-Test und100-Frame-Bewegungsabschnitt
+  PASS, zuletzt1,699s Initialisierung/24,61ms mediane Trackingkernzeit,
+  PyTorch5058MiB maximal reserviert. Overlays bei Bewegung/Verdeckung geprüft.
+- Keine Live-/WLAN-Ende-zu-Ende-FPS oder UWA-Asseterkennung daraus ableiten.
+  Systempaket-/Shell-/Conda-Metadaten vorher/nachher identisch; eigene Jobs
+  beendet, GPU wieder175MiB/0%. Eigener Ordner9,3GiB auf Datenlaufwerk.
+  CPU-Tracker und lokale Roboter-/Simdienste erhalten. Stand/Bedienung:
+  docs/foundationpose_titanpc.md; Nachweise lokal unter
+  setup/tracking/foundationpose_titanpc_20261113/ einschließlich motion/.
 - Fachlicher Anschluss: bekannte Karton-/PTFE-Assets, statische Lokalisierung
   und dynamische Verfolgung. Reale OAK-Anbindung benötigt noch passende
   RGB-ausgerichtete Tiefe, Intrinsics und Initialmaske; keine direkte Nutzung
   der Mono-HQ-Tiefe mit RGB oder neue Manipulationsfreigabe.
 
-## Schnellere Digitalisierung: Bestandsprüfung und Umsetzungskonzept, 2026-11-13
+## Schnellere Digitalisierung: ursprüngliche Bestandsprüfung und Konzept, 2026-11-13
 
 - Nutzer möchte weniger Wartezeit und niedrigeren Reasoning-Aufwand bei
   möglichst gleicher Qualität/Sicherheit. Noch keine Modelleinstellung geändert.
@@ -31,8 +76,9 @@
 - Abnahme zuerst auf gespeicherten Karton-/PTFE-Daten plus Fehlerfällen,
   anschließend Vergleich der Reasoning-Stufen und neues Objekt ohne neue
   Objektskripte. Keine Laufzeit-/Genauigkeitsgarantie vor dieser Messung.
-- Diese Runde nur Konzept/Dokumentation, keine Implementierung, Kameraaktion,
-  Armfahrt oder Dienständerung. Plan docs/digitization_pipeline_plan.md.
+- Dieser ursprüngliche Eintrag dokumentiert die Konzeptphase; die spätere
+  Implementierung und der Robotertest stehen im neueren Abschnitt oben.
+  Plan docs/digitization_pipeline_plan.md.
 
 ## PTFE-L-Konstruktion aufgenommen und als Asset exportiert, 2026-11-13
 
@@ -58,32 +104,115 @@
 - Laufende Karton-Simulations-/Greifarbeit unverändert; neues Asset installiert,
   noch keine aktive Szeneinstanz. Anleitung und Vorschau docs/ptfe_l_assembly.md.
 
-## Modulare Karton-Greifpipeline: Implementierung und erste Prüfungen, 2026-11-13
+## Modulare Karton-Greifpipeline: aktuelle Qualifikation, 2026-11-14
 
-- Nutzerauftrag: agentbedienbare Skills/Pipeline, zunächst beide rechten URs
-  greifen leeren Karton in Simulation, kurzer Hub und Absetzen, Kontaktphysik.
-  Agent prüft Strategie, Plan und Vorpositionsbilder selbst innerhalb des
-  Auftrags. Hardware ist spätere Arbeit; keine neue manuelle Freigabe je Phase.
-- Verbindliche Präzisierung: nach Greifen starres Multirobotersystem, nur
-  Objektbewegung vorgeben, feste Objekt→TCP-Offsets; keine getrennte Planung
-  oder Zeitparametrierung tragender Arme. Gemeinsamer geometrischer Kern im
-  bestehenden match_cooperative_handling, andere Arme bleiben außerhalb.
-- Neues uwa_cell_tasks mit Skill-Verträgen, SHA-gebundenen Reviews, eigenem
-  Kontaktprofil, Bildworker, gemeinsamem12-Gelenk-Stellverlauf aus Objektbahn,
-  unabhängiger Geometrieprüfung und bestehendem Ressourcen-Supervisor.
-  Separater Greifziellatch erhält Stellkraft bei Armstopp. Keine Objektbefestigung.
-- Paket/C++-Backend gebaut,7gezielte Softwaretests bestanden. Eigene Gazebo-Welt
-  uwa_grasp_lab/Namespace uwa_grasp_validation mit privater Uhr/TF in Domain64,
-  gemeinsame Zelle/Planungsvergleich nicht neu gestartet. Kein Hardwarezugriff.
-- Entwicklungsfehler erhalten: erste OBJ-Prismen ohne Normalen verworfen,
-  auf normalehaltigeSTL gewechselt; Spawn-CLI überschreibtSDF-Pose, deshalb
-  explizitePoseargumente ergänzt. Erstes100-Hz-PD-Profil instabil; eigenes1-kHz-
-  Profil/kd0,003 steht gemessen ruhig. ROS-Clientname/privaterUhranschluss und
-  Reset nach altemRunnerverlust korrigiert. Keine Grenzwerte der altenZelle gelockert.
-- Aktuell noch **kein erfolgreicher Kartongriff/Hub nachgewiesen**. Eigene
-  Simulationsläufe unter setup/tasks/carton_contact_20261113_v*/ und Logs
-  setup/logs/uwa-tasks-*. Übergabe während Umsetzung, kein Abschlussbericht.
-  Anleitung docs/manipulation_pipeline.md, Status work/carton-grasp-pipeline.md.
+- Nutzerauftrag: modulare agentbedienbare Skills; zwei rechte URs greifen den
+  leeren Karton, heben30mm, halten mindestens2s, setzen ab und öffnen. Agent
+  prüft Strategie, Plan und Vorposition selbst. Ausschließlich Simulation.
+- Implementiert: `uwa_cell_tasks`,11Skill-Verträge, CLI/Review/HTML-Vorschau,
+  Ressourcenlease, SHA-gebundene Szene/eigene Quellen/Binärdateien/Physik,
+  bildbasierte Beobachtung, unabhängiger FCL-/Kugel-/Kontakt-/Schlupfwächter
+  und Ressourcen-Supervisor. Einstieg `.agents/skills/uwa-manipulate/SKILL.md`,
+  Anleitung `docs/manipulation_pipeline.md`, Nachweismatrix unter
+  `setup/tasks/manipulation_qualification_20261114/result.json` (Testmatrix mit
+  Einschränkungen; nominale Wiederholsicherheit ausdrücklich nicht nachgewiesen).
+- Ab bestätigtem Kontakt ein Objektframe, eingefrorene Objekt→TCP-Offsets,
+  ein12Gelenkcontroller/eine gemeinsame Zeitparametrierung; Geometriekern in
+  `match_cooperative_handling.rigid_object`. Andere Arme gemessene Hindernisse.
+  Verbundstopp erhält Griff; kein automatisches Öffnen/Home/Resume oder
+  Loaded-Reset. Freigabe nur unterstützt/stationär mit Guard-Ack, gemessenem
+  Öffnen aller12FingerDOFs und finalen Holds. Kein künstliches Anheften.
+- Isolierte Welt `uwa_grasp_lab`, `/uwa_grasp_validation`, Domain64/LOCALHOST,
+  private Uhr/TF. Hauptsimulation und Hardware unangetastet.100Hz native ECM-
+  Telemetrie,1ms DART9.5.2/RTF0,6; bildsensorfreie Physik plus statischer
+  Snapshot-Renderer. Bildpose ohne Wahrheit als Prior; OAK VALID, Wrist LOST
+  ausgeschlossen. Wahrheit nur Rendererdefinition/Audit/Auswertung/Guard.
+- Physikannahmen: starrer2,5mm-Karton, elastische energieausgeglichene Kopplung
+  100Nm/rad, Motor10Nm/rad/Cap0,35Nm, Fingerdämpfung0,08Nm·s/rad. Masse0,3kg,
+  Reibung0,6 unvermessen. Experimenteller Default0,5mm/s mit positivem Home-
+  Einzelbeleg71, aber fehlgeschlagener Wiederholung74. Frühere positive
+  Fixtures/leichte Variante sowie Memberstop72 bei expliziten1mm/s. Grenzen:
+  rechte Gelenke inkl. passiver Finger0,05rad/s+1e-8, Relativlage2mm/1°.
+- Aufrechter Karton/horizontale Unterstützung; Neigung>2° abweisen. Greifer
+  gravitationsparallel mit Bild-Yaw. Gegenüberliegende untere Wandbereiche,
+  ganze nominale Padbox3mm unter Ausschnitten.40konvexe Teile/7native Boxen
+  erhalten offene Geometrie. Vier interne Gelenknachbarschaftsausnahmen wie
+  Bestandsmodell, im Python-ACM und nativen RRT identisch.
+- COM-Hub explizit30±2mm: Scene bindet `lift_reference_point_object_m`
+  [0,201215;0,170013;0,048267]m aus demselben uniformen Materialmodell wie
+  Physikinertia. Asset-/Objektkommandoframe bleibt unverändert; Eckursprung-Hub
+  separat diagnostisch. Erlaubtes Kippen kann dort deutlich weniger Hub ergeben.
+- Fünf aktuelle vollständige **DONE + unabhängige Trace-PASS**:
+
+  | Run / Szene | Profil / Start | COM-Hub mm | maxRelativfehler mm / rad |
+  | --- | --- | --- | --- |
+  |64 / V88|0,3kg/0,6,1mm/s, Vorpositions-Fixture|29,921|0,315 /0,002299|
+  |65 / V88|dasselbe, Wiederholung ohne Reset|29,821|1,284 /0,009797|
+  |67 / V89|0,2kg/0,4,1mm/s, Home|29,809|1,424 /0,010912|
+  |68 / V89|leicht, Wiederholung ohne Reset|29,813|1,581 /0,012105|
+  |71 / V95|0,3kg/0,6,0,5mm/s, Home|29,893|0,511 /0,003783|
+
+  Alle Pads/Offsets unter Last erhalten, unterstützt gemessen geöffnet, Gruppe
+  aufgelöst und finale Holds bestätigt. Nur diese Paare/Startbedingungen sind
+  belegt; kein allgemeiner Masse-/Reibungsbereich oder Hardwarebeleg.
+- Abgewiesene aktuelle Versuche bleiben erhalten:66/V89 vor Kontakt wegen
+  eigener Joint-Empfangslücke0,200368s;69/V90 schwer0,4kg/0,8 bei1mm/s wegen
+  passivem Fingertip0,078645rad/s;70/V94 nominal Home bei1mm/s wegen0,059102.
+  Jeweils unterstützt, beide Holds bestätigt;69/70 alle Pads erhalten. Keine
+  Grenzlockerung, kein positiver Hubnachweis und kein Resume dieser Läufe.
+- Run72/V91 Memberstop unter frei getragener Last **PASS**: alle Pads erhalten,
+  maxRelativfehler0,27095mm/0,002014rad, stationäre beidseitige Holds nach
+  0,394s einschließlich Bestätigungsfenster. Rezept erwartungsgemäß FAILED
+  mit bestätigtem Stopp. Virtuelle Episode danach ohne Öffnen/Resume beendet.
+- Run73/V92 scheitert **vor Runnerpause-Injektion**: passives Rear-Right-
+  Fingertip0,070306rad/s, beide Holds bestätigt, Objekt unterstützt/all4Pads.
+  Kein bestandener Runner-Ausfalltest; zeigt weitere Start-/Kontaktstreuung
+  des1mm/s-Fixtureprofils. Der langsame nominale Wiederholungsversuch
+  Run74/V96 nominal0,3kg/0,6/0,5mm/s aus Home ebenfalls vor Injektion
+  abgewiesen, passives Rear-Left-Fingertip0,052335rad/s, unterstützt/all4Pads,
+  beide Holds bestätigt. Nominales0,5mm/s-Profil hat positiven Einzelbeleg71,
+  aber **keine Wiederholsicherheit**. Bestandene Ausfalltests75/V98 Runnerpause
+  und77/V100 Guardpause nutzen leichte0,2kg/0,4-Variante bei0,5mm/s aus Home.
+- Run76/V99 Wächtertest schon vor Fahrt/Griff im Reset abgewiesen: linker
+  passiver Finger nicht ruhig (Diagnose-InnerKnuckle−0,08869rad/s), LF-
+  Geschwindigkeitsursache gelatcht. Unterstützt, rechte Pads frei, beide rechten
+  Holds bestätigt; keine Injektion. Eigene Welt beendet;77/V100 frischer Versuch.
+- Störfallvertrag: `tools/test_manipulation_fault.py` friert Auswertebaseline schon bei unterstützter
+  Gruppenbildung ein, injiziert erst bei≥5mm freiem Hub/all4Pads. Stoppbeleg:
+  ≥0,3s Positionsfenster Arme≤10µrad/Objektachsen≤0,1mm/Rotationselement≤1e-4,
+  beide Holds anschließend0,6s behalten, Kontakte/Relativgrenzen/frische Daten,
+  erwartetes FAILED mit bestätigtem Stopp. Nur vorhandene bestandene Reports zählen.
+- Run75/V98 Runnerpause unter frei getragener leichter0,2kg/0,4-Last bei
+  0,5mm/s aus Home **PASS**: frischer CLEAR-Zustand vor Injektion, all4Pads
+  erhalten, maxRelativfehler1,42098mm/0,010883rad, beidseitige stationäre Holds
+  nach0,920s einschließlich Bestätigungsfenster, erwartetes FAILED mit Stopp
+  bestätigt. SIGCONT nur zur Fehlerbehandlung, kein Bewegungs-Resume.
+- Run77/V100 Guardpause unter frei getragener leichter0,2kg/0,4-Last bei
+  0,5mm/s aus Home **PASS**: all4Pads erhalten, maxRelativfehler1,41896mm/
+  0,010866rad, stationäre beidseitige Holds nach0,617s einschließlich Fenster,
+  erwartetes FAILED mit Stopp bestätigt. Alle drei Last-Störfälle72/75/77
+  bestanden. Eigene Welt/Nachfahren danach ohne Öffnen/Resume beendet;
+  Hauptsimulation und Hardware erhalten. Keine pauschale Griffqualifikation.
+- Startverfahren: Recorder `tools/trace_manipulation.py RUN --prepare` und ggf.
+  Fault-Probe vor Runner, Trace-Datei prüfen/Discovery abwarten. CPU-Profil nur
+  eigene Launch-Nachfahren Physik0–3/Guard4/Supervisor5, Runner6–11; keine CPU-
+  Reservierung/Echtzeitgarantie. Keine neuen ROS-Teilnehmer während armiertem
+  Lauf; beobachtete DDS-Pausen nicht abschließend erklärt. Frischegrenzen
+  unverändert. Zwei12fach-Beobachtungsstresstests PASS, maxAbstand131,44ms<150ms.
+- Peaks jeder empfangenen100Hz-Rechts-JointState bis unbeladenem Reset gelatcht;
+  keine5%-Basisknoten-Toleranz übernehmen. Open braucht tatsächliche Finger
+  |q|<0,02 und|v|<0,003 für0,3sim-s plus Actionerfolg. Nur ListControllers
+  lesend einmal wiederholen. Stopp sendet beide Anfragen vor dem Warten;
+  Bestätigung benötigt frische Zustände und aktive unabhängige Holdcontroller.
+- Software:24PythonTests plus nativer Energie-/Reaktions-/Dämpfungstest, voller
+  finaler Lyrical-Build einschließlich Manifestabhängigkeiten und CTest4Suites
+  PASS,24Pythonfälle+nativer Test. colcon zählt28inkl. CTest-Wrappern, keine
+  28unabhängigen Unitfälle. Skill quick_validate und separater Traceaudit aller
+  Injektionsvorzustände PASS. Alle11genutzten Szenen-/Quellen-/Binärbindungen
+  nach Build unverändert geprüft. Eigene Greiflaunches0, Hauptlaunch52643 läuft.
+  Sealed `software-verification.json`/`fault-baseline-audit.json` im Nachweisordner.
+  Historische Entwicklungsversuche/Quellstände in `work/carton-grasp-pipeline.md`;
+  alte PASS nicht als Nachweis der aktuellen Byteversion ausgeben.
 
 ## CPU-Objektpose mit statischem und dynamischem Modus, 2026-11-13
 
@@ -177,94 +306,79 @@
   Kameras verwaltet. Nachweis setup/wrist_lighting/idle_check_20261113/verified_off.json.
 
 
-## Vierarm-Kollisionswächter/PTP: nach Neustart fortgesetzt, 2026-11-13
+## Vierarm-Kollisionswächter/PTP: Simulationsvergleich abgeschlossen, 2026-11-13
 
-- Nutzerpause und erlaubter PC-Neustart durchgeführt; Nutzer hat danach die
-  Fortsetzung ausdrücklich beauftragt. Keine automatische Bahnfortsetzung.
-  Checkpoint `setup/logs/uwa-motion-reboot-checkpoint.json`;28/55verschiedene
-  Bahnen erfolgreich in Gazebo,27noch offen, Offlinevergleich300/300fertig.
-  Alle vier Simulationsarme/Resource-Holds bestätigt, eigener motion-Dienst
-  kontrolliert beendet. Physik1ms/RTF1 und ursprüngliche Kameraraten bestätigt.
-- Letzter Replay-Abbruch blocked_direct_03 erfolgte vor Zielbewegung wegen
-  Restgeschwindigkeit eines gerade vorbereiteten Hindernisarms. Rohdaten
-  `executions/development-before-obstacle-settling/` bleiben im Bericht.
-  Korrektur: vor Start100ms Ruhe abwarten, vollständigen Start danach erneut
-  prüfen; unbekannte Hindernis-/Greiferbewegung während Fahrt weiter abbrechen.
-  Nach Neustart keine automatische Pose-/Bahnwiederaufnahme. Anleitung und
-  genaue Fortsetzungsaufgaben in work/four-arm-collision-planning.md.
-- Nach Neustart vollständiger Stoppcheck einschließlich besonders knapper
-  Paarlease PASS: setup/logs/uwa-motion-live-guard-check-complete.json.
-  Abstandsfault→Stillstand182ms, knappe Paarlease→Hold127ms, gesamter
-  Wächterverlust→Hold281ms. Eigene Simulation und normaler Wächter gestartet,
-  Replay der27restlichen verschiedenen Bahnen fortgesetzt.
--29.Bahn bestätigt. Danach native Vorbereitung wegen Greifer-Nullpunkt-
-  Rundung(-7e-14rad) abgewiesen. Native Grenztoleranz auf dieselben1e-8rad
-  wie gemeinsame Prüfung gesetzt; echte Überschreitung -1e-5 bleibt ungültig.
-  Alle300Offline-Startzustände nutzen exakt0rad am Greifer, Audit gespeichert;
-  Abfragegeometrie/Benchmarkfälle bleiben unverändert. Fehlversuch/Diagnose
-  in development-before-native-bound-tolerance/ bzw. uwa-motion-*.log erhalten.
-- Neu53automatische Prüfungen PASS(CTest56mit3Wrappern). Stillstand-CLI
-  prüft wie Wächter/Hold die unabhängigen Antriebe, statt passive Gazebo-
-  Mimic-Geschwindigkeitsgeräusche als Antriebsbewegung zu behandeln. Ungültige
-  oder fehlende Antriebsdaten sperren weiter; Bestätigung ausdrücklich drive
-  standstill. Reale Hardware unverändert.
--31Bahnen bestätigt; folgende Vorbereitung wurde wegen Paarlease bei
-  langsamer Simulationszeit angehalten. Ursache Zeitbasis korrigiert:
-  Protokollv3 prüft Geometrie mit10Hz monotone Echtzeit, passend zu Watchdog
-  und Reserve. Grenzwerte unverändert. Ehemaliger Versuch erhalten unter
-  development-before-wall-timer/. Geprüfte Sim-Grundstellungsfahrt PASS;
-  vollständiger Livecheck samt pausierter Physik/STATE STALE PASS:
-  setup/logs/uwa-motion-live-guard-check-steady-wall.json. Beobachtete63ms
-  Abstandsfault→Stillstand,132ms knappe Paarlease,321ms Wächterverlust→Hold,
-  keine garantierten Obergrenzen. Replay mit24offenen verschiedenen Bahnen
-  nach bewusstem Reset fortgesetzt.
-
-- Neuer Nutzerauftrag/Entscheidungen: unabhängiger10Hz-Kugelwächter für vier
-  Nachbarpaare, verriegelter Paarstopp statt pauschalem Vierarmstopp; offene
-  Greifer/Wrist-Gehäuse einschließen. Zunächst PC-/ROS-Fahrten nur in Simulation64.
-  PTP vorab planen, Warten erlaubt, RRTConnect und unabhängige zirkulare Felder;
-  CDF später. Keine Hardwareaktionen aus dieser Aufgabe.
-- Neues Paket uwa_cell_motion: konservative Vollkörper-Kugelhüllen,
-  geometrischer Wächter plus unabhängiger Watchdog, Ressourcen-Haltecontroller
-  je Arm, gemeinsame Zielauflösung/MoveIt-FCL-Prüfung/Quintik-Zeitparametrierung,
-  native OMPL-RRTConnect und CF-inspirierte Offline-Rollouts ohne RRT-Fallback.
-  Anleitung docs/four_arm_motion.md; Arbeit work/four-arm-collision-planning.md.
-- Paket gebaut,50Offlineprüfungen bestanden (CTest zusätzlich3Wrapper,
-  zusammen53/0Fehler), einschließlich Hindernis-Einschwingen vor Start und
-  Greiferbewegung während Arm-PTP. Gazebo-Wristfahrt0,04rad
-  bestanden. Live-Stoppprüfung der Protokollv2-Version bestanden:
-  nurLF/RF stoppen/LRerreichtZiel, Topic-/Reaktivierungssperre, Mehrfachfehler,
-  Datenverlust und Wächterausfall/Wiederkehr verriegelt. Fehler→Stillstand125ms,
-  Wächterverlust→Halteverriegelung419ms; Teilreset/WeiterfahrtRR bei fehlendem
-  LF-Zustand bestanden. setup/logs/uwa-motion-live-guard-check-final.json.
-  Simulation, keine reale Stoppreserve.
-- Endgültiges Offlinevergleichssetv4 komplett300Versuche: RRT102/125,
-  zirkulare Felder115/125 gültige Zielversuche erfolgreich, je25ungültige
-  Ziele verworfen. Kreuzungen3/25gegen15/25; Kugelbahnüberschneidung jetzt
-  nachgewiesen, Meshkontakt separat.250unveränderte Versuche mit Herkunft zu
-  v2 verlinkt,50korrigierte Kreuzungsversuche ergänzt. Feste Suite im Paket.
--55verschiedene erfolgreiche zeitparametrierte Bahnen zum Gazebo-Replay;
-  identische Wiederholungen bekommen denselben Ausführungsnachweis. Nach
-  IDE-Absturz kontrolliert fortgesetzt; Fortschritt/Fehler inkrementell in
-  setup/logs/uwa-motion-comparison-v4/summary.json. Vollständige Abnahme offen.
-  Normale1ms/RTF1-Physik; RTF3-Versuch mit5ms-Schritt löste STATE STALE aus
-  und wurde vor Fahrt verriegelt abgebrochen, alle Einstellungen restauriert.
-  Temporäre Replay-Kamerarate0,2Hz wird per EXIT-Trap auf10Hz restauriert.
-- Einzelarmfahrten unter stationären Hindernisarmen folgen vollständiger
-  geprüfter Bahn mit gemessenem1mrad-Geometriekorridor; zeitlicher Lag separat
-  erfasst. Mehrarmfahrten weiter mit unabhängigen Fortschrittsbarrieren.
-  SIGTERM während Bewegung hinterließ bestätigte Holds+Latches:
-  setup/logs/uwa-motion-signal-check.json. Keine automatische Wiederaufnahme.
-- Auditkorrektur in Protokollv2: Paarlease im Supervisor begrenzt die Dauer
-  einer alten geometrischen Freigabe anhand ihrer verbleibenden Abstandsreserve,
-  statt stets400ms Heartbeat auszuschöpfen. Monotonzeit enthält Transportalter,
-  20ms Pollintervall abgezogen. Protokollv2-Liveprüfung bestanden; zusätzlicher
-  Test der besonders knappen Paarlease im Testfixture ergänzt, noch auszuführen.
-  Ein früherer Live-Stoppversuch scheiterte an unerwartetem zusätzlichen Hold;
-  Rohdaten erhalten, instrumentierter Wiederholungslaufv2 vollständig PASS.
-- Gemeinsame Simulation einmal für Plugin-Erkennung neu gestartet; vorherige
-  Gelenke gesichert und identisch zu den konfigurierten Anfangsstellungen.
-  Reale Scan-/Kamera-/Treiberarbeit anderer Aufgabe erhalten.
+- Implementiert in `uwa_cell_motion`, ROS 2 Lyrical, ausschließlich Domain64 /
+  Partition `uwa_cell_sim` / LOCALHOST. Keine Hardwarekommandos. Anleitung
+  `docs/four_arm_motion.md`, Arbeitseintrag `work/four-arm-collision-planning.md`.
+- Unabhängiger 10-Hz-Wanduhrwächter für LF/RF, LF/LR, RF/RR, LR/RR; keine
+  Diagonalen. Konservative Volumenabdeckung mit216Kugeln für68modellierte
+  Körper einschließlich offener Finger, Wrist und Kameras. Abstände zwischen
+  Kugeloberflächen; Relativbewegung aller Glieder, Datenalter und Bremsreserve.
+- Separater Supervisor mit Paarleases/Heartbeat und Ressourcen-Haltecontroller
+  je Arm. Paarverletzung verriegelt beide Arme, Mehrfachfehler deren Vereinigung;
+  Zustandsverlust betrifft Nachbarschaften. Teilreset unabhängiger Arme möglich.
+  Topic-Kommandos/Aktivierungsversuche erfasst, keine automatische Wiederaufnahme.
+- Gemeinsame vollständige Start-/Zielschnittstelle, kartesisch explizit `world`,
+  gleiche IK, native OMPL-RRTConnect-Gesamtplanung und unabhängiger CF-inspirierter
+  Rollout ohne RRT-Fallback. Gemeinsame MoveIt/FCL-Endprüfung nach Quintik-Timing,
+  alle Selbst-/statischen Kollisionen; diskrete Prüfung≤5mrad, kein CCD-Nachweis.
+  Planen/Vorschau/Ausführen getrennt. Gemessene Mehrarm-Fortschrittsbarrieren und
+  Restwegprüfung nach Paarstopp; nicht nur gleiche Startzeitstempel.
+- Offline **300/300** Versuche:30Aufgaben×5Seeds×2Methoden,10s Budget.
+  RRT102/125 gültige Zielversuche erfolgreich, CF115/125; je25absichtlich ungültige
+  Ziele abgewiesen. Kreuzungen3/25gegen15/25.250unveränderte Ergebnisse mit
+  Provenienz zu v2,50korrigierte Kreuzungsversuche. Aussage nur für diese Suite.
+- Agentenempfehlung anhand dieser Messung: für freie PTPs vorläufig Feldansatz
+  wegen höherer Erfolgsquote bevorzugen, RRT als Referenz behalten. Einzelne
+  RRT-Wege kürzer; keine allgemeine Überlegenheit oder Nutzerfestlegung behaupten.
+- Alle217erfolgreichen Pläne in Gazebo durch55verschiedene vollständige Start-/
+  zeitparametrierte Bahnen repräsentiert; exakte Wiederholungen ausdrücklich
+  verlinkt. **Alle55Zielbahnen begonnen,53erfolgreich,2gestoppt**: RRT-Kreuzung03
+  Seed0 wegen Greifer0,05835rad/s über Betriebsgrenze0,05; Seed1 wegen152ms
+  Zustandslücke. Verlinkte Versuche: RRT100/102Fahrerfolge, CF115/115.
+  Keine Fehler weggefiltert: Bericht zählt zusätzlich sämtliche historischen
+  Entwicklungs-/Anfahr-/Abbruchdaten, insgesamt118Versuche/18Fehlschläge über
+  unterschiedliche Entwicklungsstände. Diese sind keine homogene neue Testserie.
+- Endbericht `setup/logs/uwa-motion-comparison-v4/report.html` samt PNG/JSON,
+  Fehlversuchsliste `report.attempts.json`, Quellrevisionen `runtime-manifest.json`.
+  Audit `validation-audit.json`: eine Kollisionssignatur cdeff888…461504/ein
+  Mesh-Satz, geplantes vmax0,05rad/s/amax0,09976rad/s²; größter aufgezeichneter
+  Endfehler erfolgreicher Fahrten0,461mrad bei1mrad Zieltoleranz.
+- **66Motion-Pytests PASS**,70mit4CTest-Wrappern; zusätzlich36gezielte Gazebo-
+  Modell-/Overview-Tests PASS. Finale vollständige Liveabnahme
+  `setup/logs/uwa-motion-live-guard-check-executor-acceptance.json`: Paarumfang,
+  unabhängige Weiterfahrt, Mehrfachfehler, Datenverlust/Teilreset, Pause/STATE STALE,
+  Topic-/Aktivierungssperre, Wächterverlust und verriegelte Wiederkehr PASS.
+  Gemessen85ms bis erste Armspeed≤3mrad/s bei0,04756rad/s vor Fault,129ms knappe
+  Paarlease,400ms bis Watchdog-Ressourcenhalt. STOPPED verlangt zusätzlich300ms
+  geprüfte Historie. Einzelbeobachtungen, keine garantierten Worst-Case-Werte.
+- Gegenseitige Ausfalldiagnose/RViz: GUARD LOST löscht alte Kugeln und zeigt
+  Holds/Standstill UNCONFIRMED unabhängig. STOP ADAPTER LOST verriegelt Diagnose;
+  Adapterverlustprüfung bei bereits gehaltenen Armen, kein Nachweis aktiver
+  Stoppwirkung eines vollständig ausgefallenen Backends. RViz-Prüfbilder unter
+  setup/logs/uwa-motion-rviz-{held-final,guard-lost}.png. Verlust-Snapshothelfer
+  schrieb Bild, stürzte danach beim Beenden ab; Geometrieprozess wieder fortgesetzt.
+- Unbeanspruchte Greifertriebe werden an gemessener Pose gehalten, aktive Besitzer
+  nicht verdrängt. Ruhende Anschläge zeigen bis5,1µrad Zittern: Werkzeugruhe über
+  ≤10µrad Span/300ms und Betriebsgeschwindigkeitsgrenze, Arme weiterhin3mrad/s.
+  Echte langsame Bewegung besteht Gegenprobe nicht. Keine Lockerung von Frische,
+  Kollisionsabständen oder Betriebsgrenzen wegen Ausführungsfehlern.
+- Profilgestützte Executor-Optimierung: unbenutzte Standard-QoS-Warncallbacks
+  ausgelassen, explizite Callbacks/Transport-QoS/Clock/Frische bleiben.9,66→4,16Mio
+  Profilaufrufe/6s; reale Wächter-CPU nur46→42Prozent eines Kerns. Kein Nachweis,
+  dass sämtliche nichtdeterministischen Zustandslücken beseitigt sind. Kaltstart,
+  dauerhafter Client-Executor und gemeinsame native/Python-Grenztoleranz1e-8rad
+  ebenfalls geprüft. Reguläre Wächterstopps speichern jetzt Diagnose-Snapshots.
+- Vergleich ohne Bildrendering (`image_sensors:=false`), Kollisionskörper,
+  Inertien, Kalibrierung/TF und OAK-CAD identisch; normale Zellvorgabe bleibt Bilder
+  an. Welt-/Tischanker vorläufig, OAK-Stativ/Karton weiterhin visual-only. Hardware,
+  reale Stoppreserve und produktive Greiferregelung bleiben eigene Ausbaustufen.
+- Abschluss: alle vier Ressourcen gehalten, stabile Antriebe gemessen;
+  `setup/logs/uwa-motion-final-checkpoint.json`. Eigene Dienste `uwa-cell-sim` und
+  `uwa-cell-motion` laufen, Vergleich beendet; keine automatische Weiterfahrt.
+  Fremde Arbeiten/Dienste erhalten. Nutzer-Neustartpause erledigt; späteres
+  unbeabsichtigtes SIGTERM in Historie erhalten, Ursache ungeklärt.
 
 ## Vierarm-Scan und OAK-Update abgeschlossen, 2026-11-13
 

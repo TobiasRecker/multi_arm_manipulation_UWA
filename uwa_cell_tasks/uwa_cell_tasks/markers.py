@@ -10,7 +10,8 @@ def object_markers(node,scene,truth,status,group):
     marker.ns='task_state';marker.id=0;marker.type=Marker.TEXT_VIEW_FACING;marker.action=Marker.ADD
     marker.pose.position.z=1.8;marker.pose.orientation.w=1.;marker.scale.z=.06
     marker.color.r=1.;marker.color.g=1.;marker.color.b=1.;marker.color.a=1.
-    marker.text='SIMULATION / '+status['state']+'\n'+('RIGID OBJECT GROUP: RF + RR' if group else 'NO LOADED GROUP')
+    marker.text=('SIMULATION / '+status['state']+'\nTASK: '+status.get('task_phase','waiting').upper()+'\n'+
+        ('RIGID OBJECT GROUP: RF + RR' if group else 'NO LOADED GROUP'))
     marker.lifetime.sec=1;array.markers.append(marker)
     if truth:
         t=np.array(truth['T_world_object']);m=Marker();m.header=marker.header;m.ns='simulation_truth';m.id=1

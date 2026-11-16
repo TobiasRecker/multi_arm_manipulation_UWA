@@ -4,10 +4,69 @@ import numpy as np
 import pytest
 from scipy.spatial.transform import Rotation
 from match_cooperative_handling.rigid_object import tcp_target, common_scale, interpolate, rigid
-from uwa_cell_tasks.core import GraspGroup, RunStore, ARMS, seal, verify
+from uwa_cell_tasks.core import GraspGroup, RunStore, ARMS, seal, verify, resource_lease,gripper_profile,measured_open,object_point_height
 
 
 CFG=dict(relative_position_tolerance_m=.002,relative_angle_tolerance_rad=np.pi/180)
+
+
+def test_lift_reference_is_declared_com_and_keeps_corner_motion_separate():
+    com=np.array([.20,.17,.05]);start=np.eye(4)
+    end=np.eye(4);end[:3,:3]=Rotation.from_euler('y',.011).as_matrix()
+    end[2,3]=.03-((end[:3,:3]@com)[2]-com[2])
+    assert object_point_height(end,com)-object_point_height(start,com)==pytest.approx(.03)
+    assert abs(end[2,3]-.03)>.002
+    shift=np.eye(4);shift[2,3]=.03
+    assert object_point_height(shift,com)-object_point_height(start,com)==pytest.approx(.03)
+    with pytest.raises(ValueError):object_point_height(start,[0.,float('nan'),0.])
+
+
+def test_open_confirmation_requires_actual_passive_fingers_and_standstill():
+    names=['driver','passive'];q=dict(driver=.008,passive=-.009);v=dict(driver=0.,passive=0.)
+    assert measured_open(names,q,v)
+    assert not measured_open(names,dict(q,passive=.798),v)
+    assert not measured_open(names,{'driver':0.},v)
+    assert not measured_open(names,q,dict(v,passive=.004))
+    assert not measured_open(names,dict(q,passive=float('nan')),v)
+    assert not measured_open([],{}, {})
+
+
+def test_contact_qualification_rejects_accelerated_physics(tmp_path):
+    import yaml
+    from uwa_cell_tasks.core import configuration
+    cfg=configuration();cfg['simulation_real_time_factor']=1.01
+    path=tmp_path/'accelerated.yaml';path.write_text(yaml.safe_dump(cfg))
+    with pytest.raises(ValueError,match='unaccelerated'):configuration(path)
+
+
+def test_native_gears_cannot_silently_run_with_unsupported_dart_engine(tmp_path):
+    import yaml
+    from uwa_cell_tasks.core import configuration
+    cfg=configuration();cfg['physics_engine']='dartsim';cfg['gripper_transmission']='native_gear'
+    path=tmp_path/'unsupported.yaml';path.write_text(yaml.safe_dump(cfg))
+    with pytest.raises(ValueError,match='require Bullet Featherstone'):configuration(path)
+
+
+def test_two_recipes_cannot_own_the_same_controller_resources(tmp_path):
+    with resource_lease('/uwa_grasp_test',tmp_path):
+        with pytest.raises(RuntimeError,match='Another task owns'):
+            with resource_lease('/uwa_grasp_test',tmp_path):pytest.fail('Concurrent controller ownership')
+        with resource_lease('/uwa_grasp_other',tmp_path):pass
+    with resource_lease('/uwa_grasp_test',tmp_path):pass
+
+
+def test_contact_closure_slows_before_the_wall_but_opening_remains_coarse():
+    cfg=dict(gripper_coarse_velocity_rad_s=.02,gripper_fine_velocity_rad_s=.004,gripper_fine_start_rad=.65)
+    closing=gripper_profile([.01,.03],.8,cfg);points=closing['points']
+    q=np.array([p['positions'] for p in points]);t=np.array([p['time'] for p in points])
+    assert q[0]==pytest.approx([.01,.03]) and q[-1]==pytest.approx([.8,.8])
+    velocity=np.diff(q,axis=0)/np.diff(t)[:,None]
+    assert (velocity>=-1e-12).all() and velocity.max()<=.02+1e-12
+    assert velocity[(q[:-1]>.66).all(axis=1)].max()<=.004+1e-12
+    assert 60<closing['duration_s']<80
+    opening=gripper_profile([.8,.78],0.,cfg)
+    assert opening['duration_s']==pytest.approx(40.)
+    assert opening['points'][-1]['positions']==pytest.approx([0.,0.])
 
 
 def group():

@@ -13,7 +13,8 @@ OpenCV-SIFT, metrische Oberflächenmerkmale, RANSAC/PnP und LK-Tracking.
 FoundationPose benötigt in der offiziellen Implementierung CUDA und RGB-D
 einschließlich Objektmaske zur Initialisierung. Seit13.11. steht eine zusätzliche
 TITAN-RTX-Workstation für einen [isolierten FoundationPose-Versuch](foundationpose_titanpc.md)
-zur Verfügung. Noch kein Backendtausch oder GPU-Erfolg dieses CPU-Prototyps.
+zur Verfügung. Dessen offizielle RGB-D-Bewegungsdemo läuft auf100Bildern;
+eine Anbindung unserer Assets/OAK-Daten an diesen GPU-Backend steht noch aus.
 [M3T](https://github.com/DLR-RM/3DObjectTracking/tree/master/M3T) mit Region-/Textur-/
 Tiefenmodalitäten bleibt eine weitere Option; beide noch nicht an dessen ROS-
 Schnittstelle angebunden.
