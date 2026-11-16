@@ -1,0 +1,113 @@
+from pathlib import Path
+from types import SimpleNamespace as NS
+import json
+import sys
+import tempfile
+import struct
+import xml.etree.ElementTree as ET
+import numpy as np
+import pytest
+sys.path.insert(0,str(Path(__file__).parents[1]))
+from uwa_cell_motion.hardware_state import DeviceStates,Peer,require_domain,MotionOutputReader
+from uwa_cell_motion.hardware_ports import unsafe_controllers,hold_owned,matching_hardware,HOLD
+from uwa_cell_motion.hardware_model import HardwareProblem,inventory_path
+from uwa_cell_motion.common import config,nominal_state,joint_names
+
+
+def test_runtime_domains_do_not_cross_simulation_or_hardware(monkeypatch):
+    monkeypatch.setenv('ROS_AUTOMATIC_DISCOVERY_RANGE','LOCALHOST')
+    for domain,mode,allowed in [('64','hardware',False),('66','mock',False),('67','hardware',False),('66','hardware',True),('67','mock',True)]:
+        monkeypatch.setenv('ROS_DOMAIN_ID',domain)
+        if allowed:require_domain(mode)
+        else:
+            with pytest.raises(RuntimeError):require_domain(mode)
+
+
+def test_frozen_device_timestamp_does_not_refresh_even_if_ros_or_receipts_advance():
+    state=DeviceStates();assert state.accept('arm',10,[0]*6,[0]*6,100)
+    assert not state.accept('arm',10,[0]*6,[0]*6,100.5)
+    records,errors=state.snapshot();assert records['arm']['received']==100 and 'FROZEN' in errors['arm']
+    assert state.accept('arm',10.1,[0]*6,[0]*6,100.6)
+    assert abs(state.snapshot()[0]['arm']['source_stamp']-100.1)<1e-8
+
+
+def test_device_epoch_is_detectable_and_recovers_data_without_releasing_latches():
+    state=DeviceStates();state.accept('arm',50,[0]*6,[0]*6,100)
+    state.accept('arm',1,[0]*6,[0]*6,101);record=state.snapshot()[0]['arm'];assert record['epoch']==1
+    assert record['source_stamp']==101
+    assert not state.accept('arm',2,[float('nan')]*6,[0]*6,102)
+
+
+def test_peer_replay_transport_age_and_mode_mismatch_are_rejected():
+    peer=Peer();value=dict(hardware_signature='s',armed=True,sequence=1,instance='a',evaluated_monotonic_s=1.)
+    assert peer.receive(value,1.01,'s',True);assert peer.fresh(1.1,.2)
+    assert not peer.receive(value,1.15,'s',True)
+    assert not peer.receive(dict(value,sequence=2),1.15,'s',False)
+    assert not peer.fresh(1.3,.2)
+
+
+def test_rtde_codec_reads_native_program_and_safety_without_input_recipes():
+    reader=object.__new__(MotionOutputReader);reader.recipe=3
+    payload=b'\x03'+struct.pack('>13dIii',12.,*([.1]*6),*([.2]*6),2,7,1)
+    reader.receive=lambda:(85,payload)
+    stamp,q,v,status=reader.sample();assert stamp==12. and q==[.1]*6 and v==[.2]*6
+    assert status==dict(runtime_state=2,robot_mode=7,safety_mode=1)
+
+
+def test_resource_blocker_covers_unknown_joint_owner_and_native_modes_not_gripper():
+    def controller(name,claimed=(),state='active',kind='test'):return NS(name=name,state=state,type=kind,claimed_interfaces=claimed)
+    joints=['q'+str(i) for i in range(6)]
+    controllers=[controller('custom',[joints[0]+'/velocity']),controller('freedrive_mode_controller'),
+                 controller('gripper',['finger/position']),controller(HOLD,[j+'/position' for j in joints],kind='uwa_cell_motion/CollisionHold')]
+    assert set(unsafe_controllers(controllers,joints))=={'custom','freedrive_mode_controller'}
+    assert hold_owned(controllers,joints)
+    components=[NS(plugin_name='ur_robot_driver/URPositionHardwareInterface',command_interfaces=[NS(name=j+'/position') for j in joints])]
+    assert matching_hardware(components,joints,'hardware') and not matching_hardware(components,joints,'mock')
+
+
+@pytest.fixture(scope='module')
+def problem():
+    with tempfile.TemporaryDirectory() as directory:
+        yield HardwareProblem(directory,config(Path(__file__).parents[1]/'config/hardware_motion.yaml'),inventory_path())
+
+
+def test_hardware_envelope_is_valid_at_nominal_and_internal_exemptions_are_scoped(problem):
+    assert problem.collision.check(nominal_state(problem.layout))[0]
+    srdf=ET.parse(problem.directory/'moveit/robot.srdf')
+    pairs=[p for p in srdf.findall('disable_collisions') if p.get('reason')=='CoupledToolOpeningEnvelope']
+    assert pairs and all(p.get('link1').split('_robotiq_')[0]==p.get('link2').split('_robotiq_')[0] and '_robotiq_' in p.get('link1') and '_robotiq_' in p.get('link2') for p in pairs)
+
+
+def test_tool_envelope_covers_full_body_volume_at_between_sample_openings(problem):
+    from uwa_cell_control.scan_separation import Geometry
+    geometry=Geometry(problem.original_description,problem.names);root=ET.fromstring(problem.description)
+    zero={j:0. for n in problem.names.values() for j in n};frames0=geometry.fk.frames(zero);rng=np.random.default_rng(15)
+    for rid,bodies in geometry.bodies.items():
+        for body in bodies:
+            if body.radii[-1]<=0:continue
+            collisions=root.find(f"link[@name='{body.link}']").findall('collision')
+            centres=np.array([np.fromstring(c.find('origin').get('xyz'),sep=' ') for c in collisions]);radii=np.array([float(c.find('geometry/sphere').get('radius')) for c in collisions])
+            local=rng.uniform(body.visual_vertices.min(axis=0),body.visual_vertices.max(axis=0),size=(20,3));local=local@body.fixed[:3,:3].T+body.fixed[:3,3]
+            for opening in (.0,.049,.157,.351,.793,.8):
+                frames=geometry.fk.frames(dict(zero,**{problem.names[rid][6]:opening}));T=np.linalg.inv(frames0[body.link])@frames[body.link]
+                points=local@T[:3,:3].T+T[:3,3]
+                assert np.all(np.min(np.linalg.norm(points[:,None]-centres[None],axis=2)-radii[None],axis=1)<=1e-9)
+
+
+@pytest.mark.parametrize('method',['rrtconnect','circular'])
+def test_both_hardware_planners_share_tool_envelope_and_bound_results(problem,method):
+    start=nominal_state(problem.layout);target=[start[j] for j in joint_names('right_rear')];target[-1]+=.01
+    result=problem.plan(dict(start=start,goals={'right_rear':target}),method)
+    assert result['success'] and result['hardware_plan'] and not result['simulation_only']
+    assert result['hardware_binding']==problem.binding
+    assert result['metrics']['full_cell_collision_checked']
+    bad=dict(start);bad[problem.names['right_rear'][6]]=.2
+    with pytest.raises(ValueError,match='model coordinates'):problem.normalize(dict(start=bad,goals={'right_rear':target}))
+
+
+def test_native_rrt_uses_same_hardware_srdf_and_envelope(problem):
+    start=nominal_state(problem.layout);target=[start[j] for j in joint_names('right_rear')];target[-1]+=.01
+    request=problem.normalize(dict(start=start,goals={'right_rear':target}))
+    path,error=problem.rrt(request,4,3.)
+    assert path is not None,error
+    assert problem.time_parameterize(request,path)['points']

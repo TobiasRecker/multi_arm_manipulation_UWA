@@ -5,6 +5,61 @@ carton, 30 mm lift, two-second dwell, set down and release. The task transport
 cannot address hardware. It requires domain64, `uwa_cell_sim`, LOCALHOST and an
 isolated `/uwa_grasp_*` namespace. No real power, brake or program commands exist.
 
+## Exploration objective (clarified2026-11-16)
+
+Use contact simulation to explore fast task execution and find the limiting
+conditions. Vary path speed, acceleration and jerk by phase; compare cycle time,
+collisions, contact forces/impulses, actuator loads, slip and internal loading
+of the rigid grasp group. Carrying arms retain one object path and shared time
+law. Repeat across mass, friction and pose variations, retaining failed cases.
+The intended hardware trajectory then includes allowance for model uncertainty
+and is checked against real measurements. A fixed percentage below a simulated
+maximum alone is not evidence of safe physical execution.
+
+The existing slow settings below are commissioning profiles, not measured robot
+performance limits. Higher-speed experiments need separate bound profiles and
+new evidence. Faster replay does not change forces in the original physics.
+
+Current instrumentation records contact geometry/support and applied gripper
+actuator torque. It does not yet export contact wrenches or establish realistic
+arm torque/dynamic loading; arm actuators are idealized, and the rigid carton
+does not model crushing. Force/load instrumentation and model checks are needed
+before interpreting a speed sweep as a physical load boundary. Numerical
+instability, a configured velocity-envelope stop and excessive material loading
+are distinct failure categories. This objective is recorded; no new dynamic
+exploration benchmark or hardware transfer has yet been performed.
+
+### Force sensing first; compliant mount as fallback
+
+User preference2026-11-16: first validate direct force reporting. Only if it
+proves unsuitable, test a UR base on a passive spring/damper linear stage and
+infer a force component from displacement. Do not add that stage by default.
+
+Installed interfaces include contact wrench fields, the Gazebo ForceTorque
+system and JointTransmittedWrench. The pinned DART9.5.2 binary exposes contact
+reporting, transmitted joint wrench, spring stiffness and spring reference
+features. This is capability evidence, not measured accuracy. References:
+[contact-force API](https://gazebosim.org/api/physics/9/GetContacts_8hh_source.html),
+[joint F/T sensor](https://gazebosim.org/api/sensors/9/classgz_1_1sensors_1_1ForceTorqueSensor.html),
+[spring/damper schema](https://raw.githubusercontent.com/gazebosim/sdformat/sdf16/sdf/1.12/joint.sdf).
+
+First compare known static load and lever arm, dynamic force balance, repeated
+runs and smaller physics steps. Check force frames/signs and avoid counting
+the same contact from multiple sensors twice. Evaluate impulse and defined
+time-window force averages alongside rigid-contact solver peaks.
+
+A passive spring reference provides restoring action conceptually; an active
+axis is not inherently required. Quasistatically, its axial force is approximately
+stiffness times displacement from the reference. Dynamic inference must account
+for damping, inertia and robot self-motion/loading. A single stage observes one
+direction. Excessive stiffness may worsen numerical conditioning. The displaced
+base must enter actual world-to-TCP kinematics without rewriting grasp offsets.
+The mount changes dynamics and uses the same physics solver, so it is not an
+independent guarantee of correct contact mechanics. No stage or calibrated force
+benchmark has yet been implemented under this extension.
+
+## Existing commissioning evidence
+
 Current-code contact evidence (2026-11-14): runs64/65/67/68/71 completed the full
 recipe and passed independent trace evaluation, including fixture/repeat and
 light-carton Home/repeat cases. Lift is explicitly measured at the uniform-

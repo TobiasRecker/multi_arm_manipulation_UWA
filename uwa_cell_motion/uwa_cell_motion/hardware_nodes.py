@@ -45,7 +45,7 @@ class HardwareGuard(MotionNode):
         self.names=self.problem.names;self.model=self.problem.spheres;self.cfg=cfg;self.core=GuardState(cfg)
         self.signature=self.problem.signature;self.hardware_signature=signature(self.problem,mode)
         self.mode,self.armed=mode,armed;self.instance=str(uuid.uuid4());self.sequence=0
-        self.positions={};self.pairs=[];self.supervisor_status={};self.supervisor=Peer();self.model_match={r:False for r in ROBOT_IDS}
+        self.positions={};self.pairs=[];self.records={};self.playing={};self.supervisor_status={};self.supervisor=Peer();self.model_match={r:False for r in ROBOT_IDS}
         self.source=source or (RtdeStates(self.problem.profiles,cfg['state_timeout_s']) if mode=='hardware' else DeviceStates())
         self.last_source={};self.epochs={};self.source_faults=[]
         self.publisher=self.create_publisher(String,'/uwa_cell/collision_guard/decision',1)
@@ -71,6 +71,10 @@ class HardwareGuard(MotionNode):
     def update(self,now):
         records,errors=self.source.snapshot();faults=[]
         for rid,record in records.items():
+            status=record['status'];affected=sorted({r for pair in PAIRS if rid in pair for r in pair})
+            if status['safety_mode'] not in (1,2):faults.append(dict(arms=affected,reason='NATIVE SAFETY STOP: '+rid))
+            if self.playing.get(rid,False) and status['runtime_state']!=2:faults.append(dict(arms=affected,reason='NATIVE PROGRAM INTERRUPTED: '+rid))
+            self.playing[rid]=status['runtime_state']==2
             if self.epochs.get(rid,record['epoch'])!=record['epoch']:
                 affected=[r for pair in PAIRS if rid in pair for r in pair]
                 faults.append(dict(arms=sorted(set(affected)),reason='DEVICE CLOCK RESET'))
@@ -103,7 +107,7 @@ class HardwareGuard(MotionNode):
         status.update(packet(self.hardware_signature,self.armed,self.instance,self.sequence),pairs=self.pairs,
             model_signature=self.signature,model_match=all(self.model_match.values()),guard_config_signature=self.hardware_signature,
             source_time_s=now,stop_adapter_available=available,state_ages_s={r:now-v['received'] for r,v in self.records.items()},
-            runtime_label=self.mode.upper()+'\nStop-reserve:UNMEASURED\nTool:opening-envelope',
+            runtime_label=self.mode.upper()+('\nSTOP-GUARD-ARMED' if self.armed else '\nMONITOR-ONLY')+'\nStop-reserve:UNMEASURED\nTool:opening-envelope',
             model_uncertainty='World/table anchors provisional; hardware stop reserve unmeasured; gripper opening unobserved')
         self.publisher.publish(String(data=json.dumps(status,allow_nan=False)))
         state=packet(self.hardware_signature,self.armed,self.instance,self.sequence,records=self.records,model_state=self.positions,

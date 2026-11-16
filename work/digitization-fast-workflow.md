@@ -11,6 +11,13 @@
   hergestellt. ROS nurLR frisch: dort5Broadcaster, übrigeManager ohneController.
   Standard-Loader für Zustands-Broadcaster und ausschließlich inaktive
   Bewegungscontroller vorbereitet; keine Treiberneustarts/Power/Brake/Play/Fahrt.
+- Neues vollständiges stationäres Fünferset16.11. bestätigt (native4×2592×1944
+  plus8000×6000, allebrauchbar/Stillstandtrue, all_fullfalse). Feste Optik/Posen
+  vorbereitet; fünfmal dieselbe Station zählt weiterhin nur jeeine Ansicht.
+- Controller-Lader: Spawner lief ohne Armnamespace und übernahm dadurch keine
+  namensraumgebundenenParameter (RF-GPIO-Präfixleer). Enger Fix in gemeinsamem
+  MATCH-Adapter operations.py,16Tests PASS; kein Quittieren/Umgehen von Fehlern.
+  Nachladeversuch mit korrektemNamespace, nurBroadcasteraktiv/Motioninaktiv.
 - Nutzerziel: deutlich kürzere Durchlaufzeit mit geringerem Reasoning-Aufwand,
   geprüfte Qualität und bestehende Sicherheitsfunktionen erhalten.
 - Neuer Auftrag: Pipeline implementieren und an studentischem Roboternachbau

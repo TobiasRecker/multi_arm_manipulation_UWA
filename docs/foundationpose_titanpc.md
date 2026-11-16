@@ -98,8 +98,12 @@ Manipulationsfreigabe oder Nachweis absoluter Millimetergenauigkeit.
 Nach der folgenden Bestandsprüfung hat der Nutzer Schritt1 beauftragt. Dieser
 ist jetzt umgesetzt: [OAK-RGB-D-Modus](../../oak_camera_calibration/OAK4_RGBD.md),
 erster Datensatz mit studentischem Roboter statt Karton erfolgreich. Acht
-entzerrte1280×960-Paare, maxZeitdifferenz1,727ms; K und Formate geprüft, Board- /
-Genauigkeitsprüfung noch offen. Daten unter
+entzerrte1280×960-Paare, maxZeitdifferenz1,727ms; K und Formate geprüft.
+Offline-Boardprüfung jetzt ebenfalls durchgeführt:16Fit-/8Prüfecken,
+maxPrüf-RMS0,3222px, aber SDK-Tiefe gegenüber RGB-Boardebene median+11,05mm.
+Nutzer-Linealmessung5Felder200mm passt zum Nominalmaß. Ursache/absolute
+Genauigkeit bleiben offen; weitere mobile Boardansichten vorgeschlagen.
+Daten unter
 `setup/oak4/rgbd/20261116-102913-rgbd-fa320e7a/`. Ein bekanntes Mesh wird erst
 für die spätere Objektpose benötigt. Weitere Planstufen sind noch Empfehlungen.
 

@@ -16,6 +16,25 @@
 
 ## Modulare Manipulation und starre Greifverbünde (2026-11-13)
 
+- Nutzeralternative16.11.: zuerst direkte simulierte Kraftmessung auf Robustheit
+  prüfen. Nur bei unbrauchbaren Werten UR-Basis in eigener Simulation optional
+  auf passive Linearachse mit Feder, Dämpfung und Ruhelage setzen und Auslenkung
+  auswerten. Keine solche Lagerung nötig, wenn direkte Messung genügt. Nicht als
+  unabhängig vom selben Physikmodell validierte Referenz ausgeben; Basisbewegung
+  in Welt-/TCP-Kinematik berücksichtigen. Einachsige Lagerung erfasst eine
+  Belastungsrichtung; Rückstellung zunächst passiv über Federruhelage prüfen.
+- Nutzerpräzisierung16.11.: Simulation als Experimentierumgebung zum Ausloten
+  schneller Abläufe und ihrer Grenzen verwenden. Bahn-Geschwindigkeit,
+  Beschleunigung und Ruck variieren, Kollisionen/Kräfte/Antriebsbelastungen/
+  Schlupf/innere Verspannung auswerten; gescheiterte virtuelle Versuche erhalten.
+  Bisherige langsame Inbetriebnahmegrenzen nicht als physische Leistungsgrenze
+  ausgeben. Explorationsprofile getrennt von bisherigen Prüfnachweisen führen.
+- Ziel ist ein schneller simulierter Ablauf und daraus ein realer Ablauf mit
+  Reserve für unmodellierte Effekte. Simulationsmaximum/pauschaler Tempoabschlag
+  allein beweisen keine Hardware-Sicherheit; Übertragung benötigt Realabgleich.
+  Keine pauschale Hardwarefahrfreigabe aus diesem Konzept ableiten. Modell- und
+  Numerikfehler von tatsächlichen Belastungsgrenzen unterscheiden. Replaytempo
+  ändert keine physikalischen Kräfte; Grenztests in tatsächlicher Kontaktphysik.
 - Nutzer möchte agentbedienbare wiederverwendbare Skills mit Voraussetzungen,
   Ergebnisprüfungen, Abbruchverhalten und versionsgebundenen Prüfnachweisen.
   Erste Anwendung: beide rechten URs greifen leeren Karton, heben kurz an und

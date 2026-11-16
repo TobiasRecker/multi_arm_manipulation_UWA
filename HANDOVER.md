@@ -1,5 +1,19 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## OAK-RGB-D-Boardprüfung und weitere Referenz benötigt, 2026-11-16
+
+- Fortsetzung mit vorhandenen8Paaren: vorderes rechtes40mm-Board24Ecken,
+ 16Fit-/8Prüfecken, maximales Prüf-RMS0,3222px. K/D unverändert, kein Weltprior.
+- Tiefe gegenüber RGB-Boardebene median+11,05mm; keine Millimetergenauigkeit
+  oder sichere Ursache. Nutzer misst5Felder200mm mit Lineal, ohne kalibrierte
+  Unsicherheit. Keine globale Kalibrierung/Offsetkorrektur daraus vorgenommen.
+- Daten: setup/oak4/rgbd/20261116-102913-rgbd-fa320e7a/board-check-v1/;
+  Offlinewerkzeug und36Tests/9Subtests bestanden, Anleitung OAK-Repo OAK4_RGBD.md.
+- Mobiles38mm-A4-Board für verschiedene Abstände/Neigungen vorgeschlagen;
+  Nutzer nach Verfügbarkeit gefragt. Karton kann später funktionalen Poseversuch
+  ermöglichen, ersetzt diese metrische Referenz nicht. Keine neue Kamera-/UR-
+  oder GPU-Aktion; Status work/foundationpose-rgbd-validation.md.
+
 ## Erster realer OAK-RGB-D-Datensatz für FoundationPose, 2026-11-16
 
 - Nutzer beauftragt Schritt1; aktuell steht studentischer Roboter an früherer
@@ -153,6 +167,64 @@
   ebenfalls erfolglos, Diagnosen erhalten, bisherigen Trackerstandard beibehalten.
 - Laufende Karton-Simulations-/Greifarbeit unverändert; neues Asset installiert,
   noch keine aktive Szeneinstanz. Anleitung und Vorschau docs/ptfe_l_assembly.md.
+
+## Neue Zielrichtung: dynamische Simulationsgrenzen ausloten, 2026-11-16
+
+- Nutzer ergänzt bedingte Alternative: falls direkte Gazebo-Kraftmessung nicht
+  robust/realistisch genug ist, UR auf passive federnd-gedämpfte Linearachse
+  setzen und deren Auslenkung messen. Gewünscht hohe Steifigkeit/Dämpfung und
+  Rückstellung; Erweiterung entfällt, wenn direkte Kraftmessung ausreicht.
+- Lokaler API-/Binärbefund, noch kein Messnachweis: GazeboSim10.5.0 enthält
+  ForceTorque-Systemplugin und JointTransmittedWrench-Komponente (N/Nm im
+  Gelenkframe). gz-physics/DART9.5.2-Bibliothek führt GetContactsFromLastStep,
+  GetJointTransmittedWrench, SetJointSpringReference und SetJointSpringStiffness.
+  Contact-Protobuf enthält Wrenchfelder; bisheriger Taskexport verwirft diese.
+  Vorhandensein dieser Schnittstellen beweist keine brauchbaren Messwerte.
+- Direkter Pfad zuerst: Kontaktkräfte plus Gelenkwrench an geeigneter starrer
+  Messstelle vergleichen. Bekannte statische Last (SummeKräfte≈mg) und Hebelarm,
+  bekannte dynamische Last/Kräftebilanz, reproduzierbare Zeitschrittvariation
+  prüfen. Frame/Vorzeichen und doppelte Kontaktmeldungen berücksichtigen. Bei
+  Stößen zusätzlich Impuls und definierte Zeitfenstermittel statt nur Solverpeak.
+- Rückstellfeder braucht konzeptionell keinen aktiven Antrieb: SDFormat kennt
+  Federsteifigkeit, Ruhelage und viskose Dämpfung auch für prismatische Gelenke;
+  Engine-Unterstützung lokal wie oben gefunden, praktische Umsetzung offen.
+  Quasistatisch Kraftkomponente≈k·Auslenkung; dynamisch Dämpfung, Trägheit und
+  Eigenbewegung/Eigenlast des Roboters berücksichtigen. Eine Achse misst nur
+  eine Richtung. Sehr hohe Steifigkeit kann Numerik verschlechtern; Lagerung
+  verändert die Roboterdynamik und muss in den tatsächlichen Welt-TCP-Frames
+  auftauchen. Kein Nachführen starrer Greifoffsets zur Fehlerverdeckung.
+- Beide Messwege verwenden denselben Solver; Lagerung kann Beobachtbarkeit
+  verbessern, heilt aber keine falsche Kontaktphysik. Erst einfache bekannte
+  Referenzfälle, dann Greifversuche/Temposweeps. Bislang nur Bestand/Quellen
+  geprüft, keine Achse eingebaut und keine Kraftkalibrierung als PASS behaupten.
+  Quellen: GazeboSensors9 ForceTorqueSensor, gz-physics9 GetContacts.hh,
+  gazebosim/sdformat sdf16 sdf/1.12/joint.sdf und gz-physics9 DARTJointFeatures.
+- Nutzer präzisiert: In Simulation schnelle Abläufe und ihre Grenzen erkunden,
+  dabei hohe Kräfte/Kollisionen prüfen; reale Ausführung anschließend mit
+  Reserve für unmodellierte Effekte. Das bisher sehr langsame Profil dient als
+  historischer Inbetriebnahmebeleg, nicht als künftiges Optimierungsziel oder
+  nachgewiesene Leistungsgrenze. Keine neue Hardwarefahrfreigabe.
+- Künftige Auswertung: Zykluszeit gegen phasenabhängige Geschwindigkeit,
+  Beschleunigung/Ruck, Kontakte/Kollisionen, Kontaktkräfte und Impulse,
+  Greifer-/Armbelastungen, Schlupf/Objekt-TCP-Fehler und innere Verspannung.
+  Beim starren Verbund weiterhin eine gemeinsame Zeitparametrierung; nur die
+  jeweils greifenden Arme gehören dazu. Mehrere Masse-/Reibungs-/Lagevarianten
+  prüfen, um günstige Einzelbedingungen nicht als robuste Grenze auszugeben.
+- Bestand geprüft: `task_telemetry.cpp` exportiert Kontaktpaare, Positionen,
+  Normalen, Eindringtiefen, Pads/Unterstützung, aber keine Kontaktwrenches.
+  `contact_gripper.cpp` meldet angelegte Greifer-Aktuatormomente, ausdrücklich
+  keine daraus gemessene Kontaktkraft. Arme nutzen idealisierten begrenzten
+  Geschwindigkeitsantrieb; reale Drehmoment-/Dynamikfähigkeit nicht nachgewiesen.
+  Starrer Karton bildet Quetschung nicht ab. Diese Modell-/Messlücken zuerst
+  für belastbare Kraftgrenzen schließen; Geschwindigkeit allein ist kein Maß.
+- Technische Konsequenz: getrennte Explorationsprofile und aussagekräftige
+  Belastungsauswertung, dann automatischer Parametersweep mit erhaltenen
+  Negativfällen und Wiederholungen. Reale Reserve aus Unsicherheit/Realabgleich
+  ableiten; ein pauschaler Abschlag vom Simulationsmaximum reicht als Beleg nicht.
+  Bewegungsgrenzen, Stoppreserve und Messfähigkeit gemeinsam betrachten.
+- In diesem Gespräch Konzept/Bestand dokumentiert; noch kein schneller
+  Physiklauf, keine bewegungswirksame Code-/Parameteränderung und kein neuer
+  Kraft- oder Hardware-Prüfnachweis. Bestehende14Versuchs-Nachweise unverändert.
 
 ## Sichtbare Karton-Demonstration, 2026-11-16
 
