@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>uwa_cell_motion</name><version>0.1.0</version>
-  <description>Simulation-only four-arm collision supervisor and PTP planner comparison.</description>
+  <description>Four-arm collision supervision and PTP planning with separate simulation, mock and hardware backends.</description>
   <maintainer email="rosmatch@example.com">rosmatch</maintainer><license>MIT</license>
   <buildtool_depend>ament_cmake</buildtool_depend><buildtool_depend>ament_cmake_python</buildtool_depend>
   <depend>rclcpp</depend><depend>controller_interface</depend><depend>hardware_interface</depend>

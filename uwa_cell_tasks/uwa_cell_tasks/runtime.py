@@ -110,7 +110,12 @@ class Simulation(MotionNode):
         if (getattr(self,'stop_directory',self.directory)/'STOP').exists():raise RuntimeError('STOP requested')
         for channel,limit in [('joint',.2),('guard',.4),('supervisor',.4)]:
             age=now-getattr(self,channel+'_received')
-            if age>limit:raise RuntimeError(f'{channel} reception stale: {age:.6f}s exceeds {limit:.3f}s')
+            if age>limit:
+                import faulthandler
+                with (getattr(self,'stop_directory',self.directory)/'stale-thread-stacks.txt').open('a') as output:
+                    output.write(f'{channel} stale at monotonic {now}; age {age}\n');output.flush()
+                    faulthandler.dump_traceback(file=output,all_threads=True)
+                raise RuntimeError(f'{channel} reception stale: {age:.6f}s exceeds {limit:.3f}s')
         if self.owned and set(ARMS).intersection(self.supervisor.get('blocked_arms',[])):
             raise RuntimeError('Grasp group/owned arm STOP LATCHED')
         if self.owned and any(abs(self.q.get(j,float('inf'))-q)>.001 or abs(self.v.get(j,float('inf')))>.003
@@ -120,6 +125,18 @@ class Simulation(MotionNode):
     def connect(self):
         self.wait(lambda:bool(self.q) and self.guard is not None and self.supervisor is not None
             and self.object is not None and self.contact is not None,30.)
+        # Discovery of the runner's action/service endpoints can still be in
+        # progress after its first telemetry sample. Require sustained fresh
+        # reception before reset/ownership; keep all armed deadlines unchanged.
+        quiet_since=None
+        def ready():
+            nonlocal quiet_since
+            now=time.monotonic()
+            if any(now-getattr(self,k+'_received')>.1 for k in ('joint','object','contact')):
+                quiet_since=None;return False
+            if quiet_since is None:quiet_since=now
+            return now-quiet_since>=5.
+        self.wait(ready,30.)
 
     def reset(self):
         from .planning import actual_names

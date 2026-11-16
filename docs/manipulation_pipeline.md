@@ -20,14 +20,54 @@ The existing slow settings below are commissioning profiles, not measured robot
 performance limits. Higher-speed experiments need separate bound profiles and
 new evidence. Faster replay does not change forces in the original physics.
 
-Current instrumentation records contact geometry/support and applied gripper
-actuator torque. It does not yet export contact wrenches or establish realistic
-arm torque/dynamic loading; arm actuators are idealized, and the rigid carton
-does not model crushing. Force/load instrumentation and model checks are needed
-before interpreting a speed sweep as a physical load boundary. Numerical
-instability, a configured velocity-envelope stop and excessive material loading
-are distinct failure categories. This objective is recorded; no new dynamic
-exploration benchmark or hardware transfer has yet been performed.
+Native force observation now records deduplicated contact loads, impulse,
+physics-step peaks,10ms means and shoulder/wrist joint reactions in joint frames.
+The12-case known-load matrix (0.3/0.6kg,1/0.5/0.25ms, two repeats) passes static,
+dynamic-balance, joint-frame and impact-impulse checks. Impulse spread is0.1574%;
+rigid impact peaks scale inversely with step size. Never equate these peaks with
+cardboard failure. Raw body1/2 attribution is unreliable after Gazebo collision
+reordering; contact load magnitudes are unsigned. Native link velocity and
+acceleration can remain latched after rest; independent position-based checks
+were required. Evidence: `setup/tasks/force_reference_20261116_matrix01/`.
+
+A500g idle-cell integration also passes:4.904986N support force versus4.905N,
+all four selected joint reactions, no invalid wrench or missing force window.
+Arm actuators and rigid cardboard remain idealized. These checks establish the
+measuring path in this engine, not real UR dynamics or carton crushing.
+
+`config/carton_exploration.yaml` explicitly enables experimental envelopes.
+Arm and finger velocity limits are separate; unselected left arms retain0.05rad/s.
+Planning and live guarding include per-joint velocity, measured overspeed and
+braking/latency in stopping reserves. The minimum grasp-entry duration is
+configurable and entry uses a checked C2 spline with one common quintic law.
+Object carrying always retains its single object path and common time law.
+A configured envelope can be rejected before any movement if its reserve does
+not fit the start geometry. An optional `joint_jerk_rad_s3` uniformly retimes the complete approach, entry
+and object motion using exact extrema of the controller’s quintic segments.
+This bounds planned command jerk, not measured servo jerk or stop behavior.
+Faster loaded stop qualification and a physical maximum remain open. Failed
+attempts remain evidence.
+
+Start `tools/trace_manipulation.py RUN --prepare` before arming: it now records
+full received native force windows in `force-trace.jsonl` as well as the20Hz
+motion trace. Analyze with `tools/analyze_manipulation_loads.py RUN --scene SCENE
+--output NEW_REPORT.json`. Its complete-coverage flag requires valid consecutive
+force windows;20Hz legacy snapshots cannot establish complete force coverage.
+Loads are summed across all pairs on each jaw. The sum of pair peaks is a
+conservative upper bound because individual peaks may not coincide.
+
+### Finite experiment ladder
+
+`tools/explore_manipulation.py --config PROFILE --reference REFERENCE_NPZ
+--output NEW_DIRECTORY --object-speeds 0.005 0.01 --repeats 2` prepares and
+launches separate cases, starts recorders before arming, configures own CPUs,
+waits for external agent reviews, evaluates motion/load traces and ends only
+its own world after confirmed task standstill. It refuses another active grasp
+launch. Each case keeps profile, logs and raw evidence. No automatic image or
+plan approval is supplied. The result lists observed cases without assuming a
+monotonic speed boundary. A comparison of10ms pad means with the user’s50N
+reference is explicitly separate from peak forces and material damage.
+This runner is implemented; its end-to-end ladder validation is still pending.
 
 ### Force sensing first; compliant mount as fallback
 
@@ -55,8 +95,8 @@ for damping, inertia and robot self-motion/loading. A single stage observes one
 direction. Excessive stiffness may worsen numerical conditioning. The displaced
 base must enter actual world-to-TCP kinematics without rewriting grasp offsets.
 The mount changes dynamics and uses the same physics solver, so it is not an
-independent guarantee of correct contact mechanics. No stage or calibrated force
-benchmark has yet been implemented under this extension.
+independent guarantee of correct contact mechanics. No stage has been implemented: the direct measurement path passed the
+reference checks above and currently makes that fallback unnecessary.
 
 ## Existing commissioning evidence
 

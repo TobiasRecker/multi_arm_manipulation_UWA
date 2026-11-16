@@ -151,7 +151,19 @@ def check(output):
             def wait(seconds):
                 end=time.monotonic()+seconds;client.wait(lambda:time.monotonic()>=end,seconds+2.)
             def reset():
-                wait(.7);answer=client.service(Trigger,'/uwa_cell/collision_supervisor/reset',Trigger.Request());assert answer.success,answer.message
+                stable_since=[None]
+                def ready():
+                    now=time.monotonic();ports=client.supervisor.get('ports',{})
+                    healthy=(not client.guard.get('faults') and set(client.guard.get('stationary_arms',[]))==set(ROBOT_IDS)
+                        and client.supervisor.get('witness_available') and len(ports)==4
+                        and all(p['manager_fresh'] and p['hardware_mode_verified'] and p['hold_config_verified'] for p in ports.values()))
+                    if not healthy:stable_since[0]=None;return False
+                    if stable_since[0] is None:stable_since[0]=now
+                    return now-stable_since[0]>=.7
+                # Recovery deliberately needs a fresh stable observation window;
+                # re-adding an executor node can leave queued stale callbacks.
+                # Never extend production freshness limits to accommodate that.
+                client.wait(ready,8.);answer=client.service(Trigger,'/uwa_cell/collision_supervisor/reset',Trigger.Request());assert answer.success,answer.message
                 client.wait(lambda:not client.supervisor['blocked_arms'] and not client.supervisor['held_arms'],5.)
             reset();client.health();start_q=dict(client.positions);arms=['left_front','right_front','left_rear']
             # ACK records the last fallback, including the startup latch;

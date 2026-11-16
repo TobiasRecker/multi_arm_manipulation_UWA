@@ -77,7 +77,12 @@ all three checked parallel view rounds were driven with the operator at the
 emergency stop. Twenty confirmed native images provide four viewpoints per wrist
 and one fixed OAK viewpoint. An interrupted final capture was repeated without
 motion; failure records remain intact. Camera settings are restored and LEDs off.
-Reviewed object masks and a validated mesh backend remain the next missing stage.
+An initial [photo-textured silhouette model](docs/student_robot_visual_hull.md)
+is now available as an unvalidated candidate; cage openings and hidden interiors
+are not reconstructed. A validated dense mesh backend remains open.
+The [left-front camera diagnosis](docs/left_front_camera_diagnosis_2026-11-16.md)
+documents the native edge reprojection errors and radial-model extrapolation
+for independent parallel work.
 Actual lower-reasoning quality/latency comparison remains to be measured.
 
 A first [assisted object-digitization pipeline](docs/object_digitization.md)

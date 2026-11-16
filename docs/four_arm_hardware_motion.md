@@ -171,7 +171,8 @@ rechecked against stopped arms and braking envelopes; unsafe remainders stop.
 The current evidence is under `~/UWA_ws/setup/logs/`:
 
 - `uwa-hardware-motion-build.log`, `uwa-hardware-motion-tests.log`: Lyrical build
-  and package tests, including existing simulation regressions.
+  and89 passing checks (84pytest cases plus5CTest wrappers), including existing
+  simulation regressions.
 - `uwa-hardware-mock-integration-current.json`: isolated four-manager ROS
   integration, monitor without actuation; pair/multiple/stale/clocked source
   faults, partial reset, reactivation/topic suppression, wrong plugin/hold
@@ -179,10 +180,13 @@ The current evidence is under `~/UWA_ws/setup/logs/`:
 - `uwa-hardware-hold-plugin-check.json`: actual ros2_control GenericSystem and
   C++ six-joint hold, interface conflict rejection and removal of a velocity
   owner. The private test unit was stopped afterwards.
+- `uwa-hardware-monitor-launch-check.json`: installed launch with three
+  separate monitor processes and robot_state_publisher, all in mock67.
+  Missing source joints remain STALE. The test processes were stopped.
 
 Earlier unsuccessful mock attempts remain recorded; fake-manager dynamics
 and GenericSystem are not UR braking measurements. No hardware guard was armed
-and no real STOP/fahrgoal was sent in this task. Next physical qualification:
+and no real STOP or motion goal was sent in this task. Next physical qualification:
 measure detection/source/switch/native-stop latency and braking per UR, test
 pair/independent-arm continuation and process/network faults, verify modeled
 tools/anchors, then replace engineering assumptions with measured reserves.

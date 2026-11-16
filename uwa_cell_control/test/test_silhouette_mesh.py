@@ -3,7 +3,7 @@ import hashlib
 import cv2
 import numpy as np
 import pytest
-from uwa_cell_control.silhouette_mesh import mask_from_annotation, project, voxel_surface, reconstruct
+from uwa_cell_control.silhouette_mesh import mask_from_annotation, project, voxel_surface, tetra_surface, reconstruct
 
 
 def test_camera_from_board_projection_and_pixel_centres():
@@ -27,6 +27,20 @@ def test_exposed_faces_have_outward_winding_and_metric_units():
     volume=np.einsum('ij,ij->i',v[f[:,0]],np.cross(v[f[:,1]],v[f[:,2]])).sum()/6
     assert volume==pytest.approx(.02*.03*.04)
     assert len(f)==2*(2*3+2*4+3*4)*2
+
+
+@pytest.mark.parametrize('pattern',['block','diagonal','random'])
+def test_tetra_isosurface_closed_wound_and_metric(pattern):
+    occ=np.ones((3,4,5),bool)
+    if pattern=='diagonal':occ=np.eye(3,dtype=bool)[:,:,None]*np.ones((1,1,3),bool)
+    if pattern=='random':occ=np.random.default_rng(7).random((5,5,5))>.5
+    v,f=tetra_surface(occ,[.2,.3,.4],.01)
+    edges=np.sort(np.concatenate([f[:,[0,1]],f[:,[1,2]],f[:,[2,0]]]),axis=1)
+    _,counts=np.unique(edges,axis=0,return_counts=True)
+    assert (counts==2).all()
+    volume=np.einsum('ij,ij->i',v[f[:,0]],np.cross(v[f[:,1]],v[f[:,2]])).sum()/6
+    assert volume>0
+    if pattern=='block':np.testing.assert_allclose(np.ptp(v,axis=0),[.03,.04,.05])
 
 
 def synthetic(tmp_path, validation_extent):
@@ -64,3 +78,14 @@ def test_metric_excluded_camera_and_changed_hash_rejected(tmp_path):
     with pytest.raises(ValueError,match='Metric-excluded'):reconstruct(m,a,tmp_path/'excluded')
     d['0']['metric_eligible']=True;d['0']['image_sha256']='bad';m.write_text(json.dumps(d))
     with pytest.raises(ValueError,match='binding'):reconstruct(m,a,tmp_path/'hash')
+
+
+def test_only_explicit_aligned_support_plane_permits_clipped_bottom(tmp_path):
+    m,a=synthetic(tmp_path,5);d=json.loads(a.read_text());d['bounds_board_m'][1][2]=0.
+    a.write_text(json.dumps(d))
+    with pytest.raises(ValueError,match='touches search bounds'):reconstruct(m,a,tmp_path/'no_support')
+    d['support_plane_board_z_m']=0.;a.write_text(json.dumps(d));reconstruct(m,a,tmp_path/'support')
+    report=json.loads((tmp_path/'support/reconstruction.json').read_text())
+    assert report['support_plane_board_z_m']==0. and report['geometry_validated'] is False
+    d['support_plane_board_z_m']=.001;a.write_text(json.dumps(d))
+    with pytest.raises(ValueError,match='Explicit support plane'):reconstruct(m,a,tmp_path/'mismatch')

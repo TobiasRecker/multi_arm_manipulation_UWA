@@ -6,6 +6,11 @@ unbeweglich einschließlich loser Teile; Unterseite auf Tischplattenhöhe bestä
 Für das Meeting hat der Nutzer anschließend die URs ausgeschaltet und ausdrücklich
 Offlinearbeit bis zur erneuten Verfügbarkeit angeordnet.
 
+Neue Offlineergebnisse16.11.: Ein [erster fototexturierter 3D-Formkandidat](student_robot_visual_hull.md)
+ist exportiert; grobe Außenhülle, Gitter/Innenräume noch nicht rekonstruiert.
+Die [konkrete LF-Kameradiagnose](left_front_camera_diagnosis_2026-11-16.md)
+enthält Quellen, Zahlen und einen getrennt bearbeitbaren Diagnoseauftrag.
+
 ## Wiederaufnahme am16.11.
 
 Der Nutzer hat Geräteverfügbarkeit und unveränderten, ausgeschalteten Aufbau

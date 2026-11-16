@@ -30,7 +30,12 @@ and its student-robot section when resuming that job.
    captures, and needs explicit `--draft` to export a failed-fit candidate.
 6. For `multiview_mesh`, inspect `prepared/reconstruction_request.json` and
    the missing-view/mask/backend request. This version has no validated dense
-   mesh backend. Report the missing stage rather than claiming a finished asset.
+   mesh backend. An explicit, reviewed outer-envelope experiment can use the
+   standalone CPU prototype in [student_robot_visual_hull.md](../../../docs/student_robot_visual_hull.md):
+   hash-bound manually reviewed silhouettes, fixed fit/validation roles, declared
+   support constraint, texture from fit images only. Its watertight GLB/STL is a
+   DRAFT candidate, not reconstructed grid/interior/material or a validated
+   standard backend. Keep the regular job's missing-stage/quality status honest.
 
 Regular execution changes job data, not source code. Missing physical features,
 ambiguous landmarks or unknown geometry call for focused input/development.

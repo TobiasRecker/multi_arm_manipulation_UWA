@@ -1,6 +1,6 @@
 # Digitalisierung für einen schnellen ausführenden Agenten vorbereiten
 
-- Status: **Offline-Rekonstruktion und LF-Kameradiagnose in Arbeit**, 2026-11-16 (Australia/Perth),
+- Status: **3D-Formkandidat und LF-Diagnose abgeschlossen; Details/Genauigkeit offen**, 2026-11-16 (Australia/Perth),
   Hauptagent Digitalisierung.
 - Neuer Nutzerauftrag: 3D-Modell aus aufgenommenen Ansichten entwickeln und
   genaue LF-Kamerabefunde für parallele Bearbeitung dokumentieren. Nur offline;
@@ -8,6 +8,30 @@
   Prototyp/Tests, gespeicherte Masken/Rekonstruktionsdaten, docs/student_robot_digitization.md,
   eigene LF-Diagnoseanleitung und laufende Projektdokumentation. Keine Änderung
   aktiver Kalibrierprofile oder fremder Hardware-/FoundationPose-Arbeit.
+- LF-Diagnose fertig: docs/left_front_camera_diagnosis_2026-11-16.md,
+  Offlinewerkzeug tools/diagnose_digitization_camera.py. Zentrale HD-Prüfung
+  PASS von Randextrapolation/Hand-Auge-FAIL getrennt. Aktuelle direkte Board-
+  RMS1,987–55,683px; radialer Modellanteil abnormiertemRadius0,485246 nichtmonoton.
+  Keine Reparatur/Profiländerung, Daten für parallele Bearbeitung benannt.
+- Neuer CPU-Silhouettenprototyp und bildgebundene manuelle Außenmasken:
+ 7Fitansichten/6reserviertePrüfansichten, LF ausgeschlossen. Zuerst Suchraum-
+  Unterseite berührt; separater Kandidat mit ausdrücklicher Nutzer-Auflagehöhe,
+  Board-/Tischebene als koplanare Annahme. Keine erzwungenen Nutzeraußenmaße.
+  Hülle452×320×316mm, Prüfsilhouetten-IoU0,846–0,938 (keine Metrologie).
+-9synthetischePrüfungen PASS: Transformationsrichtung/Proxy-Pixelzentren,
+  Maskenrotation/Löcher, Quellenbindung/Metrikausschluss, Prüfdaten verändern
+  Geometrie nicht, explizite Auflageplane, geschlossene orientierte Tetraoberfläche.
+  Erster kubischer Mesh-Entwurf nichtwasserdicht; verbessert separat mit linearer
+  Tetra-Isosurface, kein Verändern der Eingangsansichten. Fototextur nurFitbilder.
+- Abschluss:11Tests PASS inklusive2Optiktests. Finaler Entwurf asset_candidate/
+  unter setup/digitization/student_robot_20261113/reconstruction_v1/; GLB/STL,
+  eingefrorene Modelle/Masken/Report, Preview visuell geprüft.258220Dreiecke,
+  wasserdicht/positiv, GLB-Wiederexportidentisch/STL-Metermaße geprüft.
+ 66,8% Fototexturdreiecke; Hülle452×320×316mm, Längendifferenz zur groben Nutzer-
+  angabe offen. Gitter/Innenräume und echte Materialvolumina nicht rekonstruiert.
+  Keine Hardware/GPU, keine Simulation ersetzt. Anleitung/Ergebnisse in
+  docs/student_robot_visual_hull.md, LF-Diagnose separat. Regulärer Job bleibt
+  NEEDS_INPUT, kein validierter Standard-Meshbackend oder Qualitätsfreigabe.
 - Nutzer16.11.: Roboter vermutlich wieder erreichbar, damit Hardwareverfügbar-
   keitsunterbrechung für diese Prüfung aufgehoben. Zunächst nur Status/Kameras,
   offener Restore und frische Startwerte; keine Power/Brake/Play- oder Fahraktion

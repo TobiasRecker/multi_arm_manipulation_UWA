@@ -85,6 +85,40 @@ def voxel_surface(occupied, lower, pitch):
     return np.asarray(lower)+unique*pitch, inverse[np.concatenate(faces)]
 
 
+def tetra_surface(occupied, lower, pitch):
+    """Consistent 6-tetrahedron, 0.5 isosurface of padded binary cell centres.
+
+    This avoids nonmanifold edge-only contacts of exposed voxel cubes. It is
+    deterministic linear interpolation, not measured sub-voxel geometry.
+    """
+    nodes=np.pad(occupied.astype(np.uint8),1)
+    offsets=np.array([[0,0,0],[1,0,0],[1,1,0],[0,1,0],[0,0,1],[1,0,1],[1,1,1],[0,1,1]])
+    shape=np.array(nodes.shape)-1
+    values=np.stack([nodes[x:x+shape[0],y:y+shape[1],z:z+shape[2]] for x,y,z in offsets],axis=-1)
+    boundary=(values.sum(-1)>0)&(values.sum(-1)<8)
+    origins=np.argwhere(boundary);states=values[boundary]
+    triangles=[]
+    for tet in ([0,1,2,6],[0,2,3,6],[0,3,7,6],[0,7,4,6],[0,4,5,6],[0,5,1,6]):
+        local=offsets[tet];codes=states[:,tet]@np.array([1,2,4,8])
+        for code in range(1,15):
+            base=origins[codes==code]
+            if not len(base):continue
+            high=[i for i in range(4) if code&(1<<i)];low=[i for i in range(4) if not code&(1<<i)]
+            if len(high)==1:edges=[(high[0],j) for j in low];faces=[[0,1,2]]
+            elif len(low)==1:edges=[(low[0],j) for j in high];faces=[[0,1,2]]
+            else:
+                a,b=high;c,d=low;edges=[(a,c),(a,d),(b,d),(b,c)];faces=[[0,1,2],[0,2,3]]
+            doubled=np.array([local[a]+local[b] for a,b in edges])
+            outward=local[low].mean(0)-local[high].mean(0)
+            for face in faces:
+                tri=doubled[face]
+                if np.cross(tri[1]-tri[0],tri[2]-tri[0])@outward<0:tri=tri[[0,2,1]]
+                triangles.append((2*base[:,None,:]+tri).reshape(-1,3))
+    if not triangles:raise ValueError('Empty isosurface')
+    raw=np.concatenate(triangles);unique,inverse=np.unique(raw,axis=0,return_inverse=True)
+    return np.asarray(lower)+(unique*.5-.5)*pitch,inverse.reshape(-1,3)
+
+
 def silhouette_projection(points, camera, shape, pitch):
     pixels, z = project(points, camera, shape[1])
     image = np.zeros(shape, np.uint8)
@@ -108,6 +142,10 @@ def reconstruct(models_path, annotations_path, output):
         raise ValueError('Invalid metric search bounds')
     if not 0.001 <= pitch <= .02 or not 0 <= tol <= 5: raise ValueError('Invalid declared discretization/tolerance')
     shape = np.ceil((bounds[1]-bounds[0])/pitch).astype(int)
+    support = spec.get('support_plane_board_z_m')
+    if support is not None and (not np.isfinite(support) or abs(float(support)-bounds[1, 2])>1e-9
+            or abs(bounds[0, 2]+shape[2]*pitch-float(support))>1e-8):
+        raise ValueError('Explicit support plane must match the aligned upper Z grid boundary')
     if np.prod(shape) > 10000000: raise ValueError('Grid exceeds CPU memory budget')
     masks = {}
     for name, item in spec['views'].items():
@@ -136,9 +174,17 @@ def reconstruct(models_path, annotations_path, output):
         if not len(indices): raise ValueError('Inconsistent input silhouettes/poses; no hull')
     occupied = np.zeros(tuple(shape), bool);occupied.ravel()[indices] = True
     cells = np.argwhere(occupied)
-    if np.any(cells.min(0)==0) or np.any(cells.max(0)==shape-1):
+    np.savez_compressed(output/'occupied_grid.npz',occupied=occupied,lower=bounds[0],pitch=pitch)
+    (output/'grid_bounds.json').write_text(json.dumps(dict(search_bounds=bounds.tolist(),
+        occupied_min_cell=cells.min(0).tolist(),occupied_max_cell=cells.max(0).tolist(),
+        shape=shape.tolist(),lower_touched=(cells.min(0)==0).tolist(),upper_touched=(cells.max(0)==shape-1).tolist()),indent=2)+'\n')
+    upper_touch = cells.max(0)==shape-1
+    if support is not None: upper_touch[2] = False  # A declared physical support constraint, not a free search bound.
+    if np.any(cells.min(0)==0) or np.any(upper_touch):
         raise ValueError('Hull touches search bounds; enlarge explicit bounds before estimating dimensions')
-    vertices, faces = voxel_surface(occupied, bounds[0], pitch)
+    surface_method=spec.get('surface_method','exposed_voxels')
+    if surface_method not in ('exposed_voxels','tetrahedral_isosurface'):raise ValueError('Unknown surface method')
+    vertices, faces = (tetra_surface if surface_method=='tetrahedral_isosurface' else voxel_surface)(occupied, bounds[0], pitch)
     np.savez_compressed(output/'mesh_board.npz', vertices=vertices, faces=faces)
     surface = bounds[0]+(np.argwhere(occupied & ~ndimage.binary_erosion(occupied))+.5)*pitch
     validation_result = {}
@@ -154,6 +200,8 @@ def reconstruct(models_path, annotations_path, output):
         source_models=str(models_path.resolve()),source_models_sha256=sha(models_path),
         source_annotations=str(annotations_path.resolve()),source_annotations_sha256=sha(annotations_path),
         voxel_size_m=pitch,mask_tolerance_proxy_px=tol,proxy_width=width,
+        support_plane_board_z_m=support,
+        surface_method=surface_method,
         bounds_board_m=bounds.tolist(),mesh_bounds_board_m=[vertices.min(0).tolist(),vertices.max(0).tolist()],
         dimensions_axis_aligned_board_m=np.ptp(vertices, axis=0).tolist(),
         occupied_voxels=len(indices),vertices=len(vertices),triangles=len(faces),

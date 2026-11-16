@@ -731,3 +731,13 @@ preserve initial pregrasp provenance; none is a Home-start claim.
   Dort Einzelreports, Softwarebeleg, Traceaudit sowie reproduzierende lokale
   Auswerteskripte. Anleitung/Bedienung `docs/manipulation_pipeline.md`, Skill
   `.agents/skills/uwa-manipulate/SKILL.md`. Keine Hardwareausführung.
+
+## Dynamische Exploration, 2026-11-16
+
+- Nutzerangaben:500g leer;50N je einzelne Backe/Wandfläche, keine vermessene
+  Bruchgrenze. Direkter Messpfad nach12Referenzfällen und500g-Leerlaufintegration
+  nutzbar, daher vorerst keine schwimmende Basis nötig. Details HANDOVER.
+- Neues explizites Profil/per-DOF-Stoppreserve/C2-Einfahrt;6CTest-Suites PASS.
+  Run78 wegen erforderlicher Home-Stoppreserve0,334m bei0,221m Abstand vor
+  Fahrt abgewiesen; Stillstand bestätigt. Negative Evidenz bleibt erhalten.
+  Schneller Griff mit500g, Ruckgrenzen und geladene Stoppabnahme noch offen.

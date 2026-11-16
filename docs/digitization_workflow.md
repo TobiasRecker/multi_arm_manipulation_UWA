@@ -11,6 +11,12 @@ der [studentische Roboter](student_robot_digitization.md) verwenden
 aber **noch kein validierter dichter Mesh-Backend**. Dieser Fall meldet benötigte
 Ansichten/Masken/Backend; ein ungeeigneter Quader wird nicht als Ersatz ausgegeben.
 
+Seit16.11. gibt es zusätzlich einen eigenständigen, getesteten
+[Silhouetten-Mesh-Prototyp](student_robot_visual_hull.md) mit Fotoexport.
+Er erzeugt ausdrücklich einen unvalidierten Außenhüllenkandidaten und ist noch
+nicht als Standardbackend dieses Jobs registriert. LF-Befunde zur parallelen
+Reparatur: [Kameradiagnose](left_front_camera_diagnosis_2026-11-16.md).
+
 ## Auftrag anlegen und fortsetzen
 
 Aus `/home/rosmatch/UWA_ws`; Aufträge und Rohdaten bleiben unter

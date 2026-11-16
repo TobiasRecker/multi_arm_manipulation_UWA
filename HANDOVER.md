@@ -1,5 +1,49 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Alle vier URs in aufrechter Parkpose, 2026-11-16
+
+- Nutzerauftrag: seitlich ausladende Arme kompakt parken. Vier aufrechte
+  Parkziele und serielle MoveIt-Wege aus frischen 24 RTDE-Gelenkwinkeln
+  geplant und live abgeglichen. Nach Vor-Ort-Bestätigung der freien
+  Fahrbereiche und Not-Halt-Bereitschaft LF, LR, RF, RR gefahren.
+- Alle vier Ziele bestätigt, unabhängiger RTDE-Endabgleich <0,004°,
+  Arme stehen. Eigene Bewegungscontroller danach inaktiv. Keine Änderung
+  von Sicherheitskonfiguration, PolyScope-Programmen oder Treiberdiensten.
+  Ziele sind Parkreferenzen; vor Wiederverwendung neuen Weg aus Livezustand
+  prüfen. [Arbeitsnotiz](work/four-ur-home-20261116.md).
+
+## Studentischer Roboter: erster 3D-Kandidat und präzise LF-Diagnose, 2026-11-16
+
+- Nutzer beauftragt 3D-Modellarbeit und separate Kameradokumentation zur parallelen
+  Bearbeitung. Ausschließlich gespeicherte Daten verwendet, keine Hardware-/GPU-
+  Aktion, kein Profil-/Simulationsassetwechsel. Anleitung docs/student_robot_visual_hull.md.
+- Neuer CPU-Visual-Hull-Prototyp silhouette_mesh.py: manuelle hashgebundene
+  Außenkonturen,7Fit-/6reserviertePrüfansichten, LF ausgeschlossen. Feste direkte
+  Boardposen/nativeK/D, keine FK/Hand-Auge-/Objekt-Ground-Truth.4mm Gitter/2px
+  Maskentoleranz; Nutzer-Auflagehöhe als ausdrückliche koplanare Board-/Tisch-
+  Annahme. Freier erster Suchraum unten abgeschnitten: Fehlversuch erhalten.
+- Geschlossener Nachfolger mit Tetra-Isosurface,258220Dreiecke, Hülle452×320×316mm.
+  Länge gegenüber grober Nutzerangabe330mm offen prüfen; keine erzwungenen Maße.
+  Prüfsilhouetten-IoU0,846–0,938/Mittel0,905 als reine Eingabekonsistenz.
+  Hüllenrechenzeit5,41s ohne Annotation/Textur/Export/Agent, kein Reasoningvergleich.
+- GLB/STL/Quellen/Preview unter
+  setup/digitization/student_robot_20261113/reconstruction_v1/asset_candidate/.
+  Fototexturen nur ausFitbildern,66,8% der Dreiecke; Restgrau. Gitterlöcher und
+  Innenräume nicht gemessen, geschlossene Kappe ist nurHülle. Foto enthält am
+  Gitter sichtbaren Hintergrund, keine gemessene Albedo. DRAFT_REVIEW_REQUIRED,
+  keine Geometrie-/Tracking-/Manipulationsfreigabe oder Fertigungs-CAD.
+-11gezielteTests PASS; GLB nach Wiederexport identisch, STL wasserdicht,
+  positive Orientierung und metrische Ausdehnung nach Einlesen bestätigt.
+  Originaljob bleibt NEEDS_INPUT: Prototyp noch kein validierter Standardbackend.
+- LF: docs/left_front_camera_diagnosis_2026-11-16.md und Offlinewerkzeug
+  diagnose_digitization_camera.py. Kamera028E1F350009061C/2592×1944/Fokus245,
+  zentrale Intrinsicsprüfung damalsPASS, Hand-AugeFAIL getrennt. Aktuelle direkte
+  Board-RMS1,987–55,683px am linken Bildrand; gespeicherter radialer Modellanteil
+  abnormiertemRadius0,485246 nichtmonoton. Extrapolationsproblem mathematisch
+  belegt, Hardwaredefekt/einzige Ursache nichtbewiesen. Quellen/Readbacks,
+  Tabellen und getrennte Prüfschritte für parallele Arbeit dokumentiert;
+  Originalprofile nicht verändern. Arbeit work/digitization-fast-workflow.md.
+
 ## Hardware-Kollisionswächter/PTP implementiert, physische Abnahme offen, 2026-11-16
 
 - Nutzer beauftragt Übertragung aus Simulation. Neuer expliziter Backendpfad
@@ -32,8 +76,15 @@
 - Echte ros2_control-/C++-Pluginprüfung in privatem GenericSystem bestanden:
   setup/logs/uwa-hardware-hold-plugin-check.json.6Positionclaims, Positions-
   konflikt abgelehnt, Topic ohne Wirkung, Velocityfremdbesitz entfernt. Eigene
-  Testunit danach beendet. Vorheriger vollständiger Viermanager-Fake-Lauf PASS;
-  aktuelle Wiederholung/abschließende Paketprüfung noch im Arbeitsgang.
+  Testunit danach beendet. Aktueller Viermanager-Fake-Lauf vollständig PASS:
+  setup/logs/uwa-hardware-mock-integration-current.json, beide Planerpfade,
+  unabhängiger Arm fährt bei Paarstopp weiter, sämtliche Ausfallinjektionen.
+  Fehlversuche mit historischer ACK-Testannahme/zu früher Resetbeobachtung
+  erhalten; Produktiv-Frischegrenzen nicht gelockert. Lyrical-Build und89
+  Paketprüfungen PASS(84pytest+5CTest), setup/logs/uwa-hardware-motion-tests.log.
+  Installierter Viernode-Monitorlaunch mit getrennten Prozessen in Mock67 PASS,
+  fehlende Quellen bleiben STALE: uwa-hardware-monitor-launch-check.json.
+  Eigene Mock-/Launchprozesse anschließend beendet; kein Hardwaredienst aktiv.
 - Hardwareprofil0,01rad/s/0,02rad/s²,1s Latenz/0,2rad/s² Bremsen/40mm Reserve
   **unvermessene technische Annahmen**. Reale Latenz/Bremsen/Netz-/Prozessausfall,
   Paarstopp mit unabhängigem Arm und Welt-/Tischanker physisch prüfen, bevor
@@ -267,6 +318,38 @@
   ebenfalls erfolglos, Diagnosen erhalten, bisherigen Trackerstandard beibehalten.
 - Laufende Karton-Simulations-/Greifarbeit unverändert; neues Asset installiert,
   noch keine aktive Szeneinstanz. Anleitung und Vorschau docs/ptfe_l_assembly.md.
+
+## Schnellere Simulationsprofile in Prüfung, 2026-11-16
+
+- Explizites Explorationsprofil mit separaten Arm-/Fingergrenzen implementiert;
+  gleiche per-DOF-Stoppreserve in Planung und Wächter. C2-Einfahrt mit gemeinsamer
+  Zeitparametrierung ersetzt feste30s-Untergrenze nur bei explizitem Profil.
+  Kontaktservo-/Holdgrenzen szenengebunden, keine shared Motionmodule verändert.
+- Build/7CTest-Suites PASS, colcon meldet35Tests ohne Fehler. Geplante
+  Ruckgrenze ergänzt: exakte Extrema der JTC-Quintik, gleichmäßige Retimierung
+  aller beteiligten Gelenke. Keine Aussage zum gemessenen Servo-/Stoppruck.
+  Noch kein schneller geladener Durchlauf oder neue Stoppabnahme nachgewiesen.
+- Run78/explore01:0,1rad/s Arm,0,5rad/s Finger,1rad/s² Bremsen vor Fahrt
+  abgewiesen. Home-Abstand rechts0,221m, erforderliche Reserve0,334m. Kein
+  Kartonlastfehler; Arme bestätigt gehalten. Rohdaten/Fehler erhalten. Nächster
+  Kandidat0,06rad/s Arm,0,2Finger,0,15grobes Schließen,0,02fein,5mm/s Objekt.
+- Run79/explore02:0,06Arm/0,2Finger ebenfalls vor Anfahrt gestoppt; mit
+  Datenalter steigt Reserve auf0,227m über0,222m Abstand. Run80/explore03
+  (0,05Arm/0,15Finger,0,1grobes Schließen,5mm/s Objekt,1rad/s³ Planruck)
+  stoppt beim unbelasteten Öffnen: Runner-Empfangslücke0,203s. Unabhängiger
+  Kraftrecorder ohne Fensterlücke, maximaler Wall-Empfangsabstand0,0744s.
+  Alle drei Episoden bestätigt stillgelegt und eigene Welt beendet, Rohdaten
+  inklusive Kraftauswertung erhalten. Keine Kraft-/Materialgrenze erreicht.
+- Diagnoseversuch81/explore04 läuft mit5s stabiler Telemetrie vor Reset/Arming
+  und Threadstack-Dump bei Runner-Frischefehler. Keine Frist gelockert.
+- Endlicher automatischer Geschwindigkeitsleiter-Runner implementiert unter
+  tools/explore_manipulation.py; Agentenreviews bleiben Pflicht. Eigene Szenen,
+  Recorder vor Arming, scoped Cleanup nur nach bestätigtem Stopp, gemeinsame
+  Bewegungs-/Kraftauswertung. End-to-end-Nachweis dieses Runners noch offen.
+- Recorder schreibt jedes empfangene100Hz-Kraftfenster zusätzlich zur20Hz-
+  Bewegungsaufzeichnung. Neue Lastauswertung summiert je Backe/Wandfläche,
+  vergleicht50N-Nutzerreferenz und meldet Lücken. Historische Nachweise nicht
+  nachträglich mit neuen Profilen oder geänderten Validatoren umqualifizieren.
 
 ## Aktive Umsetzung der Kraftvalidierung, 2026-11-16
 

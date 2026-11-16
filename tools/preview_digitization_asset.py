@@ -52,7 +52,9 @@ def render(asset,output):
     for side in (0,1):
         x=side*800+22;draw.text((x,24),manifest['asset_id']+(' / FRONT' if side==0 else ' / REAR'),font=font,fill=(5,15,25))
         dims=' x '.join(f'{v*1000:.0f}' for v in manifest['dimensions_m'])+' mm'
-        draw.multiline_text((x,855),dims+'\n'+quality+'\nRecipe geometry; fine details not measured\nAccuracy / manipulation NOT VALIDATED',font=small,fill=(5,15,25),spacing=5)
+        method=('Silhouette envelope; grid/interior not measured' if manifest.get('geometry_method')=='visual_hull'
+                else 'Recipe geometry; fine details not measured')
+        draw.multiline_text((x,855),dims+'\n'+quality+'\n'+method+'\nAccuracy / manipulation NOT VALIDATED',font=small,fill=(5,15,25),spacing=5)
     image.save(output)
 
 

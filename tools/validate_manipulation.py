@@ -9,6 +9,7 @@ from match_cooperative_handling.rigid_object import pose_error
 from uwa_cell_gazebo.charuco_views import Chain
 from uwa_cell_tasks.core import ARMS,digest,seal,verify,write_json,object_point_height
 from uwa_cell_tasks.scene import verify_scene
+from uwa_cell_tasks.operating import velocity_limits
 
 
 def evaluate(run,scene_directory):
@@ -27,7 +28,9 @@ def evaluate(run,scene_directory):
     except (OSError,KeyError,ValueError) as error:
         checks['one_object_trajectory']=False;notes.append('Missing or invalid compiled object motion: '+str(error))
     peaks=[abs(v) for phase in state.get('measured_peak_speeds_rad_s',{}).values() for v in phase.values()]
-    checks['measured_speed_bound']=bool(peaks) and max(peaks)<=cfg['joint_velocity_rad_s']+1e-8
+    checks['measured_speed_bound']=bool(peaks) and all(
+        abs(speed)<=velocity_limits([joint],cfg)[0]+1e-8
+        for phase in state.get('measured_peak_speeds_rad_s',{}).values() for joint,speed in phase.items())
     trace=run/'evaluation-trace.jsonl';loaded=[];released=[];moving=[]
     if trace.exists():
         for line in trace.open():

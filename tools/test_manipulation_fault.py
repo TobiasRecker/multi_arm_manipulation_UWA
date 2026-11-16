@@ -28,6 +28,7 @@ from uwa_cell_gazebo.charuco_views import Chain
 from uwa_cell_motion.common import simulation_only
 from uwa_cell_tasks.core import ARMS,write_json,seal
 from uwa_cell_tasks.scene import verify_scene
+from uwa_cell_tasks.operating import velocity_limits
 
 
 def stop_window(history):
@@ -133,12 +134,14 @@ def execute(args):
             report['paused_role']=role;report['paused_pid']=paused[0]
         report['injected']=True;print('FAULT INJECTED: '+args.fault,flush=True)
         both_held=None;held_since=None;errors=[];all_contacts_retained=True;telemetry_fresh=True;peak_speed=0.
-        stationary_history=[];stationary=dict(ready=False)
+        stationary_history=[];stationary=dict(ready=False);speed_bound_observed=True
         while time.monotonic()-injected_at<5.:
             spin();now=time.monotonic()
             if not fresh():telemetry_fresh=False;continue
             contact=data['contacts'];all_contacts_retained &= all(all(contact['pads'][a].values()) for a in ARMS)
-            peak_speed=max(peak_speed,max(abs(v) for j,v in data['joints']['velocities'].items() if j.startswith(ARMS)))
+            peaks={j:abs(v) for j,v in data['joints']['velocities'].items() if j.startswith(ARMS)}
+            peak_speed=max(peak_speed,max(peaks.values()))
+            speed_bound_observed &= all(v<=velocity_limits([j],scene['cfg'])[0]+1e-8 for j,v in peaks.items())
             obj=np.array(data['object']['T_world_object'])
             errors.extend(pose_error(chains[a].forward(data['joints']['positions']),obj@offsets[a]) for a in ARMS)
             stationary_history.append((now,np.array([data['joints']['positions'][j] for a in ARMS for j in joint_names(a)]),obj))
@@ -158,13 +161,13 @@ def execute(args):
             stationary_window=stationary,
             stationary_window_limits=dict(minimum_wall_s=.3,arm_span_rad=1e-5,object_axis_span_m=1e-4,object_rotation_element_span=1e-4),
             telemetry_fresh_during_stop=telemetry_fresh,
-            maximum_observed_right_joint_speed_rad_s=peak_speed,
+            maximum_observed_right_joint_speed_rad_s=peak_speed,per_joint_speed_bounds_observed=speed_bound_observed,
             maximum_rigidity_error_m=max(e[0] for e in errors),maximum_rigidity_error_rad=max(e[1] for e in errors),
             final_contacts=data['contacts'],supervisor=data['supervisor'],guard=data.get('guard'))
         if stop_reply is not None:
             report['member_stop_acknowledged']=bool(stop_reply.done() and stop_reply.result().success)
         report['passed']=(telemetry_fresh and all_contacts_retained and not data['contacts']['supported']
-            and peak_speed<=scene['cfg']['joint_velocity_rad_s']+1e-8
+            and speed_bound_observed
             and (stop_reply is None or report['member_stop_acknowledged'])
             and report['maximum_rigidity_error_m']<=scene['cfg']['relative_position_tolerance_m']
             and report['maximum_rigidity_error_rad']<=scene['cfg']['relative_angle_tolerance_rad'])

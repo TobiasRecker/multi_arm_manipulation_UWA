@@ -243,6 +243,17 @@
 
 ## Bildbasierte Objektdigitalisierung (2026-11-12)
 
+- Nutzer16.11.: bei ausgeschlossener Kamera konkrete Diagnose für parallele
+  Bearbeitung dokumentieren: physische Identität, Fokus/Auflösung, exakt genutzte
+  Kalibrierdatei, Messwerte, bekannte Modellgrenzen und offene Ursachen trennen.
+  Original-/aktive K/D während gebundener Rekonstruktion nicht überschreiben;
+  Diagnose-/Fitvarianten separat mit Quellenhash. LF-Anleitung
+  docs/left_front_camera_diagnosis_2026-11-16.md.
+- Eigenständiger CPU-Silhouettenprototyp seit16.11. erzeugt nur äußeren
+  fototexturierten Formkandidaten. Gitterlöcher/Innenräume nicht aus geschlossener
+  Hülle behaupten; watertight ist kein Material-/CAD-/Kollisionsnachweis.
+  Anleitung docs/student_robot_visual_hull.md, Pipeline-Standardbackend weiter
+  unvalidiert. Keine automatische Aktivierung in Simulation/Tracking.
 - Nutzerwunsch13.11.: Digitalisierungsdurchlauf deutlich beschleunigen und
   geringeren Reasoning-Aufwand ermöglichen, geprüfte Qualität/Sicherheit
   erhalten. Wiederholbare Schritte in Runner/Formvorlagen/Prüfcode kapseln,

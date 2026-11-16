@@ -1,12 +1,13 @@
 # Vierarm-Kollisionswächter und PTP auf Hardware
 
-- Status: **in Arbeit**, 2026-11-16 (Australia/Perth), Hauptagent.
+- Status: **Implementierung und Mock-Abnahme abgeschlossen; physische Stoppabnahme offen**,
+  2026-11-16 (Australia/Perth), Hauptagent.
 - Nutzer beauftragt Übertragung des Simulationswächters und der PTP-Planer auf
   reale Hardware. Implementierung und Mock-Prüfung, keine reale Bewegung oder
   Power-/Brake-/Play-Aktion aus diesem Auftrag. Reale Stoppreserve nicht aus
   Simulationsdaten ableiten.
 - Bereiche: `uwa_cell_motion`, gezielte Integration vorhandener Hardwareprofile,
-  Anleitung/AGENTS/HANDOVER. Aktive Arbeit `work/ur-bringup.md` erhalten: keine
+  Anleitung/AGENTS/HANDOVER. Parallele Arbeit `work/ur-bringup.md` erhalten: keine
   Hardwaredienstneustarts und keine Geräteabfragen während dieser Vorbereitung.
 - Bestehende Simulation64/uwa_cell_sim erhalten; Hardware66, Mock67 getrennt.
 - Umgesetzt: Output-RTDE mit Gerätezeit-/Epochprüfung; konservative vollständige
@@ -20,8 +21,17 @@
 - Echte ros2_control-GenericSystem-Prüfung mit C++-Plugin bestanden:
   setup/logs/uwa-hardware-hold-plugin-check.json. Eigener privater Mockdienst
   uwa-hardware-motion-hold-mock danach beendet; reale Dienste unangetastet.
-- Viermanager-Fakeintegration zuvor vollständig PASS, aktueller Wiederholungslauf
-  nach letzter Änderung läuft. Build/Paketprüfung zunächst88/88PASS; Preview-
-  Ergänzung wird noch nachgeprüft. Keine reale Stoppreserve gemessen.
-- Anleitung docs/four_arm_hardware_motion.md, Abschlussnachweise/HANDOVER folgen
-  nach aktuellem Testlauf. Kein weiterer Dienstneustart geplant.
+- Aktueller Viermanager-Fake-Lauf vollständig PASS:
+  setup/logs/uwa-hardware-mock-integration-current.json. Beide Planer erfolgreich
+  ausgeführt; Paarstopp lässt unabhängigen Arm weiterfahren; Freeze, mehrere
+  Paare, Fremdcontroller, falsches Plugin/Parameter und Prozessausfälle geprüft.
+  Historische ACK-Testannahme und verfrühte Resetbeobachtung in Fehlversuchen
+  erhalten; vor bewusstem Testreset stabiles Fenster statt Frischelockerung.
+- Lyrical-Build PASS;89Paketprüfungen PASS(84pytest+5CTest), einschließlich
+  vorhandener Simulation. Installierter Viernode-Monitorlaunch in Mock67 mit
+  drei getrennten Guard-/Adapter-/Watchdogprozessen PASS; fehlende Messungen
+  bleiben STALE, kein erfundener Gelenkzustand. Ergebnis
+  setup/logs/uwa-hardware-monitor-launch-check.json; eigene Prozesse beendet.
+- Anleitung docs/four_arm_hardware_motion.md und AGENTS/HANDOVER/README gepflegt.
+  Keine reale Stoppreserve gemessen; nächste Arbeit physische Latenz-/Brems-
+  und Fehlertests mit vorbereiteter Zelle. Kein eigener Hardwaredienst aktiv.

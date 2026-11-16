@@ -1,5 +1,11 @@
 # Native HD-Kalibrierung des UR5 vorne links
 
+Aktualisierung16.11.: Neue Randansichten zeigen direkte Boardfehler und eine
+nicht monotone Extrapolation des gespeicherten radialen Modells. Konkrete
+Dateien, Zahlen und reproduzierbarer paralleler Arbeitsauftrag stehen in der
+[LF-Kameradiagnose](left_front_camera_diagnosis_2026-11-16.md). Die ursprünglichen
+Ergebnisse und Qualitätsflags unten bleiben erhalten.
+
 2026-11-12, Australia/Perth. `left_front`, UR5 CB3, Kamera `028E1F350009061C`.
 Erfasst wurden 41 native JPEG-Ansichten bei 2592 × 1944, Fokus 245 manuell,
 Belichtung 60.590 µs und Gain 19. 33 Fitbilder und acht vorab reservierte

@@ -19,6 +19,7 @@ from match_cooperative_handling.rigid_object import rigid, interpolate, pose_err
 from .core import ARMS, seal
 from .scene import apply_object,mass_properties,inherit_pad_adjacency
 from .operating import motion_configuration,TaskSphereModel
+from .timing import limit_shared_jerk
 
 
 def support_exemptions(problem,object_pose):
@@ -68,6 +69,11 @@ class TaskProblem(Problem):
         if not static:
             apply_object(self.collision,scene,object_pose,touching=True)
             support_exemptions(self,object_pose)
+
+    def time_parameterize(self,request,path):
+        trajectory=super().time_parameterize(request,path)
+        limit=self.scene_record['cfg'].get('joint_jerk_rad_s3')
+        return limit_shared_jerk(trajectory,limit) if limit is not None else trajectory
 
     def solve_tcp(self, arm, start, target, *, attempts=1):
         target=rigid(target);names=joint_names(arm);chain=self.chains[arm]
@@ -221,7 +227,9 @@ def grasp_entry(problem, start, candidate, cfg):
         if not problem.collision.check(state)[0] or not problem.check(dict(start=start,joint_names=names),positions):
             raise ValueError('Interpolated shared grasp entry collides or violates stopping reserve')
         points.append(dict(time=float(u*duration),positions=positions.tolist(),velocities=velocity.tolist(),accelerations=acceleration.tolist()))
-    return dict(joint_names=names,points=points,duration_s=float(duration)),q
+    trajectory=dict(joint_names=names,points=points,duration_s=float(duration))
+    if cfg.get('joint_jerk_rad_s3') is not None:trajectory=limit_shared_jerk(trajectory,cfg['joint_jerk_rad_s3'])
+    return trajectory,q
 
 
 class PlannedObjectConstraint:
@@ -287,6 +295,8 @@ def object_trajectory(problem, group, start, object_start, object_end, cfg):
         if not problem.collision.check(state)[0]:raise ValueError('Interpolated object motion collides')
         points.append(dict(time=float(time_u*duration),positions=q.tolist(),velocities=velocity.tolist(),
             accelerations=acceleration.tolist(),object_pose=obj.tolist()))
-    return seal(dict(kind='rigid_object',joint_names=names,points=points,duration_s=duration,
+    trajectory=dict(kind='rigid_object',joint_names=names,points=points,duration_s=duration,
         group=group.record(),scene_sha256=problem.scene_record['sha256'],
-        statement='One object path and one shared time law; no independent arm trajectory planning'))
+        statement='One object path and one shared time law; no independent arm trajectory planning')
+    if cfg.get('joint_jerk_rad_s3') is not None:trajectory=limit_shared_jerk(trajectory,cfg['joint_jerk_rad_s3'])
+    return seal(trajectory)

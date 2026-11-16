@@ -61,8 +61,17 @@ standstill when abandoning an active run. Scope process cleanup to this task.
 
 Report only observed results. Software tests, collision-free compiled motion,
 visual pose consensus and actual contact-supported lifting are separate evidence.
-Rendering truth is an evaluation source, never an estimator prior. Mass,
-friction, finger damping and rigid cardboard are unmeasured simulation assumptions.
+Rendering truth is an evaluation source, never an estimator prior. The default0.5kg mass is user-reported. Friction, finger damping and rigid
+cardboard remain unmeasured simulation assumptions.
 Consult HANDOVER for whether complete lifts have actually passed; the existence
 of the harness does not establish holding reliability or hardware readiness.
 Update HANDOVER and `work/carton-grasp-pipeline.md` with new evidence and limits.
+
+For dynamic experiments read the exploration section of docs/manipulation_pipeline.md.
+Use an explicit force-observed exploration profile, preserve per-DOF stopping
+reserves and the single shared object law. Commissioning reports do not qualify
+new speed profiles. Planned jerk limits do not qualify real actuator jerk or
+loaded stops.50N is a user-reported reference per jaw/wall patch, not a measured
+material failure limit. Direct force reference tests passed; no floating base
+is presently required. The finite experiment driver still needs end-to-end
+validation; do not present its existence as a passed speed sweep.
