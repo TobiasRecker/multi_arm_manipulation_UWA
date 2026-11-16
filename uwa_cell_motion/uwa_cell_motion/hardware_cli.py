@@ -21,8 +21,8 @@ from .hardware_execution import HardwareClient
 
 
 def stop_all(cfg,inventory,mode):
-    require_domain(mode);profiles=load_profiles(inventory)
-    native=native_stop_all(inventory,mode)
+    require_domain(mode);native=native_stop_all(inventory,mode)
+    profiles=load_profiles(inventory)
     with motion_context():
         node=MotionNode('hardware_collision_stop',namespace='/uwa_cell');executor=SingleThreadedExecutor();executor.add_node(node)
         state={};history={r:[] for r in profiles}
@@ -57,15 +57,8 @@ def stop_all(cfg,inventory,mode):
 
 
 def native_stop_all(inventory,mode):
-    require_domain(mode)
-    if mode=='mock':return {r:dict(requested=True,mock=True) for r in load_profiles(inventory)}
-    from concurrent.futures import ThreadPoolExecutor
-    profiles=load_profiles(inventory)
-    def stop(profile):
-        try:return dict(acknowledged=True,response=dashboard_stop(profile))
-        except Exception as error:return dict(acknowledged=False,error=str(error))
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        return dict(zip(profiles,executor.map(stop,profiles.values())))
+    from .native_stop import stop_all
+    return stop_all(inventory,mode)
 
 
 def main(argv=None):
@@ -79,9 +72,15 @@ def main(argv=None):
     p=commands.add_parser('snapshot');p.add_argument('--output',required=True)
     p=commands.add_parser('plan');p.add_argument('request');p.add_argument('--method',choices=['rrtconnect','circular'],required=True);p.add_argument('--seed',type=int,default=0);p.add_argument('--output',required=True)
     p=commands.add_parser('execute');p.add_argument('plan');p.add_argument('--output',required=True)
+    p=commands.add_parser('preview');p.add_argument('plan');p.add_argument('--output',required=True)
     p=commands.add_parser('check-model');p.add_argument('--output',required=True)
     args,ros=parser.parse_known_args(argv)
     if ros and ros[0]!='--ros-args':parser.error('Unrecognized arguments: '+' '.join(ros))
+    if args.op=='preview':
+        from .preview import render
+        plan=json.loads(Path(args.plan).read_text())
+        if not plan.get('hardware_plan') or plan.get('execution_mode')!=args.mode:raise ValueError('Preview requires a plan for the selected hardware/mock backend')
+        render(plan,args.output);print(args.output);return
     from ament_index_python.packages import get_package_share_directory
     cfg=config(args.config or Path(get_package_share_directory('uwa_cell_motion'))/'config/hardware_motion.yaml')
     inventory=args.inventory or inventory_path()

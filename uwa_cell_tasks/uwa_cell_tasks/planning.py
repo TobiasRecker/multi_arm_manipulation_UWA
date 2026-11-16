@@ -18,6 +18,7 @@ from uwa_cell_control.parallel_scan import collision_signature
 from match_cooperative_handling.rigid_object import rigid, interpolate, pose_error
 from .core import ARMS, seal
 from .scene import apply_object,mass_properties,inherit_pad_adjacency
+from .operating import motion_configuration,TaskSphereModel
 
 
 def support_exemptions(problem,object_pose):
@@ -55,13 +56,13 @@ def static_object_description(description, scene, object_pose):
 class TaskProblem(Problem):
     def __init__(self, directory, description, layout, scene, object_pose, *, static=True):
         self.directory=Path(directory);self.directory.mkdir(parents=True,exist_ok=True)
-        self.cfg=motion_config();self.layout=layout;self.layout_path=None
+        self.cfg=motion_configuration(scene['cfg']);self.layout=layout;self.layout_path=None
         self.base_description=description;self.scene_record=scene;self.object_pose=rigid(object_pose)
         self.description=static_object_description(description,scene,object_pose) if static else description
         self.collision=CollisionModel(self.description,self.directory/'moveit')
         inherit_pad_adjacency(self.collision,self.directory/'moveit/robot.srdf')
         self.names=actual_names(self.description,layout)
-        self.spheres=SphereModel(self.description,self.names,self.cfg['sphere_spacing_m'])
+        self.spheres=TaskSphereModel(self.description,self.names,scene['cfg'],self.cfg['sphere_spacing_m'])
         self.signature=collision_signature(self.description)
         self.chains={a:Chain(description,'world',a+'_tool0') for a in ARMS}
         if not static:
@@ -204,13 +205,22 @@ def grasp_entry(problem, start, candidate, cfg):
             raise ValueError('Final grasp entry violates stopping reserve')
         samples.append([q[j] for j in names])
     samples=np.asarray(samples);fractions=np.linspace(0,1,len(samples))
-    gradient=np.gradient(samples,fractions,axis=0)
-    duration=max(30.,1.875*np.max(abs(gradient))/cfg['joint_velocity_rad_s'])
+    spline=CubicSpline(fractions,samples,axis=0)
+    dense=np.linspace(0,1,len(samples)*4+1)
+    gradient=spline(dense,1);curvature=spline(dense,2)
+    duration=max(cfg.get('grasp_entry_min_duration_s',30.),1.875*np.max(abs(gradient))/cfg['joint_velocity_rad_s'],
+        np.sqrt((np.max(abs(curvature))*1.875**2+np.max(abs(gradient))*5.774)/cfg['joint_acceleration_rad_s2']))
     points=[]
     for u in np.linspace(0,1,max(121,int(np.ceil(duration/.025))+1)):
         s=10*u**3-15*u**4+6*u**5
-        positions=[float(np.interp(s,fractions,samples[:,i])) for i in range(len(names))]
-        points.append(dict(time=float(u*duration),positions=positions))
+        positions=spline(s);ds=(30*u**2-60*u**3+30*u**4)/duration;dds=(60*u-180*u**2+120*u**3)/duration**2
+        velocity=spline(s,1)*ds;acceleration=spline(s,2)*ds**2+spline(s,1)*dds
+        if np.max(abs(velocity))>cfg['joint_velocity_rad_s']+1e-9 or np.max(abs(acceleration))>cfg['joint_acceleration_rad_s2']+1e-9:
+            raise ValueError('Shared grasp entry timing exceeds operating envelope')
+        state=dict(start,**dict(zip(names,positions)))
+        if not problem.collision.check(state)[0] or not problem.check(dict(start=start,joint_names=names),positions):
+            raise ValueError('Interpolated shared grasp entry collides or violates stopping reserve')
+        points.append(dict(time=float(u*duration),positions=positions.tolist(),velocities=velocity.tolist(),accelerations=acceleration.tolist()))
     return dict(joint_names=names,points=points,duration_s=float(duration)),q
 
 

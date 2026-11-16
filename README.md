@@ -73,9 +73,11 @@ fixed optics, two parametric shape recipes, data-driven texture faces, checked
 candidate export and held-out tracking checks. Use `scripts/digitize.sh`.
 Complex objects explicitly request a mesh backend, which is not registered yet.
 The [student robot test](docs/student_robot_digitization.md) resumed on November16:
-a complete stationary five-camera set is accepted, and all four ROS drivers are
-connected after an approved restart. New view paths are checked against measured
-starts; additional motion still needs the current operator-readiness confirmation.
+all three checked parallel view rounds were driven with the operator at the
+emergency stop. Twenty confirmed native images provide four viewpoints per wrist
+and one fixed OAK viewpoint. An interrupted final capture was repeated without
+motion; failure records remain intact. Camera settings are restored and LEDs off.
+Reviewed object masks and a validated mesh backend remain the next missing stage.
 Actual lower-reasoning quality/latency comparison remains to be measured.
 
 A first [assisted object-digitization pipeline](docs/object_digitization.md)
@@ -500,8 +502,11 @@ see [the motion guide](docs/four_arm_motion.md). It provides a10Hz neighbor-pair
 sphere guard with latched per-arm resource holds, independent watchdog,
 RRTConnect and an independent circular-field baseline. Planning, preview and
 execution are separate commands; starting the guard explicitly stops the
-simulated arms until a stationary reset. Hardware stopping is not implemented
-by this research package.
+simulated arms until a stationary reset. The separate
+[hardware backend](docs/four_arm_hardware_motion.md) adds output-only RTDE,
+six-joint resource holds and native STOP fallback in domain66; it defaults to
+monitor-only. Its controller/planner paths are mock-tested; real stopping
+reserves remain unmeasured and no physical commissioning is claimed.
 
 Select `/uwa_cell/controller_manager` and one of the four trajectory
 controllers in the **rqt Joint Trajectory Controller** window. Enable control
@@ -509,8 +514,8 @@ and adjust joint targets conservatively. This is direct joint control, not
 collision-free path planning. Tables/robot links have collision geometry;
 The automatic calibration below uses its own collision-checked MoveIt model.
 The new motion package adds experimental multi-arm PTP coordination in
-simulation; production coordination and real-cell synchronization remain work
-for a later hardware stage.
+simulation and an explicit hardware backend. Physical stop/synchronization
+qualification remains a separate commissioning step.
 
 Each arm has six uniquely prefixed joints. Its native ROS action is:
 

@@ -26,6 +26,13 @@ def test_pending_resource_stop_remains_explicit():
     assert 'HOLD-PENDING' in markers.markers[-1].text
 
 
+def test_monitor_does_not_claim_a_stop_or_resource_hold():
+    markers,lost=interlock_markers(dict(guard_age_s=.02,blocked_arms=['left_front'],held_arms=[],state='STOPPING',monitor_only=True),.4)
+    text=markers.markers[-1].text
+    assert not lost and 'MONITOR\nONLY' in text and 'Would-stop:1' in text
+    assert all(word not in text for word in ('STOPPED','STOPPING','Holds:','HOLD-PENDING'))
+
+
 def test_geometry_node_latches_missing_backend_without_reusing_old_clear_state():
     from types import SimpleNamespace
     from uwa_cell_motion.guard_node import CollisionGuard

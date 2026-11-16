@@ -1,7 +1,13 @@
 # Digitalisierung für einen schnellen ausführenden Agenten vorbereiten
 
-- Status: **Realer Mehransichtsscan freigegeben; in Durchführung**, 2026-11-16 (Australia/Perth),
+- Status: **Offline-Rekonstruktion und LF-Kameradiagnose in Arbeit**, 2026-11-16 (Australia/Perth),
   Hauptagent Digitalisierung.
+- Neuer Nutzerauftrag: 3D-Modell aus aufgenommenen Ansichten entwickeln und
+  genaue LF-Kamerabefunde für parallele Bearbeitung dokumentieren. Nur offline;
+  keine Arm-/Kamerabefehle oder Dienstneustarts. Geplante Bereiche: eigener Mesh-
+  Prototyp/Tests, gespeicherte Masken/Rekonstruktionsdaten, docs/student_robot_digitization.md,
+  eigene LF-Diagnoseanleitung und laufende Projektdokumentation. Keine Änderung
+  aktiver Kalibrierprofile oder fremder Hardware-/FoundationPose-Arbeit.
 - Nutzer16.11.: Roboter vermutlich wieder erreichbar, damit Hardwareverfügbar-
   keitsunterbrechung für diese Prüfung aufgehoben. Zunächst nur Status/Kameras,
   offener Restore und frische Startwerte; keine Power/Brake/Play- oder Fahraktion
@@ -29,16 +35,35 @@
   zusätzlicher Power-/Brake-Aktionen abgelehnt/nicht ausgeführt; begrenzter
   Stop/Play-Adapter anschließend genehmigt und erfolgreich. Keine Armfahrt.
 - Neue Offlineplanung mit snapshot_after_udp_restart.json in resume_20261116/;
-  aktuelle Bedienerbereitschaft vor realer Fahrt weiterhin offen.
+  aktuelle Bedienerbereitschaft wurde vor realer Fahrt separat bestätigt.
 - Zwölf neue Wege PASS; unabhängige Paralleltrennung initial/extra/all für
   alle4 PASS mit50mm Anforderung und5mrad Trackingkorridor. Kleinste untere
   Abstandsschranke349,7mm, geplante gemeinsame Fahrzeit59,1s ohne Fotos.
   Vollständiger Live-Preflight CHECKED/motion_sentfalse/3Runden; Ergebnis unter
-  resume_20261116/{view_plan,separation,preflight}/. Noch keine Fahrziele.
+  resume_20261116/{view_plan,separation,preflight}/. Preflight ohne Fahrziele.
 - Nutzer bestätigt jetzt ausdrücklich Nothaltbereitschaft/freie Fahrbereiche
   einschließlich Kabel und beauftragt Fortsetzung. Geprüfter Vierarm-Runner mit
   separater STOP-GUI, drei Runden und Pause zur ersten Bildprüfung. Kein
   geplanter Dienstneustart; Hardware-Motion-/FoundationPose-Arbeit erhalten.
+- Alle3gemeinsamen Fahrten abgeschlossen; Runde1/2 vollständig/stationär
+  bestätigt. Während letzter Fotoaufnahme GUI/Runner mit Exit143 unerwartet
+  beendet (Ursache offen); zuletzt alleMotioncontroller inaktiv. Eigenständiger
+  Kameraworker beendete Transaktion und bestätigte Restore aller4Kameras.
+  Runde3 vollständig, aber Stillstandsprüfung LF-Geschwindigkeitssignal verletzt;
+  Originalflags erhalten. Nachprüfung alle4Motioninaktiv/Geschwindigkeitnull.
+  Keine weitere Fahrt; kamera-only Wiederholsatz an erreichter Position mit
+  RTDE-Monitor als Benutzerdienst uwa-student-photo-retry-20261116.service.
+- Wiederholsatz PASS und automatisch imJob akzeptiert; Runde1/2 ebenfalls
+  importiert. Insgesamt4bestätigteSätze/20Bilder,4Standpunkte jeWrist und1OAK-
+  Standpunkt. Prepare10,307s, keine verworfenen Ansichten; LF weiter diagnostisch
+  wegenKalibrierqualität, RF ursprünglicheFailed-Flags erhalten. Kamera-Restore
+  vollständig bestätigt, alle4LEDs0 gelesen. Quelle/Fehler getrennt erhalten:
+  resume_20261116/scan_recovery_summary.json und accepted_views.jpg.
+- Aufnahmeziel erfüllt, ursprünglicher Scanprozess ausdrücklich NICHT COMPLETE;
+  Ursache Exit143 offen. Vor künftigem Hardwarelauf überwachte/persistente
+  Prozessausführung und Abbruchpfad prüfen. Keine weitere Fahrt/Rückfahrt.
+  Pipeline wartet sachgerecht auf geprüfte Objektmasken und validierten Mesh-
+  Backend; Geometrie/Tracking NOT_TESTED, Manipulation NOT_APPROVED.
 - Nutzerziel: deutlich kürzere Durchlaufzeit mit geringerem Reasoning-Aufwand,
   geprüfte Qualität und bestehende Sicherheitsfunktionen erhalten.
 - Neuer Auftrag: Pipeline implementieren und an studentischem Roboternachbau
@@ -70,6 +95,6 @@
 - Offline-Replays beider echter Objekte abgeschlossen; ursprüngliche Qualitäts-
   grenzen/Fehlschläge erhalten. Kein dichter Mesh-Backend oder Vergleich
   niedrigerer Reasoning-Stufen behauptet. Aktuelle Anleitung digitization_workflow.md.
-- Studentischer Roboter: OAK-basierte Planungshülle und12modellgeprüfte
-  Abschnitte für3Wristansichten je Arm vorbereitet; historische Startwerte,
-  keine Hardwarefreigabe oder Realfahrt. docs/student_robot_digitization.md.
+- Historische Vorbereitung13.11.: OAK-basierte Hülle/12modellgeprüfte Abschnitte
+  mit alten Startwerten.16.11. durch neue gemessene Planung und reale Aufnahmen
+  ergänzt, Originalnachweise erhalten. docs/student_robot_digitization.md.

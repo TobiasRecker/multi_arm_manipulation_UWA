@@ -129,6 +129,24 @@ def test_native_stop_transport_sends_only_stop_to_local_fake_server():
     assert commands==[b'stop\n']
 
 
+def test_native_stop_mock_never_connects_and_invalid_target_preserves_other_stops(monkeypatch,tmp_path):
+    import yaml
+    from uwa_cell_motion import native_stop
+    monkeypatch.setenv('ROS_AUTOMATIC_DISCOVERY_RANGE','LOCALHOST');monkeypatch.setenv('ROS_DOMAIN_ID','67')
+    file=tmp_path/'inventory.yaml';file.write_text(yaml.safe_dump({'robots':{'a':{'ip':'127.0.0.1'},'b':{'ip':'invalid'}}}))
+    calls=[]
+    monkeypatch.setattr(native_stop,'dashboard_stop',lambda p:calls.append(p) or 'Stopped')
+    result=native_stop.stop_all(file,'mock');assert not calls and result['a']['mock'] and not result['b']['acknowledged']
+    monkeypatch.setenv('ROS_DOMAIN_ID','66');result=native_stop.stop_all(file,'hardware')
+    assert len(calls)==1 and result['a']['acknowledged'] and not result['b']['acknowledged']
+
+
+def test_native_stop_import_does_not_depend_on_ros_or_robot_kinematics():
+    import subprocess
+    script="import sys; from uwa_cell_motion import native_stop; assert all(n not in sys.modules for n in ('rclpy','numpy','match_ur_hardware','uwa_cell_motion.hardware_model'))"
+    subprocess.run([sys.executable,'-c',script],check=True,timeout=5.)
+
+
 def test_simulation_plan_cannot_be_sent_to_hardware_backend(monkeypatch,tmp_path):
     from uwa_cell_motion.hardware_execution import execute
     monkeypatch.setenv('ROS_DOMAIN_ID','67');monkeypatch.setenv('ROS_AUTOMATIC_DISCOVERY_RANGE','LOCALHOST')
@@ -141,3 +159,11 @@ def test_unknown_finger_visuals_and_simulator_actuators_are_absent_from_hardware
     assert root.find('gazebo') is None and root.find('ros2_control') is None
     for row in problem.envelope_audit:
         assert not root.find(f"link[@name='{row['link']}']").findall('visual')
+
+
+def test_offline_hardware_preview_labels_backend_and_unmeasured_reserve(problem,tmp_path):
+    from uwa_cell_motion.preview import render
+    start=nominal_state(problem.layout);target=[start[j] for j in joint_names('right_rear')];target[-1]+=.003
+    plan=problem.plan(dict(start=start,goals={'right_rear':target}),'rrtconnect');plan['execution_mode']='hardware'
+    output=tmp_path/'preview.html';render(plan,output);text=output.read_text()
+    assert 'HARDWARE — PTP preview' in text and 'reserve UNMEASURED' in text and 'no motion sent' in text

@@ -1,7 +1,7 @@
 import copy
 import numpy as np
 import pytest
-from uwa_cell_tasks.force_metrics import contact_loads,analytic_upper_plane_force
+from uwa_cell_tasks.force_metrics import contact_loads,analytic_upper_plane_force,pad_load_window
 
 
 def sample(a='floor',b='load',force=(1.,0.,3.)):
@@ -40,3 +40,16 @@ def test_missing_nonfinite_and_inconsistent_measurements_are_not_zero_force():
     with pytest.raises(ValueError,match='inconsistent'):contact_loads([bad])
     bad=copy.deepcopy(sample());bad['points'][0]['body1']['force'][2]=4;bad['points'][0]['body2']['force'][2]=-4
     with pytest.raises(ValueError,match='Duplicate'):contact_loads([sample(),bad])
+
+
+def test_pad_limit_is_aggregated_over_all_collision_patches_not_per_pair():
+    pair=dict(collisions=['right_front_robotiq_85_left_finger_tip_pad_link','carton_a'],
+        mean_normal_load_n=30.,mean_tangential_load_n=0.,peak_normal_load_n=40.,peak_tangential_load_n=0.)
+    other=copy.deepcopy(pair);other['collisions'][1]='carton_b'
+    observation=dict(schema_version=1,contact_loads=[pair,other],missing_wrenches=0,invalid_wrenches=0)
+    r=pad_load_window(observation,50.)
+    assert r['pads']['right_front/left']['mean_reference_ratio']==pytest.approx(1.2)
+    assert r['pads']['right_front/left']['peak_load_upper_bound_n']==80.
+    assert r['damage_assessed'] is False
+    observation['missing_wrenches']=1
+    assert pad_load_window(observation,50.)['usable'] is False

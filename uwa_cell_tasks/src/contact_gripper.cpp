@@ -67,7 +67,7 @@ public:
       [this,dt,&arm_count,&ecm](const gz::sim::Entity & entity,ArmTarget * target,
         const gz::sim::components::JointPosition * q) {
         auto & t=target->Data();
-        if(t.size()!=4 || q->Data().empty())return true;
+        if(t.size()!=6 || q->Data().empty())return true;
         ++arm_count;
         // The stock position backend uses a ROS-read cached position. A
         // substep servo instead uses this physics step's actual state, with
@@ -76,8 +76,8 @@ public:
         // Predict the same shared reference between controller samples using
         // its supplied derivative. Position-only stair steps excite passive
         // fingers even when their endpoints follow the correct path.
-        const double desired=std::clamp(t[1]+30.*(t[0]+t[1]*t[2]-q->Data()[0]),-.05,.05);
-        t[3]+=std::clamp(desired-t[3],-.5*dt,.5*dt);t[2]+=dt;
+        const double desired=std::clamp(t[1]+30.*(t[0]+t[1]*t[2]-q->Data()[0]),-t[4],t[4]);
+        t[3]+=std::clamp(desired-t[3],-t[5]*dt,t[5]*dt);t[2]+=dt;
         if(!moving_ && std::abs(t[3])>.001) {
           moving_=true;std::cerr<<"CONTACT SERVO: first motion target="<<t[0]<<" measured="<<q->Data()[0]<<" velocity="<<t[3]<<std::endl;
         }
@@ -127,7 +127,8 @@ public:
       fine_start_=std::stod(info.hardware_parameters.at("fine_start"));
       native_mimic_=info.hardware_parameters.at("native_mimic")=="true";
       if (!std::isfinite(kp_+motor_kp_+kd_+torque_) || kp_<=0 || motor_kp_<=0 || kd_<=0 || torque_<=0) return false;
-      if(!std::isfinite(coarse_+fine_+fine_start_) || fine_<=0 || fine_>coarse_ || coarse_>.02 || fine_start_<=0 || fine_start_>=.8)return false;
+      const double limit=info.hardware_parameters.count("velocity_limit") ? std::stod(info.hardware_parameters.at("velocity_limit")):.05;
+      if(!std::isfinite(coarse_+fine_+fine_start_+limit) || limit<=0 || limit>2. || fine_<=0 || fine_>coarse_ || coarse_>limit || fine_start_<=0 || fine_start_>=.8)return false;
       for (const auto & joint:info.joints) {
         Finger f; f.name=joint.name; f.entity=joints.at(joint.name);
         f.driver=joint.parameters.at("driver");
@@ -218,6 +219,9 @@ public:
   {
     ecm_=&ecm;
     try {
+      const double max_v=info.hardware_parameters.count("max_velocity") ? std::stod(info.hardware_parameters.at("max_velocity")):.05;
+      const double max_a=info.hardware_parameters.count("max_acceleration") ? std::stod(info.hardware_parameters.at("max_acceleration")):.5;
+      if(!std::isfinite(max_v+max_a) || max_v<=0 || max_v>1. || max_a<=0 || max_a>5.)return false;
       for(const auto & j:info.joints) {
         double initial=0.;
         for(const auto & s:j.state_interfaces)if(s.name=="position" && !s.initial_value.empty())initial=std::stod(s.initial_value);
@@ -227,7 +231,7 @@ public:
         if(!ecm.Component<gz::sim::components::JointPosition>(entity))ecm.CreateComponent(entity,gz::sim::components::JointPosition());
         if(!ecm.Component<gz::sim::components::JointVelocity>(entity))ecm.CreateComponent(entity,gz::sim::components::JointVelocity());
         ecm.CreateComponent(entity,gz::sim::components::JointVelocityCmd({0.}));
-        ecm.CreateComponent(entity,ArmTarget({initial,0.,0.,0.}));
+        ecm.CreateComponent(entity,ArmTarget({initial,0.,0.,0.,max_v,max_a}));
       }
       return true;
     } catch(...) {return false;}

@@ -22,6 +22,7 @@ from uwa_cell_gazebo.charuco_views import Chain
 from .core import ARMS,GraspGroup,verify,write_json
 from .planning import actual_names,support_exemptions
 from .scene import apply_object,verify_scene,inherit_pad_adjacency
+from .operating import motion_configuration,TaskSphereModel,velocity_limits
 
 
 class TaskGuard(MotionNode):
@@ -30,12 +31,15 @@ class TaskGuard(MotionNode):
         self.set_parameters([rclpy.parameter.Parameter('use_sim_time',value=True)])
         self.directory=Path(scene_directory);self.scene=verify_scene(self.directory);self.scene_record=self.scene
         self.description=(self.directory/'robot.urdf').read_text();self.layout=load_layout(layout_file)
-        self.cfg=motion_config();self.names=actual_names(self.description,self.layout)
+        self.cfg=motion_configuration(self.scene['cfg']);self.names=actual_names(self.description,self.layout)
         self.temp=tempfile.TemporaryDirectory(prefix='uwa-task-guard-')
-        self.model=SphereModel(self.description,self.names,self.cfg['sphere_spacing_m'])
+        self.model=TaskSphereModel(self.description,self.names,self.scene['cfg'],self.cfg['sphere_spacing_m'])
         self.collision=CollisionModel(self.description,self.temp.name)
         inherit_pad_adjacency(self.collision)
-        self.core=GuardState(self.cfg);self.positions={};self.pairs=[];self.speed_violations={}
+        # The base guard's scalar check is supplemented by strict per-joint
+        # latching below. Geometry uses the full per-DOF stopping budget.
+        core_cfg=dict(self.cfg,velocity_limit_rad_s=max(self.cfg['velocity_limit_rad_s'],self.scene['cfg'].get('finger_velocity_limit_rad_s',.05)))
+        self.core=GuardState(core_cfg);self.positions={};self.pairs=[];self.speed_violations={}
         self.instance=str(uuid.uuid4());self.sequence=0;self.group=None;self.supervisor={}
         self.object=None;self.contacts=None;self.object_received=0.;self.contacts_received=0.
         self.runner_received=None;self.group_object=None;self.touching=False;self.releasing=False;self.eval_offsets=None
@@ -59,9 +63,9 @@ class TaskGuard(MotionNode):
         q=dict(zip(msg.name,msg.position));v=dict(zip(msg.name,msg.velocity))
         # Latch every received peak, including samples between geometry ticks.
         # The general cell guard's 5% tolerance is not this task's envelope.
-        limit=self.scene['cfg']['joint_velocity_rad_s']+1e-8
+        limits=dict(zip(v,velocity_limits(list(v),self.scene['cfg'])))
         for name,speed in v.items():
-            if name.startswith(ARMS) and abs(speed)>limit:
+            if name.startswith(ROBOT_IDS) and abs(speed)>limits[name]+1e-8:
                 self.speed_violations[name]=max(self.speed_violations.get(name,0.),abs(speed))
         for a,names in self.names.items():
             if all(n in q and n in v for n in names):
@@ -99,7 +103,8 @@ class TaskGuard(MotionNode):
         if self.speed_violations:
             faults.append(dict(arms=list(ARMS),reason='STRICT TASK SPEED LIMIT',
                 measured_peaks_rad_s=dict(self.speed_violations),
-                configured_limit_rad_s=self.scene['cfg']['joint_velocity_rad_s']))
+                configured_limit_rad_s=self.scene['cfg']['joint_velocity_rad_s'],
+                per_joint_limits_rad_s=dict(zip(self.speed_violations,velocity_limits(list(self.speed_violations),self.scene['cfg'])))))
         if now-self.object_received>.2 or now-self.contacts_received>.2:
             faults.append(dict(arms=list(ARMS),reason='OBJECT SCENE TELEMETRY STALE'))
         if (self.runner_received is not None and now-self.runner_received>.5

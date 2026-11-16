@@ -216,7 +216,8 @@ def fingertip_contact_primitives(root):
 
 
 def contact_description(description, controllers_path, finger_damping=.04,coarse=.02,fine=.004,fine_start=.65,geometry_metadata=None,
-                        gear_stiffness=10.,motor_stiffness=10.,transmission='native_gear'):
+                        gear_stiffness=10.,motor_stiffness=10.,transmission='native_gear',
+                        arm_velocity=.05,arm_acceleration=.5,finger_velocity_limit=.05):
     """Opt-in profile; default cell description/controllers stay unchanged.
 
     Contact fingers are force servos with measured independent joints. URDF
@@ -228,6 +229,8 @@ def contact_description(description, controllers_path, finger_damping=.04,coarse
     control = root.find('ros2_control')
     arm_backend=ET.SubElement(root,'ros2_control',name='ContactArms',type='system')
     ET.SubElement(ET.SubElement(arm_backend,'hardware'),'plugin').text='uwa_cell_tasks/ContactArms'
+    for name,value in [('max_velocity',arm_velocity),('max_acceleration',arm_acceleration)]:
+        ET.SubElement(arm_backend.find('hardware'),'param',name=name).text=str(value)
     for joint in list(control.findall('joint')):
         if joint.get('name') not in [name for arm in ARMS for name in joint_names(arm)]:continue
         control.remove(joint);arm_backend.append(joint)
@@ -239,6 +242,7 @@ def contact_description(description, controllers_path, finger_damping=.04,coarse
     hardware = ET.SubElement(backend, 'hardware')
     ET.SubElement(hardware, 'plugin').text = 'uwa_cell_tasks/ContactGripper'
     ET.SubElement(hardware,'param',name='native_mimic').text='true' if transmission=='native_gear' else 'false'
+    ET.SubElement(hardware,'param',name='velocity_limit').text=str(finger_velocity_limit)
     for name, value in [('kp',gear_stiffness),('motor_kp',motor_stiffness),('kd','0.003'),('max_torque','0.35'),('coarse_velocity',coarse),('fine_velocity',fine),('fine_start',fine_start)]:
         ET.SubElement(hardware, 'param', name=name).text = str(value)
     for joint in list(control.findall('joint')):
@@ -335,7 +339,8 @@ def prepare_scene(layout, cfg, directory):
     finger_geometry=[]
     description = contact_description(description, controllers, cfg['finger_joint_damping_nm_s'],
         cfg['gripper_coarse_velocity_rad_s'],cfg['gripper_fine_velocity_rad_s'],cfg['gripper_fine_start_rad'],finger_geometry,
-        cfg['gripper_gear_stiffness_nm_rad'],cfg['gripper_motor_stiffness_nm_rad'],cfg['gripper_transmission'])
+        cfg['gripper_gear_stiffness_nm_rad'],cfg['gripper_motor_stiffness_nm_rad'],cfg['gripper_transmission'],
+        cfg['joint_velocity_rad_s'],cfg.get('braking_acceleration_rad_s2',.5),cfg.get('finger_velocity_limit_rad_s',.05))
     (directory/'robot.urdf').write_text(description)
     sdf = dynamic_sdf(instance, shapes, cfg); (directory/'carton.sdf').write_text(sdf)
     world = ET.Element('sdf', version='1.9'); w = ET.SubElement(world, 'world', name='uwa_grasp_lab')

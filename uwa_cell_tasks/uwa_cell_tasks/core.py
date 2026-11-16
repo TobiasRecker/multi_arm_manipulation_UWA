@@ -70,15 +70,24 @@ def configuration(path=None):
     cfg = yaml.safe_load(Path(path).read_text())
     cfg.setdefault('simulation_real_time_factor',.7)
     cfg.setdefault('force_observation',False)
+    cfg.setdefault('exploration_mode',False)
+    cfg.setdefault('finger_velocity_limit_rad_s',cfg['joint_velocity_rad_s'])
+    cfg.setdefault('grasp_entry_min_duration_s',30.)
+    cfg.setdefault('braking_acceleration_rad_s2',.5)
     if not isinstance(cfg['force_observation'],bool):raise ValueError('force_observation must be boolean')
+    if not isinstance(cfg['exploration_mode'],bool):raise ValueError('exploration_mode must be boolean')
     if cfg.get('schema_version') != 1 or tuple(cfg.get('arms', [])) != ARMS:
         raise ValueError('v1 requires schema1 and the two right arms in stable order')
     for key, value in cfg.items():
-        if key in ('schema_version', 'arms', 'object_id', 'simulation_assumptions','gripper_transmission','physics_engine','force_observation'): continue
+        if key in ('schema_version', 'arms', 'object_id', 'simulation_assumptions','gripper_transmission','physics_engine','force_observation','exploration_mode'): continue
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
             raise ValueError('Expected positive finite ' + key)
-    if cfg['lift_m'] > .05 or cfg['joint_velocity_rad_s'] > .05 or cfg['joint_acceleration_rad_s2'] > .10:
+    exploration=cfg['exploration_mode']
+    if cfg['lift_m'] > .05 or cfg['joint_velocity_rad_s'] > (1. if exploration else .05) or cfg['joint_acceleration_rad_s2'] > (2. if exploration else .10):
         raise ValueError('Task exceeds the first simulation operating envelope')
+    if cfg['finger_velocity_limit_rad_s']>(2. if exploration else .05) or cfg['braking_acceleration_rad_s2']>5.:
+        raise ValueError('Task exceeds the simulation observation/stop envelope')
+    if exploration and not cfg['force_observation']:raise ValueError('Exploration requires force observation')
     if cfg['simulation_real_time_factor']>1.:
         raise ValueError('Contact qualification requires an unaccelerated simulation')
     if cfg['maximum_attempts'] != int(cfg['maximum_attempts']):
@@ -89,7 +98,7 @@ def configuration(path=None):
         raise ValueError('Unsupported physics engine')
     if cfg['gripper_transmission']=='native_gear' and cfg['physics_engine']!='bullet_featherstone':
         raise ValueError('Native gear constraints require Bullet Featherstone in this installation')
-    if not (0<cfg['gripper_fine_velocity_rad_s']<=cfg['gripper_coarse_velocity_rad_s']<=.02
+    if not (0<cfg['gripper_fine_velocity_rad_s']<=cfg['gripper_coarse_velocity_rad_s']<=min(.5 if exploration else .02,cfg['finger_velocity_limit_rad_s'])
             and 0<cfg['gripper_fine_start_rad']<.8):
         raise ValueError('Invalid coarse/fine contact closure envelope')
     return cfg

@@ -27,7 +27,7 @@ def setup(context):
     manager=params[ns+'/controller_manager']['ros__parameters']
     for arm in layout['robots']:
         name=arm+'_collision_hold_controller';manager[name]={'type':'uwa_cell_motion/CollisionHold'}
-        params[ns+'/'+name]={'ros__parameters':dict(joints=joint_names(arm)+[gripper_joint(arm)],deceleration=.5,use_sim_time=True)}
+        params[ns+'/'+name]={'ros__parameters':dict(joints=joint_names(arm)+[gripper_joint(arm)],deceleration=json.loads((directory/'scene.json').read_text())['cfg'].get('braking_acceleration_rad_s2',.5),use_sim_time=True)}
     param_file=directory/'controllers.live.yaml';param_file.write_text(yaml.safe_dump(params))
     description=(directory/'robot.urdf').read_text().replace('/uwa_cell/',ns+'/')
     root=ET.fromstring(description)
@@ -71,7 +71,7 @@ def setup(context):
     guard=Node(package='uwa_cell_tasks',executable='cell_task',namespace=ns,name='collision_guard',
         arguments=['guard','--scene',str(directory),'--layout',layout_file],remappings=remaps,output='screen')
     supervisor=Node(package='uwa_cell_tasks',executable='cell_task',namespace=ns,name='collision_supervisor',
-        arguments=['supervisor','--layout',layout_file],remappings=supervisor_remaps(ns),output='screen')
+        arguments=['supervisor','--layout',layout_file,'--scene',str(directory)],remappings=supervisor_remaps(ns),output='screen')
     for previous,following in zip(sequence,sequence[1:]):
         actions.append(RegisterEventHandler(OnProcessExit(target_action=previous,
             on_exit=lambda event,ctx,n=following:[n] if event.returncode==0 else [EmitEvent(event=Shutdown(reason='Own grasp startup failed'))])))

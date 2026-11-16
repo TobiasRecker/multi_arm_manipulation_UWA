@@ -23,7 +23,7 @@ def main():
     p=sub.add_parser('bridge');p.add_argument('--namespace',required=True);p.add_argument('--world',required=True)
     p=sub.add_parser('camera');p.add_argument('--namespace',required=True);p.add_argument('--scene',type=Path,required=True)
     p=sub.add_parser('guard');p.add_argument('--scene',type=Path,required=True);p.add_argument('--layout',type=Path,required=True)
-    p=sub.add_parser('supervisor');p.add_argument('--layout',type=Path,required=True)
+    p=sub.add_parser('supervisor');p.add_argument('--layout',type=Path,required=True);p.add_argument('--scene',type=Path)
     args,ros_args=parser.parse_known_args()
     if args.command=='skills':print(json.dumps(skills(),indent=2));return
     if args.command in ('prepare','plan'):
@@ -91,7 +91,12 @@ def main():
             from uwa_cell_motion.supervisor import Supervisor
             from uwa_cell_motion.common import config
             from rclpy.executors import MultiThreadedExecutor
-            node=Supervisor(config(),layout,prepare=False)
+            cfg=config()
+            if args.scene:
+                from .scene import verify_scene
+                from .operating import motion_configuration
+                cfg=motion_configuration(verify_scene(args.scene)['cfg'])
+            node=Supervisor(cfg,layout,prepare=False)
             executor=MultiThreadedExecutor(num_threads=4);executor.add_node(node)
             try:executor.spin()
             finally:executor.shutdown()

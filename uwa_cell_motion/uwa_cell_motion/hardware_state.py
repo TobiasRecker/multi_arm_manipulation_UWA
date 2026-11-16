@@ -11,10 +11,7 @@ import numpy as np
 from .common import ROBOT_IDS,sha
 
 
-def require_domain(mode):
-    expected={'hardware':'66','mock':'67'}.get(mode)
-    if expected is None or os.environ.get('ROS_DOMAIN_ID')!=expected or os.environ.get('ROS_AUTOMATIC_DISCOVERY_RANGE')!='LOCALHOST':
-        raise RuntimeError('Hardware motion requires explicit mode/domain: hardware66 or mock67, LOCALHOST')
+from .native_stop import require_domain,dashboard_stop
 
 
 def signature(problem,mode):
@@ -90,26 +87,6 @@ class RtdeStates(DeviceStates):
             except OSError:pass
         for worker in self.workers:worker.join(timeout=3.)
 
-
-def dashboard_stop(profile):
-    """Only the native STOP verb; never load/play/power/brake/unlock."""
-    deadline=time.monotonic()+.75
-    with socket.create_connection((profile['ip'],profile.get('dashboard_port',29999)),timeout=.25) as stream:
-        stream.settimeout(.25)
-        def line():
-            data=b''
-            while not data.endswith(b'\n'):
-                remaining=deadline-time.monotonic()
-                if remaining<=0:raise TimeoutError('Native STOP deadline exceeded')
-                stream.settimeout(min(.25,remaining))
-                part=stream.recv(1)
-                if not part:raise RuntimeError('Dashboard connection closed')
-                data+=part
-                if len(data)>4096:raise RuntimeError('Invalid Dashboard response')
-            return data.decode('utf-8',errors='replace').strip()
-        line();stream.sendall(b'stop\n');answer=line()
-        if answer.lower()!='stopped':raise RuntimeError('Native STOP not confirmed: '+answer)
-        return answer
 
 
 def packet(signature,armed,instance,sequence,**values):

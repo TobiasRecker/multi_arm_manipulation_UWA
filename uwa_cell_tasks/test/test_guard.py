@@ -51,6 +51,17 @@ def test_received_speed_peak_is_strict_and_survives_a_later_quiet_sample():
     assert not response.success and guard.speed_violations[name]==.05014682
 
 
+def test_exploration_fingers_do_not_relax_the_arm_speed_limit():
+    from sensor_msgs.msg import JointState
+    guard=guard_fixture();guard.names={};guard.scene['cfg'].update(joint_velocity_rad_s=.1,finger_velocity_limit_rad_s=.3)
+    arm=ARMS[0]+'_wrist_3_joint';finger=ARMS[0]+'_robotiq_85_left_finger_tip_joint'
+    guard.joints(JointState(name=[arm,finger],position=[0.,.7],velocity=[.09,.29]))
+    assert not guard.speed_violations
+    guard.joints(JointState(name=[arm,finger],position=[0.,.7],velocity=[.11,.31]))
+    guard.joints(JointState(name=[arm,finger],position=[0.,.7],velocity=[0.,0.]))
+    assert guard.speed_violations[arm]==.11 and guard.speed_violations[finger]==.31
+
+
 def test_slip_and_telemetry_loss_cannot_be_hidden_by_new_membership():
     guard=guard_fixture();baseline=guard.eval_offsets[ARMS[0]].copy()
     guard.positions[ARMS[0]][2,3]+=.003

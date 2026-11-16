@@ -45,7 +45,7 @@ class SphereModel:
                 centres.extend(c); radii.extend(r); links.extend([body.link]*len(r))
                 motion.extend([body.radii]*len(r))
                 self.coverage.append(dict(arm=rid, link=body.link, collision_index=body.index,
-                                          spheres=len(r), method='complete local AABB slice circumspheres'))
+                                          spheres=len(r), method='exact sphere primitive' if body.kind=='sphere' else 'complete local AABB slice circumspheres'))
             self.local[rid], self.radii[rid] = np.asarray(centres), np.asarray(radii)
             self.links[rid], self.motion_radii[rid] = links, np.asarray(motion)
 

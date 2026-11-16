@@ -3,6 +3,9 @@
 This first version commands **Gazebo simulation only**, ROS domain64,
 partition `uwa_cell_sim`. It does not start or stop real UR programs.
 The model's physical world/table anchors remain provisional.
+The separately implemented [hardware backend](four_arm_hardware_motion.md)
+has its own domain, tool-envelope policy and unmeasured stopping profile;
+simulation execution never forwards commands to hardware.
 
 For motion comparisons, start the cell with `image_sensors:=false`. This
 omits image rendering while retaining all camera/tool bodies, joints, inertias,

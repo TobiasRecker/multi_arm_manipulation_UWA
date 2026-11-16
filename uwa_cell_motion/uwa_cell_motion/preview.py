@@ -16,8 +16,10 @@ def render(plan,output):
             lines.append(f'<polyline points="{xy}" fill="none" stroke="{colours[k%6]}" stroke-width="2"/>')
         legend=' · '.join(f'<span style="color:{colours[k%6]}">{html.escape(names[i].removeprefix(arm+"_"))}</span>' for k,i in enumerate(indices))
         charts.append(f'<h2>{arm}</h2><div>{legend}</div><svg viewBox="0 0 950 240" role="img" aria-label="Joint trajectories in radians">{"".join(lines)}<text x="60" y="235" fill="white">0s</text><text x="840" y="235" fill="white">{times[-1]:.2f}s</text></svg>')
+    mode=plan.get('execution_mode','hardware').upper() if plan.get('hardware_plan') else 'SIMULATION'
+    qualification='<p class="label">Hardware stop reserve UNMEASURED. Fingers unobserved: full opening envelope; no gripper command.</p>' if plan.get('hardware_plan') else ''
     text=f'''<!doctype html><html lang="en"><meta charset="utf-8"><title>UWA PTP preview</title>
 <style>body{{background:#10141c;color:#fff;font:18px sans-serif;margin:32px;max-width:1100px}}svg{{width:100%;background:#202938}}h1{{color:#ffdd55}}.label{{border:3px solid white;padding:15px}}</style>
-<h1>SIMULATION — PTP preview</h1><p class="label">PLANNED · {html.escape(plan['method'])} · {plan['trajectory']['duration_s']:.2f}s planned · no motion sent</p>
+<h1>{html.escape(mode)} — PTP preview</h1><p class="label">PLANNED · {html.escape(plan['method'])} · {plan['trajectory']['duration_s']:.2f}s planned · no motion sent</p>{qualification}
 <p>Joint angles in radians. Stop-at-waypoint timing. Model geometry includes provisional cell anchors.</p>{''.join(charts)}</html>'''
     Path(output).parent.mkdir(parents=True,exist_ok=True);Path(output).write_text(text)

@@ -1,5 +1,46 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Hardware-Kollisionswächter/PTP implementiert, physische Abnahme offen, 2026-11-16
+
+- Nutzer beauftragt Übertragung aus Simulation. Neuer expliziter Backendpfad
+  `cell_hardware_motion`, Domain66hardware/67mock; Simulation64 bleibt gesperrt
+  gegen Hardware. In dieser Arbeit keine reale Geräteabfrage, kein Treiber-
+  neustart, STOP, Power/Brake/Play oder Fahrziel. Fremde Zellarbeiten erhalten.
+- Output-onlyRTDE20Hz mit Gerätezeit, Puffersignalalter, Epoch-/Freezeprüfung;
+  Geometrie10Hz monotone Zeit. Individuelle Werkskinematik und zentrale
+  Kalibriergeometrie; reale Treiberursprünge vor Freigabe vergleichen. Genau
+  vier Nachbarpaare, latching, scoped partialreset, kein automatischer Wiederanlauf.
+- Je Manager6echte Positionsschnittstellen des C++CollisionHold; Actionabbruch,
+  Topic-/Positionsaktivierungskonflikte und polled Entfernung anderer
+  Armcontroller. Supervisor+separater Watchdog mit Lease, Hardwareplugin- und
+  laufendem Parameterreadback. Native Dashboard-Rückfall ausschließlichSTOP;
+  schlanker Exit-Helfer ohne ROS-/MoveIt-/Kinematikinitialisierung. ACK und
+  Ressourcenbesitz ausdrücklich kein gemessener Stillstand; je Arm prüfen.
+- MONITOR ONLY ohne Stellaktionen als Standard; Provision(inaktiv), Arm,
+  Reset, Plan, HTML-Vorschau und Execute getrennt. Arming verriegelt anfangs
+  alle Arme. Managerfremdaktivierung bleibt polled, kein hardwareseitig
+  unüberwindbarer Inhibit gegen privilegierte Clients/Pendantprogramme.
+- Unbekannte Greiferöffnung: komplette volumetrische Öffnungshülle mit
+  analytischer Zwischenwinkelreserve,166Kugeln/Arm. Interne gekoppelte
+  Robotiq-Hüllpaare explizit in beiden ACMs erlaubt; externe Tool/Kamera/Arm/
+  Tischprüfungen erhalten. Keine innere Mechanikabnahme. Bewegliche unbekannte
+  Fingervisuals entfernt; echte24JointStates und Modell28 getrennte Themen.
+- Beide Planer verwenden dieselbe volle Szene/Timingprüfung, keine versteckten
+  Rückfälle oder Startrepositionierung; Hardware-/Mock-Modellbindung, tatsächlicher
+  Start und gemessener Fortschritt. Skalierter echter UR-JTC; Restwege gegen
+  gestoppte Arme/Bremsreserve prüfen. Bestehende manuelle GUI-Gates unverändert.
+- Echte ros2_control-/C++-Pluginprüfung in privatem GenericSystem bestanden:
+  setup/logs/uwa-hardware-hold-plugin-check.json.6Positionclaims, Positions-
+  konflikt abgelehnt, Topic ohne Wirkung, Velocityfremdbesitz entfernt. Eigene
+  Testunit danach beendet. Vorheriger vollständiger Viermanager-Fake-Lauf PASS;
+  aktuelle Wiederholung/abschließende Paketprüfung noch im Arbeitsgang.
+- Hardwareprofil0,01rad/s/0,02rad/s²,1s Latenz/0,2rad/s² Bremsen/40mm Reserve
+  **unvermessene technische Annahmen**. Reale Latenz/Bremsen/Netz-/Prozessausfall,
+  Paarstopp mit unabhängigem Arm und Welt-/Tischanker physisch prüfen, bevor
+  Sim-/Mock-Nachweise als Realbetriebsergebnis ausgegeben werden. Kein aktiver
+  Hardwarewächterdienst aus dieser Arbeit. Anleitung docs/four_arm_hardware_motion.md,
+  laufender Eintrag work/four-arm-hardware-motion.md.
+
 ## Reale Kartonpose auf FoundationPose-GPU erstmals geprüft, 2026-11-16
 
 - Nutzer stellt bekannten Avocado-Karton neben studentischen Roboter, bestätigt
@@ -20,7 +61,7 @@
 - Nachweise setup/tracking/foundationpose_carton_20261116/, Anleitung
   docs/foundationpose_titanpc.md; Arbeit work/foundationpose-carton-real.md.
 
-## Studentischer Roboter: Kameras und ROS wiederhergestellt, 2026-11-16
+## Studentischer Roboter: reale Mehransichtsbilder aufgenommen, 2026-11-16
 
 - Nutzer bestätigt unveränderten Aufbau. Offener Fokus-/HTTP-Restore verifiziert;
   neuer vollständiger stationärer Satz4×2592×1944+OAK8000×6000 akzeptiert,
@@ -35,13 +76,27 @@
   zuvor RF-GPIO-Präfix leer.16Tests PASS. Vorherige zusätzliche Discovery-Ausfälle
   im neuen UDP-Lauf nicht beobachtet, genaue Ursache noch unbewiesen. Clients
   für diesen Lauf mit FASTDDS_BUILTIN_TRANSPORTS=UDPv4 verwenden.
-- Zwölf neue Offline-Sicht-/Kollisionswege ab gemessenen Starts geprüft, keine
-  Hardwareausführung. Parallele Abstandsprüfung für alle4 initial/extra/all PASS:
+- Zwölf neue Sicht-/Kollisionswege ab gemessenen Starts geprüft.
+  Parallele Abstandsprüfung für alle4 initial/extra/all PASS:
  50mm Anforderung/5mrad Korridor, minimale untere Abstandsschranke349,7mm.
   Live-Preflight CHECKED/motion_sentfalse/3Runden; reine gemeinsame Fahrzeit59,1s.
-  Aktuelle Nothaltbereitschaft vor echten Zielen noch offen.
-  Je Kamera erst eine akzeptierte Ansicht;
-  dichter Mesh-Backend weiter offen. Anleitung docs/student_robot_digitization.md,
+  Nutzer danach am Nothalt/freie Fahrbereiche bestätigt; alle3gemeinsamen
+  Fahrten ausgeführt, keine automatische Rückfahrt.
+- Runde1/2 vollständig/stationär bestätigt. GUI/Runner während letzter Aufnahme
+  unerwartet Exit143 (Ursacheoffen); Bewegungscontroller zuvor deaktiviert,
+  Kamera-Worker beendet Transaktion/Restore. Dritter Originalsatz vollständig,
+  aber LF-Geschwindigkeitssignal0,020229rad/s verletzt Stillstandsprüfung;
+  Positionsspanne0,276mrad. Nicht importiert/Flags nicht verändert.
+- Nachprüfung alle4Motioncontroller inaktiv und Geschwindigkeitennull. Reiner
+  Kamerawiederholsatz am erreichten Standpunkt erfolgreich, keine weitere Fahrt.
+  Mit Referenzsatz jetzt4akzeptierteSätze/20nativeBilder,4Standpunkte jeWrist,
+ 1OAK. Prepare10,307s; LF metrisch ausgeschlossen/diagnostisch, RFFailed-Flags
+  erhalten. Fokus-Restores und LED0 aller4bestätigt. Aufnahmeziel erfüllt,
+  ursprünglichen Scanprozess ausdrücklich NICHT als COMPLETE ausgeben.
+- Kontaktbogen accepted_views.jpg und scan_recovery_summary.json unter
+  resume_20261116/. Vor neuer Fahrt persistente Prozessführung/Abbruchpfad klären.
+  Geometrie/Tracking weiter NOT_TESTED; geprüfte Objektmasken und validierter
+  dichter Mesh-Backend fehlen. Anleitung docs/student_robot_digitization.md,
   sämtliche Neustart-/Plan-/Preflightnachweise unter
   setup/digitization/student_robot_20261113/resume_20261116/.
 

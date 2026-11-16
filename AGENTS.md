@@ -64,9 +64,22 @@
   Vierarmabschaltung bei einer einzelnen Paarverletzung und keine automatische
   Wiederaufnahme. Datenverlust betrifft die zugehörigen Nachbarschaften;
   Gesamtausfall des Wächters hat keine überwachten freien Paare mehr.
-- Erste Stufe ausschließlich Simulation64/uwa_cell_sim, alle PC-/ROS-Fahrquellen;
-  Pendantprogramme und reale Stoppanbindung sind spätere Arbeit. Hardware-
-  Not-Halt von gemessenem Softwarestopp unterscheiden.
+- Erste Stufe Simulation64/uwa_cell_sim; Nutzererweiterung16.11.: Hardware-
+  Adapter implementieren und in Mock67 prüfen, reale Anbindung Domain66.
+  Bestehende Simulation-only-Sperre erhalten. Kein realer Fahr-/Power-/Brake-/
+  Play-Auftrag allein aus Implementierung ableiten. Hardware-Not-Halt von
+  Softwarestopp unterscheiden; reale Stoppreserven separat messen.
+- Hardwarebackend standardmäßig MONITOR ONLY ohne Controller-/Programm-
+  Schreibaktionen. Arming/Provision/Reset/Execute explizit getrennt. Direkte
+  Output-RTDE-Gerätefrische, individuelle Werkskinematik, sechs echte Gelenke
+  je Manager; Ressourcenbesitz und native STOP-Antwort sind kein Stillstand.
+  Supervisor und separater Watchdog, kein automatischer Wiederanlauf/Play.
+- Unbekannte reale Greiferöffnung durch Hülle über gesamten modellierten
+  Öffnungsbereich abdecken, keine fingierte Greifertelemetrie. Nur interne
+  gekoppelte Robotiq-Hüllpaare explizit ausnehmen; externe Tool-/Kamera-/Arm-
+  Paare erhalten. Vorläufige Weltanker und ungemessene Stoppreserve sichtbar.
+  Anleitung docs/four_arm_hardware_motion.md; Mock-Nachweise sind keine reale
+  Brems-/Latenzabnahme. Bestehende manuelle UWA-/MATCH-Bediengates unverändert.
 - PTP vorab planen; zeitversetzte Starts/Warten sind erlaubt. RRTConnect und
   unabhängige zirkulare Felder mit derselben Zielauflösung/Endprüfung vergleichen,
   kein versteckter RRT-Fallback im Feldansatz. CDF zunächst zurückgestellt.
@@ -238,23 +251,23 @@
   für Routinedurchläufe .agents/skills/uwa-digitize/SKILL.md lesen. Noch keine
   Modellumstellung. Fehler/Tracking-LOST nicht zugunsten Tempo
   umdeuten; tatsächliche Durchlaufzeit und Qualität vergleichbar messen.
-- Aktueller Test13.11.: studentischer Roboternachbau, Nutzermaße330×300×330mm,
+- Aktueller Test: studentischer Roboternachbau, Nutzermaße330×300×330mm,
   ausgeschaltet/unbeweglich und Auflagehöhe bestätigt. Komplexe Meshroute;
-  keinen Quader/L als fertige Rekonstruktion ausgeben. Nutzer hat URs fürs
-  Meeting ausgeschaltet: bis zu seiner erneuten Verfügbarkeitsmeldung nur
-  offline arbeiten, auch keine laufenden UR-Status-/Restore-Versuche.
-  Offener Fokus-Restore und unvollständige Fotos bleiben fehlgeschlagen.
-  Neuer Hardwarestart braucht frische Zustände/Wegprüfung; historischer
-  RTDE-Planungssnapshot ist keine aktuelle Fahrfreigabe. docs/student_robot_digitization.md.
-  Nutzer16.11. meldet Verfügbarkeit wieder und bestätigt unveränderten Aufbau.
-  Nach separater ausdrücklicher Freigabe lokale UR-Treiber mit UDPv4 neu gestartet
-  und ausschließlich ros.urp per Stop/Play verbunden; keine Power-/Brake-/Fahrziele.
-  Aktueller Dienst uwa-ur-drivers-udp-20261116.service, ROS-Clients mit
-  FASTDDS_BUILTIN_TRANSPORTS=UDPv4. Alle4 liefern frische JointStates; Motioncontroller
-  inaktiv. Historische Ausschaltpause nicht mehr als aktuelle Verfügbarkeit ausgeben.
-  Lesetest: alle vier RUNNING/NORMAL, ros.urp/Reverse aktiv; Kamerarestore
-  inzwischen bestätigt. Vor Fahrten neue Gelenkzustände/Wege und aktuelle
-  Bedienerbereitschaft prüfen; bisher keine Scan-Bewegung aus der Wiederaufnahme.
+  keinen Quader/L als fertige Rekonstruktion ausgeben. Ausschaltpause13.11.
+  seit Nutzerbestätigung16.11. aufgehoben; alte Fehlerdaten unverändert erhalten.
+  Neue Hardwarestarts brauchen frische Zustände/Wegprüfung; historischer
+  RTDE-Snapshot ist keine aktuelle Fahrfreigabe. docs/student_robot_digitization.md.
+  Nach ausdrücklicher Freigabe lokale UR-Treiber mit UDPv4 neu gestartet und
+  ros.urp per Stop/Play verbunden, keine Power-/Brake-Aktion. Aktueller Dienst
+  uwa-ur-drivers-udp-20261116.service, Clients FASTDDS_BUILTIN_TRANSPORTS=UDPv4.
+  Nutzer danach am Nothalt/freie Fahrbereiche bestätigt;3modellgeprüfte
+  Vierarm-Fahrten ausgeführt.20bestätigteBilder,4Standpunkte jeWrist/1OAK.
+  GUI/Runner während letzter Fotoaufnahme unerwartet Exit143; letzter Satz
+  wegenStillstandsfehler verworfen, rein kameraseitig erfolgreich wiederholt.
+  Ursprünglichen Prozess nicht als COMPLETE ausgeben. AlleMotioncontroller
+  inaktiv/Stillstand nachgeprüft, Kamera-Restore und LED0 aller4bestätigt.
+  Für künftige Fahrten persistente überwachte Prozessführung/Abbruchpfad klären;
+  kein automatischer Wiederanlauf. Mesh-/Trackingstufe weiter offen.
 
 - NVIDIA-Compute seit13.11. ausdrücklich verfügbar: gemeinsame Workstation
   titanpc/192.168.2.137, aktuell WLAN. Vorhandene Nutzerumgebungen, Dienste,

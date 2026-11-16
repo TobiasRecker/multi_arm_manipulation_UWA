@@ -46,8 +46,47 @@ Geplante gemeinsame Fahrzeit59,1s ohne Fotos/Stillstand. Vollständiger Live-
 Preflight unter `resume_20261116/preflight/`: CHECKED, drei Runden,
 `motion_sent:false`. Das belegt diese konkreten Wege im Modell, keine allgemeine
 Arbeitsraumtrennung oder Vermessung der vorläufigen Basis-/Tischanker.
-Aktuelle Bedienerbereitschaft am Nothalt ist vor echten Fahrzielen zu bestätigen.
-Noch keine Armfahrt oder neues Mesh aus dieser Wiederaufnahme.
+Die aktuelle Bedienerbereitschaft am Nothalt und freie Fahrbereiche einschließlich
+Kabel wurden anschließend ausdrücklich bestätigt; alle drei gemeinsamen Fahrten
+sind ausgeführt. Es gab keine automatische Rückfahrt.
+
+### Aufnahmeergebnis und Unterbrechung
+
+Runde1/2 lieferten vollständige, stationär bestätigte Fünfersätze. Während der
+letzten Fotoaufnahme wurden GUI und Runner unerwartet mit Exit143 beendet;
+Ursache bislang offen. Zuletzt waren alle Arme bestätigt still und sämtliche
+Bewegungscontroller deaktiviert. Der unabhängige Kameraworker beendete seine
+Transaktion und bestätigte die Wiederherstellung aller vier Fokuskonfigurationen.
+
+Der dritte Originalsatz ist vollständig, aber **nicht stationär bestätigt**:
+vorne links maximal0,020229rad/s gemeldet bei0,276mrad Positionsspanne.
+Keine Ursache aus diesen Werten behaupten, keine Grenzwerte verändern.
+Originalmanifest und Laufstatus bleiben unverändert; dieser Satz wurde nicht
+importiert. Nachprüfung aller vier Arme: Bewegungscontroller inaktiv, gemessene
+Geschwindigkeitennull. Nur die Fotos wurden an der bereits erreichten Position
+mit dem Kamera-only-Adapter und RTDE-Monitor wiederholt, ohne Fahrziel.
+
+Wiederholung erfolgreich: `job/captures/20261116_113557_d094b3cc/`.
+Runde1/2 liegen unter
+`resume_20261116/scan_run/photos/20261116_113023_79c2ef06/`.
+Zusammen mit dem ersten stationären Referenzsatz **vier akzeptierte Sätze,
+20nativeBilder, vier unterschiedliche Standpunkte je Wrist und ein fester
+OAK-Standpunkt**. Wiederholte OAK-Fotos zählen nicht als neue Standpunkte.
+Kontaktbogen: `resume_20261116/accepted_views.jpg`.
+
+Vorbereitung in10,307s abgeschlossen,20Ansichten, keine Importausschlüsse.
+LF bleibt wegen vorhandener Kalibrierqualität von der metrischen Auswertung
+ausgeschlossen; RF behält seine ursprünglichen nicht bestandenen Qualitätsflags.
+Kein fertiges Mesh/Genauigkeitsnachweis. Nächste Stufe: geprüfte Objektmasken und
+validiertes Mehransichts-Mesh-Verfahren; Anforderung in
+`job/prepared/reconstruction_request.json`.
+
+Alle Fokus-Restores und LED0 an allen vier Kameras bestätigt; Nachweise
+`resume_20261116/final_camera_readback.json`, `post_interruption_verification.json`
+und `scan_recovery_summary.json`. Das Aufnahmeziel wurde durch getrennte
+Wiederherstellung erfüllt; der ursprüngliche Scanprozess ist ausdrücklich
+**nicht COMPLETE**. Vor einem weiteren Hardwarelauf persistente Prozessführung
+und Abbruchpfad prüfen. Keine weitere Fahrt für diese Wiederaufnahme nötig.
 
 ## Historischer Stand13.11.
 

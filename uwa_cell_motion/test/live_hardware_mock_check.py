@@ -154,6 +154,13 @@ def check(output):
                 wait(.7);answer=client.service(Trigger,'/uwa_cell/collision_supervisor/reset',Trigger.Request());assert answer.success,answer.message
                 client.wait(lambda:not client.supervisor['blocked_arms'] and not client.supervisor['held_arms'],5.)
             reset();client.health();start_q=dict(client.positions);arms=['left_front','right_front','left_rear']
+            # ACK records the last fallback, including the startup latch;
+            # clear only the fixture's historical flag before this assertion.
+            roles[1].ports['right_rear'].native_ack=False
+            answer=client.service(Trigger,'/uwa_cell/collision_supervisor/right_rear/stop',Trigger.Request());assert answer.success
+            client.wait(lambda:client.supervisor['held_arms']==['right_rear'],5.);wait(1.3)
+            assert not client.supervisor['ports']['right_rear']['native_stop_ack']
+            result['explicit_arm_hold_uses_its_own_measured_standstill']=True;reset()
             client.activate(arms);timer=threading.Timer(.7,lambda:roles[0].fault_pairs.add(0));timer.start()
             try:stops=client.phase({r:np.array([start_q[j] for j in joint_names(r)])+np.array([0,0,0,0,0,.02]) for r in arms},cfg,set())
             finally:timer.cancel()

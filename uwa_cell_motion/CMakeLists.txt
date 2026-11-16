@@ -26,7 +26,7 @@ target_link_libraries(rrt_worker ${moveit_core_TARGETS} ${moveit_ros_planning_TA
   ${rclcpp_TARGETS} ${urdf_TARGETS} ${srdfdom_TARGETS} ${OMPL_LIBRARIES} nlohmann_json::nlohmann_json)
 ament_python_install_package(${PROJECT_NAME})
 install(TARGETS collision_hold rrt_worker LIBRARY DESTINATION lib RUNTIME DESTINATION lib/${PROJECT_NAME})
-install(PROGRAMS scripts/cell_motion scripts/cell_hardware_motion DESTINATION lib/${PROJECT_NAME})
+install(PROGRAMS scripts/cell_motion scripts/cell_hardware_motion scripts/native_hardware_stop DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY config launch rviz DESTINATION share/${PROJECT_NAME})
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)

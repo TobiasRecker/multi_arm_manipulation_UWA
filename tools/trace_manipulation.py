@@ -26,9 +26,18 @@ def main():
         RunStore(args.run).event('CREATED','observe',recorder_prepared=True)
     if not args.namespace.startswith('/uwa_grasp_') or not (args.run/'state.json').is_file():
         parser.error('Existing isolated simulation task run required')
-    path=args.run/'evaluation-trace.jsonl'
+    path=args.run/'evaluation-trace.jsonl';force_path=args.run/'force-trace.jsonl'
     rclpy.init();node=Node('task_evaluation_trace');data={};rows=0;last_saved=0.;origin=time.monotonic()
-    def message(key):return lambda msg:data.update({key:json.loads(msg.data)})
+    force_stream=force_path.open('x');force_rows=0;current_phase='observe'
+    def message(key):
+        def receive(msg):
+            nonlocal force_rows
+            value=json.loads(msg.data);data[key]=value
+            if key=='forces':
+                force_stream.write(json.dumps(dict(evaluation_only=True,elapsed_wall_s=time.monotonic()-origin,
+                    phase=current_phase,forces=value))+'\n');force_rows+=1
+                if force_rows%100==0:force_stream.flush()
+        return receive
     for key,topic in [('object','tasks/object_truth'),('contacts','tasks/contacts'),
                       ('forces','tasks/forces'),
                       ('guard','collision_guard/decision'),('supervisor','collision_supervisor/status')]:
@@ -48,7 +57,7 @@ def main():
                 rclpy.spin_once(node,timeout_sec=.02)
                 now=time.monotonic()
                 if now-last_saved<.05 or not all(k in data for k in ('object','contacts','joints','guard','supervisor')):continue
-                state=json.loads((args.run/'state.json').read_text());terminal=state['state']
+                state=json.loads((args.run/'state.json').read_text());terminal=state['state'];current_phase=state['phase']
                 row=dict(evaluation_only=True,elapsed_wall_s=now-origin,phase=state['phase'],
                     state=terminal,object=data['object'],contacts={k:data['contacts'][k] for k in ('stamp','pads','supported')},
                     joints=data['joints'],group=data.get('group'),
@@ -58,7 +67,9 @@ def main():
                 if rows%20==0:output.flush()
                 if terminal in ('DONE','FAILED'):break
     finally:
+        force_stream.close()
         write_json(args.run/'evaluation-trace-summary.json',dict(evaluation_only=True,rows=rows,
+            force_windows=force_rows,force_trace=str(force_path),
             elapsed_wall_s=time.monotonic()-origin,terminal_state=terminal,source='own simulation telemetry; never a planning input'))
         node.destroy_node();rclpy.shutdown()
     print(str(path.resolve()))

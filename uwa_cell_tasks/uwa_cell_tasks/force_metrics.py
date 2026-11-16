@@ -58,3 +58,31 @@ def analytic_upper_plane_force(points):
         if abs(f[2])<1e-12 and np.linalg.norm(f)>1e-9:raise ValueError('No identifiable support normal')
         forces.append(f if f[2]>=0 else -f)
     return np.sum(forces,axis=0) if forces else np.zeros(3)
+
+
+def pad_load_window(observation,reference_n):
+    """Aggregate all carton contacts on each jaw before comparing a reference.
+
+    Sum-of-pair peaks is a conservative upper bound, not an observed coincident
+    peak. Neither rigid solver peaks nor a reported load reference prove damage.
+    """
+    if not np.isfinite(reference_n) or reference_n<=0:raise ValueError('Positive pad reference required')
+    if observation.get('schema_version')!=1:raise ValueError('Unsupported force observation')
+    pads={}
+    for arm in ('right_front','right_rear'):
+        for side in ('left','right'):
+            token=arm+'_robotiq_85_'+side+'_finger_tip_pad'
+            pairs=[p for p in observation['contact_loads'] if any(token in c for c in p['collisions'])]
+            normal=sum(p['mean_normal_load_n'] for p in pairs)
+            tangent=sum(p['mean_tangential_load_n'] for p in pairs)
+            peak_normal=sum(p['peak_normal_load_n'] for p in pairs)
+            peak_tangent=sum(p['peak_tangential_load_n'] for p in pairs)
+            values=np.array([normal,tangent,peak_normal,peak_tangent])
+            if not np.isfinite(values).all() or (values<0).any():raise ValueError('Invalid pad load')
+            mean_upper=float(np.hypot(normal,tangent));peak_upper=float(np.hypot(peak_normal,peak_tangent))
+            pads[arm+'/'+side]=dict(contact_pairs=len(pairs),mean_normal_n=normal,
+                mean_load_upper_bound_n=mean_upper,peak_load_upper_bound_n=peak_upper,
+                mean_reference_ratio=mean_upper/reference_n,peak_reference_ratio_upper_bound=peak_upper/reference_n)
+    usable=observation['missing_wrenches']==0 and observation['invalid_wrenches']==0
+    return dict(usable=usable,pads=pads,reference_n=reference_n,reference_scope='One jaw/wall contact patch',
+        damage_assessed=False,interpretation='Contact-mean load and noncoincident peak upper bounds; no cardboard failure model.')

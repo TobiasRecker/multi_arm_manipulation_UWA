@@ -115,6 +115,7 @@ class HardwareGuard(MotionNode):
         status.update(packet(self.hardware_signature,self.armed,self.instance,self.sequence),evaluated_monotonic_s=now,pairs=self.pairs,
             model_signature=self.signature,model_match=all(self.model_match.values()),guard_config_signature=self.hardware_signature,
             source_time_s=now,stop_adapter_available=available,state_ages_s={r:now-v['received'] for r,v in self.records.items()},
+            stationary_arms=[r for r in ROBOT_IDS if self.core.fresh(r,now,now) and self.core.stationary(r,now)],
             runtime_label=self.mode.upper()+('\nSTOP-GUARD-ARMED' if self.armed else '\nMONITOR-ONLY')+'\nStop-reserve:UNMEASURED\nTool:opening-envelope',
             model_uncertainty='World/table anchors provisional; hardware stop reserve unmeasured; gripper opening unobserved')
         self.publisher.publish(String(data=json.dumps(status,allow_nan=False)))
@@ -209,7 +210,7 @@ class HardwareSupervisor(MotionNode):
                 for rid in ROBOT_IDS:
                     if rid not in blocked:self.stopping_since.pop(rid,None);continue
                     self.stopping_since.setdefault(rid,now)
-                    if now-self.stopping_since[rid]>self.cfg['stop_latency_s'] and not (self.guard.value or {}).get('standstill_confirmed',False):
+                    if now-self.stopping_since[rid]>self.cfg['stop_latency_s'] and rid not in (self.guard.value or {}).get('stationary_arms',[]):
                         self.ports[rid].native_stop()
             self.sequence+=1;status=packet(self.signature,self.armed,self.instance,self.sequence,state=self.core.reason,blocked_arms=sorted(blocked),held_arms=held,
                 guard_config_signature=self.signature,interlock_confirmed=self.armed and blocked<=set(held),ports=ports,
