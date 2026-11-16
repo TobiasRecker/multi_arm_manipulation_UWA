@@ -72,8 +72,10 @@ tested execution from new geometry development: native-set import/capture,
 fixed optics, two parametric shape recipes, data-driven texture faces, checked
 candidate export and held-out tracking checks. Use `scripts/digitize.sh`.
 Complex objects explicitly request a mesh backend, which is not registered yet.
-The [student robot test](docs/student_robot_digitization.md) has offline-checked
-view proposals; hardware capture is interrupted while the operator has the URs off.
+The [student robot test](docs/student_robot_digitization.md) resumed on November16:
+a complete stationary five-camera set is accepted, and all four ROS drivers are
+connected after an approved restart. New view paths are checked against measured
+starts; additional motion still needs the current operator-readiness confirmation.
 Actual lower-reasoning quality/latency comparison remains to be measured.
 
 A first [assisted object-digitization pipeline](docs/object_digitization.md)

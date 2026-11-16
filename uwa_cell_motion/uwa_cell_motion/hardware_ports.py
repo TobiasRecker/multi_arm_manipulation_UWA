@@ -56,6 +56,7 @@ class StopPort:
         self.parameters=node.create_client(GetParameters,ns+'/'+HOLD+'/get_parameters',callback_group=group)
         self.hardware=node.create_client(ListHardwareComponents,ns+'/controller_manager/list_hardware_components',callback_group=group)
         self.pending_hardware=None;self.hardware_verified=False;self.hardware_received=-float('inf');self.hardware_sent=-float('inf')
+        self.parameter_sent=-float('inf');self.parameter_received=-float('inf')
         self.pending=None;self.switching=None;self.checking=None;self.verified=False
         self.controllers=[];self.received=-float('inf');self.sent=-float('inf');self.switch_started=-float('inf')
         self.error=None;self.native_error=None;self.native_ack=False;self.native_thread=None;self.native_sent=-float('inf')
@@ -82,6 +83,7 @@ class StopPort:
             try:self.hardware_verified=matching_hardware(self.pending_hardware.result().component,self.joints,self.mode);self.hardware_received=now
             except Exception:self.hardware_verified=False
             self.pending_hardware=None
+        if self.pending_hardware and now-self.hardware_sent>.3:self.pending_hardware=None
         if self.pending_hardware is None and now-self.hardware_sent>.1 and self.hardware.service_is_ready():
             self.hardware_sent=now;self.pending_hardware=self.hardware.call_async(ListHardwareComponents.Request())
         hardware_ok=self.hardware_verified and now-self.hardware_received<.3
@@ -95,11 +97,15 @@ class StopPort:
         if self.checking and self.checking.done():
             try:
                 values=self.checking.result().values
+                self.parameter_received=now
                 self.verified=(list(values[0].string_array_value)==self.joints and abs(values[1].double_value-self.cfg['braking_acceleration_rad_s2'])<1e-10)
                 if not self.verified:self.error='Hold configuration differs'
             except Exception as error:self.error=str(error)
             self.checking=None
-        if not self.verified and self.checking is None and self.parameters.service_is_ready():
+        if self.checking and now-self.parameter_sent>.3:self.checking=None
+        if now-self.parameter_received>.3:self.verified=False
+        if self.checking is None and now-self.parameter_sent>.1 and self.parameters.service_is_ready():
+            self.parameter_sent=now
             request=GetParameters.Request();request.names=['joints','deceleration'];self.checking=self.parameters.call_async(request)
         if self.switching and self.switching.done():
             try:

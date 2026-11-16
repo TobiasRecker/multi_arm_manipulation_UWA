@@ -9,6 +9,7 @@ import hashlib
 import json
 import math
 import os
+import signal
 from pathlib import Path
 import subprocess
 import time
@@ -24,7 +25,7 @@ ENGINE=Path('/opt/ros/lyrical/opt/gz_physics_vendor/lib/libgz-physics-dartsim-pl
 def world(path,plugin,step,mass):
     root=E.Element('sdf',version='1.12');w=E.SubElement(root,'world',name='uwa_force_lab_'+uuid.uuid4().hex[:10])
     E.SubElement(w,'gravity').text='0 0 -9.81'
-    physics=E.SubElement(w,'physics',name='reference',type='ignored')
+    physics=E.SubElement(w,'physics',name='force_reference',type='ignored')
     E.SubElement(physics,'max_step_size').text=str(step);E.SubElement(physics,'real_time_factor').text='0.6'
     p=E.SubElement(w,'plugin',filename='gz-sim-physics-system',name='gz::sim::systems::Physics')
     E.SubElement(E.SubElement(p,'engine'),'filename').text=str(ENGINE)
@@ -52,10 +53,12 @@ def world(path,plugin,step,mass):
     body('floor','floor_body','0 0 -.05 0 0 0',(20,20,.1),static=True,contact=True)
     body('load','load_body','0 0 .05 0 0 0',(.1,.1,.1),contact=True)
     body('free','free_body','2 0 1 0 0 0',(.1,.1,.1))
-    fixed=body('reference','wrench_body','0 2 1 0 0 0',(.1,.1,.1),link_pose='.15 0 0 0 0 0')
-    joint=E.SubElement(fixed,'joint',name='reference_fixed',type='fixed')
-    E.SubElement(joint,'pose').text='-.15 0 0 0 0 0'
-    E.SubElement(joint,'parent').text='world';E.SubElement(joint,'child').text='wrench_body'
+    body('drop','drop_body','-2 0 .4 0 0 0',(.1,.1,.1),contact=True)
+    for suffix,y,yaw in [('',2,0.),('_rotated',-2,math.pi/2)]:
+        fixed=body('reference'+suffix,'wrench_body'+suffix,f'0 {y} 1 0 0 0',(.1,.1,.1),link_pose='.15 0 0 0 0 0')
+        joint=E.SubElement(fixed,'joint',name='reference_fixed'+suffix,type='fixed')
+        E.SubElement(joint,'pose').text=f'-.15 0 0 0 0 {yaw}'
+        E.SubElement(joint,'parent').text='world';E.SubElement(joint,'child').text='wrench_body'+suffix
     E.indent(root);text=E.tostring(root,encoding='unicode');(path/'world.sdf').write_text(text)
     return hashlib.sha256(text.encode()).hexdigest()
 
@@ -82,8 +85,13 @@ def main():
                 digest=world(directory,plugin,step,mass);start=time.monotonic()
                 command=['gz','sim','-s','-r','--iterations',str(round(3./step)),str(directory/'world.sdf'),'-v','2']
                 with (directory/'server.log').open('w') as log:
-                    try:r=subprocess.run(command,stdout=log,stderr=subprocess.STDOUT,timeout=40.,check=False);code=r.returncode
-                    except subprocess.TimeoutExpired:code='timeout'
+                    proc=subprocess.Popen(command,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+                    try:code=proc.wait(timeout=40.)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(proc.pid,signal.SIGINT)
+                        try:proc.wait(timeout=10.)
+                        except subprocess.TimeoutExpired:os.killpg(proc.pid,signal.SIGKILL);proc.wait()
+                        code='timeout'
                 case=dict(path=str(directory),mass_kg=mass,step_s=step,repeat=repeat,world_sha256=digest,returncode=code,wall_s=time.monotonic()-start)
                 cases.append(case);write_json(directory/'case.json',seal(case))
                 print(json.dumps(case),flush=True)

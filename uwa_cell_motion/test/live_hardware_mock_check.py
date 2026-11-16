@@ -7,6 +7,7 @@ import argparse
 import json
 from pathlib import Path
 import socket
+import subprocess
 import sys
 import tempfile
 import threading
@@ -43,6 +44,7 @@ class FakeManager(MotionNode):
         super().__init__('controller_manager',namespace=p['namespace']);self.p=p;self.cfg=cfg;self.names=p['joint_names'];self.lock=threading.RLock()
         state=nominal_state(model.layout);self.q=np.array([state[j] for j in self.names]);self.v=np.zeros(6)
         self.states={HOLD:'inactive','joint_trajectory_controller':'inactive','custom_owner':'inactive'};self.switch_calls=0;self.freeze=False;self.last_stamp=None
+        self.plugin='mock_components/GenericSystem';self.deceleration=cfg['braking_acceleration_rad_s2']
         self.pub=self.create_publisher(JointState,p['namespace']+'/joint_states',10)
         self.description=self.create_publisher(String,p['namespace']+'/robot_description',QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL))
         self.description.publish(String(data=model.original_description))
@@ -74,10 +76,10 @@ class FakeManager(MotionNode):
             if self.states[HOLD]=='active':self.v=np.zeros(6)
             response.ok=True;return response
     def hardware(self,request,response):
-        response.component=[HardwareComponentState(name='test',type='system',plugin_name='mock_components/GenericSystem',
+        response.component=[HardwareComponentState(name='test',type='system',plugin_name=self.plugin,
             command_interfaces=[HardwareInterface(name=j+'/position') for j in self.names])];return response
     def params(self,request,response):
-        response.values=[ParameterValue(type=9,string_array_value=self.names) if name=='joints' else ParameterValue(type=3,double_value=self.cfg['braking_acceleration_rad_s2']) for name in request.names]
+        response.values=[ParameterValue(type=9,string_array_value=self.names) if name=='joints' else ParameterValue(type=3,double_value=self.deceleration) for name in request.names]
         return response
     def topic(self,msg):
         if self.states['joint_trajectory_controller']=='active' and msg.points:
@@ -177,10 +179,27 @@ def check(output):
             byid['left_front'].freeze=False;reset()
             executor.remove_node(roles[0]);client.wait(lambda:set(client.supervisor['held_arms'])==set(ROBOT_IDS),3.);result['guard_loss_stops_all']=True
             executor.add_node(roles[0]);wait(.7);assert client.supervisor['blocked_arms'];reset()
+            bad=byid['left_front'];count=bad.switch_calls;bad.plugin='ur_robot_driver/URPositionHardwareInterface'
+            client.wait(lambda:set(client.supervisor['blocked_arms'])=={'left_front','right_front','left_rear'},3.)
+            assert bad.switch_calls==count;result['mock_refuses_real_plugin_without_controller_commands']=True
+            bad.plugin='mock_components/GenericSystem';wait(.4);reset()
+            bad.deceleration=99.;client.wait(lambda:set(client.supervisor['blocked_arms'])=={'left_front','right_front','left_rear'},3.)
+            wait(.2);answer=client.service(Trigger,'/uwa_cell/collision_supervisor/reset',Trigger.Request());assert answer.success
+            client.wait(lambda:set(client.supervisor['blocked_arms'])=={'left_front','right_front','left_rear'},3.)
+            result['changed_hold_bounds_stay_latched_during_independent_partial_reset']=True;bad.deceleration=cfg['braking_acceleration_rad_s2'];wait(.4);reset()
             # Watchdog, not the client, must acquire resources when supervisor dies.
+            request=SwitchController.Request();request.activate_controllers=['joint_trajectory_controller']
+            assert client.manager('right_rear',SwitchController,'switch_controller',request).ok
+            goal=FollowJointTrajectory.Goal();goal.trajectory.joint_names=joint_names('right_rear');q=byid['right_rear'].q.copy();velocity=np.array([0,0,0,0,0,.005])
+            from trajectory_msgs.msg import JointTrajectoryPoint
+            first=JointTrajectoryPoint(positions=q.tolist(),velocities=velocity.tolist());last=JointTrajectoryPoint(positions=(q+np.array([0,0,0,0,0,.02])).tolist(),velocities=velocity.tolist());last.time_from_start.sec=4;goal.trajectory.points=[first,last]
+            future=client.actions['right_rear'].send_goal_async(goal);client.wait(future.done,3.);assert future.result().accepted;wait(.2)
+            assert byid['right_rear'].q[-1]>q[-1]+.0001
             executor.remove_node(roles[1]);client.wait(lambda:roles[2].tripped and all(m.states[HOLD]=='active' for m in managers),3.)
             assert roles[0].supervisor.fresh(time.monotonic(),cfg['heartbeat_timeout_s']) is False
             result['supervisor_loss_independent_watchdog_owns_all_resources']=True
+            stopped=byid['right_rear'].q.copy();wait(.2);assert np.max(abs(byid['right_rear'].q-stopped))<1e-8
+            result['supervisor_loss_stops_active_motion_without_client_fallback']=True
             executor.add_node(roles[1]);wait(.7);assert client.supervisor['blocked_arms'];reset()
             executor.remove_node(roles[2]);client.wait(lambda:set(client.supervisor['held_arms'])==set(ROBOT_IDS),3.)
             result['watchdog_loss_latches_supervisor']=True;executor.add_node(roles[2]);wait(.7);reset()
@@ -189,9 +208,16 @@ def check(output):
             reader=HardwareClient(model,'mock');reader.connect(guard=False);reader.health();start_q=dict(reader.positions);reader.destroy_node()
             for method in ('rrtconnect','circular'):
                 target=[start_q[j] for j in joint_names('right_rear')];target[-1]+=.003
-                plan=model.plan(dict(start=start_q,goals={'right_rear':target}),method);assert plan['success'],plan
-                plan['execution_mode']='mock';path=Path(output).with_name(Path(output).stem+'-'+method+'.json')
-                execution=execute(plan,path,'mock');assert execution['success'],execution.get('error')
+                request=Path(directory)/(method+'-request.json');dump(request,dict(start=start_q,goals={'right_rear':target},hardware_binding=model.binding,execution_mode='mock'))
+                planfile=Path(output).with_name(Path(output).stem+'-'+method+'-plan.json');path=Path(output).with_name(Path(output).stem+'-'+method+'.json')
+                script=Path(__file__).parents[1]/'scripts/cell_hardware_motion'
+                base=[sys.executable,str(script),'--mode','mock','--inventory',str(file),'--config',str(Path(__file__).parents[1]/'config/hardware_motion.yaml')]
+                # Production geometry/stop processes must not share the GIL of
+                # offline MoveIt/model loading or planning/execution clients.
+                planprocess=subprocess.run(base+['plan',str(request),'--method',method,'--output',str(planfile)],capture_output=True,text=True,timeout=30.)
+                assert planprocess.returncode==0,planprocess.stdout+planprocess.stderr
+                process=subprocess.run(base+['execute',str(planfile),'--output',str(path)],capture_output=True,text=True,timeout=30.)
+                execution=json.loads(path.read_text());assert execution['success'],execution.get('error') or process.stdout+process.stderr
                 result[method+'_hardware_adapter_execution']=True
                 reader=HardwareClient(model,'mock');reader.connect(guard=False);reader.health();start_q=dict(reader.positions);reader.destroy_node()
             result['all_targets_use_same_model_and_no_tcp']=True;result['success']=True

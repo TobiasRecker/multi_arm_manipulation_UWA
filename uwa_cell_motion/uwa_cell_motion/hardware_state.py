@@ -93,11 +93,15 @@ class RtdeStates(DeviceStates):
 
 def dashboard_stop(profile):
     """Only the native STOP verb; never load/play/power/brake/unlock."""
+    deadline=time.monotonic()+.75
     with socket.create_connection((profile['ip'],profile.get('dashboard_port',29999)),timeout=.25) as stream:
         stream.settimeout(.25)
         def line():
             data=b''
             while not data.endswith(b'\n'):
+                remaining=deadline-time.monotonic()
+                if remaining<=0:raise TimeoutError('Native STOP deadline exceeded')
+                stream.settimeout(min(.25,remaining))
                 part=stream.recv(1)
                 if not part:raise RuntimeError('Dashboard connection closed')
                 data+=part

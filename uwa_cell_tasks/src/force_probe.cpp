@@ -42,14 +42,14 @@ public:
     if(links_.empty()) {
       ecm.Each<gz::sim::components::Name,gz::sim::components::Link>(
         [&](const auto & e,const auto * name,const auto *) {
-          if(name->Data()=="load_body" || name->Data()=="free_body" || name->Data()=="wrench_body") {
+          if(name->Data()=="load_body" || name->Data()=="free_body" || name->Data()=="drop_body" || name->Data().rfind("wrench_body",0)==0) {
             links_[name->Data()]=e;gz::sim::Link link(e);
             link.EnableVelocityChecks(ecm);link.EnableAccelerationChecks(ecm);
           }return true;
         });
       ecm.Each<gz::sim::components::Name,gz::sim::components::Joint>(
         [&](const auto & e,const auto * name,const auto *) {
-          if(name->Data()=="reference_fixed") {
+          if(name->Data().rfind("reference_fixed",0)==0) {
             joints_[name->Data()]=e;
             if(!ecm.Component<gz::sim::components::JointTransmittedWrench>(e))
               ecm.CreateComponent(e,gz::sim::components::JointTransmittedWrench());
@@ -101,7 +101,7 @@ public:
       gz::msgs::Wrench w;
       if(name=="free_body") {w.mutable_force()->set_x(push);w.mutable_force()->set_z(mass_*9.81);}
       if(name=="load_body") {w.mutable_force()->set_x(push);w.mutable_force()->set_z(-down);}
-      if(name=="wrench_body")w.mutable_force()->set_z(-down);
+      if(name.rfind("wrench_body",0)==0)w.mutable_force()->set_z(-down);
       auto cmd=ecm.Component<gz::sim::components::ExternalWorldWrenchCmd>(e);
       if(cmd)cmd->Data()=w;else ecm.CreateComponent(e,gz::sim::components::ExternalWorldWrenchCmd(w));
     }

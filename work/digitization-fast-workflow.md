@@ -1,6 +1,6 @@
 # Digitalisierung für einen schnellen ausführenden Agenten vorbereiten
 
-- Status: **Wiederaufnahme: lesende Geräte-/Kameraprüfung**, 2026-11-16 (Australia/Perth),
+- Status: **Aufnahmewege geprüft; wartet auf aktuelle Bedienerbereitschaft**, 2026-11-16 (Australia/Perth),
   Hauptagent Digitalisierung.
 - Nutzer16.11.: Roboter vermutlich wieder erreichbar, damit Hardwareverfügbar-
   keitsunterbrechung für diese Prüfung aufgehoben. Zunächst nur Status/Kameras,
@@ -18,6 +18,23 @@
   namensraumgebundenenParameter (RF-GPIO-Präfixleer). Enger Fix in gemeinsamem
   MATCH-Adapter operations.py,16Tests PASS; kein Quittieren/Umgehen von Fehlern.
   Nachladeversuch mit korrektemNamespace, nurBroadcasteraktiv/Motioninaktiv.
+-16.11. ausdrücklich genehmigter Neustart der vier lokalen ROS-Treiber mit
+  UDPv4 abgeschlossen; danach ausschließlich Stop/Play des identifizierten
+  ros.urp, keine Power-/Brake-Befehle. Alle4 RUNNING/NORMAL/Reverse verbunden,
+  je5Broadcaster aktiv/4Motioncontroller inaktiv, frische JointStates und
+  maximal0,000137rad/s im Messfenster. Dienst uwa-ur-drivers-udp-20261116.service.
+  UDP stabilisiert diesen Nachweis; Ursache der vorherigen Discovery-Ausfälle
+  nicht abschließend bewiesen. Clients ebenfalls mit FASTDDS_BUILTIN_TRANSPORTS=UDPv4.
+- Kombinierter --apply-Aufruf von automatischer Prüfung wegen möglicher
+  zusätzlicher Power-/Brake-Aktionen abgelehnt/nicht ausgeführt; begrenzter
+  Stop/Play-Adapter anschließend genehmigt und erfolgreich. Keine Armfahrt.
+- Neue Offlineplanung mit snapshot_after_udp_restart.json in resume_20261116/;
+  aktuelle Bedienerbereitschaft vor realer Fahrt weiterhin offen.
+- Zwölf neue Wege PASS; unabhängige Paralleltrennung initial/extra/all für
+  alle4 PASS mit50mm Anforderung und5mrad Trackingkorridor. Kleinste untere
+  Abstandsschranke349,7mm, geplante gemeinsame Fahrzeit59,1s ohne Fotos.
+  Vollständiger Live-Preflight CHECKED/motion_sentfalse/3Runden; Ergebnis unter
+  resume_20261116/{view_plan,separation,preflight}/. Noch keine Fahrziele.
 - Nutzerziel: deutlich kürzere Durchlaufzeit mit geringerem Reasoning-Aufwand,
   geprüfte Qualität und bestehende Sicherheitsfunktionen erhalten.
 - Neuer Auftrag: Pipeline implementieren und an studentischem Roboternachbau

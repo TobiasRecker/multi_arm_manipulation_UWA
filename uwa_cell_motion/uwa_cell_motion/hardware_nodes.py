@@ -47,7 +47,7 @@ class HardwareGuard(MotionNode):
         self.mode,self.armed=mode,armed;self.instance=str(uuid.uuid4());self.sequence=0
         self.positions={};self.pairs=[];self.records={};self.playing={};self.supervisor_status={};self.supervisor=Peer();self.model_match={r:False for r in ROBOT_IDS}
         self.source=source or (RtdeStates(self.problem.profiles,cfg['state_timeout_s']) if mode=='hardware' else DeviceStates())
-        self.last_source={};self.epochs={};self.source_faults=[]
+        self.last_source={};self.epochs={};self.source_faults=[];self.previous_blocked=set()
         self.publisher=self.create_publisher(String,'/uwa_cell/collision_guard/decision',1)
         self.state_pub=self.create_publisher(String,'/uwa_cell/hardware_state',1)
         self.joints_pub=self.create_publisher(JointState,'/uwa_cell/joint_states',qos_profile_sensor_data)
@@ -91,6 +91,10 @@ class HardwareGuard(MotionNode):
             if not valid:faults.append(dict(arms=sorted({r for pair in PAIRS if rid in pair for r in pair}),reason='DRIVER MODEL UNCONFIRMED: '+rid))
         available=self.supervisor.fresh(now,self.cfg['heartbeat_timeout_s'])
         if not available:faults.append(dict(arms=list(ROBOT_IDS),reason='STOP ADAPTER LOST'))
+        elif self.armed:
+            for rid,port in self.supervisor_status.get('ports',{}).items():
+                if not port.get('manager_fresh') or not port.get('hardware_mode_verified') or not port.get('hold_config_verified'):
+                    faults.append(dict(arms=sorted({r for pair in PAIRS if rid in pair for r in pair}),reason='ARM STOP ADAPTER UNAVAILABLE: '+rid))
         self.core.external_faults=faults;self.records=records
         velocities={r:np.r_[v['v'],0.] if len(self.names[r])>6 else np.asarray(v['v']) for r,v in records.items()}
         ages={r:max(now-v['received'],now-v['source_stamp']) for r,v in records.items()}
@@ -103,6 +107,9 @@ class HardwareGuard(MotionNode):
             self.core.latched.update(ROBOT_IDS);world={};available=False
             status=dict(state='STATE STALE',blocked_arms=list(ROBOT_IDS),faults=[dict(arms=list(ROBOT_IDS),reason=str(error))],latched_causes=[],reset_sequence=self.core.reset_sequence,reset_arms=[])
         if not available:status['state']='STOP ADAPTER LOST'
+        blocked=set(status['blocked_arms'])
+        if blocked-self.previous_blocked:self.get_logger().error(('STOP LATCHED: ' if self.armed else 'MONITOR WOULD STOP: ')+json.dumps(status.get('latched_causes',status['faults'])))
+        self.previous_blocked=blocked
         self.sequence+=1
         status.update(packet(self.hardware_signature,self.armed,self.instance,self.sequence),pairs=self.pairs,
             model_signature=self.signature,model_match=all(self.model_match.values()),guard_config_signature=self.hardware_signature,
@@ -134,7 +141,7 @@ class HardwareSupervisor(MotionNode):
         self.directory=tempfile.TemporaryDirectory(prefix='uwa-hardware-supervisor-');self.problem=HardwareProblem(self.directory.name,cfg,inventory,layout)
         self.cfg,self.mode,self.armed=cfg,mode,armed;self.signature=signature(self.problem,mode)
         self.instance=str(uuid.uuid4());self.sequence=0;self.guard=Peer();self.witness=Peer();self.lock=threading.RLock();self.group=ReentrantCallbackGroup()
-        self.core=Interlock(cfg['heartbeat_timeout_s']);self.ports={r:StopPort(self,p,cfg,mode,self.group) for r,p in self.problem.profiles.items()}
+        self.core=Interlock(cfg['heartbeat_timeout_s']);self.stopping_since={};self.ports={r:StopPort(self,p,cfg,mode,self.group) for r,p in self.problem.profiles.items()}
         self.publisher=self.create_publisher(String,'/uwa_cell/collision_supervisor/status',1)
         self.markers=self.create_publisher(MarkerArray,'/uwa_cell/collision_supervisor/markers',1)
         self.geometry_markers=self.create_publisher(MarkerArray,'/uwa_cell/collision_guard/markers',1)
@@ -162,7 +169,7 @@ class HardwareSupervisor(MotionNode):
         try:
             now=time.monotonic()
             if not self.guard.fresh(now,self.cfg['heartbeat_timeout_s']) or not self.witness.fresh(now,self.cfg['heartbeat_timeout_s']):raise RuntimeError('Supervision unavailable')
-            if self.armed and any(not p.verified or time.monotonic()-p.received>.25 for p in self.ports.values()):raise RuntimeError('Provisioned hold controllers and fresh managers required')
+            if self.armed and not any(p.verified and p.hardware_verified and time.monotonic()-p.received<=.25 and time.monotonic()-p.hardware_received<=.25 for p in self.ports.values()):raise RuntimeError('No provisioned fresh matching manager available')
             self.request(self.reset_witness)
             end=time.monotonic()+1.
             while self.witness.value.get('tripped',True):
@@ -179,10 +186,23 @@ class HardwareSupervisor(MotionNode):
         now=time.monotonic()
         with self.lock:
             blocked=self.core.tick(now)
-            if not self.guard.fresh(now,self.cfg['heartbeat_timeout_s']):self.core.blocked.update(ROBOT_IDS)
-            if self.core.last:self.core.blocked.update(expired_pair_leases(self.core.last,now,self.cfg))
-            if not self.witness.fresh(now,self.cfg['heartbeat_timeout_s']) or self.witness.value.get('tripped',True):self.core.blocked.update(ROBOT_IDS)
+            if not self.guard.fresh(now,self.cfg['heartbeat_timeout_s']):self.core.blocked.update(ROBOT_IDS);self.core.reason='GUARD LOST'
+            if self.core.last:
+                expired=expired_pair_leases(self.core.last,now,self.cfg)
+                if expired:self.core.blocked.update(expired);self.core.reason='PAIR SUPERVISION EXPIRED'
+            if not self.witness.fresh(now,self.cfg['heartbeat_timeout_s']) or self.witness.value.get('tripped',True):self.core.blocked.update(ROBOT_IDS);self.core.reason='WATCHDOG LOST OR TRIPPED'
             blocked=set(self.core.blocked);ports={r:p.tick(r in blocked,self.armed) for r,p in self.ports.items()};held=[r for r,p in ports.items() if p['held']]
+            if self.armed:
+                failed=[r for r,p in ports.items() if not p['manager_fresh'] or not p['hardware_mode_verified'] or not p['hold_config_verified']]
+                if failed:
+                    affected={r for pair in PAIRS if set(pair)&set(failed) for r in pair};self.core.blocked.update(affected);self.core.reason='ARM STOP ADAPTER UNAVAILABLE'
+                    for rid in affected-blocked:ports[rid]=self.ports[rid].tick(True,True)
+                    blocked=set(self.core.blocked);held=[r for r,p in ports.items() if p['held']]
+                for rid in ROBOT_IDS:
+                    if rid not in blocked:self.stopping_since.pop(rid,None);continue
+                    self.stopping_since.setdefault(rid,now)
+                    if now-self.stopping_since[rid]>self.cfg['stop_latency_s'] and not (self.guard.value or {}).get('standstill_confirmed',False):
+                        self.ports[rid].native_stop()
             self.sequence+=1;status=packet(self.signature,self.armed,self.instance,self.sequence,state=self.core.reason,blocked_arms=sorted(blocked),held_arms=held,
                 guard_config_signature=self.signature,interlock_confirmed=self.armed and blocked<=set(held),ports=ports,
                 guard_age_s=None if not self.guard.value else now-self.guard.value['evaluated_monotonic_s'],

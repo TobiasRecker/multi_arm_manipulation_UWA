@@ -1,5 +1,30 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Studentischer Roboter: Kameras und ROS wiederhergestellt, 2026-11-16
+
+- Nutzer bestätigt unveränderten Aufbau. Offener Fokus-/HTTP-Restore verifiziert;
+  neuer vollständiger stationärer Satz4×2592×1944+OAK8000×6000 akzeptiert,
+  allebrauchbar/Stillstandtrue, Boards teilweise sichtbar. Alte Fehlschläge erhalten.
+  Daten setup/digitization/student_robot_20261113/job/captures/20261116_103720_9f6d61d9/.
+- Explizit genehmigter lokaler Vierarm-Treiberneustart mit UDPv4 und Stop/Play
+  ausschließlich ros.urp ausgeführt; keine Power-/Brake-/Fahrbefehle. Neuer
+  Benutzerdienst uwa-ur-drivers-udp-20261116.service. Alle vier RUNNING/NORMAL,
+  Reverse verbunden, je5Broadcaster aktiv/4Motioncontroller inaktiv; frische
+  JointStates aller Arme, gemessener Peak0,000137rad/s im8s-Fenster.
+- Enger MATCH-Fix: Runtime-Spawner braucht eigenen Armnamespace für YAML-Auswahl;
+  zuvor RF-GPIO-Präfix leer.16Tests PASS. Vorherige zusätzliche Discovery-Ausfälle
+  im neuen UDP-Lauf nicht beobachtet, genaue Ursache noch unbewiesen. Clients
+  für diesen Lauf mit FASTDDS_BUILTIN_TRANSPORTS=UDPv4 verwenden.
+- Zwölf neue Offline-Sicht-/Kollisionswege ab gemessenen Starts geprüft, keine
+  Hardwareausführung. Parallele Abstandsprüfung für alle4 initial/extra/all PASS:
+ 50mm Anforderung/5mrad Korridor, minimale untere Abstandsschranke349,7mm.
+  Live-Preflight CHECKED/motion_sentfalse/3Runden; reine gemeinsame Fahrzeit59,1s.
+  Aktuelle Nothaltbereitschaft vor echten Zielen noch offen.
+  Je Kamera erst eine akzeptierte Ansicht;
+  dichter Mesh-Backend weiter offen. Anleitung docs/student_robot_digitization.md,
+  sämtliche Neustart-/Plan-/Preflightnachweise unter
+  setup/digitization/student_robot_20261113/resume_20261116/.
+
 ## OAK-RGB-D-Boardprüfung und weitere Referenz benötigt, 2026-11-16
 
 - Fortsetzung mit vorhandenen8Paaren: vorderes rechtes40mm-Board24Ecken,
@@ -167,6 +192,32 @@
   ebenfalls erfolglos, Diagnosen erhalten, bisherigen Trackerstandard beibehalten.
 - Laufende Karton-Simulations-/Greifarbeit unverändert; neues Asset installiert,
   noch keine aktive Szeneinstanz. Anleitung und Vorschau docs/ptfe_l_assembly.md.
+
+## Aktive Umsetzung der Kraftvalidierung, 2026-11-16
+
+- Nutzer hat Beginn der Umsetzung beauftragt; bei fehlenden Angaben gezielt
+  nachfragen. Aktives Ziel umfasst instrumentierte Simulation und darauf
+  aufbauende dynamische Grenzsuche, nicht nur langsamere Wiederholung.
+- Neuer separater Native-Logger `force_probe.cpp` und Runner
+  `tools/validate_simulation_forces.py`: eigene endliche Gazebo-Welt ohne ROS,
+  Controller oder Hardware. Bekannte0,3kg Last, Zusatzkraft1N, horizontale2N,
+  Hebelarm0,15m, gedrehter Gelenkframe und Fallkontakt. Originalgreifwelt nicht
+  gestartet; vorhandene Nachweise nicht überschrieben.
+- Erster tatsächlicher Befund smoke01/02: Gelenkreaktion2,943N und−0,44145Nm,
+  nach1N Zusatzlast3,943N/−0,59145Nm, gedrehter Frame plausibel. Noch keine
+  vollständige Zeitschritt-/Wiederholungsabnahme behaupten.
+- Kritischer Datenwegfehler tatsächlich reproduziert: ContactSensorData liegt
+  pro Kollision vor; dasselbe Paar wird doppelt und mit vertauschten Collision1/2
+  gemeldet, rohe body1/2-Kräfte behalten dabei ihre Reihenfolge. Daher keine
+  allgemeine gerichtete Körperkraft aus Collision1→body1 ableiten. Native
+  GazeboPhysics-Quelle bestätigt diese Umordnung ohne Kraftumordnung/BodyIDs.
+- Neue `force_metrics.py` dedupliziert Punkte und liefert vorzeichenunabhängige
+  Normal-/Tangentiallasten; fehlende/widersprüchliche Kräfte nicht als0 behandeln.
+  Drei Regressionstests bestanden. Analytische Richtungszuordnung nur im
+  bekannten horizontalen Referenzfall, nicht als generische Korrektur nutzen.
+- Rohdaten unter setup/tasks/force_reference_20261116_smoke01 und_smoke02.
+  Aktuell Referenzauswertung/Mehrschritt-Matrix und Pipeline-Anschluss in Arbeit;
+  keine Kraftgrenze oder schnellere Roboter-/Hardwareausführung freigegeben.
 
 ## Neue Zielrichtung: dynamische Simulationsgrenzen ausloten, 2026-11-16
 

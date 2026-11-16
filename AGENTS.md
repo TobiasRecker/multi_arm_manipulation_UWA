@@ -247,6 +247,11 @@
   Neuer Hardwarestart braucht frische Zustände/Wegprüfung; historischer
   RTDE-Planungssnapshot ist keine aktuelle Fahrfreigabe. docs/student_robot_digitization.md.
   Nutzer16.11. meldet Verfügbarkeit wieder und bestätigt unveränderten Aufbau.
+  Nach separater ausdrücklicher Freigabe lokale UR-Treiber mit UDPv4 neu gestartet
+  und ausschließlich ros.urp per Stop/Play verbunden; keine Power-/Brake-/Fahrziele.
+  Aktueller Dienst uwa-ur-drivers-udp-20261116.service, ROS-Clients mit
+  FASTDDS_BUILTIN_TRANSPORTS=UDPv4. Alle4 liefern frische JointStates; Motioncontroller
+  inaktiv. Historische Ausschaltpause nicht mehr als aktuelle Verfügbarkeit ausgeben.
   Lesetest: alle vier RUNNING/NORMAL, ros.urp/Reverse aktiv; Kamerarestore
   inzwischen bestätigt. Vor Fahrten neue Gelenkzustände/Wege und aktuelle
   Bedienerbereitschaft prüfen; bisher keine Scan-Bewegung aus der Wiederaufnahme.

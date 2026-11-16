@@ -1,12 +1,55 @@
 # Studentischer Roboter: Aufnahme- und Pipeline-Test
 
-Stand13.11.2026. Nutzer beauftragt die neue Pipeline am deutlich komplexeren
+Stand16.11.2026. Nutzer beauftragt die neue Pipeline am deutlich komplexeren
 Roboternachbau zu testen. Grobe Maße laut Nutzer330×300×330mm. Ausgeschaltet,
 unbeweglich einschließlich loser Teile; Unterseite auf Tischplattenhöhe bestätigt.
 Für das Meeting hat der Nutzer anschließend die URs ausgeschaltet und ausdrücklich
 Offlinearbeit bis zur erneuten Verfügbarkeit angeordnet.
 
-## Erreichter Stand
+## Wiederaufnahme am16.11.
+
+Der Nutzer hat Geräteverfügbarkeit und unveränderten, ausgeschalteten Aufbau
+bestätigt. Der offene Kamera-Restore ist jetzt verifiziert; die fehlgeschlagenen
+Originalversuche vom13.11. behalten ihre Fehlerflags.
+
+Ein neuer stationärer Satz ist vollständig und brauchbar: vier native
+2592×1944-Wristbilder plus OAK8000×6000. `all_usable:true`,
+`stationary_set_confirmed:true`, `all_full:false` (Boards teilweise sichtbar,
+ausreichend erkannte Ecken). Fokuskonfiguration danach wiederhergestellt.
+Akzeptierter Satz unter `job/captures/20261116_103720_9f6d61d9/`,
+Kontaktbogen `resume_20261116/five_camera_views.jpg`. Optik/Boardposen vorbereitet;
+weiterhin erst **eine Ansicht pro Kamera**, kein vollständiger Mehransichtsscan.
+
+Nach ausdrücklicher Nutzerfreigabe wurden ausschließlich die vier lokalen
+ROS-Treiber geordnet mit `FASTDDS_BUILTIN_TRANSPORTS=UDPv4` neu gestartet und
+das identifizierte `ros.urp` per Stop/Play wieder verbunden. Keine Power-/Brake-
+oder Fahrbefehle. Dienst: `uwa-ur-drivers-udp-20261116.service`.
+Alle vier RUNNING/NORMAL/Reverse verbunden; je fünf Zustandscontroller aktiv,
+vier Bewegungscontroller inaktiv. Achtsekundenmessung mit frischen JointStates
+aller Arme, Geschwindigkeiten maximal0,000137rad/s.
+Nachweise: `resume_20261116/udp_restart_verification.json`,
+`ur_after_udp_restart.json`, `program_restart.json`.
+
+Zwei getrennte Treiberbefunde: Laufzeit-Spawner ohne Armnamespace übernahm keine
+namensraumgebundenen Parameter; enger MATCH-Fix mit16 bestandenen Tests.
+Außerdem waren Managementdienste zuvor zeitweise nicht erreichbar; der neue
+UDP-Lauf funktioniert, die genaue Ursache ist noch nicht bewiesen.
+ROS-Clients für diesen Lauf ebenfalls mit obiger UDP-Variable starten.
+
+Neue gemessene Starts: `resume_20261116/snapshot_after_udp_restart.json`.
+Darauf neu geplante zwölf Sicht-/Kollisionswege unter
+`resume_20261116/view_plan/` sind modellgeprüft, weiterhin `executable:false`.
+Die gebundene Abstandsprüfung in `resume_20261116/separation/` ist ebenfalls
+bestanden: initial/extra/all für alle vier Arme unabhängig parallel nachgewiesen,
+50mm Anforderung, 5mrad Trackingkorridor, kleinste untere Abstandsschranke349,7mm.
+Geplante gemeinsame Fahrzeit59,1s ohne Fotos/Stillstand. Vollständiger Live-
+Preflight unter `resume_20261116/preflight/`: CHECKED, drei Runden,
+`motion_sent:false`. Das belegt diese konkreten Wege im Modell, keine allgemeine
+Arbeitsraumtrennung oder Vermessung der vorläufigen Basis-/Tischanker.
+Aktuelle Bedienerbereitschaft am Nothalt ist vor echten Fahrzielen zu bestätigen.
+Noch keine Armfahrt oder neues Mesh aus dieser Wiederaufnahme.
+
+## Historischer Stand13.11.
 
 - Frisches natives OAK-Bild gespeichert, offene Streben-/Rad-/Aufbaugeometrie
   sichtbar. Keine passende einfache Schalen-/L-Form; Familie `multiview_mesh`.

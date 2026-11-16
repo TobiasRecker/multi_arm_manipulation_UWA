@@ -13,6 +13,7 @@ from match_ur_hardware.profiles import load_profiles
 from .common import config,dump,ROBOT_IDS
 from .hardware_model import HardwareProblem,inventory_path
 from .hardware_state import require_domain
+from .hardware_state import dashboard_stop
 from .hardware_ports import provision,StopPort
 from .node import MotionNode
 from .execution import motion_context
@@ -21,6 +22,7 @@ from .hardware_execution import HardwareClient
 
 def stop_all(cfg,inventory,mode):
     require_domain(mode);profiles=load_profiles(inventory)
+    native=native_stop_all(inventory,mode)
     with motion_context():
         node=MotionNode('hardware_collision_stop',namespace='/uwa_cell');executor=SingleThreadedExecutor();executor.add_node(node)
         state={};history={r:[] for r in profiles}
@@ -47,11 +49,23 @@ def stop_all(cfg,inventory,mode):
                     rows=[r for r in rows if r[0]>=now-cfg['standstill_window_s']-.05];history[rid]=rows
                     if len(rows)<3 or rows[-1][0]-rows[0][0]<cfg['standstill_window_s']*.8:quiet=False;continue
                     if np.max(abs(np.asarray([r[2] for r in rows])))>cfg['standstill_velocity_rad_s'] or np.max(np.ptp([r[1] for r in rows],axis=0))>cfg['standstill_velocity_rad_s']*cfg['standstill_window_s']:quiet=False
-                result=dict(resource_holds_confirmed=all(p['held'] for p in status.values()),
+                result=dict(native_stop=native,resource_holds_confirmed=all(p['held'] for p in status.values()),
                     standstill_confirmed=quiet and now-state.get('received',-float('inf'))<cfg['state_timeout_s'],ports=status)
                 if result['resource_holds_confirmed'] and result['standstill_confirmed']:return dict(success=True,**result)
             return dict(success=False,error='STOP UNCONFIRMED; requests retained, no automatic resume',**result)
         finally:executor.shutdown();node.destroy_node()
+
+
+def native_stop_all(inventory,mode):
+    require_domain(mode)
+    if mode=='mock':return {r:dict(requested=True,mock=True) for r in load_profiles(inventory)}
+    from concurrent.futures import ThreadPoolExecutor
+    profiles=load_profiles(inventory)
+    def stop(profile):
+        try:return dict(acknowledged=True,response=dashboard_stop(profile))
+        except Exception as error:return dict(acknowledged=False,error=str(error))
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        return dict(zip(profiles,executor.map(stop,profiles.values())))
 
 
 def main(argv=None):
@@ -61,6 +75,7 @@ def main(argv=None):
     commands=parser.add_subparsers(dest='op',required=True)
     for role in ('guard','supervisor','watchdog'):commands.add_parser(role).add_argument('--armed',action='store_true')
     commands.add_parser('provision');commands.add_parser('reset');commands.add_parser('stop')
+    commands.add_parser('native-stop')
     p=commands.add_parser('snapshot');p.add_argument('--output',required=True)
     p=commands.add_parser('plan');p.add_argument('request');p.add_argument('--method',choices=['rrtconnect','circular'],required=True);p.add_argument('--seed',type=int,default=0);p.add_argument('--output',required=True)
     p=commands.add_parser('execute');p.add_argument('plan');p.add_argument('--output',required=True)
@@ -70,6 +85,10 @@ def main(argv=None):
     from ament_index_python.packages import get_package_share_directory
     cfg=config(args.config or Path(get_package_share_directory('uwa_cell_motion'))/'config/hardware_motion.yaml')
     inventory=args.inventory or inventory_path()
+    if args.op=='native-stop':
+        result=native_stop_all(inventory,args.mode);print(json.dumps(dict(native_stop=result,standstill_confirmed=False)))
+        if args.mode=='hardware' and not all(v['acknowledged'] for v in result.values()):raise SystemExit(1)
+        return
     if args.op in ('guard','supervisor','watchdog'):
         from .hardware_nodes import run
         return run(args.op,cfg,inventory,args.layout,args.mode,args.armed)
@@ -86,7 +105,10 @@ def main(argv=None):
         return
     if args.op=='execute':
         from .hardware_execution import execute
-        result=execute(json.loads(Path(args.plan).read_text()),args.output,args.mode);print(json.dumps(result))
+        plan=json.loads(Path(args.plan).read_text())
+        if args.inventory and args.inventory.resolve()!=Path(plan['inventory']).resolve():raise ValueError('CLI inventory differs from plan')
+        if args.config and cfg!=plan['config']:raise ValueError('CLI operating bounds differ from plan')
+        result=execute(plan,args.output,args.mode);print(json.dumps(result))
         if not result['success']:raise SystemExit(1)
         return
     with tempfile.TemporaryDirectory(prefix='uwa-hardware-cli-') as directory:
