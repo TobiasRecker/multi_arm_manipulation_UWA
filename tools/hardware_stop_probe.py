@@ -13,12 +13,21 @@ import threading
 import time
 
 import numpy as np
+from action_msgs.msg import GoalStatus
+from control_msgs.action import FollowJointTrajectory
 from std_srvs.srv import Trigger
 from uwa_cell_motion.common import dump, joint_names
 from uwa_cell_motion.execution import _follow, motion_context
 from uwa_cell_motion.hardware_execution import HardwareClient
 from uwa_cell_motion.hardware_model import HardwareProblem
 from uwa_cell_motion.hardware_state import MotionOutputReader, require_domain
+
+
+def validate_slow_config(cfg):
+    command=cfg.get('command_velocity_limit_rad_s',cfg['velocity_limit_rad_s'])
+    if (not 0 < cfg['velocity_limit_rad_s'] <= .003 or not 0 < command <= .003
+            or not 0 < cfg['acceleration_limit_rad_s2'] <= .006):
+        raise ValueError('Slow probe requires command velocity <=0.003rad/s and acceleration <=0.006rad/s2')
 
 
 def quiet_window(rows):
@@ -93,6 +102,83 @@ class Probe(HardwareClient):
             self.stop_future=client.call_async(Trigger.Request())
 
 
+def stop_acknowledged(client):
+    future=client.stop_future
+    try:
+        return bool(future is not None and future.done() and future.result() is not None
+                    and future.result().success)
+    except Exception:
+        return False
+
+
+def stop_observation_health(client):
+    """Keep supervision and independent sample freshness active after cancellation."""
+    client.health()
+    rows=client.observer.snapshot();now=time.monotonic()
+    if client.observer.error or not rows or now-rows[-1]['received'] > .2:
+        raise RuntimeError('Independent RTDE observer unavailable: '+str(client.observer.error))
+    guard,supervisor=client.guard,client.supervisor
+    if (guard.get('faults') or guard.get('latched_causes') or guard.get('blocked_arms')
+            or set(supervisor.get('blocked_arms',[]))-{'right_front'}
+            or supervisor.get('state') not in ('CLEAR','STOP REQUESTED','STOPPING','STOPPED')
+            or supervisor.get('controller_error')):
+        raise RuntimeError('Unexpected interlock fault during intentional stop observation')
+    return rows
+
+
+def follow_and_observe_stop(problem,client,plan,result):
+    """An acknowledged own stop may cancel its action; still measure the full hold window."""
+    action_result=None;action_error=None
+    try:
+        _follow(problem,client,plan,result)
+    except RuntimeError as error:
+        # The runner reports cancellation and trajectory failures with the same
+        # prefix. Do not accept the message alone: inspect this goal's result,
+        # our stop acknowledgement and healthy live supervision below.
+        handle=client.handles.get('right_front')
+        if (type(error) is not RuntimeError
+                or not str(error).startswith('right_front: trajectory cancelled, preempted or failed: ')
+                or client.stop_sent is None or client.stop_future is None
+                or handle is None or not handle.accepted):
+            raise
+        action_error=str(error)
+        action_result=handle.get_result_async()  # Read this existing goal; no new command.
+    finally:
+        client.probe_enabled=False
+    if client.stop_sent is None:
+        raise RuntimeError('No confirmed moving-state stop was injected')
+    result['stop_sent_monotonic']=client.stop_sent
+    end=time.monotonic()+4.
+    action_verified=action_result is None
+    while time.monotonic() < end:
+        client.spin_once(.01)
+        rows=stop_observation_health(client)
+        if client.stop_future is None:
+            raise RuntimeError('Intentional stop request is missing')
+        ack=stop_acknowledged(client)
+        if client.stop_future.done() and not ack:
+            raise RuntimeError('Intentional stop service did not acknowledge the request')
+        if action_result is not None and action_result.done() and not action_verified:
+            response=action_result.result()
+            if (response is None or response.status not in (GoalStatus.STATUS_CANCELED,GoalStatus.STATUS_ABORTED)
+                    or response.result.error_code != FollowJointTrajectory.Result.SUCCESSFUL
+                    or response.result.error_string):
+                raise RuntimeError(action_error)
+            result['expected_action_stop']=dict(message=action_error,status=int(response.status),
+                error_code=int(response.result.error_code),error_string=response.result.error_string)
+            action_verified=True
+        window=[r for r in rows if r['received'] >= max(client.stop_sent,time.monotonic()-.55)]
+        held=client.supervisor.get('ports',{}).get('right_front',{}).get('held',False)
+        latched='right_front' in client.supervisor.get('blocked_arms',[])
+        if ack and action_verified and held and latched and quiet_window(window):
+            result.update(success=True,standstill_confirmed=True,hold_confirmed=True,latch_confirmed=True,
+                stopped_arms=['right_front'],observation_window=window,
+                confirmation_delay_s=time.monotonic()-client.stop_sent,stage='STOP_CONFIRMED')
+            result.pop('error',None)
+            return
+    raise RuntimeError('Measured standstill/hold/latch and intentional stop acknowledgement not confirmed')
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('plan',type=Path);parser.add_argument('--output',type=Path,required=True)
@@ -101,6 +187,7 @@ def main():
     args=parser.parse_args();require_domain('hardware')
     if args.output.exists():raise ValueError('Output exists; use a unique test record')
     plan=json.loads(args.plan.read_text());rid='right_front';names=joint_names(rid)
+    validate_slow_config(plan['config'])
     if (not plan.get('success') or not plan.get('hardware_plan') or plan.get('execution_mode') != 'hardware'
             or plan['request']['selected'] != [rid] or plan['config']['velocity_limit_rad_s'] > .003
             or plan['config']['acceleration_limit_rad_s2'] > .006):
@@ -127,24 +214,7 @@ def main():
                 raise ValueError('Timed plan changed')
             client.baseline=np.asarray([client.positions[j] for j in names])
             client.probe_enabled=True;result['stage']='EXECUTION'
-            _follow(problem,client,plan,result)
-            client.probe_enabled=False
-            if client.stop_sent is None:raise RuntimeError('No confirmed moving-state stop was injected')
-            result['stop_sent_monotonic']=client.stop_sent
-            end=time.monotonic()+4.
-            while time.monotonic() < end:
-                client.spin_once(.01)
-                rows=[r for r in observer.snapshot() if r['received'] >= client.stop_sent]
-                window=[r for r in rows if r['received'] >= time.monotonic()-.55]
-                held=client.supervisor.get('ports',{}).get(rid,{}).get('held',False)
-                latched=rid in client.supervisor.get('blocked_arms',[])
-                if held and latched and quiet_window(window):
-                    result.update(success=True,standstill_confirmed=True,hold_confirmed=True,latch_confirmed=True,
-                                  observation_window=window,
-                                  confirmation_delay_s=time.monotonic()-client.stop_sent)
-                    break
-            if not result['success']:raise RuntimeError('Measured standstill/hold/latch not confirmed')
-            result['stage']='STOP_CONFIRMED';result.pop('error',None)
+            follow_and_observe_stop(problem,client,plan,result)
         except BaseException as error:
             result['error']=str(error)
             now=time.monotonic()
@@ -161,8 +231,7 @@ def main():
             observer.close();result['native_records']=observer.snapshot();result['observer_error']=observer.error
             result['trace']=client.trace;result['guard_status']=client.guard;result['supervisor_status']=client.supervisor
             if client.stop_future is not None:
-                result['stop_service_ack']=bool(client.stop_future.done() and client.stop_future.result() is not None
-                                                and client.stop_future.result().success)
+                result['stop_service_ack']=stop_acknowledged(client)
             dump(args.output,result);client.destroy_node()
     print(json.dumps({k:v for k,v in result.items() if k not in ('native_records','trace','guard_status','supervisor_status','observation_window')},indent=2))
     if not result['success']:raise SystemExit(1)

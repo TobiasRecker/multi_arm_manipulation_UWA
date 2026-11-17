@@ -1,5 +1,191 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## BC-Zielketten und Arm/Tisch-Bedingung, 2026-11-17
+
+- Nutzer möchte längere Abläufe ohne Rücksetzen zur Mitte, freie Kontrollen
+  plus viele enge/kollidierende Referenzen und Tischvermeidung.
+- Neue Offline-Tools generate_teacher_episodes.py, teacher_episode_core.py,
+  review_teacher_episodes.py. Tatsächlicher validierter Endzustand wird exakt
+  weitergereicht; feste Griffe, gemeinsamer Stillstand an jedem Ziel. Neue
+  Arm/Tisch-Kugelhüllenbedingung samt analytischem Gradienten, unveränderte
+  native FCL-Prüfung. Frühere gebundene Teacher-/Hardwarequellen erhalten.
+- Pilot setup/research/teacher-episodes-20261117/run01: zwei vollständige
+  Sechs-Ziel-Ketten, 56,88/47,99s Modellzeit, 1,648/1,023m Objektweg,
+  bis46cm vom ursprünglichen Anker, XYZ-Spannweite bis50,3/44,0/23,7cm.
+  Zustandsübergabesprung0, 20.991Prüfzustände bei≤5ms bestanden,
+  1.200geometrischeBC-Übergänge; `goal_terminal` gilt proZiel, keinRegeltakt.
+  ZwölfAbschnitte aus200Vorschlägen, Workerzeiten107,47/92,51s mit2CPUs/BLAS1.
+- MinArmpaar115,5/58,9mm, MinArm/Tischje27,6mm. KeineReferenzkollision,
+  keine20mm-Armpufferverletzung und keineTeacher-Korrektur. Sechs `near`
+  sind nur die breite<80mm-Suchklasse; hoherSchwierigkeitsanteil bleibt offen.
+  LängereZielkettenverbessernZustandsabdeckung, garantierenkeineGrenzfälle.
+- AlterFCL-Tischfallweiternegativ: neueHülle−55,1mm aufReferenz undbereits
+  −30,8mmamfestenZiel. LokalerUmwegkannungültigenfestenEndpunktnichtreparieren.
+  NeuerScreenerweistdasZielab. ViergesamteArm/Tisch-GradientprobenFehler≤4,9e−10.
+  KonservativeHülle≠nativerKontakt; keineglobaleUnlösbarkeitbehaupten.
+- 23gezielteTestsinklusivevierneuerTests, Export-/Übergabeaudit undzehnBrowserchecksPASS;
+  viewer.html/viewer.pnggeprüft. Detailsdocs/teacher_episodes.md.
+  Gruppenpoolweiterunassigned, verwandteFamilienauchüberfrühereRunsbinden.
+  KeinNetztraining, keineGeräte-/ROS-/Dienstaktion. SchwierigeReferenzenmit
+  gültigenEndenundTeacher-LösungbleibennächsteDatenfrage.
+
+## BC-Daten: echte Kollisionsfälle zuerst auswählen, 2026-11-17
+
+- Nutzer kritisiert geringe Schwierigkeit und langsame Datenerzeugung. Ziel:
+  Referenzen, die ohne Planung kollidieren; positive Abstandsverletzungen
+  nicht als nachgewiesene Kontakte darstellen. Die letzten13+4gültigen Bahnen
+  hatten keine FCL-Kollision der Referenz, im älteren21-Bahnen-Satz neun.
+- Neue CLI tools/mine_teacher_collisions.py: eingefrorene Startbank/Modelle,
+  bisdreiIK-Kombinationen jeStart, einfache direkteSE(3)-Verbindungen,
+  optionalbreiteZielorientierungen. Erst61-Punkte-Screening, gültigesEnde
+  aufdemfortgesetztenIK-Zweig, dannnurFCL-KandidatenzumteurenLehrer.
+  FCL-Kontakt/Hüllenüberlappung/positiveAbstandsverletzunggetrennt;
+  nativeKontaktzeugenmitLinknamen undPose/Gelenkzustandgespeichert.
+- Ergebnis setup/research/teacher-collision-mining-20261117/:run01
+ 184Kandidaten/29,61s,89ohneTreffer/54IK-Fehler/41ungültigeEnden.
+  run02enthältdiese184plus736Zufallsziele:920/80,74s,107ohneTreffer,
+ 723IK-Fehler/89ungültigeEnden/einFCL-Fall. Raten6,2/11,4Kandidaten/s,
+  keineRatenpositiverLehrerbahnen. ZufallsausbeutefürschwierigeFälleunzureichend.
+- EchterFall north-ik3-random-011: gültigerStartundZiel, RF-Ober-/Unterarm
+  trifftTischplatte. LehrerREFERENCE_CONSTRAINTS_CLEAR, weilArm/Umgebung
+  keineeigeneOptimierungsbedingungist. DichterRecheckverwirftBahn:
+ 2.108Zeitpunkte/266FCL-Fehlpunkte. KeinpositivesTrainingsbeispielexportiert.
+  recheck01/viewer.html zeigt ausdrückliche negativeReferenz, keineLehrerlösung.
+- ZusätzlichelokaleZwischenrotationsprobenlocal02:vierHüllenüberlappungen
+  bis−16,7mm,keineFCL-Kontakte. NichtalsblockiertedirekteStart-Ziel-Aufgaben
+  ausgeben. FrühereEinordnungMARGIN_ONLYinlocal01historischerhalten.
+- NumericalAdapterimMiningbegrenztFortschrittsrundung≤1e−12auf[0,1];
+  ersterRecheckrun02an1+ulpgescheitert, recheck01danachgeometrischverworfene
+  Bahnkorrektvollständiggeprüft. AltegebundeneKernquellenunverändert.
+- Build/viergezielteTests/achtBrowserchecksPASS,Screenshotgeprüft.
+  Dokumentationdocs/teacher_collision_mining.md, Arbeitwork/teacher-collision-mining.md.
+  NächsterfachlicherSchritt: fehlendeLehrerbedingungen/gegebenenfallsglobale
+  Initialisierung, dannSamplingumechteKontaktgrenzen undAusbeutemessen.
+  KeinTraining, keineGeräte-/Dienstaktionen; Mining-PoolnochkeinemSplitzugeordnet.
+
+## RF-Stopptest real ausgeführt / q6-Grenze 0,1 rad/s, 2026-11-17
+
+- **Abschließender Versuch05 PASS** nach Recorderkorrektur/29gezieltenTests.
+  StoppACK, gemessenerStillstand, RF-Hold und Verriegelung bestätigt; keine
+  Guardfaults. Bei0,001728rad/sMedianvorStopp:20%-Geschwindigkeitsabfall in
+  empfangenenDaten nach14,79ms, erstes20msFenster≤0,0002rad/s ab30,86ms,
+  strengerStillstands-/Holdnachweis nach939,23ms. KeineallgemeinenBremsgrenzen.
+ 8.078Samples/2msGeräteraster, maxEmpfangslücke22,41ms; q6Nettonachlauf4,77µrad
+  unterEncoderstreuung, daherkeinegenaueBremsstrecke behaupten. Gesamtq6-Versatz
+  imLauf0,003225rad. Alle4abschließendRUNNING/NORMAL/PLAYING/Reverseverbunden,
+  RFweitergehalten/verriegelt, keinReset/Rückweg nach05. AktivesProfilunten.
+  VollständigeDaten `setup/realtime/right-front-stop-20261117-05/`, analysis.json.
+ 03/04 bleiben historische Fehlversuche;05ist separater Erfolgsnachweis.
+  ErsteNiedrigphasebei31msnichtdauerhaft: kurzegemeldeteq6-/q5Überschreitungen
+  bis175,7/384,8ms; durchgehendniedrigbisMessendeab386,84ms. Bestätigtes
+  QuietWindow390,78–936,90ms. PhysischerBremswegunterEncoderstreuungunaufgelöst.
+
+- Nutzer bestätigt Durchführung, freie/unbeladene Übergabe und Not-Halt-Zugriff;
+  danach ausdrücklich nötigen Start der vier ROS-Programme. Beim Scharfschalten
+  zunächst native Stopps durch fehlende Verifikation/Watchdog während Discovery.
+  Nach stabilen Nachweisen kontrollierter Startupreset, jeUR PLAY über Bringup.
+  Keine Power-/Brake-/Greiferaktion; vorhandene Treiber/Kameraansicht erhalten.
+- Versuch03 mit altem langsamen Profil: realer RF-q6-Weg durch SPEED LIMIT
+  gestoppt (Guard0,004729rad/s >0,003; roher500HzPeak0,021313). Absichtlicher
+  Trigger nie erreicht, daher kein Reaktionszeitmesspunkt. RF-Endversatz zum
+  Start ca0,332mrad/0,0190°, alleArme danach unabhängig stationär.
+- Nutzer fordert anschließend Grenze0,1rad/s. Neues separates Profil
+  `uwa_cell_motion/config/hardware_right_front_stop_test.yaml` aktiviert:
+  nur RF-q6 überwacht0,1, übrige23Achsen0,003, Kommando0,003/a0,006.
+  Vorhandene5%-Toleranz erhalten und in Reserve berücksichtigt; neuer Modus
+  per_body_joint_caps_v2, vollständige frische Bahn-/FCL-/Reserveprüfung PASS.
+  Frische,10Hz,40mmPuffer,1sStopplatenz und0,2rad/s²Bremsannahme unverändert.
+- Versuch04: absichtlicher Supervisor-Stopp tatsächlich ausgelöst/ACKtrue,
+  keine Guardfaults während der Probe. Nativeq6Peak0,012449rad/s; gesamte
+  Nettoauslenkung bis späterem Stillstand0,002872rad/0,16455°. Kein Bremsweg.
+  Recorder behandelt erwartete Action-Cancellation als Fehler und endet49,9ms
+  nach Stoppanforderung. analysis.json lässt Bremszeit/-strecke deshalb null.
+  Empfang des Holdstatus nach49,3ms, Stillstandsfensterstatus nach618,7ms;
+  diese Nachweisverzögerungen nicht als physische Bremszeit ausgeben.
+- Unabhängige1,2sEndkontrolle alle4stationär/RUNNING/NORMAL, ProgrammePLAYING,
+  Reverse verbunden. Schutzdienst aktiv mit neuemProfil, **RFimSupervisor
+  verriegelt/gehalten**, andereArme ohne Fahrziel. Kein Reset/Rückweg nach04.
+- Artefakte `setup/realtime/right-front-stop-20261117-{03,04}/`, Originalrecords,
+  Pläne, angewendeteTrajektorien, Interlockspur, Quellenhashes, Native-Endkontrolle
+  und Diagnose-PNG/JSON. OriginaleFAILbleibenerhalten; Recorderfix separat.
+  Anleitung docs/right_front_realtime_stop_test.md, Arbeitsstand
+  work/right-front-realtime-stop.md. Reale Bremsparameter weiter unqualifiziert.
+
+## Anfahrtempo0,1rad/s vorgeschlagen, 2026-11-17
+
+- Nutzer hält auch9,24min für die vier Kameraposen für zu lang; schlägt eine
+  Obergrenze0,1rad/s vor und gibt Nothaltzugriff an. Keine gemessene Stoppgrenze
+  oder Freigabe zum Abschalten von Schutzfunktionen daraus ableiten.
+- Reiner Zeitvergleich derselben glatten seriellen Wege, unveränderte
+  Beschleunigung0,02rad/s²:173,27s/2,89min bei0,1rad/s; LF47,87/LR39,02/
+  RR56,85/RF29,53s. Quelle setup/calibration/oak_recalibration_20261117/
+  speed-0p1-time-only.json. Keine bestandene Stoppreserveprüfung oder Realfahrt.
+- v2 bleibt trotz Körper-/Achsgrenzen zu pauschal über den ganzen Weg: kurze
+  Engstelle links hinten begrenzt die gesamte Fahrt auf0,01364rad/s. Lokales
+  Tempo und passende gebundene Betriebsverträge sind noch nicht umgesetzt.
+  Die1sStoppannahme ist weiterhin ungemessen und nicht unveränderliche UR-Grenze.
+- Separater RF-RT-Stopptest laut work/right-front-realtime-stop.md in Durchführung;
+  in dieser Diagnose weder dessen Controller noch gemeinsamen Schutzdienst
+  ändern.0,1-Sensitivitäten ausschließlich offline und ausdrücklich hypothetisch.
+- Sensitivität abgeschlossen unter speed-0p1-diagnosis/summary.json: Bei1s
+  besteht die Reserveprüfung für LF/RR, scheitert für LR/RF. Selbst mit rein
+  hypothetischen50ms scheitert LR noch; Datenalter/Takt, angenommene Bremsung
+  und achsweise Trackingzulage wirken ebenfalls. Keine Latenzänderung aktiviert.
+  Zeitwert2,89min ist deshalb weiterhin keine bestandene Bewegungsfreigabe.
+
+## Kooperative Code-Policies und langfristiges Lernen, 2026-11-17
+
+- Nutzerkorrektur:32Aufgaben/21Bahnen sind separate Kollisionsvermeidung.
+  Hier geht es um Gesamtaufgaben: zweiArme halten/drehen Avocado-Karton,
+  dritter stapelt Teil2 oder zeichnet Kreise auf jede Boxseite. CodeasPolicy
+  ausdrücklich bestätigt. Frühere Transport-Pilotempfehlung damit überholt.
+- Nutzer bevorzugt Agentenvorführung zunächst inSimulation mit sprachlichem
+  Feedback oder direkterTeleopkorrektur; gezielteHandführung bleibt interessant,
+  automatischeErkennungdesBedarfs ist ausdrücklich fraglich. Langfristiges
+  Lernen aus eigenenAusführungen plus manuellemFeedback fürIndustrie/Bau gewünscht.
+- Recherchefortsetzung: DAgger/HG-DAgger für Korrektur an selbst erreichten
+  Zuständen; Reflexion/Voyager für sprachliches/prozeduralesGedächtnis ohne
+  Gewichtsupdate. HG-DAgger untersuchtFahren, VoyagerMinecraft; keine automatische
+  Übertragbarkeit ihrerErgebnisse oderDAgger-Garantien aufLLM-Code behaupten.
+- Entwurf docs/interactive_code_policy_learning.md: versionierteCodeprogramme,
+  Halte-/Arbeitsrollen, Simvorführung/Übernahme, zustandsgebundeneKorrekturen,
+  Episoden-/Regel-/Skill-/Parameterwissen, Lernen ausgemessenenErgebnissen.
+  EigenständigeErgebnisprüfer, Kandidatenvergleich undRegressionen erforderlich;
+  erfolgreicheBewegung istwedergezeichneterKreisnochstabileStapelung.
+- Empfehlung: Kreisaufgabe alsSimulationspilot, zunächstexplizitkleinererUmfang
+  möglich; jedegeforderteSeite späterinklusiveGreif-/Stützverdeckung behandeln.
+  Reihenfolge/Pilotumfang nochkeineNutzerentscheidung. NeueWerkzeug-/Kontakt-/
+  Prüffunktionen, MehrrollenrunnerundTeleopintegration weiteroffen.
+- BestehendenReviewkorrigiert, AGENTS/README/Arbeitsstand ergänzt. NurDokumentation;
+  keineSimulation, Geräte-/Dienstaktionen, Trainingsläufe oderImplementierung.
+
+## Stoppreserve allgemein überarbeitet und im Mock geprüft, 2026-11-17
+
+- Nutzer wählt die allgemeine Überarbeitung statt extrem langsamer Fahrten.
+  Ursache der72,19min war die provisorische globale Kommandogrenze0,004rad/s
+  als Behelf gegen pauschale Arm-Maximalreserven, keine physische UR-Grenze.
+- Neuer opt-in-Modus `per_body_joint_caps_v2`: Kommandotempo getrennt von sechs
+  einzeln überwachten Achsgrenzen je Arm; Reserve pro Körper, vollständige
+  Kugelpaarprüfung und kürzeste Ausfall-Lease über alle Paare. Vollständig
+  eingeschlossene virtuelle Greiferöffnung nicht doppelt aufblähen. Timing
+  und Überwachung verwenden denselben signaturgebundenen Achsvertrag.
+- Vier unveränderte Sichtwege offline:72,19min →9,24min; LF1,60/LR4,77/RR1,89/
+  RF0,98min. Modellpuffer40mm, angenommene1sReaktion/0,2rad/s²Bremsung,10Hz
+  und Frische unverändert. Neue Zeiten sind Vorschläge unter diesen Annahmen.
+- Build/CTest PASS,268Motion-Regressionen PASS und31abschließende gezielte
+  Tests PASS. Getrennte Mock-Prozesse in Domain67 PASS: Achsgrenzenfahrt,
+  Datenverlust stoppt Nachbarn, keine automatische Wiederaufnahme und Ausfall
+  jeweils von Guard/Supervisor/Watchdog hält alle. Fehler früherer Testläufe
+  erhalten; produktive Frische-/Resetgrenzen nicht für Tests gelockert.
+- Anleitung docs/stopping_reserve.md, Arbeitsnachweis work/stopping-reserve-revision.md.
+  Artefakte setup/calibration/oak_recalibration_20261117/reserve-v2-audit-02/,
+  reserve-v2-process-mock-02/ und reserve-v2-benchmark.json. Geometrie allein:
+ 100Aufrufe Median3,78ms/Maximum4,02ms, keine Ende-zu-Ende-Fristgarantie.
+- Neue reale Profile nicht aktiviert und Arme nicht gefahren. Ursprüngliche
+  Aufnahmestellungen/Neukalibrierung weiterhin offen; vor realer Verwendung
+  frischen Start und passenden aktiven Phasenvertrag prüfen. Die physische
+  Stoppkette ist durch diese Software-/Mockprüfung nicht qualifiziert.
+
 ## BC-Teacher mit verschiedenen Ausgangszuständen, 2026-11-17
 
 - Nutzer bestätigt weitere schwierige Fälle und bemängelt praktisch gleichen
@@ -60,7 +246,7 @@
   Phasensegmentierung und harte/weiche Bedingungen, MRS-Rollen/Greifgruppen,
   beobachtbare Erfolgsbedingungen, reale Kraft-/Kontaktintegration. HQ-Standbilder
   ersetzen keinen dynamischen Demostream; aktuelle OAK-Neuregistrierung beachten.
-- Pilotempfehlung: vorhandenen Simtrace importieren, dann erklärtes Zweiarm-
+- Erste Pilotempfehlung (durch spätere Nutzerpräzisierung überholt): vorhandenen Simtrace importieren, dann erklärtes Zweiarm-
   Versetzen und Übertragung auf zurückgehaltene Objektlagen. Sprache/1Demo/2Demos
   und kleines/stärkeres Modell bei gleicher Bibliothek vergleichen; Zeit bis
   validiertem Programm einschließlich Bedienaufwand messen. Empfehlungen noch

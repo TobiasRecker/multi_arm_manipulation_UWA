@@ -1,6 +1,6 @@
 # Programmierpipeline und Lernen aus Demonstrationen
 
-- Status: Präzisierung in Arbeit, 2026-11-17 (Australia/Perth), Codex dieses Chats.
+- Status: Recherche und Präzisierung abgeschlossen, 2026-11-17 (Australia/Perth), Codex dieses Chats.
 - Folgeauftrag: Task-Level Code as Policy mit Halte-/Bearbeitungsrollen;
   vorhandene32/21Kollisionsbeispiele sind ausdrücklich ein anderes Problem.
   Agent führt in Simulation vor, Nutzer bewertet/korrigiert oder übernimmt
@@ -27,5 +27,13 @@
 - Prüfung: git diff --check der geänderten Bestandsdokumente erfolgreich;
   sämtliche relativen Links des neuen Berichts vorhanden. Nur Dokumentation,
   keine neuen Software-/Hardwaretests erforderlich oder durchgeführt.
-- Nächste Entwicklung: Aufgabenformat/Interpreter, Offline-Demoimport und
-  zeitqualifizierter Recorder; dies sind Empfehlungen, kein Implementierungsbeschluss.
+- Fortsetzung: docs/interactive_code_policy_learning.md mit Mehrrollenprogrammen,
+  Simulationsvorführung/Sprachfeedback/Teleop, DAgger-/HG-DAgger-Einordnung und
+  Lernen aus eigenen Ergebnissen. Vier zusätzliche Primärquellen geprüft;
+  Reflexion/Voyager als Gedächtnisvorbilder ohne Gewichtsupdate eingeordnet.
+- Ersten Bericht korrigiert: Kollisionspilot kein Fortschrittsmaß des Tasklernens,
+  reine Transport-Pilotidee überholt. Nutzerziele inAGENTS/HANDOVER aktualisiert,
+  README mitFortsetzungsverweis. Kein neuer Simulations-/Hardware-/Trainingslauf.
+- Nächste Entwicklung: Mehrrollenrunner, Simulations-Ergebnisprüfer/Episoden,
+  interaktiveKorrektur und getestete Code-/Parameterverbesserung. Kreisaufgabe
+  als Pilot ist eine Empfehlung, kein bestätigter Implementierungsbeschluss.

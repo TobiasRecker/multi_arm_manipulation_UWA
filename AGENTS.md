@@ -6,6 +6,16 @@
   möglichst zügig ein Aufgabenprogramm erstellen. Optional ein bis zwei
   erklärte Teleoperations-/Handführungsbeispiele mit Kameras, UR-Posen und
   Kräften nutzen; vollständiges Training einer Gesamtpolicy ist kein Ziel.
+- Präzisierung17.11.: **Code as Policy für Gesamtaufgaben**, z.B. zwei Arme
+  halten/drehen den Karton, dritter stapelt oder zeichnet auf dessen Seiten.
+  Der32-Aufgaben-/21-Bahnen-Pilot ist separate Kollisionsvermeidung, kein
+  Lernstand dieses Aufgabenprogrammiersystems.
+- Bevorzugte Entwicklungsinteraktion: Agent führt zunächst in Simulation vor,
+  Nutzer bewertet sprachlich oder korrigiert perTeleop. Handführung nur bei
+  Bedarf als zusätzliche Quelle; Erkennung des Bedarfs nicht als gelöst annehmen.
+  Langfristiges Lernen aus eigenen Ausführungen **und** manuellem Feedback
+  für wiederkehrende Industrie-/Bauaufgaben einplanen; Code/Skills/Parameter
+  und belegte Erfahrungen können ohne vollständiges Policytraining wachsen.
 - Dieses Aufgabenlernen vom bestehenden BC-Vergleich für numerisch optimierte
   Objektbahnen unterscheiden. Aus wenigen Demos keine allgemein gültigen
   Toleranzen, Kraftgrenzen oder Steifigkeiten ableiten; Herkunft von Sprache,
@@ -14,8 +24,20 @@
 - Architektur/Pilot sind zunächst Empfehlungen der Recherche, keine bestätigte
   Implementierungs- oder Hardwarefreigabe. Bericht:
   docs/programming_pipeline_lbd_review_2026-11-17.md.
+  Präzisierter Entwurf: docs/interactive_code_policy_learning.md.
 
 ## OAK-Neukalibrierung und Aufnahmefeedback (2026-11-17)
+
+- Nutzer hält auch9,2min für die vier Anfahrten für unzweckmäßig und schlägt
+  0,1rad/s als Obergrenze vor; gibt eigenen Nothaltzugriff an. Als Kandidaten
+  prüfen, nicht als gemessene Stoppqualifikation dokumentieren. Ein kurzer
+  Engpass soll nicht ungeprüft das Tempo der gesamten Fahrt bestimmen.
+
+- Nutzer beauftragt17.11. nach dem unzweckmäßigen72min-Anfahrvorschlag eine
+  allgemeine Reserveüberarbeitung. Kommandotempo und einzelne überwachte
+  Gelenkgrenzen trennen; ruhende Arme nicht ungeprüft als bewegungsfrei annehmen.
+  Neuer opt-in-Modus `per_body_joint_caps_v2`, docs/stopping_reserve.md.
+  Offline-/Mocknachweis nicht als reale Stoppqualifikation ausgeben.
 
 - Nutzer hinterfragt17.11. einen zusätzlichen17,3cm-Abstand bei bereits großen
   Kollisionshüllen. Hüllenradius, freier Oberflächenabstand, Modellunsicherheit
@@ -130,6 +152,18 @@
   passende Armkonfigurationen einbeziehen, nicht nur Ziel-/Zwischenbahnen
   variieren. Startpose, IK-Zweig und gewünschte Bewegungsrichtung getrennt
   auswerten; gleiche/nahe Startfamilien über alle Varianten im selben Split.
+- BC-Schwierigkeit17.11.: Nutzer fordert gezielt Referenzwege, die ohne
+  Planung kollidieren, und schnellere Datengeneration. Tatsächliche FCL-
+  Kollisionen, Hüllenüberlappung und reine Mindestabstandsverletzung getrennt
+  berichten. Gültige Start-/Zielzustände und zunächst einfache direkte
+  Referenzverbindungen bevorzugen; teure Lehreroptimierung erst nach Screening.
+  Viele benachbarte Samples nicht als viele unabhängige Lernaufgaben zählen.
+- BC-Episoden17.11.: Nutzer wünscht freie Kontrollbahnen und viele enge/
+  kollidierende Referenzen. Längere Zielketten: erst Ziel erreichen, dann vom
+  tatsächlich erreichten Zustand weiter; keine stillen Resets/IK-Wechsel.
+  Arbeitsraum auch außerhalb der Mitte abdecken. Tischkollisionen vermeiden.
+  Ganze Episoden und verwandte Start-/Ziel-Familien bei späteren Splits
+  zusammenhalten. Lange Episode allein garantiert keine hohe Schwierigkeit.
 - Offline-Objekttransport17.11.: zuerst unverändertes Idealprofil prüfen;
   bereits ausreichende Bahn nicht allein zur Demonstration verändern. Getrennte
   Zusatzabstandsversuche klar als solche kennzeichnen. Um Kartonmittelpunkt
@@ -1017,3 +1051,11 @@
   wiederverwenden, optionaler500HzOutput-Beobachter; Default20HzdesWächters
   erhalten. Softwarestopppfad/EmpfangslatenzvonphysischemBremsbeginntrennen.
   Detailsdocs/right_front_realtime_stop_test.md; Armübergabe/Kalibrierungbeachten.
+
+- Folgeauftrag17.11.: kleinen realen RF-q6-Test durchführen; Nutzer bestätigt
+  freie/unbeladene Übergabe und Not-Halt-Zugriff, danach nötigen ROS-Programmstart
+  aller4. Nach Geschwindigkeitsstopp überwachte Grenze ausdrücklich auf0,1rad/s
+  erhöhen. Konkretes Profil `hardware_right_front_stop_test.yaml`: nur RF-q6
+ 0,1, übrige Achsen0,003 und Fahrkommando weiter0,003rad/s. Keine pauschale
+ 0,1rad/s-Fahrfreigabe für alle Arme; neue Körper-/Achsreserve vollständig prüfen.
+  Reale Messfehler/fehlenden Nachlauf nicht als Bremsnachweis ausgeben.

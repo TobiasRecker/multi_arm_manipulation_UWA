@@ -523,6 +523,10 @@ maps this foundation to task programs inferred from language and a few
 demonstrations, with primary literature, recording requirements and a proposed
 pilot. It is a design review; the generic task interpreter and multimodal
 demonstration recorder are not implemented yet.
+The follow-up [interactive and lifelong Code-as-Policy design](docs/interactive_code_policy_learning.md)
+focuses on two holding arms plus a working arm, simulation review/teleoperation
+corrections, and improvements from repeated execution. Collision-planner
+datasets are a separate research track; this task-learning design is not yet implemented.
 The latest [500g force and speed tests](docs/carton_dynamic_validation_2026-11-16.md)
 include two complete10mm/s Home cycles and three loaded stop cases with retained
 grip using exactly the same version-bound profile. The report preserves earlier
@@ -602,6 +606,16 @@ Stopping reserves remain separate diagnostics; no physical grasp is performed.
 The [diverse-start teacher](docs/teacher_start_diversity.md) searches distinct
 object poses and coupled arm configurations before planning from each start.
 It preserves a frozen copy of its Python sources for the offline dataset run.
+
+The [collision-first screening experiment](docs/teacher_collision_mining.md)
+now separates native contacts, envelope overlaps and clearance violations.
+It exposes an unresolved arm/table collision and a missing teacher constraint;
+the retained negative case is not a positive training demonstration.
+
+The [goal-chain teacher](docs/teacher_episodes.md) adds arm/table constraints
+and carries the checked state across successive goals. Two six-goal episodes
+cover 1.65 m and 1.02 m of object travel, with a full-episode viewer. They expand
+state coverage; a high yield of genuinely difficult references remains open.
 
 The [3D/6D teacher dataset runner](docs/teacher_dataset_6d.md) generates a fixed
 32-task pilot with family-level train/validation/test splits, validated geometric

@@ -14,6 +14,13 @@ from uwa_cell_motion.hardware_model import HardwareProblem,inventory_path
 from uwa_cell_motion.hardware_state import MotionOutputReader,require_domain
 
 
+def validate_slow_config(cfg):
+    command=cfg.get('command_velocity_limit_rad_s',cfg['velocity_limit_rad_s'])
+    if (not 0 < cfg['velocity_limit_rad_s'] <= .003 or not 0 < command <= .003
+            or not 0 < cfg['acceleration_limit_rad_s2'] <= .006):
+        raise ValueError('Slow probe requires command velocity <=0.003rad/s and acceleration <=0.006rad/s2')
+
+
 def read_stationary(host,hz,seconds=1.):
     reader=MotionOutputReader(host,frequency_hz=hz);rows=[]
     try:
@@ -40,8 +47,7 @@ def main():
     if not np.isfinite(a.delta_rad) or not 0<abs(a.delta_rad)<=.03:p.error('q6 displacement must be nonzero and at most0.03rad')
     a.output.mkdir(parents=True,exist_ok=False)
     cfg=config(a.config)
-    if cfg['velocity_limit_rad_s']>.003 or cfg['acceleration_limit_rad_s2']>.006:
-        raise ValueError('Use the unchanged slow commissioning profile')
+    validate_slow_config(cfg)
     problem=HardwareProblem(a.output/'model',cfg,a.inventory)
     report=dict(kind='read_only_right_front_stop_preparation',robot='right_front',robot_ip=problem.profiles['right_front']['ip'],
         robot_commands_sent=0,actual_motion_executed=False,complete=False)

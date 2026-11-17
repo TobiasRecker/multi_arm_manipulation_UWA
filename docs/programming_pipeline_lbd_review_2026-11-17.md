@@ -7,6 +7,14 @@ zügig Aufgabenprogramme erstellen. Teleoperation oder Handführung mit Bildern,
 UR-Posen und Kräften sollen optional ein bis zwei erklärende Beispiele liefern.
 Eine vollständig neu trainierte Gesamtpolicy ist dafür nicht gewünscht.
 
+**Präzisierung17.11.:** Der Nutzer meint kooperative **Code-as-Policy-
+Aufgabenprogramme**: zwei Arme halten/drehen den Avocado-Karton, ein dritter
+stapelt oder zeichnet auf den Seiten. Der32-Aufgaben-/21-Bahnen-Kollisionspilot
+ist ein separates Problem. Gewünscht sind Simulationsvorführung mit Sprach-/
+Teleopkorrektur und langfristiges Lernen aus eigenen Ausführungen. Der
+[weiterführende Entwurf](interactive_code_policy_learning.md) konkretisiert
+diesen aktuellen Schwerpunkt und ersetzt die ursprüngliche Transport-Pilotidee.
+
 ## Einschätzung
 
 Die passende Richtung ist **Programming/Learning from Demonstration mit
@@ -34,19 +42,14 @@ Trainings- oder Simulationsversuche in dieser Recherche.
 | Manipulation | [Skillverträge](manipulation_pipeline.md), Ressourcen, Reviewpakete, Abbruchpfad, gemeinsame Objektbewegung | Sehr gute Ausführungsbasis; Katalog ist noch kein frei komponierender Programmcompiler |
 | Aufgabenlogik | Kartonfolge in `runtime._run_task`; `configuration()` bindet Schema1 an die beiden rechten Arme | Generisches, typisiertes Aufgabenformat und dessen Interpreter fehlen im untersuchten Taskpfad |
 | Geometrie und Timing | Zielkandidaten, Zielauswahl, glatte Anfahrt, Objekttransport, Kollisions-/Interpolantenprüfung | Demonstrationen können Referenzen liefern; konkrete Gelenkwege weiter kompilieren und prüfen |
-| Planner-BC | [Zweiarm-Lehrer](two_arm_object_teacher.md), [6D-Datengenerator](teacher_dataset_6d.md) | Bewegungsoptimierung aus numerischen Beispielen; noch kein menschliches Show-and-Tell |
+| Separater Kollisionsplaner | [Zweiarm-Lehrer](two_arm_object_teacher.md), [6D-Datengenerator](teacher_dataset_6d.md) | Eigenständiges Problem; als Dienst nutzbar, kein Fortschrittsmaß des Aufgabenlernens |
 | Aufzeichnung | Simulations-Motion-/Krafttraces, statische Bildsets, native UR-Zustände | Gemeinsamer Demonstrationsrecorder mit Sprache, Aktionen, dynamischen Bildern und Zeitbezügen fehlt |
 | Hardware | Einzelne unbeladene Anfahrten und gemeinsame Greifer-API dokumentiert | Gemeinsamer beladener Objekt-Kommandopfad und reale Kontaktregelung sind separate offene Integration |
 
-Der vorhandene `pilot02/summary.json` meldet **21/32 akzeptierte Bahnen,
-zehn korrigierte Referenzen, 2.100 BC-Übergänge**. `export-audit.json` meldet
-`passed:true`. Es handelt sich um 21 korrelierte Bahnbeispiele mit festen
-Griffen/Basen, nicht um 2.100 unabhängige Aufgaben. Positive reine
-Rotations-Testbahnen fehlen; die akzeptierten Misch-Testreferenzen waren
-bereits frei. Ein gelerntes Modell oder dessen Generalisierung ist nicht belegt.
-Die 52D-Eingabe enthält Referenzausblick und Fortschritt, keine Bilder,
-Sprachbeschreibung oder Kraftmessungen. Rohartefakte im Workspace:
-`setup/research/two-arm-teacher-dataset-20261117/pilot02/`.
+Die erste Fassung stellte den Kollisionspilot zu stark in den Vordergrund.
+Seine Ergebnisse werden hier nicht als Lernstand des Aufgabenprogrammiersystems
+gewertet. Offen sind vielmehr Mehrrollen-Programme, Interaktion und
+Erfahrungslernen; Kollisionsplanung bleibt ein wiederverwendeter Unterdienst.
 
 Die bestehende [Agentenanleitung](../.agents/skills/uwa-manipulate/SKILL.md)
 kapselt Durchführung und Reviews. Für kleine Modelle sollte ein Routineauftrag
@@ -278,31 +281,26 @@ keine bereits nachgewiesene Aufnahmefunktion.
 | Reihenfolge | Arbeit | Abnahmeprodukt |
 |---|---|---|
 | 1 | Gemeinsame Aufgabenbeschreibung und kompakte Agentenschnittstelle | Ein bekanntes Rezept durch Interpreter ausdrückbar; unbekannte Skills, Einheiten und widersprüchliche Bedingungen liefern konkrete Fehler |
-| 2 | Offlineimport für Demoepisoden, dann lesender Recorder | Video-/UR-/Sprachansicht mit Zeitqualität, Ausfällen und Herkunft; kein implizites Umschalten in einen Fahrmodus |
-| 3 | Phasen/objektrelative Referenzen plus Sprache in Aufgabenbeschreibung überführen | Jede harte Bedingung und jede angenommene weiche Referenz ist nachvollziehbar; Vorschau zeigt Demo und neue Planung |
-| 4 | Übertragung und Erfolgskriterien testen | bekannte Aufgabe in zurückgehaltenen Objektlagen, dokumentierte Erfolgs-/Fehlerfälle und Bedienkorrekturen |
-| 5 | Kontaktbaustein und später begrenztes BC | erst Sensor-/Reglernachweis; Training nur wenn ein benannter Teil gegenüber einfachen Referenzen besser wird |
+| 2 | Kooperative Simulationsaufgabe, Ergebnisprüfer und Episodenspeicher | Rollen, Kontaktübergänge, Erfolg/Fehler und Programmversion nachvollziehbar |
+| 3 | Durchsicht, Sprachmarker, lokale Teleopübernahme | Korrektur einem Zustand/Programmschritt zuordnen und erneut prüfen |
+| 4 | Code-/Skill-/Parameterverbesserung aus menschlichem und automatischem Feedback | Verbesserung gegenüber festem Ausgangsprogramm, keine Regression auf bekannten Szenen |
+| 5 | Übertragung auf neue Varianten und reale Ausführung | Geltungsbereiche, Mess-/Kontaktintegration und Sim-Real-Unterschiede nachgewiesen |
 
-**Erster Pilotvorschlag:** vorhandene Zweiarm-Aufgabe aufnehmen oder offline
-importieren: Karton greifen, versetzen, unterstützt absetzen. Erklärung z.B.
-„Diese gegenüberliegenden Wände greifen, Öffnung oben behalten, erst auf
-Unterstützung loslassen.“ Zahlenwerte wie Hub und Orientierungstoleranz werden
-explizit festgelegt; „oben“ allein ist noch keine numerische Grenze.
-Die Demonstration liefert Rollen, Interaktionsposen und Wegpräferenz;
-Kollisionsausweichbewegungen und Timing kann die Pipeline an die neue Lage anpassen.
-
-Beginnen mit vorhandenem aufgezeichnetem Simulationslauf als Import- und
-Darstellungstest. Seine Ground-Truth-Kontakte/-Posen nur als klar gekennzeichnete
-Simulationslabels verwenden, nicht als Nachweis realer Beobachtbarkeit.
-Anschließend eine echte Demo im Roboterraum mit vorhandener Teleop oder
-gesondert integrierter Handführung sammeln. Beim bereits vorhandenen starren
-Greifverbund über den Objektframe führen; keine beiden Arme unabhängig
-gegeneinander drücken. Die Realaufnahme ist ein späterer eigener Versuch.
+**Aktueller Pilotvorschlag:** zwei Arme halten/orientieren die Box, ein dritter
+zeichnet Kreise auf definierte Flächen. Simulationsvorführung durch den
+Agenten, sprachliche Bewertung oder Teleopkorrektur und anschließende
+Codeverbesserung stehen im Vordergrund. Stapeln ist eine weitere Aufgabenfamilie.
+Die Empfehlung zum bloßen Zweiarm-Transport ist damit überholt. Vorhandene
+Simtraces können noch das Episodenformat erproben, zeigen aber nicht die
+neue Mehrrollen-Aufgabe. Vorgehen, Ergebnisprüfer und langfristiges Lernen
+sind im [Folgeentwurf](interactive_code_policy_learning.md) ausgearbeitet.
 
 **Vergleich vorab festlegen:** dieselbe Aufgabenfamilie, Bibliothek und
 Prüfsoftware; Modell-/Promptversionen und Budgets protokollieren. Vergleichen:
-(a) Sprache allein, (b) Sprache+eine Demo, (c) Sprache+zwei gezielt
-unterschiedliche Demos; zusätzlich kleines gegen stärkeres Modell. Ein
+(a) Sprache allein, (b) Simvorführung mit Sprachkorrektur, (c) zusätzlich
+Teleopkorrektur. Vorabdemonstrationen als weiteren Vergleich behandeln.
+Gedächtnis und Verbesserung aus eigener Ausführung separat untersuchen;
+kleines gegen stärkeres Modell anschließend vergleichen. Ein
 fest programmiertes Rezept dient als Referenz für Ausführung und Qualitätsmaß.
 Identische unbekannte Testszenen, mehrere Läufe je Bedingung; ähnliche Varianten
 und Ableitungen einer Demo nicht auf Lern-/Testgruppen verteilen.
@@ -325,7 +323,8 @@ eine gezielte weiterführende Mehrarm-/Montage-Literaturabgrenzung.
 ## Ergebnis dieser Arbeit
 
 Quellen und lokale Artefakte gelesen, Architektur/Prioritäten abgeleitet und
-Dokumentation ergänzt. Keine neue Policy, kein Recorder, kein Programmcompiler
+nach Nutzerpräzisierung auf kooperative Code-Policies und Erfahrungslernen
+ausgerichtet. Dokumentation ergänzt. Keine neue Policy, kein Recorder, kein Programmcompiler
 implementiert; keine neue Geräteabfrage oder Bewegung ausgeführt. Die
 vorgeschlagenen Schritte sind konkretisierte nächste Entwicklungsarbeiten,
 keine vom Nutzer bereits bestätigten Implementierungsentscheidungen.

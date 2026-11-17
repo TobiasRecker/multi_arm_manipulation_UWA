@@ -6,6 +6,11 @@ Der [erste 3D-/6D-Pilot](teacher_dataset_6d.md) variierte den Start nur um
 ungefähr1cm und wenige Grad. Der neue Versuch trennt deshalb Objektstartpose,
 zugehörige Armkonfiguration und gewünschte Bewegung.
 
+Anschließende Nutzerkritik zur Schwierigkeit und Laufzeit:
+[Kollisionssuche und Grenzen des aktuellen Lehrers](teacher_collision_mining.md).
+Die unten beschriebenen Armkorrekturen verletzen vor der Korrektur den
+Mindestabstand, zeigen aber noch keine FCL-Kontaktkollision.
+
 ## Startsuche und Aufgaben
 
 Zwölf Familien werden vorab mit Weltpositionsversatz, Rotationsvektor und

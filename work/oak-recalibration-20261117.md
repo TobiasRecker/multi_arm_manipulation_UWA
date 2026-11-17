@@ -1,7 +1,10 @@
 # OAK-Neukalibrierung und deutliche Fünfkamera-Aufnahme
 
 - Status: **Montage fest und Bewegungsbereich vom Nutzer freigegeben;
-  frische Vierarm-Wegprüfung und serielle Aufnahmeposen in Arbeit**,
+  erneuter ausdrücklicher Fahrwunsch nach bestandenem RT-Stopptest;
+  LF tatsächlich angefahren und nach Messzeitvergleich gehalten;
+  korrigierter Vergleich offline, im Prozess-Mock und real lesend geprüft;
+  Restanfahrt wird frisch vorbereitet**,
   2026-11-17, Hauptagent.
 - Auftrag: aktuelle OAK-Pose nach möglicher Stativbewegung beurteilen; danach
   vier URs in geeignete Aufnahmeposen und Fünfkamera-GUI öffnen. Aufnahmezustand,
@@ -15,6 +18,21 @@
   vollständiger aktueller Wegprüfung. Bekannter Frischestopp vom17.11. beachten.
 
 ## Nachweise und aktueller Stand
+
+- Aktueller Realversuch unter `setup/calibration/oak_recalibration_20261117/hardware-views-01/`:
+  LF fuhr tatsächlich bis ca.[125,38,-91,05,6,22,-94,33,-7,67,0,65]°;
+  noch nicht am Aufnahmeziel. Automatischer Halt wegen direktem Vergleich
+  zeitversetzter ROS-/RTDE-Gelenkwerte; Hold und Verriegelung bestätigt.
+  Native UR-Sicherheit nicht quittiert/umgangen. Erstes Reset während
+  STOPPING durch automatische Prüfung abgelehnt; nach frischem unabhängigem
+  Stillstandsnachweis expliziter Reset zugelassen. Keine offene Umgehung.
+- Vergleich korrigiert: ROS-Historie klammert nativen Quellzeitpunkt ein,
+  keine Extrapolation; Lipschitz-Interpolationsunsicherheit verbraucht die
+  unveränderte5mrad-Grenze. Frische-/Epoch-/Modell-/Stoppprüfungen erhalten.
+ 40gezielteTests, Paketbuild und separaterDomain67-Prozessmock bestanden.
+  Real ausschließlich lesend1.616Proben, maximale konservative Abweichung
+ 0,000520rad; kein Uhrsprung. Quellen: `alignment-live.json`,
+  `setup/logs/uwa-state-alignment-{tests-host,mock,build,live}.log`.
 
 - Frisches natives Standardfoto14:04/Fokus116: rechts24/24, links0/24;
   Detektion unter setup/calibration/oak_recalibration_20261117/current-board-check.json.
@@ -85,3 +103,20 @@
   unveränderte Modell-/Stoppparameter ergeben etwa119mm statt173mm.
 - Vier Halteregler ausdrücklich inaktiv provisioniert. Wächter bleibt
   MONITOR ONLY. Keine Aktivierung, kein Fahrziel, kein Power/Brake/Play/Greifer.
+
+- Folgeentscheidung des Nutzers: Reserve allgemein überarbeiten statt72min
+  fahren. Umsetzung/Prüfung abgeschlossen, Details work/stopping-reserve-revision.md.
+  Dieselben Wege mit neuem opt-in-Modus rechnerisch9,24min; keine reale
+  Aktivierung oder Fahrt daraus durchgeführt. Alte langsame Pläne nur Vergleich.
+
+## Reale Aufnahmestellungen nach Stopptest05
+
+- Nutzer weist auf gerade abgeschlossenen Stopptest hin, berichtet eigene
+  frühere0,3rad/s-Fahrten und beauftragt erneut ausdrücklich die Aufnahmeposen.
+  Stopptest05 tatsächlich PASS; dessen langsamer RF-q6-Lauf bleibt von einer
+  allgemeinen0,3rad/s-Stoppqualifikation zu unterscheiden.
+- Aktuelle lesende Abfrage alle4RUNNING/NORMAL/PLAYING/Reverse verbunden.
+  Vorhandener Schutzdienst scharf mit hardware_right_front_stop_test.yaml,
+  RF nachTest gehalten/verriegelt. Vor neuer Fahrt aktuelle vollständige Wege
+  und separate Achsverträge prüfen; bestehenden Dienst übernehmen statt zweiten
+  Schutzpfad starten. Serielle Ausführung, keine Greiferaktion.

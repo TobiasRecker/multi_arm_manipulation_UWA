@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import tempfile
 import time
+from collections import deque
 import numpy as np
 from rclpy.action import ActionClient
 from rclpy.executors import SingleThreadedExecutor
@@ -13,7 +14,8 @@ from std_srvs.srv import Trigger
 from control_msgs.action import FollowJointTrajectory
 from controller_manager_msgs.srv import ListControllers,SwitchController,ListHardwareComponents
 from .node import MotionNode
-from .common import ROBOT_IDS,joint_names,dump
+from .common import ROBOT_IDS,joint_names,dump,joint_velocity_limits,SPEED_TOLERANCE
+from .state_alignment import aligned_driver
 from .execution import MotionClient,motion_context,_follow
 from .hardware_model import HardwareProblem
 from .hardware_state import require_domain,signature,Peer
@@ -27,6 +29,7 @@ class HardwareClient(MotionClient):
         self.problem,self.cfg,self.mode=problem,problem.cfg,mode;self.selected=list(selected);self.names=problem.names
         self.expected=signature(problem,mode);self.state_peer=Peer();self.guard_peer=Peer();self.supervisor_peer=Peer()
         self.guard=None;self.supervisor=None;self.records={};self.epochs={};self.driver={};self.state_received=-float('inf')
+        self.driver_history={};self.alignment_diagnostics={};self.driver_clock_offset=None
         self.guard_received=self.supervisor_received=self.received=self.source_advanced=-float('inf');self.stamp=-float('inf')
         self.positions={};self.velocities={};self.live_signature=None;self.minimum_clearance=float('inf')
         self.handles={};self.pending={};self.owned=set();self.clock_reversed=False
@@ -69,8 +72,18 @@ class HardwareClient(MotionClient):
         q=dict(zip(msg.name,msg.position));v=dict(zip(msg.name,msg.velocity));names=joint_names(rid)
         if all(j in q and j in v for j in names) and np.isfinite([q[j] for j in names]+[v[j] for j in names]).all():
             stamp=msg.header.stamp.sec+msg.header.stamp.nanosec/1e9;old=self.driver.get(rid)
-            advanced=time.monotonic() if old is None or stamp>old['stamp'] else old['advanced']
-            self.driver[rid]=dict(q=[q[j] for j in names],stamp=stamp,received=time.monotonic(),advanced=advanced)
+            now=time.monotonic();offset=time.time()-now;source=stamp-offset
+            if self.driver_clock_offset is not None and abs(offset-self.driver_clock_offset)>.02:self.clock_reversed=True
+            self.driver_clock_offset=offset
+            if old is not None and stamp<old['stamp']:self.clock_reversed=True
+            if not np.isfinite(source) or not -.02<=now-source<=self.cfg['state_timeout_s']:return
+            advanced=now if old is None or stamp>old['stamp'] else old['advanced']
+            values=[q[j] for j in names]
+            self.driver[rid]=dict(q=values,stamp=stamp,source_stamp=source,received=now,advanced=advanced)
+            if old is None or stamp>old['stamp']:
+                history=self.driver_history.setdefault(rid,deque(maxlen=2000))
+                if history and source<=history[-1][0]:self.clock_reversed=True
+                else:history.append((source,values))
     def health(self):
         for _ in range(20):self.spin_once(timeout_sec=0.)
         now=time.monotonic();timeout=self.cfg['state_timeout_s']
@@ -89,7 +102,25 @@ class HardwareClient(MotionClient):
                 if status['robot_mode']!=7 or status['runtime_state']!=2 or status['safety_mode'] not in (1,2):raise RuntimeError(rid+': native robot/program is not ready; no automatic power/brake/play')
             driver=self.driver.get(rid)
             if driver is None or max(now-driver['received'],now-driver['advanced'])>timeout:raise RuntimeError(rid+': driver JointStates unavailable/stale')
-            if np.max(abs(np.asarray(driver['q'])-self.records[rid]['q']))>.005:raise RuntimeError(rid+': driver cache differs from independent actual joints')
+            record=self.records[rid];until=time.monotonic()+.025;aligned=None
+            while True:
+                try:
+                    bounds=np.maximum(joint_velocity_limits(self.cfg,rid)*SPEED_TOLERANCE,abs(np.asarray(record['v'])))
+                    aligned=aligned_driver(self.driver_history.get(rid,()),record['source_stamp'],bounds,timeout)
+                    break
+                except ValueError as error:
+                    if time.monotonic()>=until:raise RuntimeError(rid+': '+str(error)) from error
+                    self.spin_once(timeout_sec=.001)
+            difference=abs(np.asarray(aligned['q'])-record['q'])
+            certified=difference+np.asarray(aligned['uncertainty_rad'])
+            self.alignment_diagnostics[rid]=dict(aligned,native_q=record['q'],
+                difference_rad=difference.tolist(),conservative_difference_rad=certified.tolist())
+            if np.max(certified)>.005:raise RuntimeError(rid+': time-aligned driver cache differs from independent actual joints')
+        now=time.monotonic()
+        if not self.state_peer.fresh(now,timeout) or any(max(now-r['received'],now-r['source_stamp'])>timeout for r in self.records.values()):
+            raise RuntimeError('HARDWARE STATE STALE after time alignment')
+        if not self.guard_peer.fresh(now,self.cfg['heartbeat_timeout_s']) or not self.supervisor_peer.fresh(now,self.cfg['heartbeat_timeout_s']):
+            raise RuntimeError('HARDWARE SUPERVISION LOST after time alignment')
     def connect(self,guard=True):
         self.wait(lambda:len(self.positions)==sum(map(len,self.names.values())) and self.guard is not None and self.supervisor is not None,timeout=15.)
         if guard:
@@ -183,6 +214,7 @@ def execute(plan,output,mode):
             if result['success']:result['stage']='COMPLETE'
         except BaseException as error:
             result['error']=str(error)
+            result['state_alignment']=dict(getattr(client,'alignment_diagnostics',{}))
             if client.owned:result['stop_result']=client.stop(client.owned)
         finally:
             result.update(guard_status=client.guard,supervisor_status=client.supervisor,total_wall_s=time.monotonic()-began,
