@@ -7,8 +7,8 @@
   Bericht docs/hardware_commissioning_2026-11-17.md. VierArmeabschließend
   verriegelt/stationär, kein automatischerKartonhub ausdiesemNachweis.
 
-- Status: **Übergabe/realer ROS-Greiferteilhub/Offline-Anfahrkandidat geprüft;
-  automatischer Realgriff noch offen**,2026-11-17(Australia/Perth).
+- Status: **erste reale RF-Anfahrt abgeschlossen; visueller Positionsabgleich
+  fehlgeschlagen, Kalibrierdiagnose aktiv; Realgriff weiterhin offen**,2026-11-17(Australia/Perth).
 - Nutzerauftrag: bestehenden Zweiarm-Kartonablauf zuerst deutlich langsamer
   real testen. Jetzt alles vorbereiten; Nutzer startet URs erst auf Bereitschaft.
   Bis16.11.ausschließlichlesend; nachÜbergabe17.11.vierexpliziteROS-
@@ -159,3 +159,60 @@
   Armgrenzenje.003, volle40mmReserve/1sStopplatenz/.2Bremsung/.2Frischebleiben.
   NurunbeladeneEinzelphasen; Loadedbackendweiteroffen. Hohe150mmVorposition
   mit11:40OAK63Inlier/2,853px/1,798degalsGeometriekandidat, nochkeinRealflug.
+- ZweiterDiagnostikreloadmitFristfixausgeführt, alle4ProgrammeperPLAYwiederher-
+  gestellt. Frischer12:39Outputcheck: alle4RUNNING/NORMAL/runtime2/stationär.
+  VollständigesMotiontestverzeichnis**212PASS**, eigeneTaskvorbereitung35PASS.
+- ZusätzlicheClientSTOP-Korrektur: neueleereStopPort-RPC-Cachesdürfennicht
+  bekanntefrischeSupervisorHoldsüberschreiben. Clientbestätigtbewaffnete/
+  Witness-/Hardware-/Manager-/Konfig-/Hold-/Latch-EvidenzderbestehendenInstanz;
+  beiVerlustsofortNativeFallback, beiunbestätigtemHaltweitermax1s.98gezielte
+  Stop-/Guard-/Limits-/PlanungstestsPASS; keinfrischerLocalPortzwangsstopptmehr
+  einbereitsgehaltenesgesundesProgramm. PhysischerStillstandgetrenntbestätigen.
+- Kamerakoordinatenfehlerentdeckt: eingefroreneOAKWorldposehingamanominalen
+  RF-Anchorx.45, aktuellerModellanchor.4955. Task-lokaleReexpressionderalten
+  vorläufigenT_anchor_oak ergibt+45,5mmWeltX; keinephysischeNeukalibrierung,
+  keineglobaleKameraprofiländerung. AltemAbsoluteWorldPoseistkeinFahrzielmehr.
+  Modulhardware_registration.py/3Tests; actualRunnerverlangtpassendenaktuellen
+  Anchorbezug. AnnahmeunveränderterphysischerKamera/Basisrelationbleibtvorläufig.
+- Aktueller**nurRF**-GeometriekandidatmitkorrigiertemBezug/150mmVorposition:
+  setup/tasks/carton_hardware_rf_envelope_20261117_02/, Overlayvisuellgeprüft;
+  frisches12:39FotobestätigtKarton/keineHändeinArbeitsfläche. Dryrun02PASS,
+  nom196,13sbeiKommando.015/MonitorRF.03, andereArmeje.003. Stopreservenfür
+  RF-Nachbarpaarejetzt266mmstatt79mm, vollständigerWegbestehtneueReserven.
+  Historischer Stand vor der unten dokumentierten echten RF-Anfahrt. agent-review.jsongilt**nurfourunloadedhighpregrasp**,
+  keinKontakt/Greiferziel/Hub. RealeAnfahrtmitunabhängigem20HzObservergeplant.
+
+
+## Erste reale RF-Anfahrt und visueller Prüfhalt,17.11.
+
+- Nutzer erlaubt für diesen Kartontest explizit die unbeladenen Profilwechsel
+  einschließlich kurzer STOP/Wiederverbindung aller vier UR-Programme. RF-Profil
+  `carton_hardware_unloaded_rf.yaml` aktiv: Kommando0,015rad/s, RF-Monitor0,03,
+  andereArme0,003; volle Abstands-/Frische-/Stoppreserven erhalten.
+- RF allein erreicht die geprüfte150mm-Vorposition, andere3gehalten. Ergebnis
+  `setup/tasks/carton_hardware_rf_approach_20261117_01/result.json`: SUCCESS,
+  AT_HIGH_PREGRASP_HELD_NO_CONTACT, Halt/Softwarelatch und unabhängiges strenges
+  Ruhefenster bestätigt.4250nativeSamples/212,448s, max0,0169364rad/s,
+  maximale Bahnabweichung0,000133567rad; keine unnötigen NativeSTOPs.
+- Foto13:02 (`20261117-130240-standard-ddd114fb`) zeigt deutlichen seitlichen
+  Versatz zum Karton. Gelenkziel erreicht bedeutet hier **keine bestandene
+  Greifausrichtung**. Kein RR-Ziel, Absenken, Schließen oder Hub ausgeführt.
+  Greifer weiteroffen/MONITOR ONLY; alleArmegehalten, Programme später lesend
+  alleRUNNING/NORMAL/PLAYING/Reverseverbunden bestätigt.
+- Tischboard-basierte Diagnose schätzt gegenüber der historischen, nur am
+  Modellanker nachgeführten OAK-Registrierung etwa6,29° Rotationsabweichung.
+  RF-boardbasierte Projektion passt sichtbar besser zur realen RF-Geometrie.
+ 24Ecken/16Fit/8Check, Fit1,185px, heldout2,087px **besteht1px-Grenze nicht**;
+  keine Kalibrierung aktiviert. Historische RF-Handeye ebenfalls failed/accepted
+  preliminary; RR-Handeye bestanden. Mit beiden historischen Boardfits
+  ergeben sich etwa54mm Unterschied im Kamera-WeltY, vermutlich nominale
+  Front/Rear-Basislage mitbetroffen; Ursache noch nicht unabhängig bestätigt.
+- Diagnose/Overlay unter RF-Lauf `board-alignment/`. Keine stille globale
+  Kamera-/Basisverschiebung oder ad-hoc Zielkorrektur. Nächster Schritt: natives
+  RF-Wristfoto aus gehaltenem Stand, Board/Handeye unabhängig vergleichen;
+  konsistente gemeinsame rechte Referenz und Kollisionsgeometrie vor Kontakt.
+- Client-STOP zusätzlich gegen fehlschlagende ROS-Spin-/Observer-Callbacks
+  abgesichert: bestehende Supervisor-Holds bevorzugt, bei unbestätigtem Halt
+  bounded nativer Vierarm-STOP-Fallback vor Prozessende.38gezielteTestsPASS,
+  Log carton-hardware-stop-fallback-regression-20261117.log. Kein physischer
+  geladener Stopp- oder Kraftnachweis dadurch erbracht.

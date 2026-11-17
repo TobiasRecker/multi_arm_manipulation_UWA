@@ -2,6 +2,7 @@
 """Read-only bounded hardware protection trace: transitions plus1Hz snapshots."""
 import argparse
 import json
+import os
 from pathlib import Path
 import time
 
@@ -16,6 +17,8 @@ def transition_key(value):
            for r,p in value.get('ports',{}).items()}
     return json.dumps(dict(state=value.get('state'), instance=value.get('instance'),
         blocked=value.get('blocked_arms'),held=value.get('held_arms'),
+        stationary_arms=value.get('stationary_arms'),
+        stationarity={r:(e.get('confirmed'),e.get('reason')) for r,e in value.get('stationarity_evidence',{}).items()},
         faults=value.get('faults'),causes=value.get('latched_causes'),
         witness=value.get('witness_available'),tripped=value.get('tripped'),ports=ports),sort_keys=True)
 
@@ -27,7 +30,7 @@ def main():
     args=p.parse_args();require_domain('hardware')
     if not 1<=args.seconds<=3600:p.error('Bounded1–3600s trace required')
     args.output.mkdir(parents=True,exist_ok=False)
-    rclpy.init();node=rclpy.create_node('carton_interlock_trace')
+    rclpy.init();node=rclpy.create_node('carton_interlock_trace_'+str(os.getpid()))
     old={};written={};counts={};latest={};maximum_age={};start=time.monotonic()
     with (args.output/'trace.jsonl').open('w') as stream:
         def receive(message,topic):

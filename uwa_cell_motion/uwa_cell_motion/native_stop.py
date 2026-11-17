@@ -35,7 +35,13 @@ def dashboard_stop(profile):
 
 
 def stop_all(inventory,mode):
-    require_domain(mode);robots=yaml.safe_load(Path(inventory).read_text())['robots'];targets={};result={}
+    robots=yaml.safe_load(Path(inventory).read_text())['robots']
+    return stop_profiles(robots,mode)
+
+
+def stop_profiles(robots,mode):
+    """Bounded parallel native STOP for an explicit subset; independent of ROS."""
+    require_domain(mode);targets={};result={}
     for rid,profile in robots.items():
         try:
             ipaddress.IPv4Address(profile['ip']);port=profile.get('dashboard_port',29999)

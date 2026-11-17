@@ -13,8 +13,9 @@ def curve(segment):
 
 def curve_bounds(segment):
     """Conservative derivative bounds via local power-to-Bernstein coefficients."""
-    sp=curve(segment);result=np.zeros((3,6))
-    for joint in range(6):
+    sp=curve(segment);dimension=np.asarray(segment['positions']).shape[1]
+    result=np.zeros((3,dimension))
+    for joint in range(dimension):
         pp=PPoly.from_spline((sp.t,sp.c[:,joint],sp.k))
         for derivative in range(1,4):
             polynomial=pp.derivative(derivative)

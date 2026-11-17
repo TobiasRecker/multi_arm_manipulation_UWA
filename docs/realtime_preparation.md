@@ -1,7 +1,9 @@
 # Vorbereitung: Echtzeitkernel, schnellere Prüfung und Reaktionsmessung
 
-Stand 2026-11-17. Auftrag ist **Vorbereitung**, keine Kernelinstallation,
-kein Neustart, keine Änderung laufender Hardwarewächter und kein Bremsversuch.
+Stand 2026-11-17. Zunächst nur vorbereitet; im Folgeauftrag ausdrücklich
+Kernelinstallation und UR-Treiber-Echtzeitrechte beauftragt und abgeschlossen.
+**Neustart wartet auf den Nutzer.** Keine laufenden UR-Treiber neu gestartet,
+keine Hardwarewächter-/Bewegungsgrenzen geändert, kein Bremsversuch.
 
 ## Befund auf ROSmini
 
@@ -18,7 +20,7 @@ Wecktest im normalen Scheduler hatte bei2msPeriode p99≈437µs, max≈2836µs,
 5 übersprungene Termine. Das ist **kein cyclictest**, keine garantierte Grenze
 und kein gemessener UR-Reaktionswert.
 
-## Konkreter Umstellungsplan (noch nicht ausgeführt)
+## Ursprünglicher Umstellungsplan (Installation/Rechte inzwischen erledigt)
 
 1. Gemeinsame Workstation freigeben, Roboterbetrieb vorher geordnet beenden;
    Boot-/Treiberkompatibilität (DKMS, Secure Boot) prüfen. Aktuellen generischen
@@ -162,3 +164,41 @@ keineRobot-/Service-/Actionkommandos; synthetische3ms sind keinHardwaremesswert.
 Kettenauswertung an synthetischen Zeiten inklusive Fehlerfällen geprüft.
 KeineKernel-/System-/Dienständerung, keineechteBewegung oder Hardwaremessung.
 Logs: `setup/logs/uwa-realtime-prep-*`, Artefakte wie oben.
+
+## Installation abgeschlossen, Neustart ausstehend (2026-11-17)
+
+Installiert: ubuntu-realtime1.1.3, linux-realtime7.0.0-43.43.1,
+linux-image-7.0.0-43-realtime, rt-tests2.9-1ubuntu1. APT ohne Fehler beendet,
+dpkg-Audit leer. `CONFIG_PREEMPT_RT=y`; Initrd vorhanden, GRUB-SyntaxprüfungPASS.
+Das Paket setzt `GRUB_FLAVOUR_ORDER="realtime"`; bei `GRUB_DEFAULT=0` verweist
+der normale Ubuntu-Eintrag auf7.0.0-43-realtime. Generic43 und42 bleiben als
+Rückfall erhalten. SecureBoot ist aktiv; sbverify zeigt für RT und laufenden
+Generic dieselbe Canonical-Secure-Boot-Signing2022v1-Zertifikatskette. Tatsächlicher
+RT-Boot/Secure-Boot-Startnachweis erstnachNeustart möglich.
+
+Installierte Konfiguration (nur Ressourcenrechte, keine FIFO-Policy erzwungen):
+
+- `/etc/security/limits.d/99-uwa-realtime.conf`: rosmatch rtprio99,
+  memlock unlimited, soft/hard.
+- `/etc/systemd/system/user@1000.service.d/50-uwa-realtime.conf`:
+  Benutzer-Manager erbt nach seinem nächsten Start RTPRIO99/MEMLOCK infinity.
+- Je `/etc/systemd/user/uwa-ur-driver-{left-front,left-rear,right-front,right-rear}.service.d/50-uwa-realtime.conf`:
+  gleiche Rechte für die vier UR-Treiberdienste. Keine pauschale RT-Priorität
+  für GUI/Python-Wächter und keine anderen Benutzer geändert.
+
+System-/Benutzer-Daemonkonfiguration neu eingelesen, aber kein Dienstneustart.
+Frischer harmloser PAM-Test:rtprio(99,99),memlock(-1,-1)PASS. Alle vier vorhandenen
+ros2_control_node-PIDs13780/14185/14464/14787 unverändert mit bisherigen
+Prozessgrenzen0/8MiB, wie beabsichtigt. Neue Rechte für diese Treiber erst beim
+nächsten Start; Usermanager jetzt nicht neu starten, da andere Arbeit läuft.
+
+Prüfdateien, APT-Logs, Ausgangssicherung und genaues Dateimanifest:
+`setup/realtime/installation-20261117/`. `verification.json` enthält Bootziel,
+Kernel-/Paket-/Signaturprüfungen; `limits-installed.json` die sechs neu angelegten
+Konfigurationsdateien. Keine automatische Rücknahme/Neustartaktion angelegt.
+
+Nach Nutzerfreigabe für den Neustart: zuerst laufende Zellarbeit abstimmen und
+geordnet beenden. Danach Kernel (`uname -r`, `/sys/kernel/realtime`), tatsächliche
+Prozesslimits und Thread-Scheduling der frisch gestarteten UR-Treiber prüfen;
+erst anschließend die dokumentierten Latenztests durchführen. Ein Paket-/Rechte-
+Nachweis ist noch keine gemessene Reaktionszeit oder Bremsqualifikation.

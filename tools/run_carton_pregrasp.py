@@ -25,6 +25,18 @@ from uwa_cell_motion.single_execution import follow
 from uwa_cell_motion.hardware_state import require_domain
 from uwa_cell_gripper_control.client import GripperClient
 from uwa_cell_gazebo.charuco_views import Chain
+from hardware_stop_probe import Observer,quiet_window
+
+
+class ApproachClient(HardwareClient):
+    def __init__(self,problem,arm,observer):
+        self.observer=observer
+        super().__init__(problem,'hardware',[arm])
+    def spin_once(self,timeout_sec=.01):
+        super().spin_once(timeout_sec=timeout_sec)
+        rows=self.observer.snapshot()
+        if self.observer.error or not rows or time.monotonic()-rows[-1]['received']>.2:
+            raise RuntimeError('Independent native approach trace stale/failed: '+str(self.observer.error))
 
 
 def main():
@@ -41,6 +53,12 @@ def main():
     root = args.output.resolve(); root.mkdir(parents=True, exist_ok=False)
     problem = checked_problem(root/'model', args.evidence, args.inventory, command_velocity=args.command_velocity)
     evidence = problem.pregrasp_evidence; path = evidence['path']; expected = dict(evidence['saved_start'])
+    binding=json.loads(Path(evidence['inputs']['object_pose']['path']).read_text())
+    anchor=Chain(problem.original_description,'world','right_front_base_link').forward({})
+    if ('T_world_anchor_current' not in binding or
+        not np.allclose(binding['T_world_anchor_current'],anchor,atol=1e-9,rtol=0) or
+        not np.allclose(binding['T_world_object_candidate'],evidence['world_object_candidate'],atol=1e-9,rtol=0)):
+        raise ValueError('Object pose must explicitly use the current right-front model anchor; old frozen world pose is not an execution target')
     if path['kind'] not in ('serial_direct','simultaneous_direct'):
         raise ValueError('Expected direct pregrasp endpoint evidence')
     selected=[args.arm] if args.arm else ['right_front','right_rear']
@@ -86,8 +104,14 @@ def main():
     require_domain('hardware')
     with motion_context():
         for index, segment in enumerate(report['segments']):
-            arm = segment['arm']; client = HardwareClient(problem, 'hardware', [arm])
+            arm = segment['arm'];client=None;observer=None
             try:
+                observer=Observer(problem.profiles[arm]['ip'])
+                end=time.monotonic()+2.
+                while not observer.snapshot():
+                    if observer.error or time.monotonic()>end:raise RuntimeError('Independent native observer unavailable')
+                    time.sleep(.01)
+                client=ApproachClient(problem,arm,observer)
                 report['phase'] = 'UNLOADED_CHECK_'+arm; save(); client.connect()
                 for r in ROBOT_IDS:
                     with GripperClient(r) as gripper: status = gripper.status()
@@ -129,13 +153,21 @@ def main():
                     raise RuntimeError(arm+': final hold unconfirmed')
                 client.wait(lambda:arm in client.guard.get('stationary_arms',[]), timeout=3., health=True)
                 segment['standstill_confirmed_by_guard'] = True
+                client.wait(lambda:quiet_window([r for r in observer.snapshot() if r['received']>=time.monotonic()-.55]),
+                            timeout=5.,health=True)
+                segment['independent_quiet_window_confirmed']=True
                 segment['final_positions'] = dict(client.positions)
                 segment['executed'] = True; dump(root/(arm+'-execution.json'), execution); save()
             except BaseException as error:
                 report['error'] = str(error); report['phase'] = 'STOPPED_'+arm
-                if client.owned: report['stop_result'] = client.stop(client.owned)
+                if client is not None and client.owned: report['stop_result'] = client.stop(client.owned)
                 save(); return 1
-            finally:client.destroy_node()
+            finally:
+                if observer is not None:
+                    observer.close();native=root/(arm+'-native.json')
+                    dump(native,dict(records=observer.snapshot(),error=observer.error))
+                    segment['native_trace']=str(native);save()
+                if client is not None:client.destroy_node()
         report.update(success=True, phase='AT_HIGH_PREGRASP_HELD_NO_CONTACT'); save()
     return 0
 

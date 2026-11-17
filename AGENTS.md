@@ -60,8 +60,24 @@
   Literatur/Offlineplanung; keine neue reale oder Kontaktphysik-Ausführung.
   Parallelrobotermodell prüfen. Bei starren Griffen gemeinsame Objektbahn und
   gemeinsames Zeitgesetz; Einzelarmglättung/-wartezeiten danach nicht übertragen.
-  Bewegte Basen bleiben spätere zusätzliche Planungsvariablen. Hubhöhe, Richtung
-  der20cm, zulässige Neigung/Objektinhalt sind noch keine festgelegten Parameter.
+  Bewegte Basen bleiben spätere zusätzliche Planungsvariablen. Für den ersten
+  Offlineversuch Richtung laut Nutzer anhand Erreichbarkeit wählen; Versuchs-
+  annahmen10cm Hub, waagerechter Karton,±15°Yaw. Keine allgemeine Freigabe
+  dieser Parameter für andere Objekte oder physische Transporte ableiten.
+- Präzisierung17.11.: Nutzer bestätigt insbesondere die fünf Schritte der
+  Objektbahnplanung; lernende Verfahren vorerst zurückstellen. Deterministische
+  Gradienten/Suchrichtungen für Objektrotation und Positionskorrektur bevorzugt.
+  Gemeinsame Jacobikinematik und Singularitätsbewertung untersuchen; TSR als
+  passende Constraintbeschreibung berücksichtigen, nicht als Gradientoptimierer
+  ausgeben. Keine qualifizierten Singularitätsschwellen aus Einzelproben ableiten.
+- Offline-Objekttransport17.11.: zuerst unverändertes Idealprofil prüfen;
+  bereits ausreichende Bahn nicht allein zur Demonstration verändern. Getrennte
+  Zusatzabstandsversuche klar als solche kennzeichnen. Um Kartonmittelpunkt
+  rotieren, nicht um STL-Eckursprung. Alle24Gelenke gemeinsam zeitparametrieren
+  und tatsächliche Interpolanten auf feste Grifftransformationen prüfen.
+  Bewegtes Objekt in Kollisionsszene aktualisieren, keinen festen Kartonrest
+  oder pauschale Objekt-/Tisch-/Greiferausnahmen übernehmen. Numerisch erfüllte
+  Griffzwänge bei offenen Fingern sind kein Kontakt-/Tragfähigkeitsnachweis.
 - Bei variabler Basislage alle potenziell kollidierenden Paare berücksichtigen;
   die bisherige feste Vier-Nachbarpaar-Auswahl nicht ungeprüft übertragen.
   Kollisionsprüfung, globale Planung, zeitliche Koordination und lokale
@@ -137,6 +153,12 @@
   Greiferdienst wiederverwenden, keinezweitenSocketwriter/Adapter. Leerfahrt
   istkeinN-/mm-/Loadedstopnachweis. TransportfreierObjektreferenzkern und
   Offline-Pregraspweg ersetzenkeinengekoppeltenHardware-Kommandopfad.
+- Nutzerfreigabe17.11. für diesen konkreten Karton-Realtest: Schutzprofile für
+  unbeladene Anfahrten wechseln, einschließlich kurzer Programmstopps aller4URs
+  und anschließender Wiederverbindung unterHolds. Erster geprüfterSchrittRF
+  mitKommando.015rad/s/Monitor.03,150mmVorposition, andereArmegehalten.
+  JeweilsneueModell-/Stoppreserveprüfung; keineallgemeineHardwarefreigabe oder
+  automatischeWiederaufnahmebeladenerFehlversuche daraus ableiten.
 
 - Neuer Auftrag16.11.: langsamen Realtest des Zweiarm-Kartongriffs vorbereiten;
   Nutzer startet URs erst auf Bereitschaft. Während Vorbereitung keine Power-,
@@ -915,3 +937,10 @@
   RealstoppalleinausVorbereitung. Simulation10–100Hzexplizitparametriert,
   Default10Hz; Hardwareprofilegetrenntlassen.350ms/2rad/s²warenSimannahmen,
   realesCommissioningaktuell1300ms/0,2rad/s². KeineACK-/TopiclatenzalsBremszeit.
+
+- RT-Folgeauftrag17.11.: KernelinstallationundUR-Echtzeitrechteausdrücklich
+  erlaubtundabgeschlossen; NeustartnachNutzeransage, nichtautomatisch.
+  InstallierterRT7.0.0-43-realtimewirdStandardboot, Generic43/42alsFallback.
+  BenutzerspezifischePAM-/user@1000-/UR-Dienstlimits99/unlimitedbereit,
+  laufendeTreibernichtneu gestartet. NachBoot tatsächlicheLimits/Scheduling
+  prüfen, keinenLatenz-/BremsnachweisalleinausInstallationableiten.

@@ -1,5 +1,114 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Realer Kartontest: RF-Anfahrt bestanden, Bildabgleich fehlgeschlagen,2026-11-17
+
+- Nach ausdrücklicher Freigabe unbeladener Schutzprofilwechsel RF allein mit
+  Kommando0,015rad/s/Monitor0,03 in geprüfte150mm-Vorposition gefahren. Andere3
+  gehalten; abschließend RF-Hold/Latch und unabhängige Ruhe bestätigt.4250native
+  Samples/212,448s, Istmaximum0,0169364rad/s, Bahnabweichung0,000133567rad.
+- Frisches OAK-Foto zeigt deutlichen seitlichen Kartonversatz. Kein Absenken,
+  RR-Ziel, Greifen oder Hub; Greifer offen/MONITOR ONLY, alleArmegehalten.
+  Tischboarddiagnose erklärt plausibel etwa6,29° Fehler der vorläufigen alten
+  Kameraregistrierung. Heldout2,087px besteht1px-Kriterium nicht; keine neue
+  Kalibrierung aktiviert. Beide historischen rechten Boardfits widersprechen
+  nominalen Front/Rear-Basen um etwa54mm. Unabhängige Wrist-Prüfung aktiv.
+- Reale Quelle: setup/tasks/carton_hardware_rf_approach_20261117_01/, Details
+  work/carton-hardware-commissioning.md. Alte Anfahrtstartzustände überholt;
+  nächste Planung muss von tatsächlicher angefahrener RF-Stellung ausgehen.
+  Transportfreier Objektmaster ist weiterhin kein gekoppelter Hardwareexecutor.
+
+
+## Vierarm-Objekttransport mit Yaw-Gradienten, 2026-11-17
+
+- Nutzer beauftragt Umsetzung und wählt Richtung anhand Erreichbarkeit.
+  Aus letzter Seitenmitten-Endstellung hypothetisch feste FK-Grifftransformationen;
+ 10cm Hub,20cm Versatz, waagerecht,±15°Yaw als erster Versuchsrahmen.
+  Welt−X besteht kontinuierliche IK und Geometrieprüfung;±Y/+X scheitern an
+  dieser IK-Fortsetzung. Keine globale Nichterreichbarkeit anderer Richtungen.
+- Neue Offlinewerkzeuge `tools/plan_object_transport.py`,
+  `tools/verify_object_transport.py`, Modul `object_transport.py`; Anleitung
+  `docs/offline_object_transport.md`. Gemeinsam24Gelenke,3C3-Phasen mit Halt
+  an den Profilknicken. `smooth_paths.curve_bounds` auf beliebige Gelenkzahl
+  erweitert; Regression prüft ausdrücklich limitierenden24.Gelenkkanal.
+- Endartefakt `setup/research/offline-object-transport-20261117/final/`:
+  Idealprofil17,532s, minArmabstand32,676mm, Yaw0°, minskalierteArm-σ0,08878.
+  Bereits gültig, deshalb unverändert. Getrennter Zusatzversuch fordert
+ 20+40sin²(πs)mm:19SLSQP-Iterationen mit analytischen Paargradienten,
+  maxYaw6,017°,15,332s, minAbstand31,321mm, minArm-σ0,13015;
+  verbleibender Abstand über variabler Forderung mindestens0,499mm.
+  Mittelpunktbahn/Endpose unverändert; der global kleinste Abstand ist kein
+  geeignetes Maß für diese entlang des Weges unterschiedliche Zusatzforderung.
+- Beide tatsächlichen Interpolanten geprüft in≤5ms/3510bzw3070Samples:
+  bewegtes Kartonmesh gegen vorhandene FCL-Geometrie, Selbst-/Umweltkollision,
+  alle6Arm-Hüllpaare, Gelenkgrenzen und starreTCP-Offsets PASS.
+  Numerischer Griffschlussfehler≤2,47e−9m/1,50e−11rad; keine physische Genauigkeit.
+  Analytischev/a/j-Grenzen Ideal≤0,275/0,400/1,210 undYaw≤0,294/0,400/1,556
+  (rad/s,rad/s²,rad/s³), zusätzlich dichte Ableitungsauswertung.
+- Unabhängige finiteDifferenzen an Start/Mitte/Ende beider Fälle: maxK-Fehler
+ 2,63e−9, maxAbstandsgradientfehler1,97e−9. Absichtlich20mm abgesenkter
+  Karton wird als Tischkollision erkannt; Rücksetzen wieder frei. Unveränderte
+  Bahn verletzt Zusatzforderung an97/241Samples. Frühere61-Punkt-Optimierung
+  ohnePuffer scheitert feinerPrüfung; negatives `optimization-0.04.json` bleibt.
+  Final121Optimierungspunkte und0,5mmPuffer, danach unabhängiges Zeitraster.
+- Lyrical-Paketbuild und35Tests in5gezielten CTest-Suiten PASS. HTML-Browserprüfung28Checks
+  PASS, kontrollierterScreenshot; Viewer beider Varianten mitPlay/Pause/Slider,
+  Echtzeit, Orbit/Zoom, Abstands-/Yaw-Kurven. Logs `setup/logs/uwa-object-transport-*`.
+- Grenzen: offeneFinger/hypothetischeGriffe, festeBasen, nominal3mmTischspalt,
+  kein tatsächliches Absetzen/Tragen/Last-/Kraftnachweis, keineROS-/Hardwareaktion.
+  AlteStoppreservediagnostik bei allenSamples überschritten; getrennt sichtbar,
+  nichtgeometrischeKollision. DiskretePrüfung, keine kontinuierlicheGarantie.
+  Skalierte Einzelarm-σ sind heuristischeKinematikindikatoren, keine umfassende
+  Parallelroboter-/Lastsingularitätsqualifikation. Translation/IK-Zweigwechsel
+  nochkeineOptimierungsvariablen; Umwelt/Objekt/Singularität nurAbnahmekriterien,
+  derzeit nurArm-Paarabstände differenzierbareOptimierungsconstraints.
+
+## Objekt-Jacobimatrix und Abstandsgradienten, 2026-11-17
+
+- Nutzer bestätigt Objektbahnplan/erste5Schritte, stellt lernende Verfahren
+  zurück und fragt nach gezielten Gradienten/Singularitätsüberwachung. Konzept
+  präzisiert: J_i qdot_i=A_i V_O, bei regulären6R-Armen K=stack(solve(J_i,A_i))
+  als24×6Objekt→Gelenk-Abbildung. Für Armkörperabstand grad_X d=K^T grad_q d.
+  Singularität über skalierte Einzelarm-Jacobians, Richtungsverstärkung und
+  vollständige Kettenbedingungen betrachten; beliebige24D-Nullraumbewegung unzulässig.
+- Geometriecode SphereModel.jacobians liefert bereits analytische Punkt-Jacobians.
+  Kleiner Offlineprobe an letzter Vierarm-Seitenendstellung: hypothetisch feste
+  TCP-Offsets aus FK, Weltrotation um Kartonmittelpunkt, alle6Paargradienten.
+  Analytische Kettenregel gegen zentraleIK-Differenzen bei1e−4/1e−5 geprüft:
+  maxGradientfehler1,60e−9/3,11e−11, maxK-Fehler2,17e−7/2,23e−9;
+  keine wechselnden nächstgelegenen Kugelpaare in diesen Stencils. PASS.
+- +1°Welt-Z-Rotation: rechtesPaar Abstand etwa66,0→62,6mm, prognostizierte
+  Änderung−3,388mm, erneutberechnet−3,380mm. Lokale Sensitivität, keine
+  kollisionsgeprüfte Objekt-/Tischbewegung. Fest amObjekt gekoppelte Greifer-
+  Teilkörperabstände sind invariant (Gradient≈0); das ist kein Solverfehler.
+- CharakteristischeLänge0,5m nur zurEinheiten-Normierung: skalierte minSingulär-
+  werteLF/LR/RF/RR0,300/0,284/0,297/0,351; keine physische Schwellenqualifikation.
+  DifferenzielleConstraintmatrix24×30 hat Rang24 in dieserProbe.
+- Artefakte setup/research/offline-object-gradients-20261117/{probe.py,result.json},
+  Log setup/logs/uwa-object-gradients-20261117.txt. KeineROS-/Hardwareaktion,
+  zu diesem Zeitpunkt nochkeinVierarmtransport (nunobenimplementiert). Survey umGradienten, SQP/Trust-Region,
+  TSR-Abgrenzung undTrajOpt-Primärquelle ergänzt.
+
+## RT-Kernel installiert / Neustart wartet auf Nutzer,2026-11-17
+
+- ExpliziterFolgeauftrag:KernelinstallierenundUR-Echtzeitrechteeinrichten;
+  NutzerkündigtNeustartbereitschaftspäteran. InstallationerfolgreichohneReboot,
+  ohneTreiberneustart/Robotkommandos. LaufenderKernelweiter7.0.0-43-generic.
+- Ubuntu-Realtime1.1.3/linux-realtime7.0.0-43.43.1/rt-tests2.9-1ubuntu1
+  installiert. PREEMPT_RT=y,Initrd/GRUB-PrüfungPASS, normalesUbuntu-Bootziel
+  jetzt7.0.0-43-realtime durchPaket-Flavourorder; Generic43/42erhalten.
+  SecureBootaktiv, RTundGenericgleicheCanonicalSigning2022v1-Kette;
+  tatsächlicherBootnachweisweiterausstehend. dpkgAuditohneBeanstandung.
+- PAMDatei99-uwa-realtime.confbenutzerspezifischrosmatchrtprio99/memlockunlimited.
+  Systemmanagerdropinuser@1000.serviceundvierUR-TreiberdropinsmitgleichenLimits
+  persistentinstalliert, DaemonreloadohneRestarts. FrischePAM-Sitzung99/unlimited
+  geprüft. LaufendevierUR-ProzessePIDs13780/14185/14464/14787unverändertmitalten
+  Limits0/8MiB; volleWirksamkeitnachNeustart/erneutemTreiberstartprüfen.
+- KeineFIFO-PolicyfürkomplettePython-/GUI-Prozesse, keineFrische-/Brems-/Rate-
+  ÄnderungandenrealenWächtern. ParalleleHardwarequelländerungenerhalten.
+- Logs/Backup/Manifest/Verification:setup/realtime/installation-20261117/;
+  vollständigeBedienung/Rückfall/Nachstartprüfungdocs/realtime_preparation.md.
+  **KeinNeustartbisNutzerbereit.**
+
 ## Konzept für vierarmigen starren Transport, 2026-11-17
 
 - Neuer Nutzerwunsch: nach Griff ohne Loslassen20cm seitlich umsetzen; minimale

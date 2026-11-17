@@ -1,5 +1,14 @@
 # Preparing the first real carton test
 
+**17 November update:** the first unloaded right-front approach completed at
+0.015rad/s command speed, followed by a confirmed hold. The fresh OAK image
+failed the carton-alignment review. All arms remain held, grippers open in
+monitor mode; no descent, rear approach, grasp or lift was attempted. Board
+diagnostics suggest a roughly6.3degree error in the preliminary camera reference;
+no replacement calibration has been activated. See
+[the current commissioning record](../work/carton-hardware-commissioning.md).
+Earlier statements below that no arm target was sent are historical.
+
 For agent-facing gripper commands, use the shared four-arm
 [ROS gripper API](gripper_ros_api.md): persistent service, named actions,
 Python/CLI helpers and explicit units. The earlier two-arm raw adapter below

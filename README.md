@@ -594,6 +594,13 @@ assigns one of each UR's two nearest walls, reaches all four targets in12.75s,
 and passes a denser5ms sampled geometry check with53.7mm minimum arm gap.
 Stopping reserves remain separate diagnostics; no physical grasp is performed.
 
+The [four-arm object transport experiment](docs/offline_object_transport.md)
+continues from that side-grasp configuration with fixed object-to-TCP transforms:
+10cm lift,20cm world−X translation, lowering. The ideal path takes17.53s.
+A separate gradient-based yaw experiment meets a larger mid-path clearance
+demand with6.02° maximum rotation and the same centre path. Both use one shared
+24-joint time law and pass sampled5ms checks; grips remain hypothetical.
+
 Select `/uwa_cell/controller_manager` and one of the four trajectory
 controllers in the **rqt Joint Trajectory Controller** window. Enable control
 and adjust joint targets conservatively. This is direct joint control, not

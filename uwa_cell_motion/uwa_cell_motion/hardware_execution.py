@@ -18,6 +18,7 @@ from .execution import MotionClient,motion_context,_follow
 from .hardware_model import HardwareProblem
 from .hardware_state import require_domain,signature,Peer
 from .hardware_ports import StopPort,HOLD,unsafe_controllers,matching_hardware
+from .native_stop import stop_profiles
 
 
 class HardwareClient(MotionClient):
@@ -126,18 +127,41 @@ class HardwareClient(MotionClient):
     def hold_idle_tools(self):return []  # tools are unobserved; no gripper command is sent
     def stop(self,arms):
         arms=set(arms);requests=[];errors=[]
-        for rid in arms:
-            if rid in self.handles and self.handles[rid].accepted:self.handles[rid].cancel_goal_async()
-            client=self.stop_clients[rid]
-            if client.service_is_ready():requests.append(client.call_async(Trigger.Request()))
-        ports={r:StopPort(self,self.problem.profiles[r],self.cfg,self.mode) for r in arms};end=time.monotonic()+2.;held=set()
-        while time.monotonic()<end:
-            self.spin_once(timeout_sec=.01);held={r for r,p in ports.items() if p.tick(True,True)['held']}
-            if held==arms and all(f.done() for f in requests):break
-        ack=len(requests)==len(arms) and all(f.done() and f.result() is not None and f.result().success for f in requests)
-        for rid,p in ports.items():
-            if rid not in held:p.native_stop();errors.append(rid+': resource hold unconfirmed; native STOP requested')
-        return dict(resource_holds_confirmed=held==arms,latches_confirmed=ack,errors=errors)
+        # Reuse the supervisor's already verified live ports. A brand-new local
+        # StopPort has no RPC evidence on its first tick and would immediately
+        # STOP each native program even when the real hold is already healthy.
+        end=time.monotonic()+self.cfg['stop_latency_s'];held=set();latched=set();trusted=False
+        try:
+            for rid in arms:
+                if rid in self.handles and self.handles[rid].accepted:self.handles[rid].cancel_goal_async()
+                client=self.stop_clients[rid]
+                if client.service_is_ready():requests.append(client.call_async(Trigger.Request()))
+            while time.monotonic()<end:
+                self.spin_once(timeout_sec=.01);now=time.monotonic()
+                fresh=self.supervisor is not None and self.supervisor_peer.fresh(now,self.cfg['heartbeat_timeout_s'])
+                ports={} if not fresh else self.supervisor.get('ports',{})
+                trusted=fresh and self.supervisor.get('armed') is True and self.supervisor.get('witness_available') is True and all(all(ports.get(r,{}).get(k) is True for k in
+                    ('manager_fresh','hardware_mode_verified','hold_config_verified')) for r in arms)
+                if not trusted:break
+                held={r for r in arms if ports[r].get('held') is True}
+                latched=arms&set(self.supervisor.get('blocked_arms',[]))
+                if held==arms and latched==arms:break
+        except BaseException as error:
+            trusted=False;errors.append('ROS stop confirmation failed: '+str(error))
+        confirmed=trusted and held==arms and latched==arms
+        fallback=set() if confirmed else arms
+        native_result={};native_requested=None
+        if fallback:
+            native_requested=time.monotonic()
+            # Do not require a live rclpy context or a successful derived
+            # spin/health callback to send the fallback. Wait for its bounded
+            # attempt so process exit cannot discard daemon STOP threads.
+            try:native_result=stop_profiles({r:self.problem.profiles[r] for r in fallback},self.mode)
+            except BaseException as error:native_result={'error':str(error)}
+            errors.extend(r+': verified hold/latch unconfirmed; native STOP attempted' for r in sorted(fallback))
+        return dict(resource_holds_confirmed=trusted and held==arms,latches_confirmed=trusted and latched==arms,
+                    native_stop_requested_for=sorted(fallback),native_stop_requested_monotonic_s=native_requested,
+                    native_stop_result=native_result,standstill_confirmed=False,errors=errors)
 
 
 def execute(plan,output,mode):

@@ -501,3 +501,83 @@ Kontaktversuche qualifiziert keine Vierarmfahrt. Für spätere physische
 Übertragung kommen Kraftverteilung, Reib-/Kontaktgrenzen, Objektsteifigkeit
 und gemeinsame Ausführung hinzu; unabhängige native MoveJ/MoveL-Aufrufe
 garantieren den Kettenschluss nicht.
+
+## Präzisierung 17.11.: deterministische Gradienten und Jacobikinematik
+
+Nutzer bestätigt insbesondere die fünf Objektplanungsschritte und stellt
+lernende Verfahren vorerst zurück. Wunsch: gerichtete Objektbahnkorrekturen
+und Singularitätsbewertung statt ausschließlich zufälliger Suchversuche.
+
+Für Welt-Twists V_O=[v_O;omega_O] um den definierten Objektmittelpunkt und
+TCP-Hebelarm r_i gilt J_i qdot_i=A_i V_O mit
+A_i=[[I,-[r_i]_x],[0,I]]. J_i ist die geometrische6×6TCP-Jacobimatrix
+im selben Weltframe. Für reguläre feste6R-Arme:
+
+    qdot = K V_O, K = stack(solve(J_i,A_i))  # 24×6
+
+Das ist eine inverse differentielle Kinematikabbildung des Verbunds.
+Allgemein bleibt die Gleichung diag(J_i)qdot-stack(A_i)V_O=0 maßgeblich;
+an Singularitäten ist die Eliminierung über invertierbareJ_i unzulässig.
+Eine gedämpfte Inverse allein darf keinen Griffrestfehler als Lösung kaschieren.
+Mit bewegten Basen kommt deren Beitrag zur TCP-Geschwindigkeit hinzu.
+Grundlagen: [Modern Robotics, geschlossene Ketten](https://modernrobotics.northwestern.edu/nu-gm-book-resource/kinematics-of-closed-chains/).
+
+Für zwei Kugelhüllenmittelpunkte p_a,p_b mit Radienr_a,r_b:
+
+    d = ||p_a-p_b|| - r_a - r_b
+    grad_q(d) = (J_pa-J_pb)^T (p_a-p_b)/||p_a-p_b||
+    grad_X(d) = K^T grad_q(d)
+
+Damit werden Abstandsänderungen hinsichtlich sechs lokaler Objektkoordinaten
+berechenbar, in Metern bzw.Radianten. Diese lokalen Rotationskoordinaten sind
+keine globalen Eulerwinkel. Objekt-/Umgebungsabstände erfordern zusätzlich
+die direkte Objektpunkt-Jacobimatrix; nicht nur die24Armgelenke differenzieren.
+Bei beidseitig starr amObjekt befestigten Greiferkörpern sind relative Abstände
+invariant. Solche geometrisch unverträglichen Griffe lassen sich durch Drehen
+des ganzenObjekts nicht reparieren. Armglieder jenseits der festen Griffkörper
+ändern ihre relative Geometrie durch die inverseKinematik.
+
+Bestehendes SphereModel.jacobians in uwa_cell_motion/geometry.py berechnet
+Punkt-Jacobians bereits analytisch über Gelenkachsen und Hebelarme. Nächste
+Kugelpaarindizes kommen aus nearest. Globale Minimalabstände sind nur stückweise
+differenzierbar: mehrere nahe Paare als Nebenbedingungen berücksichtigen,
+kleine Trust-Region-Schritte, nach jedemSchritt volleGeometrie neu prüfen.
+Vorhersage d_new≈d+grad_X(d)^T deltaX liefert die linearisierten Abstands-
+constraints eines SQP-/sequentiell konvexen Optimierers. Zunächst nur die drei
+Rotationsspalten freigeben, später Translation im erlaubten Korridor. Nicht nur
+einzelnePosen reparieren: Glätte undNachbarstützstellen im ganzenPfad koppeln.
+Gradienten liefern lokaleRichtung, keine globaleExistenz-/Optimalitätsgarantie.
+Das Prinzip passt zu [Schulman et al., TrajOpt, IJRR2014](https://people.eecs.berkeley.edu/~pabbeel/papers/2014-IJRR-trajopt.pdf).
+TSR beschreibt die erlaubten Posen/Korridore; CBiRRT ist der zugehörige
+Samplingansatz, kein automatischer Gradientenoptimierer. BeideBausteine können
+mit derselben Constraintdefinition zusammenarbeiten.
+
+Singularitätsdiagnose: skalierte sigma_min(J_i) jeArm, gemeinsame richtungs-
+abhängige Gelenkgeschwindigkeitsverstärkung K und Kettenkompatibilität auswerten.
+EinSummenmittelwert oder derRang einer beliebigen gestapeltenMatrix reicht nicht.
+Translation/Rotation benötigen eine explizite charakteristischeLänge oder
+Aufgabenskalierung, bevor Konditionszahlen vergleichbar sind. Referenz:
+[Modern Robotics, Singularitäten](https://modernrobotics.northwestern.edu/nu-gm-book-resource/5-3-singularities/).
+
+### Kleiner lokaler Prüfnachweis, kein Transportversuch
+
+Ausgang: Endkonfiguration des Seitenmittenfalls, hypothetisch festeGriffe aus
+der tatsächlichenFK, Weltachsen amKartonmittelpunkt. Skript/Ergebnis:
+`setup/research/offline-object-gradients-20261117/`. Modell-/Quellbindung imJSON.
+AnalytischePunkt-Jacobians undKettenregel gegen erneuteIK bei zentralen
+Differenzen von1e−4/1e−5Metern bzw.Radianten geprüft. MaximalerFehler der
+sechsPaargradienten1,60e−9/3,11e−11 in den jeweiligenAbleitungseinheiten;
+K-Fehler2,17e−7/2,23e−9. KeineFeaturewechsel innerhalb dieserPrüfschritte.
+
+| Paar | Ausgangsabstand | Prognose für+1° umWelt-Z | NeueIK/Geometrie |
+|---|---:|---:|---:|
+| LF/RF |75,086mm|−1,676mm|−1,663mm|
+| LR/RR |81,984mm|−1,761mm|−1,750mm|
+| RF/RR |65,996mm|−3,388mm|−3,380mm|
+
+Die drei anderen momentan minimalen Kugelpaare liegen aufstarr gekoppelten
+Greiferkörpern und bleiben bisaufRundung unverändert. +Z ist hier lokal die
+falscheRichtung für diegenanntenAbstände. Das ist keinNachweis, dass−Z als
+ganzeBahn zulässig wäre: Objekt/Tisch, weitereKörper, Limits undNachbarposen
+müssen noch mitgeprüft werden. DieProbe initialisiert keineROS-Knoten und
+bewegt keineHardware. Ein vollständigerTransportplaner wurde nicht implementiert.

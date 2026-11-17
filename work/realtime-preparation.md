@@ -12,3 +12,12 @@ Prozesssichtgeprüft:keineGreifwelt. FremdeHardware-/Glättungsarbeitnichtgeänd
 Mock67RecorderintegrationPASS,198Guardpakete.300OfflineGeometriefällemax4,813ms.
 Artefakte setup/realtime/preparation-20261117/, Logsuwa-realtime-prep-*.
 KeineRT-/Hardwarequalifikation; bisherigeStopannahmenbleibenerhalten.
+
+## Installation im ausdrücklichbeauftragtenFolgeschritt
+
+2026-11-17: Ubuntu-RT7.0.0-43-realtimeundrt-testsinstalliert, Signatur/Initrd/
+GRUB/defaultRT/PREEMPT_RT/dpkgPASS. PAMundsystemdLimits99/unlimitedfürrosmatch
+undvierUR-Diensteinstalliert; frischePAM-Sitzunggeprüft. KeinePrioritätaktiver
+Prozessegeändert, keinReboot/Robot-/Dienstrestart. Generic43/42erhalten.
+NutzerkündigtNeustartbereitschaftnoch an. Logs/Backups/Dateimanifest
+setup/realtime/installation-20261117/, detailsdocs/realtime_preparation.md.
