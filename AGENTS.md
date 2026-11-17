@@ -23,6 +23,12 @@
   Kinematische Kandidaten von gemeinsam modellgeprüften Endstellungen trennen;
   beides ist noch kein Bahn-/Ausführungsnachweis. Keine reale Bewegung oder
   Umrüstung allein aus diesem Forschungsziel ableiten.
+- Auftrag17.11. nach positiver Viewer-Rückmeldung: Schritt2, gemeinsame
+  Zielauswahl, umsetzen. Mehrkriterielle Auswahl getrennt von Bahn-/Zeitplanung;
+  Gelenkverschiebung ist kein Nachweis von Bahnlänge oder Ausführungsdauer.
+  Suchgrenzen/Pareto-Geltungsbereich nennen, Alternativen für folgende Planer
+  erhalten; keine Vollständigkeit der IK oder globale Optimalität behaupten.
+  Synthetische Zielalternativen als Demonstration kennzeichnen.
 - Bei variabler Basislage alle potenziell kollidierenden Paare berücksichtigen;
   die bisherige feste Vier-Nachbarpaar-Auswahl nicht ungeprüft übertragen.
   Kollisionsprüfung, globale Planung, zeitliche Koordination und lokale
@@ -806,3 +812,16 @@
 - Vor Arbeiten an SHA-gebundenen Taskquellen laufende Greifwelten über Host-
   Prozesssicht prüfen: sandboxed `ps` kann andere Prozesse ausblenden. Neue
   Quellen invalidieren bestehende Szenen, auch ohne Neustart ihrer Prozesse.
+
+## Simulierter Geschwindigkeits-/Kraftvergleich (Nutzerauftrag2026-11-17)
+
+- Nutzer möchte denselben geplanten Ablauf schrittweise beschleunigen und
+  Kontaktkräfte zunächst bei5×Robotergeschwindigkeit vergleichen. Tatsächliche
+  Physik ausführen, nicht bloß die Replaygeschwindigkeit ändern.
+- Exakte gemeinsame Zeitkompression: t/5, v×5, a×25, Ruck×125; keine unabhängige
+  Retimung tragender Arme. Greifvorspannung, Masse/Reibung und Physikschritt für
+  den Vergleich festhalten. Welche Bewegungsabschnitte tatsächlich gemessen
+  wurden und welche bereits an Reserven scheitern, ausdrücklich unterscheiden.
+- Kräfte in vergleichbaren Bewegungsfenstern auswerten; nicht Greif-/Warte- und
+  Bewegungsphasen beliebig in ein Maximum mischen. Einzelne beobachtete Läufe
+  von Wiederholstatistik und realer Belastbarkeit unterscheiden.

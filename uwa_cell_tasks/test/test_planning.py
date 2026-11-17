@@ -10,7 +10,8 @@ from uwa_cell_tasks.planning import grasp_candidates, actual_names
 
 def test_contact_scene_keeps_open_geometry_mass_and_actual_fingers(tmp_path):
     layout=load_layout();cfg=configuration();cfg.update(physics_step_s=.0005,
-        exploration_mode=True,gripper_motor_torque_limit_nm=.7)
+        exploration_mode=True,gripper_motor_torque_limit_nm=.7,
+        joint_velocity_overrides_rad_s={'right_front_wrist_1_joint':.065})
     record=prepare_scene(layout,cfg,tmp_path)
     verify(record)
     com,_=mass_properties(record['shapes'],cfg['mass_kg'])
@@ -25,6 +26,7 @@ def test_contact_scene_keeps_open_geometry_mass_and_actual_fingers(tmp_path):
     assert float(backend.find("hardware/param[@name='motor_max_torque']").text)==.7
     assert float(backend.find("hardware/param[@name='max_torque']").text)==.35
     arms=root.find("ros2_control[@name='ContactArms']")
+    assert float(arms.find("hardware/param[@name='max_velocity']").text)==.065
     assert len(arms.findall('joint'))==12
     assert all([c.get('name') for c in j.findall('command_interface')]==['position','velocity'] for j in arms.findall('joint'))
     assert not any(j.get('name').startswith(('right_front_','right_rear_'))

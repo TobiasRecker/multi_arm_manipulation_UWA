@@ -165,14 +165,18 @@ class HardwareSupervisor(MotionNode):
         self.reset_guard=self.create_client(Trigger,'/uwa_cell/collision_guard/reset',callback_group=self.group)
         self.reset_witness=self.create_client(Trigger,'/uwa_cell/hardware_watchdog/reset',callback_group=self.group)
         self.create_subscription(String,'/uwa_cell/collision_guard/decision',self.receive,1,callback_group=self.group)
-        self.create_subscription(String,'/uwa_cell/hardware_watchdog/status',lambda msg:self.witness.receive(decode(msg),time.monotonic(),self.signature,self.armed),1,callback_group=self.group)
+        self.create_subscription(String,'/uwa_cell/hardware_watchdog/status',self.receive_witness,1,callback_group=self.group)
         self.create_service(Trigger,'/uwa_cell/collision_supervisor/reset',self.reset,callback_group=self.group)
         for rid in ROBOT_IDS:self.create_service(Trigger,'/uwa_cell/collision_supervisor/'+rid+'/stop',lambda request,response,r=rid:self.stop(r,response),callback_group=self.group)
         self.wall_clock=Clock(clock_type=ClockType.STEADY_TIME);self.create_timer(.02,self.tick,clock=self.wall_clock)
     def receive(self,msg):
-        value=decode(msg);now=time.monotonic()
+        value=decode(msg)
         with self.lock:
+            now=time.monotonic()
             if self.guard.receive(value,now,self.signature,self.armed):self.core.receive(value,now)
+    def receive_witness(self,msg):
+        value=decode(msg)
+        with self.lock:self.witness.receive(value,time.monotonic(),self.signature,self.armed)
     def stop(self,rid,response):
         with self.lock:self.core.pending_reset=None;self.core.blocked.add(rid);self.core.reason='STOP REQUESTED'
         response.success=True;response.message='STOP LATCHED; measured standstill not yet confirmed';return response
@@ -184,8 +188,9 @@ class HardwareSupervisor(MotionNode):
         return future.result()
     def reset(self,request,response):
         try:
-            now=time.monotonic()
-            if not self.guard.fresh(now,self.cfg['heartbeat_timeout_s']) or not self.witness.fresh(now,self.cfg['heartbeat_timeout_s']):raise RuntimeError('Supervision unavailable')
+            with self.lock:
+                now=time.monotonic()
+                if not self.guard.fresh(now,self.cfg['heartbeat_timeout_s']) or not self.witness.fresh(now,self.cfg['heartbeat_timeout_s']):raise RuntimeError('Supervision unavailable')
             if self.armed and not any(p.verified and p.hardware_verified and time.monotonic()-p.received<=.25 and time.monotonic()-p.hardware_received<=.25 for p in self.ports.values()):raise RuntimeError('No provisioned fresh matching manager available')
             self.request(self.reset_witness)
             end=time.monotonic()+1.
@@ -200,8 +205,11 @@ class HardwareSupervisor(MotionNode):
             response.success=False;response.message=str(error)
         return response
     def tick(self):
-        now=time.monotonic()
         with self.lock:
+            # Witness reception uses this same lock. Capture time after
+            # acquiring it: a concurrent fresh packet must not appear to be
+            # from the future relative to an earlier tick timestamp.
+            now=time.monotonic()
             blocked=self.core.tick(now)
             if not self.guard.fresh(now,self.cfg['heartbeat_timeout_s']):self.core.blocked.update(ROBOT_IDS);self.core.reason='GUARD LOST'
             if self.core.last:
@@ -224,6 +232,7 @@ class HardwareSupervisor(MotionNode):
                 guard_config_signature=self.signature,interlock_confirmed=self.armed and blocked<=set(held),ports=ports,
                 guard_age_s=None if not self.guard.value else now-self.guard.value['evaluated_monotonic_s'],
                 witness_available=self.witness.fresh(now,self.cfg['heartbeat_timeout_s']),monitor_only=not self.armed,
+                witness_age_s=None if self.witness.value is None else now-self.witness.received,
                 controller_error='; '.join(r+':'+str(p['controller_error']) for r,p in ports.items() if p['controller_error']) or None)
             self.publisher.publish(String(data=json.dumps(status)))
             if self.sequence%5==0:

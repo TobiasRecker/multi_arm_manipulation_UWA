@@ -340,7 +340,7 @@ def prepare_scene(layout, cfg, directory):
     description = contact_description(description, controllers, cfg['finger_joint_damping_nm_s'],
         cfg['gripper_coarse_velocity_rad_s'],cfg['gripper_fine_velocity_rad_s'],cfg['gripper_fine_start_rad'],finger_geometry,
         cfg['gripper_gear_stiffness_nm_rad'],cfg['gripper_motor_stiffness_nm_rad'],cfg['gripper_transmission'],
-        cfg['joint_velocity_rad_s'],cfg.get('braking_acceleration_rad_s2',.5),cfg.get('finger_velocity_limit_rad_s',.05),
+        max([cfg['joint_velocity_rad_s']]+list(cfg.get('joint_velocity_overrides_rad_s',{}).values())),cfg.get('braking_acceleration_rad_s2',.5),cfg.get('finger_velocity_limit_rad_s',.05),
         cfg.get('gripper_motor_torque_limit_nm',.35))
     (directory/'robot.urdf').write_text(description)
     sdf = dynamic_sdf(instance, shapes, cfg); (directory/'carton.sdf').write_text(sdf)

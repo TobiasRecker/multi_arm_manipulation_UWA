@@ -26,7 +26,13 @@ def quiet_window(rows):
     if len(rows) < 9 or rows[-1]['received']-rows[0]['received'] < .45:
         return False
     q, v = np.asarray([r['q'] for r in rows]), np.asarray([r['v'] for r in rows])
-    return bool(np.max(abs(v)) <= .0002 and np.max(np.ptp(q, axis=0)) <= .00005)
+    # Real stationary UR encoder positions show about0.1mrad peak-to-peak
+    # noise. Bound its amplitude separately from a sustained position trend;
+    # neither bound changes the operational guard's standstill thresholds.
+    times=np.asarray([r['received'] for r in rows]);times-=times.mean()
+    slope=times @ (q-q.mean(axis=0)) / np.dot(times,times)
+    return bool(np.max(abs(v)) <= .0002 and np.max(np.ptp(q, axis=0)) <= .0002
+                and np.max(abs(slope)) <= .0002)
 
 
 class Observer:
@@ -142,7 +148,8 @@ def main():
                 guard_age_s=now-client.guard_received,supervisor_age_s=now-client.supervisor_received)
         finally:
             client.probe_enabled=False
-            if client.owned:
+            if client.stop_sent is not None:result['stop_sent_monotonic']=client.stop_sent
+            if client.owned and not result['success']:
                 result['retained_stop']=client.stop(client.owned)
             observer.close();result['native_records']=observer.snapshot();result['observer_error']=observer.error
             result['trace']=client.trace;result['guard_status']=client.guard;result['supervisor_status']=client.supervisor

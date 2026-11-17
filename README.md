@@ -550,6 +550,12 @@ endpoints using the full cell model. `cell_goal_candidates` produces research
 data, not executable trajectories. The [three-page implementation plan](output/pdf/uwa_offline_multiarm_plan_2026-11-17.pdf)
 records the subsequent primitive-path and time-coordination stages.
 
+The second stage, [joint goal selection](docs/offline_goal_selection.md), checks
+the retained candidate combinations and preserves Pareto alternatives for joint
+displacement, arm clearance and joint-limit reserve. `cell_goal_selection`
+exports a model-bound shortlist and an inspectable comparison; paths and timing
+remain subsequent work.
+
 Select `/uwa_cell/controller_manager` and one of the four trajectory
 controllers in the **rqt Joint Trajectory Controller** window. Enable control
 and adjust joint targets conservatively. This is direct joint control, not

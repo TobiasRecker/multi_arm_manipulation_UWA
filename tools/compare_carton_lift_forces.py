@@ -32,10 +32,14 @@ def extract(run,scene_dir):
             fit.append(r['joints']['stamp']-np.interp(r['joints']['positions'][joint],q,times))
     if len(fit)<5:raise ValueError('Insufficient moving samples to align source clock')
     origin=float(np.median(fit));spread=float(np.quantile(fit,.95)-np.quantile(fit,.05))
-    if spread>.1:raise ValueError('Source-clock fit inconsistent by more than0.1s')
+    if spread>.005:raise ValueError('Source-clock fit inconsistent: possible native clipping or tracking error (>5ms)')
     end=origin+motion['duration_s']
     faults=[r['object']['stamp'] for r in rows if r['faults'] and r['object']['stamp']>=origin]
     if faults:end=min(end,min(faults))
+    losses=[r['contacts']['stamp'] for r in rows if r.get('group') and
+        r['contacts']['stamp']>=origin and not all(all(p.values()) for p in r['contacts']['pads'].values())]
+    first_loss=min(losses) if losses else None
+    if first_loss is not None:end=min(end,first_loss-.01)  # keep full10ms windows before first loss
     t=np.array([r['object']['stamp'] for r in rows]);progress=np.array([
         (object_point_height(r['object']['T_world_object'],reference)-height0)/target for r in rows])
     selected=[];previous=None;gaps=[]
@@ -47,13 +51,21 @@ def extract(run,scene_dir):
         previous=stamp
         pads=pad_load_window(f,scene['cfg']['pad_load_reference_n'])
         if not pads['usable']:raise ValueError('Invalid force window in moving interval')
+        if any(v['contact_pairs']==0 for v in pads['pads'].values()):
+            first_loss=stamp if first_loss is None else min(first_loss,stamp)
+            end=min(end,stamp-f['window_duration_s']);break
         selected.append(dict(stamp=stamp,time_s=stamp-origin,progress=float(np.interp(stamp,t,progress)),pads=pads['pads']))
+    selected=[r for r in selected if r['stamp']<=end]
     if not selected:raise ValueError('No native force windows in actual lift')
     return dict(run=str(run.resolve()),scene_sha256=scene['sha256'],cfg=scene['cfg'],scene=scene,
         motion_sha256=motion['sha256'],duration_commanded_s=motion['duration_s'],target_lift_m=target,
         source_start_s=origin,source_end_s=end,clock_fit_90pct_spread_s=spread,
         windows=len(selected),gap_intervals=gaps,force_trace_sha256=hashlib.sha256(force_path.read_bytes()).hexdigest(),
-        maximum_lift_observed_m=float(max(progress)*target),rows=selected)
+        maximum_lift_observed_m=float(max(progress)*target),
+        first_contact_loss_sim_s=first_loss,
+        lift_at_first_contact_loss_m=float(np.interp(first_loss,t,progress)*target) if first_loss is not None else None,
+        motion_samples=[dict(progress=float(prog),velocities=r['joints']['velocities']) for r,prog in zip(rows,progress)
+            if origin<=r['joints']['stamp']<=end and not r['faults']],rows=selected,measured_joint_velocity_peaks_rad_s={n:max(abs(r['joints']['velocities'][n]) for r in rows if origin<=r['joints']['stamp']<=end) for n in motion['joint_names']})
 
 
 def main():
@@ -68,8 +80,14 @@ def main():
           'gripper_coarse_velocity_rad_s','gripper_fine_velocity_rad_s','gripper_fine_start_rad']
     same={k:data[0]['cfg'][k]==data[1]['cfg'][k] for k in keys}
     binaries={k:data[0]['scene'][k]==data[1]['scene'][k] for k in ['backend_sha256','physics_engine_sha256','force_backend_sha256']}
+    from uwa_cell_control.parallel_scan import collision_signature
+    signatures=[collision_signature((Path(d['run']).parent/'scene/robot.urdf').read_text()) for d in data]
+    geometry_same=(signatures[0]==signatures[1] and
+        data[0]['scene']['asset_manifest_sha256']==data[1]['scene']['asset_manifest_sha256'])
     extent=min(1.,*(max(r['progress'] for r in d['rows']) for d in data))
     pads={}
+    for d in data:
+        d['measured_joint_velocity_peaks_common_rad_s']={n:max(abs(r['velocities'][n]) for r in d['motion_samples'] if 0<=r['progress']<=extent) for n in d['measured_joint_velocity_peaks_rad_s']}
     for pad in data[0]['rows'][0]['pads']:
         metrics=[]
         for d in data:
@@ -80,10 +98,10 @@ def main():
         pads[pad]=dict(baseline=metrics[0],fivefold=metrics[1],
             mean_peak_ratio=metrics[1]['max_10ms_mean_upper_n']/metrics[0]['max_10ms_mean_upper_n'],
             physics_peak_ratio=metrics[1]['max_physics_peak_upper_n']/metrics[0]['max_physics_peak_upper_n'])
-    clean=[{k:v for k,v in d.items() if k not in ('rows','scene')} for d in data]
+    clean=[{k:v for k,v in d.items() if k not in ('rows','scene','motion_samples')} for d in data]
     result=seal(dict(kind='matched_vertical_prefix_contact_force_comparison',
         scope='Vertical lift only, not the90degree rotation or the return descent',
-        same_physics_properties=same,same_native_binaries=binaries,controlled_physics=all(same.values()) and all(binaries.values()),
+        same_physics_properties=same,same_native_binaries=binaries,same_collision_kinematics=geometry_same,controlled_physics=all(same.values()) and all(binaries.values()) and geometry_same,
         commanded_speed_ratio=data[0]['duration_commanded_s']/data[1]['duration_commanded_s'],
         common_lift_progress_fraction=extent,force_coverage_complete=all(not d['gap_intervals'] for d in data),
         runs=clean,pads=pads,hardware_or_material_qualification=False,
@@ -99,7 +117,7 @@ def main():
         for d,label,color in zip(data,['1x recorded baseline','5x contact simulation'],['#185fa5','#c74a19']):
             rows=[r for r in d['rows'] if 0<=r['progress']<=extent]
             ax.plot([r['progress']*100 for r in rows],[r['pads'][pad]['mean_load_upper_bound_n'] for r in rows],label=label,color=color,lw=1)
-        ax.set_title(pad);ax.grid(alpha=.3);ax.set_xlabel('Measured lift progress (%)');ax.set_ylabel('Per-jaw10ms load upper bound (N)')
+        ax.set_title(pad);ax.grid(alpha=.3);ax.set_xlabel('Measured lift progress (%)');ax.set_ylabel('Per-jaw 10 ms load upper bound (N)')
     axes[0,0].legend();fig.suptitle('Same vertical lift:1x versus5x — measured contact loads, no rotation qualification')
     fig.tight_layout();fig.savefig(a.output/'forces.png',dpi=160);plt.close(fig)
     print(json.dumps(dict(commanded_speed_ratio=result['commanded_speed_ratio'],common_fraction=extent,pads=pads),indent=2))

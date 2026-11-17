@@ -24,10 +24,17 @@ def test_slow_motion_cannot_pass_independent_standstill_check():
 
 def test_position_drift_cannot_pass_even_if_reported_velocity_is_zero():
     values=rows()
-    for i,r in enumerate(values):r['q'][5]=i*.00001
+    # Peak-to-peak is below0.2mrad, but the sustained0.3mrad/s trend fails.
+    for i,r in enumerate(values):r['q'][5]=i*.000015
     assert not module.quiet_window(values)
 
 
 def test_all_six_joints_must_be_quiet():
     values=rows();values[-1]['v'][0]=.003
     assert not module.quiet_window(values)
+
+
+def test_stationary_encoder_jitter_is_separate_from_sustained_drift():
+    values=rows()
+    for i,r in enumerate(values):r['q'][5]=(-1 if i%2 else 1)*.00005
+    assert module.quiet_window(values)

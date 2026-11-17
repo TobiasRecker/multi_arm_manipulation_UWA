@@ -87,7 +87,15 @@ class Robotiq:
         if not state['activated'] or not state['fault_free']:
             raise RuntimeError('Gripper inactive/faulted; explicit activation required, no MOVE sent')
         self.last_requested=dict(position_raw=position, speed_raw=speed, force_raw=force)
-        self._set([('POS', position), ('SPE', speed), ('FOR', force)])
+        # Real commissioning found that an ACK to a batched POS/SPE/FOR did
+        # not establish matching parameter readback on these URCap servers.
+        # Configure and verify limits before changing POS: GTO may already be
+        # latched from an earlier move, so a new POS can itself start motion.
+        self._set([('FOR', force)])
+        self._set([('SPE', speed)])
+        self._wait(lambda r:r['ACT']==1 and r['STA']==3 and r['SPE']==speed and r['FOR']==force,
+                   deadline, feedback)
+        self._set([('POS', position)])
         self._set([('GTO', 1)])
         return self._wait(lambda r:r['ACT']==1 and r['STA']==3 and r['PRE']==position and r['OBJ'] in (1,2,3),
                           deadline, feedback)

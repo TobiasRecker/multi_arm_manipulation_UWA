@@ -1,5 +1,8 @@
 # Offline goal candidates
 
+Continue with [step 2: joint goal selection](offline_goal_selection.md) to
+evaluate the retained combinations and compare a Pareto shortlist in the viewer.
+
 ## View the results
 
 Open the [interactive endpoint viewer](../../../setup/research/offline-goal-candidates-20261117/viewer.html)

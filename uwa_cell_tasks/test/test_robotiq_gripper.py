@@ -38,7 +38,7 @@ def test_explicit_activation_then_contact_move_retains_target(monkeypatch):
     assert device.writes==[{'ACT':0},{'ACT':1}]
     outcome=device.command(1,128,10,0,2.)
     assert outcome['registers']['OBJ']==2
-    assert device.writes[2:]==[{'POS':128,'SPE':10,'FOR':0},{'GTO':1}]
+    assert device.writes[2:]==[{'FOR':0},{'SPE':10},{'POS':128},{'GTO':1}]
     assert device.last_requested['position_raw']==128
     # No automatic open, force-zero, reset or GTO0 after completion.
     assert device.writes[-1]=={'GTO':1}
@@ -60,4 +60,16 @@ def test_fault_during_move_does_not_reset_open_or_retry():
         if 'GTO' in dict(pairs):device.regs['FLT']=9
     device._set=fault
     with pytest.raises(RuntimeError,match='fault 9'):device.command(1,128,10,0,2.)
-    assert device.writes==[{'POS':128,'SPE':10,'FOR':0},{'GTO':1}]
+    assert device.writes==[{'FOR':0},{'SPE':10},{'POS':128},{'GTO':1}]
+
+
+def test_unconfirmed_speed_or_force_never_changes_position_or_starts_motion(monkeypatch):
+    monkeypatch.setattr('uwa_cell_tasks.robotiq_gripper.time.sleep',lambda value:None)
+    device=Device();device.regs.update(ACT=1,STA=3,FOR=255,GTO=1)
+    def ignored(pairs):device.writes.append(dict(pairs))
+    device._set=ignored
+    # Bound the confirmation loop deterministically without a real delay.
+    clock=iter([0.,0.,.1,2.1])
+    monkeypatch.setattr('uwa_cell_tasks.robotiq_gripper.time.monotonic',lambda:next(clock))
+    with pytest.raises(TimeoutError):device.command(1,128,10,0,2.)
+    assert device.writes==[{'FOR':0},{'SPE':10}]
