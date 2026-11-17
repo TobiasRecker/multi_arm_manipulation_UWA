@@ -1,5 +1,51 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Lernbasierter Objektplaner als Vergleich: Einschätzung, 2026-11-17
+
+- Nutzer nimmt Lernverfahren als Vergleich wieder auf: gewünschter Objektversatz
+  bzw. kurzer Zielhorizont und MRS-Zustand sollen gemeinsame nächste Schritte
+  bestimmen; Optimierungslösungen als Lehrer. Festes Objekt/feste Griffe als
+  Einstieg, Architektur und RL ausdrücklich noch offen. Nur Konzept/Literatur.
+- Originalgespräch im lokalen Rollout vom16.11.,14:10:45 gelesen (Offlineumfang,
+  Starrverbund, minimale Profilabweichung, Jacobimatrix/Gradienten), außerdem
+  aktuellen Offline-Transportstand. Keine vollständige externe Chathistorie behauptet.
+- Technische Empfehlung, noch keine Nutzerentscheidung: zentralisierte Policy
+  im Objektraum, zunächst Behavioral Cloning und DAgger-artige Datenkorrektur;
+  kleine MLP-Baseline, später multimodale kurze Bahnsegmente. Gemeinsame IK,
+  Kettenbedingungen, geometrische Endprüfung und gemeinsames Retiming erhalten.
+  Greifmatrix reicht nicht; q, Objektpose/Ziel, bei Variation Basis-/Umweltzustand
+  und gegebenenfalls Geschwindigkeiten/Referenzphase berücksichtigen.
+- Aktueller Lehrer optimiert nur Yaw entlang fester Translation. Für allgemeine
+  XYZ-/Rotationsausweichbewegungen zunächst Lehrer erweitern und schwierigere
+  Aufgaben generieren. Bestehendes Idealprofil war bereits frei; Zusatzabstand
+  ist kein Nachweis geretteter Kollisionsfälle. Kein Netz trainiert/getestet.
+- Literatur: Neural MP, Motion Policy Networks, Ha et al. Multiarm-SAC+BiRRT,
+  MPD und IROS2025 Hierarchical Framework for Constrained Dual-Arm Cooperative
+  Manipulation (letzteres hier nur Abstract/Einleitung zugänglich). Abgrenzung
+  freie Mehrarmziele vs. starre geschlossene Ketten beachten. Details/Quellen im
+  letzten Abschnitt von docs/mobile_multiarm_planning_survey_2026-11-16.md.
+- Vorgeschlagener Benchmark: Optimierer, Netz+Prüfung, Netz+Korrektur+Prüfung;
+  rohe Fehlerrate und Korrekturaufwand sowie gesamte Plan-/IK-/Prüfzeit messen,
+  Train/Test nach ganzen Aufgabenfamilien trennen. Kein Leistungsnachweis bisher.
+
+## OAK-Neuregistrierung vorbereitet / Kameraeinstellungen behalten,2026-11-17
+
+- Nutzer hält OAK-/Stativbewegung seit12.11.fürmöglich, Tischboards/Tische eher
+  unverändert; neueKalibrierung gewünscht/angeboten. Mobiles38mm-Brett verfügbar.
+  GuteFokus-/Belichtungseinstellungen dürfen laut neuer Präferenz bestehen bleiben.
+- DreiOAK-Aufträge ergeben statischeBoard-Wiederholbarkeit0,599mm/0,0271°, aber
+  Prüf-RMSbis2,098pxgegen1px weiterhinFAIL. NeueOfflinewerkzeuge speichern explizit
+  Diagnosekandidat, keinekalibrierteWeltpose/Profilaktivierung/Hardwarefreigabe.
+- SichtbareZweikamera-App OAK+RF, `--keep-camera-settings`, eigeneAufnahme unter
+  setup/calibration/carton_oak_reregistration_20261117/. NutzerstelltmobilesBoard
+  für unabhängige gemeinsame Fotos bereit; Armegehalten, Greiferoffen. Anleitung
+  docs/three_camera_capture.md, Details work/carton-hardware-commissioning.md.
+ 26gezielteKamera-/RegistrierungstestsPASS. Keine weitereArmfahrt/keinKontakt.
+- Letzter13:42Nativecheck: alle4stationär/RUNNING/NORMAL, ProgrammeSTOPPED;
+  beideGreiferoffen. Schutzdienst13:27aufHardware-/Managerfrischeausgelöst,
+  alle4Holdsbestätigt/Watchdoggelatcht; GuardentscheidungenimkurzenTracefehlend.
+  KeinReset/PLAY. VorneuerArmfahrtFrischeursacheklären; FotoreihebrauchtkeineFahrt.
+
 ## Realer Kartontest: RF-Anfahrt bestanden, Bildabgleich fehlgeschlagen,2026-11-17
 
 - Nach ausdrücklicher Freigabe unbeladener Schutzprofilwechsel RF allein mit

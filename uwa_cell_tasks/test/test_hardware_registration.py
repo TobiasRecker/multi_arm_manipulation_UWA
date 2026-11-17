@@ -2,7 +2,7 @@
 import copy
 import numpy as np
 import pytest
-from uwa_cell_tasks.hardware_registration import bind_camera_pose
+from uwa_cell_tasks.hardware_registration import bind_camera_pose, board_camera_candidate, board_relative_bases
 
 
 def fixture():
@@ -30,3 +30,22 @@ def test_inconsistent_original_chain_is_rejected():
 def test_a_moving_anchor_cannot_be_treated_as_a_static_camera_registration():
     xml,reg=fixture();xml=xml.replace('type="fixed"','type="revolute"')
     with pytest.raises(ValueError,match='world-fixed'):bind_camera_pose(xml,reg,np.eye(4))
+
+
+def test_board_chain_recovers_camera_and_relative_bases_with_rotations():
+    from scipy.spatial.transform import Rotation
+    rng=np.random.default_rng(1711)
+    for _ in range(20):
+        transforms=[]
+        for i in range(4):
+            t=np.eye(4);t[:3,:3]=Rotation.random(random_state=rng).as_matrix();t[:3,3]=rng.normal(size=3)
+            transforms.append(t)
+        a,b,board,camera=transforms
+        ab=np.linalg.inv(a)@board;bb=np.linalg.inv(b)@board;cb=np.linalg.inv(camera)@board
+        np.testing.assert_allclose(board_camera_candidate(a,ab,cb),camera,atol=1e-12)
+        np.testing.assert_allclose(board_relative_bases(ab,bb),np.linalg.inv(a)@b,atol=1e-12)
+
+
+def test_board_registration_rejects_nonrigid_input():
+    bad=np.eye(4);bad[0,0]=2
+    with pytest.raises(ValueError):board_camera_candidate(np.eye(4),bad,np.eye(4))

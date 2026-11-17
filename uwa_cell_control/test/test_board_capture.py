@@ -93,6 +93,16 @@ def test_failed_camera_keeps_other_images_but_never_marks_set_complete(tmp_path)
     assert calls == ['stop', 'start'] and not r.busy.locked()
 
 
+def test_explicitly_retained_settings_are_read_and_not_restored(tmp_path):
+    r=CaptureRig.__new__(CaptureRig)
+    r.keep_camera_settings=True;r.wrist_cameras=('right_front',);r.session=tmp_path
+    r.wrist=lambda name:SimpleNamespace(settings=lambda **kw:dict(focus=435,focusAuto=False))
+    r.restore_focus()
+    saved=json.loads((tmp_path/'retained_camera_settings.json').read_text())
+    assert saved['right_front']['settings']==dict(focus=435,focusAuto=False)
+    assert not (tmp_path/'focus_restoration.json').exists()
+
+
 def test_capture_reentry_is_rejected_without_changing_existing_transaction(tmp_path):
     r, calls = rig(tmp_path)
     r.busy.acquire()

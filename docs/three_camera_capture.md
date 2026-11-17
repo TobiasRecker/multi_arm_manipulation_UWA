@@ -37,6 +37,19 @@ handheld board produces incompatible observations; there is no timing correction
   satisfy the current shared-view banner. HTTP timestamps are host receipt times,
   not measured exposure times. Repeated unchanged payloads also lose current status.
 
+For a two-camera OAK/front-wrist registration session that keeps useful settings:
+
+```bash
+bash src/multi_arm_manipulation_UWA/scripts/camera_capture.sh \
+  --cameras right_front oak4 --keep-camera-settings
+```
+
+The explicit keep option records actual exit settings in
+`retained_camera_settings.json` and sends no focus restoration writes. Normal
+camera-service/format recovery and LED lease release still apply. The default
+three-camera workflow retains its historical restoration behavior. Camera
+selection includes OAK and does not access unselected wrists.
+
 ## Focus and calibration boundaries
 
 The acquisition profile is `config/three_camera_capture.yaml`: right-front435,

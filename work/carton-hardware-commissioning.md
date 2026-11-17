@@ -216,3 +216,51 @@
   bounded nativer Vierarm-STOP-Fallback vor Prozessende.38gezielteTestsPASS,
   Log carton-hardware-stop-fallback-regression-20261117.log. Kein physischer
   geladener Stopp- oder Kraftnachweis dadurch erbracht.
+
+
+## OAK-Neuregistrierung und mobiles Brett,17.11.,13:40
+
+- Nutzer: OAK/Stativ möglicherweise bewegt, Boards/Tische eher unverändert;
+  neue OAK-Kalibrierung angeboten. Nicht als bestätigte Kamerabewegung ausgeben.
+  Mobiles38mm-ChArUco-Brett verfügbar; gemeinsame OAK/RF-Bildreihe vorbereitet.
+- Neuer Wunsch: gute Kameraeinstellungen bestehen lassen statt ständig vollständig
+  zurückzustellen. RF jetzt Fokus435MANUAL, Belichtung5000µs/Gain16, Werte im
+  `carton_hardware_rf_board_wrist_20261117_01/manual-focus-choice.json`.
+  NativeErstfoto vorherAUTOfokus435→498, keinepassendeIntrinsics; nur1Marker,
+ 0ChArUco-Ecken. NativeWerkzeug meldetROI-Restorefehler, einbegrenzterHTTP-
+  Restoreversuch ebenfallsabweichend. Nach eigenemKamera-Watchdog alleoriginalen
+  ROI-Wertewiederda/DienstNORMAL, anschließendexplizitnurguteManualwertegesetzt.
+  KeineUR-/Arm-/GreiferaktionenindieserKameradiagnose.
+- OAKHQ8Frames/Fokus116 um13:33:12, Kamera danach geschlossen. RechterBoard-
+  Prüf-RMS2,098px, links0Ecken. `tools/register_oak_table.py`: wiederverwendbarer
+  Offlinekandidat mitdisjunktenFit-/Prüfecken, geprüfterFokus-/Bildgrößenbindung,
+  QuellhashesundexplizitemhistorischenAnker. KeineKalibrieraktivierung/Fahrziele.
+  ReferenzRRweilHandeyebestanden; RF-Fitbleibtfalse/acceptedpreliminary.
+- DreiunterschiedlicheAufträge11:40/13:02/13:33: maxAbweichungvonMittelpose
+ 0,599mm/0,0271°, Prüf-RMS1,998/2,087/2,098px. WiederholbarkeitamgleichenBoard,
+  keinunabhängigerAbsolutgenauigkeitsnachweis;1px-KriteriumweiterNICHTbestanden.
+  Resultat `setup/tasks/carton_oak_reregistration_20261117_01/three-capture-fit/`.
+  HistorischebeideBoardfits implizierenFront/Rear1,4002mstattnominal1,35m;
+  keineglobaleBasisänderung/keineuntergeschobeneFramekorrekturangewandt.
+- GemeinsameKamera-App unterstütztjetzt `--cameras right_front oak4` und
+  `--keep-camera-settings`; letzteres liest/speichertEndwerteohneRückstellwrites.
+  LED-LeaseundFormat-/Dienstwiederherstellungweiteraktiv. DefaultandererSitzungen
+  erhalten.26gezielteKamera-/Board-/RegistrierungstestsPASS; DiffcheckPASS.
+- ReineKameraansichtläuftsichtbaralsBenutzerdienst
+  `uwa-carton-oak-registration-view-20261117.service`, eigenesDataset
+  setup/calibration/carton_oak_reregistration_20261117/20261117_134040_4b64828d/.
+  OAK-LivepreviewhältjetztKamera-Lease; fürweitereFotosdieseeigeneAnsichtnutzen/
+  Previewgeordnetpausieren, keinekonkurrierendeSDK-Aufnahme. Nutzerstelltmobiles
+  BrettfürbeideSichtenbereit, danachgemeinsameEinzelaufnahmen mitBrettstillstand.
+  Armzustandweitergehalten/offeneGreifer; nächsteArmfahrtwartetaufRegistrierung.
+
+- Abschließender lesenderCheck13:42: alle4nativeArmeRUNNING/NORMAL aber
+  runtime1/ProgrammSTOPPED, alle4stationär; RF/RRACT1/STA3/FLT0/OBJ3/POS3/PRE0.
+  NeueTrace carton_camera_hold_checkpoint_20261117_01: alle4Ressourcenholds
+  bestätigt, Supervisor WATCHDOG LOST OR TRIPPED, Watchdogtripped, keinefrischen
+  Guard-Decision-Paketeim3sFenster. JournalordnetersteNativeSTOPsum13:27:14
+  fehlenderHardware-/Managerfrischezu (ca0,26–0,30s), danachgelatchterWatchdog.
+  KeinSafetyStop/NativbewegungbeiKontrollmessung; UrsachenichtdurchneuesPLAY
+  übergangen. Foto-Apperst13:40gestartet, daherderenStartnichtalsAuslöser
+  behaupten. VorjeglichernächsterArmfahrtGuard-/Frischeproblemaufklären.
+  FürmobileFoto-ReihekeineProgramm-/Reset-/Profilaktionerforderlich.

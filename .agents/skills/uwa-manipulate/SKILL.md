@@ -118,6 +118,10 @@ executes no manipulation.17November: shared ROS grippers completed real empty
 partial travel raw0→128→0 at SPE16/FOR0 on both right arms; service returned to
 MONITOR ONLY. Use the shared API (docs/gripper_ros_api.md), not a duplicate socket
 writer/adapter. This does not calibrate force/aperture or qualify loaded stops.
-An offline hardware-model path to80mm pregrasp exists; camera/world alignment,
+A first unloaded right-front150mm pregrasp approach completed on17November,
+but its fresh-image alignment check failed. All arms remain held, grippers
+open. OAK re-registration using fixed/mobile boards is in progress; keep useful
+camera settings when explicitly requested, recording matching intrinsics.
+The old80mm offline path and initial joint snapshots cannot be replayed. Camera/world alignment,
 real coupled command delivery and loaded operation remain open. The new common
 object reference core is transport-free, never an executable hardware plan.

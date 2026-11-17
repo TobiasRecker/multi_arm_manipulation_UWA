@@ -343,16 +343,22 @@ def main():
     p.add_argument('--capture-only', action='store_true')
     p.add_argument('--quick', action='store_true', help='Capture-only: use wrist VGA rather than native HD')
     p.add_argument('--five-cameras', action='store_true', help='Four wrists plus OAK; separate object-scan focus profile')
+    p.add_argument('--cameras', nargs='+', choices=FIVE_CAMERAS, help='Selected distinct cameras including oak4')
+    p.add_argument('--keep-camera-settings', action='store_true', help='Retain useful focus/settings on exit and record their readback')
     p.add_argument('--board', choices=('mobile', 'left', 'right', 'both'), help='Default mobile, or both tables with --five-cameras')
     p.add_argument('--telemetry-source',choices=('ros','rtde'),default='ros',help='Stationarity observer; rtde only subscribes to controller outputs')
     args = p.parse_args()
+    if args.five_cameras and args.cameras:
+        p.error('--five-cameras and --cameras are mutually exclusive')
     options = {}
+    if args.cameras:
+        options['cameras'] = tuple(args.cameras)
     if args.five_cameras:
         options = dict(cameras=FIVE_CAMERAS, optics_path=args.workspace /
             'src/multi_arm_manipulation_UWA/config/digitization/five_camera_capture.yaml')
         if args.output is None:
             args.output = args.workspace / 'setup/digitization/five_camera'
-    rig = CaptureRig(args.workspace, args.output, board=args.board or ('both' if args.five_cameras else 'mobile'),telemetry_source=args.telemetry_source, **options)
+    rig = CaptureRig(args.workspace, args.output, board=args.board or ('both' if args.five_cameras else 'mobile'),telemetry_source=args.telemetry_source, keep_camera_settings=args.keep_camera_settings, **options)
     if args.capture_only:
         try:
             rig.lock_focus()

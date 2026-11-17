@@ -2,8 +2,10 @@
 
 Stand17.11.2026: erster deterministischer Offline-Transport aus der letzten
 [Seitenmitten-Greifkonfiguration](offline_carton_sides.md), ergänzt um eine
-gradientengeführte Anpassung der Objektorientierung. Lernverfahren bleiben
-zurückgestellt. Alle vier Arme behalten feste Objekt→TCP-Transformationen.
+gradientengeführte Anpassung der Objektorientierung. Ein lernbasierter Vergleich
+wird inzwischen konzeptionell untersucht; noch kein Netz implementiert oder
+trainiert. Siehe den ergänzten [Planungssurvey](mobile_multiarm_planning_survey_2026-11-16.md).
+Alle vier Arme behalten feste Objekt→TCP-Transformationen.
 
 ## Ergebnis ansehen
 

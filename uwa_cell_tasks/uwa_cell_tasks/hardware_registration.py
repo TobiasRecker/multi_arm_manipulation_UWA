@@ -10,6 +10,21 @@ from match_cooperative_handling.rigid_object import rigid
 from uwa_cell_gazebo.charuco_views import Chain
 
 
+def board_camera_candidate(world_base, base_board, camera_board):
+    """Static-board registration, retaining an explicit base anchor.
+
+    All transforms map child coordinates into their named parent. This
+    computes geometry only: neither a nominal world anchor nor a failed
+    hand-eye fit becomes calibrated merely by composing these matrices.
+    """
+    return rigid(world_base) @ rigid(base_board) @ np.linalg.inv(rigid(camera_board))
+
+
+def board_relative_bases(base_a_board, base_b_board):
+    """T_baseA_baseB for two historical fits of the SAME fixed board."""
+    return rigid(base_a_board) @ np.linalg.inv(rigid(base_b_board))
+
+
 def bind_camera_pose(description, registration, camera_object):
     camera_object=rigid(camera_object)
     old_anchor=rigid(registration['T_world_anchor_at_registration'])

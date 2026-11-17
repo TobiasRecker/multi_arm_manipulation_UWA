@@ -221,9 +221,10 @@ class CaptureRig:
     wrist_cameras = CAMERAS[:-1]
     audit_stationarity = False
 
-    def __init__(self, workspace, output=None, *, cameras=CAMERAS, optics_path=None, board='mobile',telemetry_source='ros'):
+    def __init__(self, workspace, output=None, *, cameras=CAMERAS, optics_path=None, board='mobile',telemetry_source='ros', keep_camera_settings=False):
         if telemetry_source not in ('ros','rtde'):raise ValueError('Unknown read-only telemetry source')
         self.telemetry_source=telemetry_source
+        self.keep_camera_settings=keep_camera_settings
         self.ws = Path(workspace).resolve()
         repo = self.ws / 'src/multi_arm_manipulation_UWA'
         self.inventory = yaml.safe_load((repo / 'config/hardware_inventory.yaml').read_text())
@@ -255,7 +256,8 @@ class CaptureRig:
         self.session.mkdir()
         write_json(self.session / 'board.json', self.board_config)
         write_json(self.session / 'acquisition_profile.json', dict(cameras=self.cameras,
-            optics=self.optics, board=self.board_config, robot_motion_commands=False))
+            optics=self.optics, board=self.board_config, robot_motion_commands=False,
+            keep_camera_settings=keep_camera_settings))
         calibration = layout.get('calibration', {})
         overview = calibration.get('overview_camera')
         if overview:
@@ -305,6 +307,18 @@ class CaptureRig:
 
     def restore_focus(self):
         results = {}
+        if getattr(self, 'keep_camera_settings', False):
+            for name in self.wrist_cameras:
+                try:
+                    results[name] = dict(settings=self.wrist(name).settings(refresh=True),
+                        method='Retained by explicit request; no restoration write')
+                except Exception as error:
+                    results[name] = dict(error=str(error))
+            write_json(self.session / 'retained_camera_settings.json', results)
+            errors = [name+': '+value['error'] for name,value in results.items() if 'error' in value]
+            if errors:
+                raise RuntimeError('; '.join(errors))
+            return
         for name, original in self.original_settings.items():
             if original['focusAuto'] or original['focus'] != self.optics['wrist_manual_focus'][name]:
                 try:

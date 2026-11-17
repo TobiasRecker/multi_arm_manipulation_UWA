@@ -65,11 +65,19 @@
   annahmen10cm Hub, waagerechter Karton,±15°Yaw. Keine allgemeine Freigabe
   dieser Parameter für andere Objekte oder physische Transporte ableiten.
 - Präzisierung17.11.: Nutzer bestätigt insbesondere die fünf Schritte der
-  Objektbahnplanung; lernende Verfahren vorerst zurückstellen. Deterministische
+  Objektbahnplanung; zunächst lernende Verfahren zurückgestellt (durch den
+  folgenden Vergleichsauftrag konzeptionell erweitert). Deterministische
   Gradienten/Suchrichtungen für Objektrotation und Positionskorrektur bevorzugt.
   Gemeinsame Jacobikinematik und Singularitätsbewertung untersuchen; TSR als
   passende Constraintbeschreibung berücksichtigen, nicht als Gradientoptimierer
   ausgeben. Keine qualifizierten Singularitätsschwellen aus Einzelproben ableiten.
+- Erweiterung17.11.: lernbasierten Vergleich für starren Objekttransport
+  konzeptionell und anhand Literatur untersuchen. Nutzeridee: Zielversatz oder
+  kurze Zieltrajektorie plus MRS-Zustand → nächste gemeinsame Objektbewegung;
+  numerisch optimierte Lösungen als Trainingsdaten, zunächst festes Objekt und
+  feste Griffe. Netzstruktur und RL sind offen, keine Trainings-/Hardwareaktion
+  beauftragt. Deterministischer Ansatz bleibt Referenz; Policy-Rollouts können
+  vollständig offline erfolgen. Greifmatrix allein enthält keine Armgeometrie.
 - Offline-Objekttransport17.11.: zuerst unverändertes Idealprofil prüfen;
   bereits ausreichende Bahn nicht allein zur Demonstration verändern. Getrennte
   Zusatzabstandsversuche klar als solche kennzeichnen. Um Kartonmittelpunkt
@@ -117,6 +125,13 @@
   Control oder UR-Sicherheit, keine Fahrziele. Erfolg verlangt laufendes
   `ros.urp` und die passende ROS-Reverse-Verbindung. Der separate
   ROS-Treiber-Launch allein führt weiterhin keine Dashboard-Schreibaktion aus.
+
+## Kameraeinstellungen (Nutzerkorrektur2026-11-17)
+
+- Einmal brauchbar gewählte Fokus-/Belichtungseinstellungen dürfen bestehen
+  bleiben; keine routinemäßige vollständige Rückstellung nach jedem Foto.
+  Tatsächliche Werte und Intrinsicsbindung speichern, geteilte Nutzung/Leases
+  erhalten. Kamera-Dienst/Format müssen weiter funktionsfähig zurückkommen.
 
 ## Modulare Manipulation und starre Greifverbünde (2026-11-13)
 

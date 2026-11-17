@@ -580,4 +580,93 @@ Greiferkörpern und bleiben bisaufRundung unverändert. +Z ist hier lokal die
 falscheRichtung für diegenanntenAbstände. Das ist keinNachweis, dass−Z als
 ganzeBahn zulässig wäre: Objekt/Tisch, weitereKörper, Limits undNachbarposen
 müssen noch mitgeprüft werden. DieProbe initialisiert keineROS-Knoten und
-bewegt keineHardware. Ein vollständigerTransportplaner wurde nicht implementiert.
+bewegt keineHardware. Zum Zeitpunkt dieser Probe war kein vollständiger
+Transportplaner implementiert; der spätere Stand steht in
+[Offline-Objekttransport](offline_object_transport.md).
+
+## Ergänzung 17.11.2026: zielkonditionierte gelernte Objektbewegungen
+
+Neuer Nutzerwunsch: einen lernbasierten Vergleich wieder aufnehmen. Aus
+Zielversatz, etwa (0,10, −0,05, 0,02)m, oder kurzer Referenztrajektorie und
+aktuellem MRS-Zustand nächste gemeinsame Bewegungen vorhersagen. Festes Objekt
+mit festen Greifpunkten als erster Fall; Netzstruktur und RL bleiben offen.
+Die folgenden Punkte sind technische Empfehlungen, keine bereits beschlossene
+Implementierung. Die ursprüngliche Offlinebeschränkung bleibt vereinbar:
+Policy wiederholt im Modell auswerten und erst die komplette Bahn prüfen.
+
+**Lernproblem.** Optimierte Beispielbahnen als Lehrer ergeben zunächst
+Imitationslernen/Behavioral Cloning. Eine Policy ist nicht automatisch RL.
+Der bestehende numerische Optimierer mit analytischen Gradienten liefert
+lokal optimierte, anschließend geprüfte Lösungen, keine geschlossenen
+analytischen oder global optimalen Lösungen. Der erste Lehrer variiert nur
+Yaw auf einer festen Mittelpunktbahn. Ein Netz kann daraus keine systematische
+XYZ-Umwegstrategie lernen. Entweder Vergleich auf diesen Fall beschränken
+oder Lehrer um Positionskorridor und weitere erlaubte Rotationen erweitern.
+
+**Zustand.** Greifmatrix bzw. feste Objekt→TCP-Transformationen beschreiben
+die Kopplung, aber keine Ellbogenlagen, Basisabstände oder Hindernisse.
+Vorschlag: alle24Gelenke inklusive relevanter Winkelzweige, Objektpose,
+Zielpositions-/Orientierungsfehler und gegebenenfalls Referenzfortschritt.
+Bei festem Modell lässt sich Geometrie daraus berechnen; kleine Abstände,
+Abstandsrichtungen/Gradienten und Gelenkgrenzen sind zusätzliche Merkmale.
+Ein einzelner globaler Mindestabstand ist keine vollständige Szenenbeschreibung.
+Variable Basen und Hindernisse müssen als Posen/Geometrie eingehen; bei
+vorgegebenen bewegten Basen auch Zeit und relevanter Zukunftsausschnitt.
+Für dynamische Schritte Geschwindigkeiten, gegebenenfalls Beschleunigungen
+und vorigen Befehl einbeziehen. Zielversatz immer mit angegebenem Bezugssystem.
+
+**Ausgabe.** Gemeinsamen kleinen Objekt-Poseschritt oder wenige Objektwegpunkte
+vorschlagen; bei kurzen Rotationen lokale Rotationsvektoren verwenden und
+korrekt auf SE(3) zusammensetzen. Kontinuierliche IK aus dem aktuellen q,
+Kettenschluss und geometrische Prüfung bleiben analytisch/numerisch erhalten.
+Bei festen Basen und regulären6R-Ketten bestimmen sechs Objektfreiheitsgrade
+lokal die Gelenkbewegung auf dem gewählten IK-Zweig. Keine18 beliebigen freien
+Gelenk-DOF aus24Antrieben minus6Objektkoordinaten ableiten.
+Ungültige Vorschläge können verworfen oder beschränkt korrigiert werden;
+Projektion allein garantiert weder freie Zwischenwege noch ein erreichbares Ziel.
+Die fertige Bahn erhält ein gemeinsames Zeitgesetz für alle Arme.
+
+**Architektur.** Für feste vier Arme zunächst zentralisiertes kleines MLP
+als überprüfbare Baseline. CNN ohne räumliches Raster ist nicht naheliegend.
+Graphnetz/Attention erst bei variabler Armzahl/Layout/Geometrie begründen.
+Reiner quadratischer Regressionsloss kann zwei gute Ausweichrichtungen zu
+einer schlechten mitteln. Bei solchen Fällen expliziten Modus konditionieren
+oder mehrere Kandidaten, CVAE bzw. Diffusion über kurze Objektsegmente prüfen.
+Ein lokaler Zielvektor allein verhindert keine Sackgassen; längerer Horizont,
+globaler Wegvorschlag oder erkennbare Fehlermeldung bleiben mögliche Ergänzungen.
+
+**Training.** Zulässige Startzustände auf der geschlossenen Kette generieren,
+keine unabhängig zufälligen24Gelenkwinkel als gültige Starrgriffe behandeln.
+Start-/Zielposen und zulässige IK-Zweige variieren, echte Ausweichaufgaben und
+unerreichbare/gescheiterte Fälle getrennt erhalten. Lehrerfehlschlag beweist
+keine Unlösbarkeit. Daten um zulässige gestörte Zustände und Zustände eigener
+Offline-Rollouts ergänzen; dort Lehrer erneut abfragen. Das adressiert den
+Verteilungswechsel bei wiederholten eigenen Vorhersagen nach dem
+[DAgger-Prinzip, Ross et al.2011](https://proceedings.mlr.press/v15/ross11a.html).
+RL später optional nach Vortraining, wenn langfristige Entscheidungen oder
+Verbesserung gegenüber einem begrenzten Lehrer im Vordergrund stehen.
+Fortschritt, Umweg, Rotation, Glätte und Grenzen sauber definieren; ein
+Kollisions-Strafterm liefert allein keine Kollisionsgarantie. Rückzug/Stillstand
+kann notwendig sein, daher nicht jeden Schritt strikt zum Ziel erzwingen.
+
+**Relevante Primärquellen, Recherche17.11.2026:**
+
+| Arbeit | Bezug und Grenze |
+|---|---|
+| [Neural MP, Dalal et al.,2024](https://arxiv.org/abs/2409.05864) | Klassische Planer erzeugen Trainingsdaten für reaktive Policy, ergänzt um leichte Optimierung. Sehr passendes Lehrer-/Schülerprinzip; kein Nachweis für unseren starren Vierarmverbund. |
+| [Motion Policy Networks, Fishman et al.,CoRL2022/PMLR2023](https://proceedings.mlr.press/v205/fishman23a.html) | Gelernte Bewegungsrichtlinie aus großem synthetischem Datensatz und Tiefenbeobachtungen; Referenz für gelernte lokale Bewegung, keine notwendige Netz-/Datensatzgröße für unseren engeren Fall. |
+| [Learning a Decentralized Multi-Arm Motion Planner, Ha et al.,CoRL2020/PMLR2021](https://proceedings.mlr.press/v155/ha21a.html) | Soft Actor-Critic mit BiRRT-Demonstrationen und geteilter Einzelarm-Policy. Mehrarmkollisionen sehr relevant, individuelle TCP-Ziele aber kein starrer gemeinsamer Objektgriff. |
+| [Hierarchical Framework for Constrained Dual-Arm Cooperative Manipulation with Whole-Body Collision Avoidance, IROS2025](https://doi.org/10.1109/IROS60139.2025.11247571) | Besonders nah an geschlossenen Ketten: gelerntes Planen plus klassische Regelung und Ganzkörper-Kollisionsvermeidung. Hier nur Abstract/Einleitung zugänglich; keine weitergehende Architektur-/Reproduktionsprüfung behaupten. |
+| [Motion Planning Diffusion, Carvalho et al.,Preprint2024, überarbeitet2025](https://arxiv.org/abs/2412.19948) | Lernt Verteilungen über B-Spline-Bahnen und kombiniert sie mit Kostengradienten. Interessant für mehrere Ausweichmodi; gezeigte7DOF-Aufgaben sind keine Vierarm-Starrverbundvalidierung. |
+
+**Vergleich.** Optimierer allein, Netz mit gleicher Endprüfung, Netz plus
+begrenzte Korrektur und Endprüfung separat auswerten. Optional Netz nur zur
+Initialisierung desselben Optimierers als weitere klar benannte Variante.
+Rohe Vorschlagsfehler, Interventions-/Fallbackrate und fertige gültige
+Erfolgsrate getrennt ausweisen. Zusätzlich gesamte Laufzeit inklusive
+Merkmalsberechnung, IK, Korrektur und Prüfung; Daten-/Trainingskosten separat.
+Weglänge, Objektprofilabweichung, Minimalabstand, Kettenschluss, Singularitäts-
+indikatoren und nach gemeinsamer Retimung v/a/Ruck bewerten. Testtrennung nach
+ganzen Aufgaben/Start-Ziel-Familien, nicht nach Nachbarpunkten derselben Bahn.
+Neue Layouts als eigenen Generalisierungstest führen. Bestehende wenige
+Demonstrationen liefern weder Datenbedarfsschätzung noch Leistungsvorsprung.
