@@ -72,8 +72,13 @@ of the harness does not establish holding reliability or hardware readiness.
 Update HANDOVER and `work/carton-grasp-pipeline.md` with new evidence and limits.
 
 For dynamic experiments read the exploration section of docs/manipulation_pipeline.md.
-Use an explicit force-observed exploration profile, preserve per-DOF stopping
-reserves and the single shared object law. Commissioning reports do not qualify
+Use an explicit force-observed exploration profile and the single shared object
+law. Default `simulation_stop_reserve_mode: enforce` retains per-DOF stopping
+reserves. On17November the user explicitly authorized simulation-only
+`observe`: calculate/log those reserves without enforcing them in planning or
+runtime, while geometric collision checks/model margin and all contact,
+freshness, speed and group stops remain active. See
+`docs/simulation_stop_reserve_mode.md`; never apply this task mode to hardware. Commissioning reports do not qualify
 new speed profiles. Planned jerk limits do not qualify real actuator jerk or
 loaded stops.50N is a user-reported reference per jaw/wall patch, not a measured
 material failure limit. Direct force reference tests passed; no floating base

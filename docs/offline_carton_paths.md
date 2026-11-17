@@ -1,5 +1,8 @@
 # Schritt 3: feste Greifziele am Avocado-Karton
 
+Folgeversuch: [dieselben Trajektorien mit zehnfacher Geschwindigkeit](offline_carton_speed10.md)
+und22,07s Gesamtdauer, einschließlich Ableitungs-/Reservevergleich und Echtzeitvorschau.
+
 [Interaktive Bahnansicht öffnen](../../../setup/research/offline-carton-paths-20261117/case03/viewer.html).
 Die Datei in einem Browser öffnen. **Play preview** startet die Modellanimation,
 der Schieber erlaubt einzelne Zeitpunkte. Mit Ziehen drehen, mit dem Mausrad

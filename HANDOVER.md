@@ -1,5 +1,56 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Vier Eckanflüge mit zehnfacher Zeitkompression, 2026-11-17
+
+- Nutzer findet Bewegung natürlich und fragt nach10×Trajektorientempo, nicht
+  Planungsdauer. Offlineauftrag ausgeführt; keine Physik-/Hardwarefahrt.
+  Alte Vorschau hatte20×Wiedergabe (220,7s in11s); neue Vergleichsansicht
+  startet ausdrücklich mit10×Trajektorie und1×Wiedergabe, Dauer22,067s.
+- Quelle case03 unverändert. Neue gemeinsame Zeitkompression aller vier
+  empfohlenen Wege, einschließlich Abschnittszeiten/Ankunft/Warten. Stützstellen
+  und Splineknoten identisch; v×10,a×100,Ruck×1000. Neue isolierte Dateien
+  path_speed.py, compare_carton_path_speed.py und preview_carton_speed.html.
+- Analytische lokale Intervallobergrenzen10×:0,454584rad/s,1,223044rad/s²,
+ 10,085925rad/s³. Unabhängige dichte Spitzen0,454556/1,153333/10,085924 darunter.
+  Alle24URDF-Geschwindigkeitslimits eingehalten; langsames0,05rad/s-/0,1rad/s²-
+  Planungsprofil überschritten. Dieses Profil ist kein physisches UR-Maximum;
+  keine qualifizierten Hardware-a-/Ruck-/Torque-/Trackinggrenzen daraus ableiten.
+-2.208gleich normierte Zeitpunkte jeVariante:0FCL-Kollisionen, gleicher
+  minArmhüllabstand155,755mm; Gelenkabweichung bei t/10 nur1,87e−14rad.
+  Fast-Diagnose höchstens0,010sRaster, also nicht gröber als vorher0,100s.
+- Geschwindigkeitsabhängige Reserve mit ursprünglicher0,05Untergrenze,
+ 350mszusammengesetzterVerzögerung/0,5rad/s²angenommenerBremsung ausgewertet.
+  Nachbarreserveverletzungen423→1.606/2.208; maxPaaranforderung199→1.357mm.
+  Momentane Sollgeschwindigkeitsdiagnose, keine realeStopphülle/Qualifikation
+  eines erhöhten Betriebscaps oder Beschleunigung während Reaktionslatenz.
+  Bestehende Reserve-/Cap-/Hardwarekonfiguration unverändert.
+- BuildPASS,16gezielteTests(9neu+7Bahntests)PASS. Unabhängige100.001Punkte pro
+  Abschnitt bestätigen Ableitungen/Zeiten/Geometrie.15BrowserfällePASS,
+ 241paarweise Vorschauzustände identisch,1sWiedergabe=1sModellzeit geprüft.
+  Enddarstellung visuell geprüft. Keine Roboter-/Kamera-/Dienstaktionen.
+- Ergebnisse setup/research/offline-carton-speed10-20261117/:
+  comparison.json,trajectory-10x.json,verification.json,viewer.html.
+  Weiterhin executable:false; kein Greifschluss/Hub/Lastnachweis.
+  Anleitung docs/offline_carton_speed10.md, Logs setup/logs/uwa-carton-speed10-*.
+
+## Kontakt-Simulation: Reserve-Observe-Modus,2026-11-17
+
+- Nutzerbeauftragt ausdrücklichSimulationsmodusohneerzwungene dynamische
+  Reaktions-/Bremsreserve. Implementiert`simulation_stop_reserve_mode: observe`,
+  nurmitExploration+Kraftmessung; Default`enforce`. PlanerundGuardgleich;
+  modellierteReserve/VerletzungenweiterimTrace, ModusimReview/Status/RViz.
+- Geometrie/20mmPuffer, Geschwindigkeit/Kontakt/Schlupf/Frische/Gruppenstopp
+  bleibenaktiv; Hardwarepfadeunverändert. AktiveGreifweltenvorÄnderungHost-
+  geprüft:keine. KeineHardware-/KernelaktionundkeinneuerDrehphysiklauf.
+- BisherigeAnnahmen:10Hz+150msPlan-Zustandsalter+100msStopplatenz=350ms,
+  letztesProfil2rad/s². KeinUR-Messnachweis; NutzerwünschtPerspektiveauf
+  schnelleresInterface/PREEMPT_RT. Quellen/Formeln/Beispielin
+  docs/simulation_stop_reserve_mode.md. RealzeitbudgetsbenötigenEnd-to-end-Messung.
+- 103TasktestsPASS/BuildPASS; gespeicherteDrehbahn600Zustände:enforce600
+  Reserveverletzungen(min−37,188mm),observe0(min176,277mmüber20mmPuffer).
+  AbgetasteterPolicytest,keinPhysiknachweis. Artefakte
+  setup/tasks/carton_stop_reserve_mode_20261117/, Logsuwa-sim-reserve-*.
+
 ## Karton: rechte UR-Übergabe, ROS-Leerfahrt und Anfahrkandidat,2026-11-17
 
 - Nutzer bestätigt „Jetzt frei“ nach fremdem UR-Test. Frisch lesend: rechteURs
@@ -109,6 +160,14 @@
   work/carton-speed5-force.md. 95TasktestsundLyricalTaskbuildPASS.
 
 ## Gemeinsame ROS-Greiferfunktionen für Agenten, 2026-11-17
+
+- Neueste Präzisierung: nominelle Sollwerte aus dem Datenblatt reichen dem
+  Nutzer; eigene N/mm-Kalibrierung nicht voraussetzen. Ergänzte reine Python-/
+  CLI-Umrechnung:50mm→58,82%/Positionsraw105; nominal50N→Kraftraw36 aus linearer
+ 20–235N-Näherung. Hersteller nennt85mmHub/20–235N, weist aber auf nichtlineare
+  tatsächliche Kraft hin. Keine exakte Kraftkennlinie oder Istkraft behaupten.
+  NeueFunktionen `set_width_mm`, `close_gripper(force_n=...)`, CLI`set-width`
+  und`--force-n`; bestehen dieselben Servercaps, keine Hardwarebewegung.
 
 - Nutzerauftrag umgesetzt: Öffnen, Schließen mit vorgegebener Krafteinstellung
   und relative Öffnung über neue `GripperCommand`-Action; Read/Capabilities als

@@ -71,6 +71,7 @@ def configuration(path=None):
     cfg.setdefault('simulation_real_time_factor',.7)
     cfg.setdefault('force_observation',False)
     cfg.setdefault('exploration_mode',False)
+    cfg.setdefault('simulation_stop_reserve_mode','enforce')
     cfg.setdefault('finger_velocity_limit_rad_s',cfg['joint_velocity_rad_s'])
     cfg.setdefault('grasp_entry_min_duration_s',30.)
     cfg.setdefault('braking_acceleration_rad_s2',.5)
@@ -81,9 +82,13 @@ def configuration(path=None):
     if cfg.get('schema_version') != 1 or tuple(cfg.get('arms', [])) != ARMS:
         raise ValueError('v1 requires schema1 and the two right arms in stable order')
     for key, value in cfg.items():
-        if key in ('schema_version', 'arms', 'object_id', 'simulation_assumptions','gripper_transmission','physics_engine','force_observation','exploration_mode','roll_long_axis','placement_table','force_comparison_lift','joint_velocity_overrides_rad_s'): continue
+        if key in ('schema_version', 'arms', 'object_id', 'simulation_assumptions','gripper_transmission','physics_engine','force_observation','exploration_mode','roll_long_axis','placement_table','force_comparison_lift','joint_velocity_overrides_rad_s','simulation_stop_reserve_mode'): continue
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
             raise ValueError('Expected positive finite ' + key)
+    if cfg['simulation_stop_reserve_mode'] not in ('enforce','observe'):
+        raise ValueError('simulation_stop_reserve_mode must be enforce or observe')
+    if cfg['simulation_stop_reserve_mode']=='observe' and not (cfg['exploration_mode'] and cfg['force_observation']):
+        raise ValueError('Observe-only stopping reserve requires explicit force-observed simulation exploration')
     comparison=cfg.get('force_comparison_lift',False)
     multiplier=cfg.get('carrying_speed_multiplier',1.)
     if not isinstance(comparison,bool):raise ValueError('force_comparison_lift must be boolean')

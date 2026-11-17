@@ -34,6 +34,11 @@
   Zielposen und IK-Konfigurationen variieren; Nutzer fand dies verwirrend.
   GewünschterNullstart kollidiert imModell; Nutzer wählt nachPrüfung ausdrücklich
   [0,-90,0,-90,0,0]Grad füralle4. ReineOfflinebahnprüfung, keinGriff-/Hubnachweis.
+- Auftrag17.11.: Eckanflugtrajektorien selbst zehnfach beschleunigen und prüfen,
+  nicht nur die HTML-Wiedergabe. Gemeinsame Zeitskalierung aller vier Arme;
+  v×10/a×100/Ruck×1000 auswerten. Alte vorsichtige Profilgrenzen nicht als
+  physische UR-Maxima darstellen. Viewer-Wiedergabe (bisher20×) klar von
+  Trajektoriengeschwindigkeit trennen; schneller Vergleich zunächst Echtzeit.
 - Bei variabler Basislage alle potenziell kollidierenden Paare berücksichtigen;
   die bisherige feste Vier-Nachbarpaar-Auswahl nicht ungeprüft übertragen.
   Kollisionsprüfung, globale Planung, zeitliche Koordination und lokale
@@ -90,8 +95,12 @@
   automatische Öffnung interpretieren. Details, Grenzen und Mocknachweis in
   der Anleitung. Bestehende Hardware-Zugriffsabsprachen erhalten.
 - Nutzer bestätigt am17.11. ausdrücklich: Rohkraft und relative Öffnung reichen
-  zunächst. Eine N-/mm-Kalibrierung ist kein offener Pflichtteil dieser ersten
-  Greifer-API; Einheiten weiterhin eindeutig als Rohwert/Registerhub ausgeben.
+  zunächst; anschließende Präzisierung: Datenblatt-Sollwerte inmm/N sind als
+  nominelle Komforteingabe gewünscht, ohne zwingende eigene Kalibrierung.
+  `set_width_mm()` und `close_gripper(force_n=...)` übersetzen beim2F-85
+  nominell85mmHub bzw.linear20–235NaufRohwerte. Kraftumrechnung ausdrücklich
+  Näherung, keine exakte Herstellerkennlinie/physische Kraftgrenze; Servercaps
+  bleiben wirksam. Sollwerte, verwendete Rohwerte und gemessene Istwerte trennen.
 
 - Nutzer erlaubt17.11. OAK-Szenenchecks selbständig, z.B.ob Karton amPlatz.
   Vorhandenen Kameradienst/Lease nutzen und andere Agenten-/Gerätenutzung
@@ -868,3 +877,12 @@
 - Kräfte in vergleichbaren Bewegungsfenstern auswerten; nicht Greif-/Warte- und
   Bewegungsphasen beliebig in ein Maximum mischen. Einzelne beobachtete Läufe
   von Wiederholstatistik und realer Belastbarkeit unterscheiden.
+
+- Präzisierung17.11.: Nutzer beauftragt ausdrücklich einen reinen Kontakt-
+  Simulationsmodus ohne erzwungene dynamische Stoppreserve. Taskparameter
+  `simulation_stop_reserve_mode: observe` nur in force-observedExploration;
+  Standard `enforce` erhalten. Reserve weiter berechnen/protokollieren;
+  geometrischeKollisionsprüfung/20mmModellpuffer, Kontakt-/Schlupf-/Frische-
+  undGruppenstopps bleiben aktiv. KeineÜbertragung aufHardware/Realprofile.
+  Nutzer hält schnellereRealreaktion mitpassendemInterface/PREEMPT_RT für
+  möglich; bisherige350msPlanlatenz/2rad/s² sindAnnahmen, keineUR-Messwerte.

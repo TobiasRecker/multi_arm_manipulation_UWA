@@ -38,3 +38,19 @@ def test_helpers_keep_existing_ros_command_path_and_label_nominal_units():
     assert client.close_gripper(force_raw=7)['success']
     for args in ({},{'force_raw':0,'force_n':20}):
         with pytest.raises(ValueError):client.close_gripper(**args)
+
+
+def test_cli_nominal_units_translate_before_ros_send(monkeypatch,capsys):
+    from uwa_cell_gripper_control import client as module
+    calls=[]
+    class CLI:
+        def __init__(self,*args):pass
+        def __enter__(self):return self
+        def __exit__(self,*args):pass
+        def command(self,operation,**kwargs):calls.append((operation,kwargs));return dict(success=True)
+    monkeypatch.setattr(module,'GripperClient',CLI)
+    module.main(['--arm','right_rear','set-width','50'])
+    module.main(['--arm','right_rear','close','--force-n','50'])
+    assert calls[0][1]['opening_percent']==pytest.approx(58.8235294118)
+    assert calls[1][1]['force_raw']==36
+    assert 'nominal_request' in capsys.readouterr().out

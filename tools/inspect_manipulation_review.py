@@ -25,6 +25,7 @@ def trajectory_summary(trajectory):
     if 'object_pose' in points[0]:
         result['object_displacement_world_m']=[points[-1]['object_pose'][i][3]-points[0]['object_pose'][i][3] for i in range(3)]
         result['object_motion_statement']=trajectory.get('statement')
+        result['simulation_stop_reserve_mode']=trajectory.get('simulation_stop_reserve_mode','enforce')
         result['group']=trajectory.get('group')
     return result
 

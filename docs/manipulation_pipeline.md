@@ -675,3 +675,13 @@ python3 src/multi_arm_manipulation_UWA/tools/preview_carton_motion.py \
 Play/pause, timeline, orbit and zoom are display-only. This animation represents
 commanded model geometry, never successful contact physics. The regular
 `cell_task preview RUN` shows the actual review and complete motion stages.
+
+## Simulation-only stopping-reserve observation (2026-11-17)
+
+For contact experiments, the explicitly requested
+[reserve observation mode](simulation_stop_reserve_mode.md) removes only the
+dynamic stopping budget from planning/runtime intervention. Set
+`simulation_stop_reserve_mode: observe` with exploration and force observation.
+The default is `enforce`; geometry/model margin and contact/slip/freshness/group
+stops stay active. Full modeled reserve violations remain in the recorded guard
+pairs. This is not a hardware mode or a completed quarter-turn physics test.

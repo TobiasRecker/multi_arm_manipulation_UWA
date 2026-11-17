@@ -28,3 +28,6 @@ relative_angle_tolerance_rad: 0.017453292519943295
 maximum_observation_age_s: 5.0
 maximum_attempts: 3
 simulation_assumptions: [rigid_empty_carton, upright_carton_on_horizontal_support, user_reported_mass, unmeasured_friction, approximate_geometry, unmeasured_finger_damping, unmeasured_transmission_stiffness, idealized_parallel_transmission, idealized_arm_actuators]
+
+# Only opt-in contact exploration may observe instead of enforce this reserve.
+simulation_stop_reserve_mode: enforce

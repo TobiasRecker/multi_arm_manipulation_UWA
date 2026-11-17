@@ -174,6 +174,7 @@ class TaskGuard(MotionNode):
         status.update(instance=self.instance,sequence=self.sequence,pairs=self.pairs,
             evaluated_monotonic_s=now,guard_config_signature=guard_signature(self.cfg),schema_version=1,
             source_time_s=source,scene_sha256=self.scene['sha256'],task_phase=self.task_phase,
+            simulation_stop_reserve_mode=self.scene['cfg'].get('simulation_stop_reserve_mode','enforce'),
             active_grasp_members=list(ARMS) if self.group else [],
             group_stationary=bool(self.group and all(self.core.stationary(a,now) for a in ARMS)))
         self.publisher.publish(String(data=json.dumps(status,allow_nan=False)))

@@ -61,3 +61,43 @@ def test_carrier_override_remains_in_full_stopping_budget_and_excludes_obstacles
     np.testing.assert_allclose(velocity_limits(names,accepted),[.065,.05,cfg['finger_velocity_limit_rad_s']])
     cfg['joint_velocity_overrides_rad_s'][names[1]]=.2;path.write_text(yaml.safe_dump(cfg))
     with pytest.raises(ValueError,match='Only carrying-arm'):configuration(path)
+
+
+@pytest.mark.parametrize('exploration,forces,mode,accepted',[
+    (False,True,'observe',False),(True,False,'observe',False),
+    (True,True,'observe',True),(True,True,'disabled',False),
+    (False,True,'enforce',True)])
+def test_reserve_mode_is_explicit_exploration(tmp_path,exploration,forces,mode,accepted):
+    cfg=configuration();cfg.update(exploration_mode=exploration,force_observation=forces,
+        simulation_stop_reserve_mode=mode)
+    path=tmp_path/'profile.yaml';path.write_text(yaml.safe_dump(cfg))
+    if accepted:assert configuration(path)['simulation_stop_reserve_mode']==mode
+    else:
+        with pytest.raises(ValueError):configuration(path)
+
+
+def test_observe_mode_keeps_geometric_margin_and_logs_full_reserve(monkeypatch):
+    from uwa_cell_motion.geometry import SphereModel
+    from uwa_cell_motion.planning import Problem
+    model=TaskSphereModel.__new__(TaskSphereModel)
+    model.names={'right_front':['right_front_wrist_3_joint'],'right_rear':['right_rear_wrist_3_joint']}
+    model.motion_radii={rid:np.array([[1.]]) for rid in model.names}
+    model.task=dict(joint_velocity_rad_s=.2,simulation_stop_reserve_mode='observe')
+    cfg=dict(braking_acceleration_rad_s2=2.,rate_hz=10.,stop_latency_s=.1,
+        state_timeout_s=.15,model_margin_m=.02)
+    velocities={rid:[0.] for rid in model.names};ages={rid:.15 for rid in model.names}
+    monkeypatch.setattr(SphereModel,'world',lambda self,*a,**k:{rid:np.zeros((1,3)) for rid in self.names})
+    monkeypatch.setattr(SphereModel,'nearest',lambda self,*a:dict(clearance_m=.05))
+    _,pairs=model.pairs({},velocities,ages,cfg)
+    pair=pairs[0]
+    assert pair['threshold_m']==pytest.approx(.02)
+    assert pair['modeled_stopping_threshold_m']==pytest.approx(.18)
+    assert pair['modeled_stopping_reserve_violated']
+    # The same mode is used by planning, not just the runtime guard.
+    problem=Problem.__new__(Problem);problem.names=model.names;problem.spheres=model;problem.cfg=cfg
+    monkeypatch.setattr('uwa_cell_motion.planning.PAIRS',[('right_front','right_rear')])
+    assert problem.thresholds()[0]['threshold_m']==pytest.approx(.02)
+    model.task['simulation_stop_reserve_mode']='enforce'
+    _,pairs=model.pairs({},velocities,ages,cfg)
+    assert pairs[0]['threshold_m']==pytest.approx(.18)
+    assert problem.thresholds()[0]['threshold_m']==pytest.approx(.18)

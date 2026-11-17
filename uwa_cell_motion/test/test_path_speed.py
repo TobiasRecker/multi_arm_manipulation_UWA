@@ -51,6 +51,27 @@ def test_derivative_bounds_obey_time_power_laws():
         assert np.allclose(b[key],np.asarray(a[key])*10**power,rtol=1e-8)
 
 
+def test_stop_reserves_follow_scaled_velocity_without_changing_configuration():
+    from copy import deepcopy
+    from types import SimpleNamespace
+    from uwa_cell_motion.common import ROBOT_IDS
+    from uwa_cell_motion.geometry import SphereModel
+    from uwa_cell_motion.path_speed import reserve_check
+    cfg=dict(velocity_limit_rad_s=.05,braking_acceleration_rad_s2=.5,
+             rate_hz=10.,state_timeout_s=.15,stop_latency_s=.1,model_margin_m=.02)
+    original=deepcopy(cfg)
+    spheres=SimpleNamespace(motion_radii={r:np.ones((1,7)) for r in ROBOT_IDS})
+    spheres.arm_budget=lambda r,v,age,c:SphereModel.arm_budget(spheres,r,v,age,c)
+    spheres.nearest=lambda world,a,b:dict(clearance_m=.5)
+    problem=SimpleNamespace(cfg=cfg,spheres=spheres,names={r:list(range(7)) for r in ROBOT_IDS})
+    slow={r:example() for r in ROBOT_IDS};fast={r:scale_path(p,10) for r,p in slow.items()}
+    a=reserve_check(problem,{},slow,2.);b=reserve_check(problem,{},fast,.2)
+    assert len(a)==len(b)==6
+    assert max(p['required_m'] for p in b)>max(p['required_m'] for p in a)
+    assert [p['gap_m'] for p in a]==[p['gap_m'] for p in b]
+    assert cfg==original
+
+
 @pytest.mark.parametrize('factor',[0,-1,float('nan'),float('inf')])
 def test_bad_factors_rejected(factor):
     with pytest.raises(ValueError):scale_path(example(),factor)

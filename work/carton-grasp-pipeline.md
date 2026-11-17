@@ -849,3 +849,11 @@ Vollständige90°-Drehungbei5×nichtausgeführt, Reservevorfilterverweigertdiese
 Details/Negativläufe docs/carton_speed_comparison_2026-11-17.md und
 work/carton-speed5-force.md; maßgeblich comparison-final/result.json unter
 setup/tasks/carton_speed5_20261117/. EigeneProzessebeendet,95Tasktests/BuildPASS.
+
+### Simulationsreserve optional nur beobachten,2026-11-17
+
+AufexplizitenNutzerauftragTaskmodus`simulation_stop_reserve_mode: observe`
+implementiert; Defaultenforce. DynamischeReserveweitergerechnet/protokolliert,
+Planer/GuarderzwingennurGeometrie/20mmPuffer; Kontakt/Schlupf/Frische/Gruppen-
+stoppsunverändert.103Tests/BuildPASS,600DrehzuständeofflinePolicyvergleich.
+KeinneuerDrehphysiklauf; Detailsdocs/simulation_stop_reserve_mode.md.

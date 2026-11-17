@@ -13,8 +13,9 @@ Die Bereitstellung dieses Diensts hat keine Greifer oder Arme bewegt.
 ## Einheiten und derzeitige Grenzen
 
 Der Nutzer hat am17.11.2026 ausdrücklich bestätigt, dass Rohkraft und relative
-Öffnung für diese erste Version ausreichen. N/mm sind eine mögliche spätere
-Erweiterung und keine Voraussetzung für die Verwendung dieser Schnittstelle.
+Öffnung zunächst ausreichen, und anschließend Sollwerte aus dem Datenblatt
+als gewünschte Komforteingabe präzisiert. Eine eigene Kalibrierung ist dafür
+keine Voraussetzung: Python-/CLI-Helfer akzeptieren jetzt nominelle mm/N.
 
 - `force_raw`: expliziter Robotiq-Rohwert0–255. **Keine Newtonangabe**;
   auch0bedeutet nicht0N physische Greifkraft. Einstellung wird zurückgelesen.
@@ -22,7 +23,7 @@ Erweiterung und keine Voraussetzung für die Verwendung dieser Schnittstelle.
 - `opening_percent`: **Sollwert für den nominellen Registerhub**,100=offen,
  0=geschlossen. Umrechnung `position_raw=round((100-opening_percent)*255/100)`.
   Das ist keine gemessene geometrische Öffnungsweite. Millimeter-/Newton-
-  Kennlinien sind noch nicht vorhanden und werden nicht erfunden.
+  Istwert-Kennlinien sind weiterhin nicht gemessen.
 - Am realen offenen Anschlag wurde POS3beiSoll0beobachtet. Die Hardware-
   Kollisionshülle deckt weiterhin den gesamten Öffnungsbereich ab; diese API
   ersetzt sie nicht automatisch durch eine kleinere Hülle.
@@ -30,7 +31,48 @@ Erweiterung und keine Voraussetzung für die Verwendung dieser Schnittstelle.
 Schließen endet regulär auch bei gemeldetem Objektkontakt. `contact_detected`
 stammt aus dem nativen OBJ-Register; es beweist weder vier Auflagekontakte noch
 einen tragfähigen Griff oder eine gemessene Klemmkraft. N/mm erfordern einen
-gesonderten mechanischen Messabgleich. Der reale Kartonhub bleibt unqualifiziert.
+gesonderten mechanischen Messabgleich, wenn sie als gemessene Istwerte oder
+verbindliche physische Grenzen gelten sollen. Der reale Kartonhub bleibt
+unqualifiziert; nominale Sollwerte sind bereits nutzbar.
+
+### Nominelle Sollwerte aus dem Datenblatt
+
+Für den2F-85 nennt Robotiq85mmHub und20–235NGreifkraft. Die Positionszuordnung
+zwischen den Endpunkten beschreibt das Handbuch als annähernd linear.
+[Herstellerhandbuch, Positionsregister und Spezifikationen](https://blog.robotiq.com/hubfs/support-files/2F-85_2F-140_UR_PDF_2026-03-17.pdf)
+
+- `set_width_mm(50)` →50/85×100≈58,82%Öffnung →Positionsrohwert105.
+- `close_gripper(force_n=50)` verwendet eine **lineare Nominalskala** über
+ 20–235N: (50−20)/(235−20)≈13,95%Kraftbereich →Kraftrohwert36.
+
+Die Kraftskala ist eine ausdrücklich gewählte Näherung aus dem angegebenen
+Bereich, keine vom Hersteller gelieferte exakte Kraftkennlinie. Robotiq
+erklärt, dass der Kraftparameter eine Motorstromgrenze vorgibt und tatsächliche
+Greifkraft nichtlinear von Kontakt, Geschwindigkeit und Mechanik abhängt.
+[Robotiq zur Bedeutung der Krafteinstellung](https://blog.robotiq.com/knowledge/how-works-the-force-for-the-grippers-5-1736280826249)
+Ein nominaler50-N-Befehl ist deshalb auch kein Nachweis einer eingehaltenen
+50-N-Grenze je Kartonwand oder Kontaktbacke.
+
+```python
+gripper.set_width_mm(50)             # nomineller Abstand der Backen
+gripper.close_gripper(force_n=50)    # nomineller Kraftwert, ergibt raw36
+```
+
+```bash
+ros2 run uwa_cell_gripper_control cell_gripper --arm right_rear set-width 50
+ros2 run uwa_cell_gripper_control cell_gripper --arm right_rear close --force-n 50
+```
+
+Die Helfer nutzen denselben ROS-Actionpfad und dieselben Servergrenzen. Der
+50-N-Nominalbefehl benötigt deshalb eine konfigurierte Rohkraftgrenze≥36;
+er erhöht sie nicht automatisch. Zulässige Eingaben:0–85mm und20–235N;
+außerhalb wird abgewiesen, nicht still geklemmt. `force_raw` und `force_n`
+sind gegenseitig ausgeschlossen. Ergebnisse nennen die nominale Anforderung
+und tatsächlich verwendete Rohwerte unter `nominal_request`. Es wurde für
+diese Ergänzung kein echter Greifer bewegt.
+25reineAPI-/Client-/CLI-Prüfungen bestehen einschließlich Nominalwerten,
+Grenzen und gegenseitigem Ausschluss der Kraftangaben; Log
+`setup/logs/uwa-gripper-nominal-units-20261117.log`.
 
 ## Start und Dienstbesitz
 

@@ -64,7 +64,11 @@ def main():
                     state=terminal,object=data['object'],contacts={k:data['contacts'][k] for k in ('stamp','pads','supported')},
                     joints=data['joints'],group=data.get('group'),
                     blocked_arms=data['supervisor']['blocked_arms'],held_arms=data['supervisor']['held_arms'],
-                    faults=data['guard']['latched_causes'],forces=data.get('forces'))
+                    faults=data['guard']['latched_causes'],forces=data.get('forces'),
+                    stopping_reserve=dict(mode=data['guard'].get('simulation_stop_reserve_mode','enforce'),
+                        pairs=[{k:p.get(k) for k in ('arms','clearance_m','threshold_m',
+                            'modeled_stopping_threshold_m','modeled_stopping_reserve_violated')}
+                            for p in data['guard'].get('pairs',[])]))
                 output.write(json.dumps(row)+'\n');rows+=1;last_saved=now
                 if rows%20==0:output.flush()
                 if terminal in ('DONE','FAILED'):

@@ -353,7 +353,7 @@ def _object_samples(problem,group,start,object_start,object_end,cfg,pivot=None):
         world=problem.spheres.world(q)
         for pair in problem.thresholds():
             if problem.spheres.nearest(world,*pair['arms'])['clearance_m']<=pair['threshold_m']:
-                raise ValueError('Object motion violates interarm stopping reserve')
+                raise ValueError('Object motion violates '+('geometric interarm margin' if cfg.get('simulation_stop_reserve_mode')=='observe' else 'interarm stopping reserve'))
         samples.append([q[n] for n in names]);poses.append(obj);qprev=q
     return samples,poses,steps,names,distance,angle
 
@@ -400,6 +400,7 @@ def object_trajectory(problem, group, start, object_start, object_end, cfg, *, p
         points.append(dict(time=float(time_u*duration),positions=q.tolist(),velocities=velocity.tolist(),
             accelerations=acceleration.tolist(),object_pose=obj.tolist()))
     trajectory=dict(kind='rigid_object',joint_names=names,points=points,duration_s=duration,
+        simulation_stop_reserve_mode=cfg.get('simulation_stop_reserve_mode','enforce'),
         group=group.record(),scene_sha256=problem.scene_record['sha256'],
         statement='One object path and one shared time law; no independent arm trajectory planning')
     if cfg.get('joint_jerk_rad_s3') is not None:trajectory=limit_shared_jerk(trajectory,cfg['joint_jerk_rad_s3'])

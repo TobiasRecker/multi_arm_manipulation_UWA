@@ -578,6 +578,11 @@ with an interactive model replay. Target poses stay fixed across IK variants.
 Individual paths pass sampled static/self/object checks; simultaneous starts
 still violate pair reserves, so joint timing coordination remains open.
 
+An [offline 10× trajectory-speed comparison](docs/offline_carton_speed10.md)
+compresses those same paths from220.67s to22.07s. It includes derivative bounds,
+unchanged-geometry checks and velocity-dependent reserve diagnostics. Its viewer
+defaults to real-time playback; no physical motion was performed.
+
 Select `/uwa_cell/controller_manager` and one of the four trajectory
 controllers in the **rqt Joint Trajectory Controller** window. Enable control
 and adjust joint targets conservatively. This is direct joint control, not

@@ -13,6 +13,12 @@
   am17.11. ausdrücklich Rohkraft/relative Öffnung als ausreichenden ersten
   Umfang. Explizite Rohwerte und prozentualer Registerhub, keine unbewiesene
   N-/mm-Zuordnung; keine weitere Implementierung für diese Bestätigung nötig.
+- Nachfolgende Präzisierung17.11.: Datenblatt-Sollwerte ohne eigene Kalibrierung
+  genügen. Nominelle Python-/CLI-Helfer ergänzt:85mmEndpunktinterpolation,
+  Kraft explizit lineare20–235N-Näherung, nicht gemessene/garantierteIstkraft.
+  Quellen und Grenzen in docs/gripper_ros_api.md, Servercaps unverändert.
+ 25API-/Client-/CLI-TestsPASS; keine neue Hardwarebewegung, kein Node-/
+  Dienstneustart für diese reine Clientumrechnung nötig.
 - Betroffene Bereiche: neues eigenes Paket, Erweiterung des Interfacepakets,
   Doku/AGENTS/HANDOVER. Task-/Motion-/Kartonquellen und fremde Prozesse erhalten.
   Nur diese zwei Pakete bauen; eigene Mocktests und ggf.reinlesender Livetest.

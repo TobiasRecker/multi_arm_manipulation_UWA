@@ -137,3 +137,12 @@ def test_fault_probe_rejects_continued_slow_motion_despite_small_velocity():
         moving.append((t,np.full(12,.002*t),obj))
     assert not module.stop_window(moving)['ready']
     assert not module.stop_window(quiet[:2])['ready']
+
+
+def test_observe_reserve_does_not_disable_contact_or_freshness_stops():
+    guard=guard_fixture();guard.scene['cfg']['simulation_stop_reserve_mode']='observe'
+    assert not guard.faults(10.01)
+    guard.contacts['pads'][ARMS[0]]['left_pad']=False
+    assert any(f['reason']=='GRASP CONTACT LOST' for f in guard.faults(10.01))
+    assert any(f['reason']=='TASK RUNNER LOST' for f in guard.faults(10.6))
+    assert any('TELEMETRY STALE' in f['reason'] for f in guard.faults(10.6))
