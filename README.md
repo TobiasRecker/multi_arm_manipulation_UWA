@@ -583,6 +583,11 @@ compresses those same paths from220.67s to22.07s. It includes derivative bounds,
 unchanged-geometry checks and velocity-dependent reserve diagnostics. Its viewer
 defaults to real-time playback; no physical motion was performed.
 
+A [smoother four-arm trajectory comparison](docs/offline_carton_smoothing.md)
+reduces the duration further to15.99s with almost unchanged path geometry,
+lower acceleration/jerk bounds and a new sampled simultaneous collision check.
+Its viewer compares both motions and plots their derivatives at real-time playback.
+
 Select `/uwa_cell/controller_manager` and one of the four trajectory
 controllers in the **rqt Joint Trajectory Controller** window. Enable control
 and adjust joint targets conservatively. This is direct joint control, not
@@ -901,3 +906,8 @@ trajectory controllers. EGL rendering with `gui:=false` also supplies all four
 camera streams; the camera/clock bridges and server shut down cleanly on restart.
 Evidence: `uwa-cell-tools-*.log` / `*.json` and
 `uwa-cell-camera-images/` under the log directory above.
+
+The [real-time preparation guide](docs/realtime_preparation.md) records the
+Ubuntu26.04 kernel/privilege plan, explicit faster simulation-guard candidates,
+and passive reaction-chain measurement tools. No kernel or active hardware
+profile was changed by that preparation.

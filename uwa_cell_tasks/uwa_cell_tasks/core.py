@@ -72,6 +72,7 @@ def configuration(path=None):
     cfg.setdefault('force_observation',False)
     cfg.setdefault('exploration_mode',False)
     cfg.setdefault('simulation_stop_reserve_mode','enforce')
+    cfg.setdefault('simulation_guard_rate_hz',10.)
     cfg.setdefault('finger_velocity_limit_rad_s',cfg['joint_velocity_rad_s'])
     cfg.setdefault('grasp_entry_min_duration_s',30.)
     cfg.setdefault('braking_acceleration_rad_s2',.5)
@@ -89,6 +90,8 @@ def configuration(path=None):
         raise ValueError('simulation_stop_reserve_mode must be enforce or observe')
     if cfg['simulation_stop_reserve_mode']=='observe' and not (cfg['exploration_mode'] and cfg['force_observation']):
         raise ValueError('Observe-only stopping reserve requires explicit force-observed simulation exploration')
+    if not 10<=cfg['simulation_guard_rate_hz']<=100 or (cfg['simulation_guard_rate_hz']!=10 and not cfg['exploration_mode']):
+        raise ValueError('Faster simulation guard requires exploration and a rate in[10,100]Hz')
     comparison=cfg.get('force_comparison_lift',False)
     multiplier=cfg.get('carrying_speed_multiplier',1.)
     if not isinstance(comparison,bool):raise ValueError('force_comparison_lift must be boolean')

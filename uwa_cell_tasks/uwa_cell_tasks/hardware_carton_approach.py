@@ -31,7 +31,11 @@ def canonical_base(description):
     for tag, name in [('link','pregrasp_carton_static'),('joint','pregrasp_carton_anchor')]:
         node = root.find(f"{tag}[@name='{name}']")
         if node is not None: root.remove(node)
-    return ET.canonicalize(ET.tostring(root, encoding='unicode'))
+    # Generated visual-only ChArUco files live under each output directory.
+    # They do not participate in this kinematic/collision-model comparison.
+    for link in root.findall('link'):
+        for visual in list(link.findall('visual')):link.remove(visual)
+    return ET.canonicalize(ET.tostring(root, encoding='unicode'), strip_text=True)
 
 
 def checked_problem(directory, evidence_directory, inventory, *, command_velocity=.0015):

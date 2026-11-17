@@ -1,5 +1,55 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Geglättete Eckanflüge aller vier URs, 2026-11-17
+
+- Nutzer bestätigt alle vier Arme; bisheriges Tempo grundsätzlich okay,
+  Geometrie möglichst erhalten, Beschleunigung/Ruck reduzieren. Rein offline.
+- Neue quintische Geschwindigkeitsrampen mit Konstantfahrt und C3-Zeitgesetz;
+  Gelenkgeraden exakt erhalten. Cartesian-Anflug jetzt quintischer C4-Spline
+  durch dieselben IK-Knoten. Maximal gemessene TCP-Bahnänderung 0,000508 mm,
+  Gelenkabweichung 1,5911e−6 rad im Modell; keine reale Genauigkeitsangabe.
+- Gesamtdauer 22,067→15,995 s (−27,5 %). Analytische Obergrenzen:
+  v 0,454584→0,450000 rad/s; a 1,223044→0,400000 rad/s²;
+  Ruck 10,085925→1,084747 rad/s³. Gewählte Entwurfsgrenzen 0,45/0,4/2,0,
+  keine Hardwarelimits/zeitoptimale Lösung. Zwischenstopp vor Vertikalanflug bleibt.
+- Individuelle Zeiten verändern Begegnungen: 32.008 isolierte Prüfstellungen
+  sowie 1.601 gemeinsame Zeitpunkte (max. 10 ms) ohne FCL-Kollision oder
+  Verletzung der statischen 20-mm-Paarreserve; min. Armhüllabstand 155,147 mm.
+  Alle sechs Paare geprüft. Diskrete Prüfung, kein kontinuierlicher Beweis.
+  Dynamische Reservediagnose weiterhin 1.297/1.601 verletzt; unveränderte
+  Annahmen aus dem 10×-Vergleich, keine physisch qualifizierte Stopphülle.
+- Build und 25 gezielte Tests PASS. Unabhängig 800.008 Ableitungssamples PASS,
+  Spitzen 0,450000/0,400000/0,835104 unter den Obergrenzen. 15 Browserfälle
+  PASS; Darstellung und aufklappbare v/a/Ruck-Kurven visuell geprüft.
+- Neue Dateien smooth_paths.py, test_smooth_paths.py, smooth_carton_paths.py,
+  preview_carton_smoothing.html; Ergebnis/Verifier/Viewer unter
+  setup/research/offline-carton-smoothing-20261117/. Anleitung
+  docs/offline_carton_smoothing.md, Logs setup/logs/uwa-carton-smoothing-*.
+  Alte Ergebnisse erhalten. Keine Hardware-/Kontakt-/ROS-Knoten-/Dienstaktion.
+  Basen fest, Greifer offen, executable:false. Native MoveJ/MoveL-Reproduktion
+  des Zeitgesetzes und physische Ausführung bleiben unqualifiziert.
+
+## Echtzeit-/Reaktionskettenvorbereitung,2026-11-17
+
+- NutzerbeauftragtVorbereitungderzuletztgenanntenSchritte. Hostaudit:
+  Ubuntu26.04.1/7.0.0-43-generic, PREEMPT_RTaus, Sitzungrtprio0/memlock8MiB.
+  APT-Dry-runubuntu-realtime+rt-testsPASS, keinInstall/Neustart/Systemeingriff.
+  BenutzerspezifischerLimitsentwurf undRückfallplanin
+  docs/realtime_preparation.md; Artefakte setup/realtime/preparation-20261117/.
+- SimTaskparameter`simulation_guard_rate_hz`10–100(abweichendnurExploration),
+  gleicherWertfürTimerundPlanungsbudget, Default10Hz. Zeit-/Intervall-/Overrun-
+  Diagnoseergänzt,25/50/100HzKandidatenvorbereitetnichtlivequalifiziert.
+ 300Offline-Geometriefällemedian3,552/p994,495/max4,813ms; keinRuntimebeweis.
+- Reinlesenderprepare_realtime.py: audit/jitter/record/analyze. RecorderMock67
+  PASS(198Guardpakete),0Robotkommandos. KettenanalyseprüftkorrelierteStage-/
+  Boot-/Uhrdaten; echteDispatch-/Bremsmessungweiteroffen. VorhandenenHardware-
+  InterlocktracederparallelenArbeitwiederverwenden,nichtverändern.
+- 20sPythonNormal-Schedulerprobe2ms: p99437µs/max2836µs/5verpassteTermine;
+  keineEchtzeitgarantie/keinCyclictest.121TasktestsundTaskbuildPASS. Initiale
+  CollectionwegenparallelemneuemuninstalliertemModulfehlgeschlagen,nachBuildPASS.
+- Wichtig:350ms/2rad/s²geltenfürKontakt-Sim; realeCommissioningannahmen
+ 1300ms/0,2rad/s²nichtautomatischändern. KeineHardware-/Kernelaktion.
+
 ## Vier Eckanflüge mit zehnfacher Zeitkompression, 2026-11-17
 
 - Nutzer findet Bewegung natürlich und fragt nach10×Trajektorientempo, nicht

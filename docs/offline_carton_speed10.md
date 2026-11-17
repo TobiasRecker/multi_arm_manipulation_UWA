@@ -1,5 +1,8 @@
 # Vier Eckanflüge mit zehnfacher Trajektoriengeschwindigkeit
 
+Weiterentwicklung: [Glattere Trajektorien für alle vier URs](offline_carton_smoothing.md)
+mit 15,99 s Gesamtdauer und geringeren Beschleunigungs-/Ruckspitzen.
+
 [Vergleich in Echtzeit öffnen](../../../setup/research/offline-carton-speed10-20261117/viewer.html).
 **Trajectory timing** wählt220,67s oder22,07s geplante Dauer.
 **Playback** verändert nur die Darstellung und steht hier anfangs auf1×.

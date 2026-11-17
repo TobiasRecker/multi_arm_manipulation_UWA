@@ -12,6 +12,7 @@ import sys
 import time
 
 import numpy as np
+from scipy.spatial.transform import Rotation
 from std_srvs.srv import Trigger
 
 REPO = Path(__file__).resolve().parents[1]
@@ -23,6 +24,7 @@ from uwa_cell_motion.hardware_execution import HardwareClient
 from uwa_cell_motion.single_execution import follow
 from uwa_cell_motion.hardware_state import require_domain
 from uwa_cell_gripper_control.client import GripperClient
+from uwa_cell_gazebo.charuco_views import Chain
 
 
 def main():
@@ -38,13 +40,23 @@ def main():
     root = args.output.resolve(); root.mkdir(parents=True, exist_ok=False)
     problem = checked_problem(root/'model', args.evidence, args.inventory, command_velocity=args.command_velocity)
     evidence = problem.pregrasp_evidence; path = evidence['path']; expected = dict(evidence['saved_start'])
-    if path['kind'] != 'serial_direct' or len(path['waypoints']) != 3:
-        raise ValueError('Expected the checked RF-then-RR serial path')
+    if path['kind'] not in ('serial_direct','simultaneous_direct'):
+        raise ValueError('Expected direct pregrasp endpoint evidence')
+    required_names=joint_names('right_front')+joint_names('right_rear')
+    if path['joint_names']!=required_names or len(path['waypoints'][-1])!=12 or not np.isfinite(path['waypoints'][-1]).all():
+        raise ValueError('Exactly the two right six-joint endpoints required')
+    end=dict(zip(path['joint_names'],path['waypoints'][-1]))
     # Only a high pregrasp, not contact insertion, is permitted by this runner.
     for goal in evidence['goals'].values():
         pre = np.asarray(goal['tool0_pregrasp']); entry = np.asarray(goal['theoretical_tool0_entry'])
         if not np.allclose(pre[:3, :3], entry[:3, :3]) or not np.allclose((pre-entry)[:2, 3], 0) or pre[2, 3]-entry[2, 3] < .149:
             raise ValueError('First unloaded physical approach requires >=150mm vertical pregrasp')
+    for arm in ['right_front','right_rear']:
+        actual=Chain(problem.original_description,'world',arm+'_tool0').forward(dict(expected,**end))
+        wanted=np.asarray(evidence['goals'][arm]['tool0_pregrasp'])
+        if (np.linalg.norm(actual[:3,3]-wanted[:3,3])>1e-4 or
+            Rotation.from_matrix(actual[:3,:3]@wanted[:3,:3].T).magnitude()>1e-4):
+            raise ValueError('Saved joint endpoint does not match the high pregrasp frame')
     report = dict(success=False, phase='OFFLINE_CHECK', arm_commands=[], finger_commands=[],
                   loaded_motion=False, command_velocity_rad_s=args.command_velocity,
                   monitored_velocity_rad_s=problem.cfg['velocity_limit_rad_s'], segments=[],
@@ -53,9 +65,8 @@ def main():
     def save():dump(record, report)
     save()
     for index, arm in enumerate(['right_front','right_rear']):
-        end = dict(zip(path['joint_names'], path['waypoints'][index+1]))
-        if any(abs(end[j]-expected[j])>1e-8 for r in ROBOT_IDS if r!=arm for j in joint_names(r) if j in end):
-            raise ValueError('Serial path changes a second arm')
+        # Derive and fully recheck serial motion even when the offline source
+        # offered a simultaneous direct path. Both arms are still unloaded.
         request = problem.normalize(dict(start=expected, goals={arm:[end[j] for j in joint_names(arm)]}))
         initial = [expected[j] for j in joint_names(arm)]
         if not problem.edge(request, initial, request['target']): raise ValueError('Fresh full-cell path verification failed')
@@ -105,6 +116,10 @@ def main():
                 segment['execution'] = execution
                 if execution.get('stopped_arms'): raise RuntimeError(arm+': interlock stopped approach')
                 segment['hold_after'] = client.stop([arm])
+                if not all(segment['hold_after'][key] for key in ('resource_holds_confirmed','latches_confirmed')):
+                    raise RuntimeError(arm+': final hold unconfirmed')
+                client.wait(lambda:arm in client.guard.get('stationary_arms',[]), timeout=3., health=True)
+                segment['standstill_confirmed_by_guard'] = True
                 segment['final_positions'] = dict(client.positions)
                 segment['executed'] = True; dump(root/(arm+'-execution.json'), execution); save()
             except BaseException as error:

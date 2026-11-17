@@ -125,7 +125,10 @@ def prepare(args):
         if obs.get('stationary_observed') is not True or not obs.get('samples'):
             raise ValueError('Saved stationary observation missing: '+arm)
         sample = obs['samples'][-1]
-        if sample['robot_mode'] != 7 or sample['safety_mode'] != 1 or sample['runtime_state'] != 2:
+        # A powered, stationary robot still supplies real encoders with its
+        # program stopped. This is offline evidence only; the real runner
+        # separately requires a playing program and live reverse connection.
+        if sample['robot_mode'] != 7 or sample['safety_mode'] != 1 or sample['runtime_state'] not in (1, 2):
             raise ValueError('Saved native state unsuitable: '+arm)
         q = np.asarray(sample['actual_q'], float)
         if q.shape != (6,) or not np.isfinite(q).all(): raise ValueError('Invalid saved joints')

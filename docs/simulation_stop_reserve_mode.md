@@ -75,3 +75,9 @@ Dies isteineabgetastetePolicyprüfung, **keinneuerDreh-Physiklauf** undkein
 neuerdichterKollisionsnachweis. Ergebnis/Quelle:
 `setup/tasks/carton_stop_reserve_mode_20261117/{result.json,check.py}`.
 Logs: `setup/logs/uwa-sim-reserve-{tests,build,integration}.log`.
+
+## Folgeschritt vorbereitet
+
+[Kernel, höhere Prüfraten und Reaktionsmessung](realtime_preparation.md):
+Hostaudit,25/50/100HzSimulationskandidaten und passiverRecorder stehen bereit.
+Die350ms oben betreffen dieSimulation; realeProfile haben eigeneAnnahmen.

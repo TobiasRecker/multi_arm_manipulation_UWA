@@ -39,6 +39,12 @@
   v×10/a×100/Ruck×1000 auswerten. Alte vorsichtige Profilgrenzen nicht als
   physische UR-Maxima darstellen. Viewer-Wiedergabe (bisher20×) klar von
   Trajektoriengeschwindigkeit trennen; schneller Vergleich zunächst Echtzeit.
+- Auftrag17.11.: alle vier Eckanflüge (nach Rückfrage ausdrücklich alle4)
+  hinsichtlich Beschleunigung/Ruck glätten, Geschwindigkeit grundsätzlich okay,
+  Geometrie möglichst erhalten. Zeitgesetz zuerst verbessern; räumliche
+  Änderungen metrisch nachweisen. Individuelles Retiming verändert relative
+  Armstellungen über Zeit und verlangt neue gemeinsame Kollisionsprüfung;
+  Invarianz gilt nur für eine gemeinsame Zeitabbildung aller Arme.
 - Bei variabler Basislage alle potenziell kollidierenden Paare berücksichtigen;
   die bisherige feste Vier-Nachbarpaar-Auswahl nicht ungeprüft übertragen.
   Kollisionsprüfung, globale Planung, zeitliche Koordination und lokale
@@ -886,3 +892,9 @@
   undGruppenstopps bleiben aktiv. KeineÜbertragung aufHardware/Realprofile.
   Nutzer hält schnellereRealreaktion mitpassendemInterface/PREEMPT_RT für
   möglich; bisherige350msPlanlatenz/2rad/s² sindAnnahmen, keineUR-Messwerte.
+
+- Echtzeitvorbereitung17.11. ausdrücklichbeauftragt: Kernelpaket-/Rechteplan,
+  höhereWächterrateundEnd-to-end-Messungvorbereiten. KeinKernelwechsel/Neustart/
+  RealstoppalleinausVorbereitung. Simulation10–100Hzexplizitparametriert,
+  Default10Hz; Hardwareprofilegetrenntlassen.350ms/2rad/s²warenSimannahmen,
+  realesCommissioningaktuell1300ms/0,2rad/s². KeineACK-/TopiclatenzalsBremszeit.

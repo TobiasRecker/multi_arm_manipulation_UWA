@@ -101,3 +101,13 @@ def test_observe_mode_keeps_geometric_margin_and_logs_full_reserve(monkeypatch):
     _,pairs=model.pairs({},velocities,ages,cfg)
     assert pairs[0]['threshold_m']==pytest.approx(.18)
     assert problem.thresholds()[0]['threshold_m']==pytest.approx(.18)
+
+
+@pytest.mark.parametrize('rate,exploration,valid',[(10,False,True),(25,True,True),
+    (50,True,True),(100,True,True),(25,False,False),(101,True,False),(9,True,False)])
+def test_guard_rate_is_explicit_and_shared_with_planning(tmp_path,rate,exploration,valid):
+    cfg=configuration();cfg.update(simulation_guard_rate_hz=rate,exploration_mode=exploration)
+    path=tmp_path/'rate.yaml';path.write_text(yaml.safe_dump(cfg))
+    if valid:assert motion_configuration(configuration(path))['rate_hz']==rate
+    else:
+        with pytest.raises(ValueError):configuration(path)

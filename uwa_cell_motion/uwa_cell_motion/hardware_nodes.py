@@ -227,7 +227,7 @@ class HardwareSupervisor(MotionNode):
                     if rid not in blocked:self.stopping_since.pop(rid,None);continue
                     self.stopping_since.setdefault(rid,now)
                     if now-self.stopping_since[rid]>self.cfg['stop_latency_s'] and rid not in (self.guard.value or {}).get('stationary_arms',[]):
-                        self.ports[rid].native_stop()
+                        self.ports[rid].native_stop('Blocked arm: measured standstill not confirmed within stop latency')
             self.sequence+=1;status=packet(self.signature,self.armed,self.instance,self.sequence,state=self.core.reason,blocked_arms=sorted(blocked),held_arms=held,
                 guard_config_signature=self.signature,interlock_confirmed=self.armed and blocked<=set(held),ports=ports,
                 guard_age_s=None if not self.guard.value else now-self.guard.value['evaluated_monotonic_s'],
@@ -260,7 +260,9 @@ class HardwareWatchdog(MotionNode):
     def tick(self):
         if time.monotonic()-self.began>self.cfg['heartbeat_timeout_s'] and not self.peer.fresh(time.monotonic(),self.cfg['heartbeat_timeout_s']):self.tripped=True
         if self.tripped and self.armed:
-            for port in self.ports.values():port.tick(True,True);port.native_stop()
+            for port in self.ports.values():
+                port.tick(True,True)
+                port.native_stop('Independent watchdog: supervisor heartbeat unavailable/tripped')
         self.publish()
 
 

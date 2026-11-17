@@ -41,6 +41,7 @@ class TaskGuard(MotionNode):
         core_cfg=dict(self.cfg,velocity_limit_rad_s=float(max(velocity_limits([n for names in self.names.values() for n in names],self.scene['cfg']))))
         self.core=GuardState(core_cfg);self.positions={};self.pairs=[];self.speed_violations={}
         self.instance=str(uuid.uuid4());self.sequence=0;self.group=None;self.supervisor={}
+        self.last_tick_start=None;self.last_tick_duration_s=None;self.tick_overruns=0
         self.object=None;self.contacts=None;self.object_received=0.;self.contacts_received=0.
         self.runner_received=None;self.group_object=None;self.touching=False;self.releasing=False;self.eval_offsets=None
         self.task_phase='waiting for task';self.runner_completed=False
@@ -56,7 +57,7 @@ class TaskGuard(MotionNode):
         self.create_subscription(String,'/uwa_cell/collision_supervisor/status',self.supervisor_message,10)
         self.create_service(Trigger,'~/reset',self.reset)
         self.wall=Clock(clock_type=ClockType.STEADY_TIME)
-        self.create_timer(.1,self.tick,clock=self.wall)
+        self.create_timer(1/self.cfg['rate_hz'],self.tick,clock=self.wall)
 
     def joints(self,msg):
         now=time.monotonic();stamp=msg.header.stamp.sec+msg.header.stamp.nanosec/1e9
@@ -145,6 +146,8 @@ class TaskGuard(MotionNode):
 
     def tick(self):
         now=time.monotonic();source=self.get_clock().now().nanoseconds/1e9
+        interval=None if self.last_tick_start is None else now-self.last_tick_start
+        self.last_tick_start=now
         self.core.external_faults=self.faults(now)
         try:
             velocities={a:r['v'] for a,r in self.core.records.items()}
@@ -172,6 +175,10 @@ class TaskGuard(MotionNode):
             self.core.latched.update(ARMS);status['blocked_arms']=sorted(self.core.latched)
         self.sequence+=1
         status.update(instance=self.instance,sequence=self.sequence,pairs=self.pairs,
+            timing=dict(evaluation_ms=1000*(time.monotonic()-now),
+                interval_ms=None if interval is None else 1000*interval,
+                previous_callback_ms=None if self.last_tick_duration_s is None else 1000*self.last_tick_duration_s,
+                budget_ms=1000/self.cfg['rate_hz'],callback_overruns=self.tick_overruns),
             evaluated_monotonic_s=now,guard_config_signature=guard_signature(self.cfg),schema_version=1,
             source_time_s=source,scene_sha256=self.scene['sha256'],task_phase=self.task_phase,
             simulation_stop_reserve_mode=self.scene['cfg'].get('simulation_stop_reserve_mode','enforce'),
@@ -187,6 +194,8 @@ class TaskGuard(MotionNode):
             self.collision.check(self.collision_diagnostic['positions'],contacts=True)
         from .markers import object_markers
         self.markers.publish(object_markers(self,self.scene,self.object,status,self.group))
+        self.last_tick_duration_s=time.monotonic()-now
+        if self.last_tick_duration_s>1/self.cfg['rate_hz']:self.tick_overruns+=1
 
     def reset(self,req,res):
         if self.group:res.success=False;res.message='Loaded group cannot be reset automatically';return res

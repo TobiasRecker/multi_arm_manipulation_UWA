@@ -29,3 +29,9 @@ def test_supplemental_object_does_not_hide_a_changed_robot_link():
     augmented = base.replace('</robot>', extra+'</robot>')
     assert canonical_base(base) == canonical_base(augmented)
     assert canonical_base(base) != canonical_base(augmented.replace('name="arm"','name="changed"'))
+
+
+def test_generated_visual_paths_are_irrelevant_but_collision_geometry_is_bound():
+    xml = '<robot name="a"><link name="arm"><visual><geometry><mesh filename="/output1/board.dae"/></geometry></visual><collision><geometry><sphere radius=".1"/></geometry></collision></link></robot>'
+    assert canonical_base(xml) == canonical_base(xml.replace('/output1/', '/output2/'))
+    assert canonical_base(xml) != canonical_base(xml.replace('radius=".1"','radius=".2"'))

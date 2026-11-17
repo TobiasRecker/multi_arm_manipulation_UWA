@@ -61,15 +61,23 @@ class StopPort:
         self.pending=None;self.switching=None;self.checking=None;self.verified=False
         self.controllers=[];self.received=-float('inf');self.sent=-float('inf');self.switch_started=-float('inf')
         self.error=None;self.native_error=None;self.native_ack=False;self.native_thread=None;self.native_sent=-float('inf')
+        self.native_stop_events=[]
         self.cancels={};self.was_blocked=False
-    def native_stop(self):
+    def native_stop(self,reason='Explicit native-stop fallback'):
         if self.mode=='mock':self.native_ack=True;return
         if self.native_thread and self.native_thread.is_alive():return
         if time.monotonic()-self.native_sent<.25:return
         self.native_sent=time.monotonic()
+        event=dict(requested_monotonic_s=self.native_sent,reason=str(reason),acknowledged=False,error=None)
+        self.native_stop_events.append(event);self.native_stop_events=self.native_stop_events[-20:]
+        try:self.node.get_logger().error('NATIVE STOP REQUESTED '+self.profile.get('id','unknown')+': '+str(reason))
+        except Exception:pass  # Diagnostic logging must never prevent stopping.
         def stop():
-            try:dashboard_stop(self.profile);self.native_ack=True;self.native_error=None
-            except Exception as error:self.native_error=str(error)
+            try:
+                dashboard_stop(self.profile);self.native_ack=True;self.native_error=None
+                event['acknowledged']=True
+            except Exception as error:
+                self.native_error=str(error);event['error']=str(error)
         self.native_thread=threading.Thread(target=stop,daemon=True);self.native_thread.start()
     def cancel(self):
         names=[c.name for c in self.controllers if c.name in MOTION or any(i.split('/')[0] in self.joints for i in c.claimed_interfaces)]
@@ -126,9 +134,14 @@ class StopPort:
                     request.strictness=SwitchController.Request.BEST_EFFORT;request.activate_asap=True;request.timeout.nanosec=200_000_000
                     self.switch_started=now;self.switching=self.switch.call_async(request)
             if blocked and (not fresh or not self.verified or self.error or
-                            (not held and now-self.switch_started>self.cfg['stop_latency_s'])):self.native_stop()
-        if enabled and blocked and not hardware_ok:self.native_stop()
+                            (not held and now-self.switch_started>self.cfg['stop_latency_s'])):
+                self.native_stop(f'Blocked interlock: manager_fresh={fresh}, hold_config_verified={self.verified}, '
+                                 f'held={held}, controller_error={self.error}, list_age_s={now-self.received:.6f}, '
+                                 f'parameter_age_s={now-self.parameter_received:.6f}')
+        if enabled and blocked and not hardware_ok:
+            self.native_stop(f'Blocked interlock: native hardware verification unavailable, age_s={now-self.hardware_received:.6f}')
         self.was_blocked=blocked
         if held and not bad:self.error=None
         return dict(held=bool(held and not bad),manager_fresh=fresh,hardware_mode_verified=hardware_ok,hold_config_verified=self.verified,
-                    controller_error=self.error,native_stop_ack=self.native_ack,native_stop_error=self.native_error)
+                    controller_error=self.error,native_stop_ack=self.native_ack,native_stop_error=self.native_error,
+                    native_stop_events=[dict(event) for event in self.native_stop_events[-5:]])

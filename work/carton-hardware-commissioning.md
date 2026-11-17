@@ -102,3 +102,37 @@
   undinMockprüfen, physischeAusrichtungvorKontakt; historisches.005rad/s-
   Profilnichtunteraktuellem.003rad/sWächterausführen. BestehendeGrenzen erhalten,
   KommandoboundmitgemessenenGeschwindigkeitspeaksabgleichen. NochkeinKartonhub.
+
+## Wiederholter Programmstopp bei unveränderten Armen,2026-11-17
+
+- NachTeilfahrt um11:22:42/43beideRechtsprogrammeSTOPPED, safetyNORMAL,
+  qweiterhingleich (ca40µradDifferenz), keineeigeneArmfahrt. Nutzerzunächst
+  „solltenweiterlaufen“, dannandererAgentvermutlichfertig/„kannstweitermachen“.
+- GemeinsamerBringupdanachjeeinreguläresPLAY, beideReverseverbunden; keine
+  Power/Brake/Load-/Safety-/Fahraktionen. FrischeBeobachtung11:40erneutrechts
+  runtime_state1, links2. NichtdurchweiterePLAY-Schleifeübergehen.
+- AktuellerGuard: alteSPEED-LIMIT-LatchesausVierarmtest sowieNativeProgram-
+  Interrupted rechts; keinefrischeAbstandsstörung. UrsprünglicherStoppinitiator
+  ausbisherigenLogsnochunbekannt, alteNativeACKsbereitsvorhervorhanden.
+- ErgänzegezielteDiagnostik inHardwareStopPort/Nodes: Zeit/Ursache/Antwort jeder
+  tatsächlichenNativeSTOP-Anforderung, begrenzteHistoryundJournal. Keine
+  Frische-/Stopp-/Abstands-/Geschwindigkeitsgrenzengeändert. VorneuemArmtest
+  reproduzieren/aufklären. EigeneAnfahrtnochNICHTausgeführt.
+- Diagnostikregression53Hardware-/Guard-/Native-Stop-FällePASS;32eigeneObjekt- /
+  Pregrasp-/Approach-FällePASS. NeueAnfahrtserweiterung offlinevollmodelliert
+  RF/RR-SegmentePASS, kleineresKommando.0015gegenunverändertenMonitor.003.
+  Alte80mm-VorpositionnochkeineFahrt; physischerRunnererfordertmindestens150mm.
+  Timingaktuellca1961+2830s(80min)füralteModellziele, nichtalsrealeFahrzeitbelegt.
+- GeplantnurSchutzdienstneuladen, umPython-Diagnostikaktivzumachen; vorhandene
+  HardwareHoldsbleibenbestehen. RegulärerExecStopPoststopptdabeiProgrammesaller4,
+  danachProgrammläufeunterHoldsherstellen; keineController-/Fahrziele. Andere
+  Treiber/Kamera-/Greiferdienste undSimulationenerhalten, Parameterunverändert.
+- **NeuladenNICHTausgeführt:** automatischeFreigabeprüfunglehntsystemctlstop
+  ab, weilExecStopPostallevierrealenUR-Programmestoppt undkonkreteFreigabe
+  bisheraufrechteURsbezogenwar. KeineUmgehung/keineanderenKills. Nutzerper
+  asyncnachgenaudiesemVierprogramm-Stop/Neuladen/Wiederverbindengefragt;
+  Antwortstehtaus. AlteSchutzinstanzläuftunverändert. ReinlesenderTraceaktiv
+  setup/tasks/carton_interlock_diagnostic_20261117_01/(900sbegrenzt).
+- NutzerhatanschließenddenStop/Neuladen/Wiederverbindenfür**allevierURs**
+  ausdrücklichfreigegeben. GeordneterDienststoppjetztausgeführt, Neustartmit
+  identischerKonfiguration; keinUmgehungswegundkeinegelockertenGrenzen.
