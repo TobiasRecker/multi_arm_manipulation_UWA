@@ -1,5 +1,12 @@
 # Four-arm hardware collision guard and PTP
 
+First real tests were carried out on17November: an observed single-arm
+software halt and simultaneous four-arm motion. Reported speed excesses
+interrupted the four-arm target; arms remain held. See
+[measurements, fixes and limitations](hardware_commissioning_2026-11-17.md).
+Real stop latency/braking reserves remain unqualified; the implementation-only
+statements below describe the initial16November stage.
+
 Implemented November16,2026. This backend uses the existing four MATCH UR
 drivers in domain66, with a separate GenericSystem/mock backend in domain67.
 The [Gazebo backend](four_arm_motion.md) remains restricted to domain64 and

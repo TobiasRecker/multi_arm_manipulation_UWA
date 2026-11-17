@@ -109,6 +109,10 @@ For a requested real carton test, first read
 tools default to read-only and have native GET/loopback evidence. The arm task
 executor remains simulation-only; do not change its domain or reuse the
 independent-progress hardware PTP runner for a loaded rigid group. UR startup
-executes no manipulation. Real activation, empty travel, force/aperture mapping,
-world/object alignment and a coupled hardware object master need commissioning
-before a loaded lift. No physical gripper actuation was performed in preparation.
+executes no manipulation.17November: shared ROS grippers completed real empty
+partial travel raw0→128→0 at SPE16/FOR0 on both right arms; service returned to
+MONITOR ONLY. Use the shared API (docs/gripper_ros_api.md), not a duplicate socket
+writer/adapter. This does not calibrate force/aperture or qualify loaded stops.
+An offline hardware-model path to80mm pregrasp exists; camera/world alignment,
+real coupled command delivery and loaded operation remain open. The new common
+object reference core is transport-free, never an executable hardware plan.

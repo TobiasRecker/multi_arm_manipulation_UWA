@@ -1,5 +1,11 @@
 # Rear base spacing: model and board check
 
+Update17November: a fresh image still did not yield the left board pose. The
+operator explicitly accepted99.1cm as fallback; the central layout now uses
+X=±0.4955m. Other mounting parameters remain provisional. The following text
+records the earlier diagnostic state. See the
+[subsequent real hardware checks](hardware_commissioning_2026-11-17.md).
+
 16 November 2026, diagnostic only. No robot motion, model activation, controller
 switch or change to collision thresholds occurred during this check.
 

@@ -37,7 +37,7 @@ def extract(run,scene_dir):
     faults=[r['object']['stamp'] for r in rows if r['faults'] and r['object']['stamp']>=origin]
     if faults:end=min(end,min(faults))
     losses=[r['contacts']['stamp'] for r in rows if r.get('group') and
-        r['contacts']['stamp']>=origin and not all(all(p.values()) for p in r['contacts']['pads'].values())]
+        origin<=r['contacts']['stamp']<=origin+motion['duration_s'] and not all(all(p.values()) for p in r['contacts']['pads'].values())]
     first_loss=min(losses) if losses else None
     if first_loss is not None:end=min(end,first_loss-.01)  # keep full10ms windows before first loss
     t=np.array([r['object']['stamp'] for r in rows]);progress=np.array([
@@ -57,11 +57,16 @@ def extract(run,scene_dir):
         selected.append(dict(stamp=stamp,time_s=stamp-origin,progress=float(np.interp(stamp,t,progress)),pads=pads['pads']))
     selected=[r for r in selected if r['stamp']<=end]
     if not selected:raise ValueError('No native force windows in actual lift')
-    return dict(run=str(run.resolve()),scene_sha256=scene['sha256'],cfg=scene['cfg'],scene=scene,
+    import xml.etree.ElementTree as ET
+    model=ET.parse(scene_dir/'robot.urdf').getroot()
+    native_cap=float(model.find("ros2_control[@name='ContactArms']/hardware/param[@name='max_velocity']").text)
+    inertia_signature=seal(dict(inertials=[(l.get('name'),ET.tostring(l.find('inertial'),encoding='unicode'))
+        for l in model.findall('link') if l.find('inertial') is not None]))['sha256']
+    return dict(run=str(run.resolve()),native_arm_velocity_cap_rad_s=native_cap,inertia_signature=inertia_signature,scene_sha256=scene['sha256'],cfg=scene['cfg'],scene=scene,
         motion_sha256=motion['sha256'],duration_commanded_s=motion['duration_s'],target_lift_m=target,
         source_start_s=origin,source_end_s=end,clock_fit_90pct_spread_s=spread,
         windows=len(selected),gap_intervals=gaps,force_trace_sha256=hashlib.sha256(force_path.read_bytes()).hexdigest(),
-        maximum_lift_observed_m=float(max(progress)*target),
+        maximum_lift_observed_m=float(max(prog for stamp,prog in zip(t,progress) if origin<=stamp<=origin+motion['duration_s'])*target),
         first_contact_loss_sim_s=first_loss,
         lift_at_first_contact_loss_m=float(np.interp(first_loss,t,progress)*target) if first_loss is not None else None,
         motion_samples=[dict(progress=float(prog),velocities=r['joints']['velocities']) for r,prog in zip(rows,progress)
@@ -74,6 +79,20 @@ def main():
     if a.output.exists():p.error('Use a fresh output directory')
     a.output.mkdir(parents=True)
     data=[extract(run,run.parent/'scene') for run in (a.baseline,a.fast)]
+    motions=[verify(read(run/'object-lift.json')) for run in (a.baseline,a.fast)]
+    if motions[0]['joint_names']!=motions[1]['joint_names'] or len(motions[0]['points'])!=len(motions[1]['points']):
+        raise ValueError('Different commanded joint paths cannot be compared as uniform time scaling')
+    ratio=motions[0]['duration_s']/motions[1]['duration_s']
+    equivalence={}
+    for key,power in [('positions',0),('velocities',1),('accelerations',2),('time',-1)]:
+        old=np.asarray([point[key] for point in motions[0]['points']])
+        new=np.asarray([point[key] for point in motions[1]['points']])
+        equivalence['maximum_'+key+'_scaling_residual']=float(np.max(abs(new-old*ratio**power)))
+    if max(equivalence.values())>1e-8:
+        raise ValueError('Recorded commands differ from one uniformly time-scaled joint path')
+    equivalence['joint_paths_identical_within_tolerance']=True
+    equivalence['absolute_tolerance']=1e-8
+    equivalence['samples']=len(motions[0]['points'])
     # These model/controller properties must be identical; guard envelopes may differ.
     keys=['mass_kg','friction','wall_thickness_m','finger_joint_damping_nm_s','gripper_gear_stiffness_nm_rad',
           'gripper_motor_stiffness_nm_rad','gripper_motor_torque_limit_nm','physics_step_s',
@@ -82,9 +101,11 @@ def main():
     binaries={k:data[0]['scene'][k]==data[1]['scene'][k] for k in ['backend_sha256','physics_engine_sha256','force_backend_sha256']}
     from uwa_cell_control.parallel_scan import collision_signature
     signatures=[collision_signature((Path(d['run']).parent/'scene/robot.urdf').read_text()) for d in data]
-    geometry_same=(signatures[0]==signatures[1] and
+    geometry_same=(signatures[0]==signatures[1] and data[0]['inertia_signature']==data[1]['inertia_signature'] and
         data[0]['scene']['asset_manifest_sha256']==data[1]['scene']['asset_manifest_sha256'])
     extent=min(1.,*(max(r['progress'] for r in d['rows']) for d in data))
+    native_caps_not_hit=all(max(d['measured_joint_velocity_peaks_rad_s'].values())<.99*d['native_arm_velocity_cap_rad_s'] for d in data)
+    if not native_caps_not_hit:raise ValueError('Native actuator cap was reached; not an unclipped time-scaling comparison')
     pads={}
     for d in data:
         d['measured_joint_velocity_peaks_common_rad_s']={n:max(abs(r['velocities'][n]) for r in d['motion_samples'] if 0<=r['progress']<=extent) for n in d['measured_joint_velocity_peaks_rad_s']}
@@ -101,8 +122,8 @@ def main():
     clean=[{k:v for k,v in d.items() if k not in ('rows','scene','motion_samples')} for d in data]
     result=seal(dict(kind='matched_vertical_prefix_contact_force_comparison',
         scope='Vertical lift only, not the90degree rotation or the return descent',
-        same_physics_properties=same,same_native_binaries=binaries,same_collision_kinematics=geometry_same,controlled_physics=all(same.values()) and all(binaries.values()) and geometry_same,
-        commanded_speed_ratio=data[0]['duration_commanded_s']/data[1]['duration_commanded_s'],
+        same_physics_properties=same,same_native_binaries=binaries,native_velocity_caps_not_hit=native_caps_not_hit,same_collision_kinematics_inertias=geometry_same,controlled_physics=all(same.values()) and all(binaries.values()) and geometry_same,
+        commanded_speed_ratio=ratio,commanded_trajectory_equivalence=equivalence,
         common_lift_progress_fraction=extent,force_coverage_complete=all(not d['gap_intervals'] for d in data),
         runs=clean,pads=pads,hardware_or_material_qualification=False,
         caveats=['Single historical1x lift versus new5x trial; no repeat statistics',
@@ -114,9 +135,9 @@ def main():
     import matplotlib.pyplot as plt
     fig,axes=plt.subplots(2,2,figsize=(12,8),sharex=True,sharey=True)
     for ax,pad in zip(axes.flat,pads):
-        for d,label,color in zip(data,['1x recorded baseline','5x contact simulation'],['#185fa5','#c74a19']):
+        for d,label,color,style in zip(data,['1x recorded baseline','5x contact simulation'],['#185fa5','#c74a19'],['--','-']):
             rows=[r for r in d['rows'] if 0<=r['progress']<=extent]
-            ax.plot([r['progress']*100 for r in rows],[r['pads'][pad]['mean_load_upper_bound_n'] for r in rows],label=label,color=color,lw=1)
+            ax.plot([r['progress']*100 for r in rows],[r['pads'][pad]['mean_load_upper_bound_n'] for r in rows],label=label,color=color,lw=1.4,linestyle=style)
         ax.set_title(pad);ax.grid(alpha=.3);ax.set_xlabel('Measured lift progress (%)');ax.set_ylabel('Per-jaw 10 ms load upper bound (N)')
     axes[0,0].legend();fig.suptitle('Same vertical lift:1x versus5x — measured contact loads, no rotation qualification')
     fig.tight_layout();fig.savefig(a.output/'forces.png',dpi=160);plt.close(fig)

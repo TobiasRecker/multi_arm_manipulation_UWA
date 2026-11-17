@@ -73,3 +73,22 @@ def test_time_compression_rejects_an_envelope_violation():
                 dict(time=1.,positions=[.02],velocities=[.02],accelerations=[0.])]))
     with pytest.raises(ValueError,match='per-joint velocity'):
         scale_object_time(source,dict(carrying_speed_multiplier=5,joint_velocity_rad_s=.04,joint_acceleration_rad_s2=.25))
+
+
+def test_batched_extrema_match_monolithic_polynomials_across_boundaries():
+    from scipy.interpolate import BPoly,PPoly
+    from uwa_cell_tasks.timing import interpolation_peaks
+    rng=np.random.default_rng(24)
+    times=np.cumsum(rng.uniform(.05,.1,270))
+    values=rng.normal(size=(270,3,2))*.01
+    trajectory=dict(points=[dict(time=float(t),positions=v[0].tolist(),
+        velocities=v[1].tolist(),accelerations=v[2].tolist()) for t,v in zip(times,values)])
+    for derivative in (1,2,3):
+        polynomial=PPoly.from_bernstein_basis(BPoly.from_derivatives(times,values)).derivative(derivative)
+        expected=np.zeros(2)
+        for i,width in enumerate(np.diff(times)):
+            for j in range(2):
+                c=polynomial.c[:,i,j];roots=np.roots(np.polyder(c))
+                candidates=[0.,width]+[r.real for r in roots if abs(r.imag)<1e-9 and 0<r.real<width]
+                expected[j]=max(expected[j],max(abs(np.polyval(c,candidates))))
+        np.testing.assert_allclose(interpolation_peaks(trajectory,derivative),expected,rtol=1e-12)

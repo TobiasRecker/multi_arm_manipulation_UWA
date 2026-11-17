@@ -119,3 +119,10 @@ All4,096 combinations there passed; all three policies agree on one endpoint.
 Next: generate smooth primitive-based individual paths to these targets,
 preserve alternatives, then coordinate timing and validate the complete result.
 Concurrent moving-base trajectories remain an explicit later extension.
+
+Validation: independent full-state brute force reproduced all4,096 endpoint
+decisions, metrics and Pareto flags.81 targeted Python cases and the native
+prefilter test passed. Browser checks covered38 selections in the new viewer
+and48 in the original candidate view. Logs: `setup/logs/uwa-goal-selection-*`;
+reference check: `task-alternatives/verify.py` and `verification.json` beside
+the saved result. This is model/software evidence, not physical validation.

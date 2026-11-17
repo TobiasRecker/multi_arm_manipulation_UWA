@@ -1,5 +1,220 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Karton: rechte UR-Übergabe, ROS-Leerfahrt und Anfahrkandidat,2026-11-17
+
+- Nutzer bestätigt „Jetzt frei“ nach fremdem UR-Test. Frisch lesend: rechteURs
+  RUNNING/NORMAL/Remote, ros.urpPLAYING/Reverseverbunden, beidePositionHoldsaktiv.
+  Default-FastDDS passt zu aktuellen Managern; erzwungenesUDPv4 lief inTimeout,
+  ohne Transportoverride beideControllerlisten erfolgreich. KeinTreiberneustart.
+- OAK-Erlaubnis genutzt: native8K/Fokus116 um10:31:25 und11:14:57, Karton amPlatz;
+  Kamera nachjeweiligemFoto geschlossen. ErsteEinzelbildpose69Inlier/2,458px,
+  vorläufigerWelttransform1,43degNeigung. KeineabsoluteGreifgenauigkeit belegt.
+- Neuer transportfreierObjektreferenzkern: eineObjektuhr mit min(nativeScaling×
+  targetSpeedFraction), festeGriffoffsets, Quellfrische/Relativprüfung und
+  verriegelterGruppenstopp alsAnforderung.14TestsPASS; keineechteIK-/Aktuator-
+  Zustellung/Stillstandsbestätigung daraus ableiten. GemeinsamesTaskpaketnichtgebaut.
+- OfflineHardware-Anfahrtstool verwendet aktuelleFactorykinematiken/99,1cmLayout,
+  Kartonmeshes, vollständigeGreiferöffnungshüllen/FCL undaltePaarreserven.
+  DritterFall findetRF-dannRR-Weg in80mmVorposition, beideSegmente≤0,005rad
+  nachgeprüft. VorigezweiSuchfehlversucheerhalten; zusätzlichelimitkonforme
+  äquivalenteGelenkumdrehungen naheIststellung vermeidenunnötige360°-Wege,
+  kartesischeZiele perFKnachgeprüft. KeineZeitplanung/Absenkung/Realtrajektorie.
+- GemeinsameGreifer-API einesanderenChats inzwischenverfügbar. Eigenerzweiter
+  Adapter anGeräteLeasekorrektabgewiesen,0Goals; Umstellung aufvorhandeneROS-
+  Endpunkte. NeuerEmpty-Stroke-Harness standardmäßiglesend; keineSocketwriter.
+- **EchteFingerbewegung in diesemChat:** RF undRRjeweils raw0→128→0 überROS,
+  einzeln, SPE16/FOR0; alle4Goalsbestätigt, keinKontakt/Fehler. Vorherfrische
+  stationäreunbeladeneArmstellunggeprüft. KeinACTIVATE/Armziel/Controllerwechsel/
+  Power/Brake/Play/Reset. GemeinsamenDienstfürTestaktiviert, danachzurückMONITOR
+  ONLY/caps0und16. KeinFullstroke-/N-/mm-/Fingerstop-/beladenerGriffnachweis.
+- Danachalle4nativenArmstreamsstationär, letzteqd0; beideRechtsgreiferoffen
+  POS3/PRE0/OBJ3/ACT1/STA3/FLT0/SPE16/FOR0. VorhandeneArmholds/-wächtererhalten.
+- Prüfung24FällePASS (14Referenz/10Pregrasp), ROS-Mock67PASS mitkorrigierter
+  separaterFOR/SPE-Schreibfolge. RealeTeilfahrt undLeseschnittstellenPASS.
+  Hauptdaten setup/tasks/carton_hardware_pregrasp_20261117_03/,
+  carton_gripper_ros_empty_stroke_20261117_01/ und
+  carton_hardware_post_gripper_20261117_01/; Details docs/carton_hardware_commissioning.md.
+- **VollständigerRealgriffweiterhinoffen:** gekoppelterHardware-Kommandopfad samt
+  gemeinsamerZeit/IK/Kollisions-/Gruppenstopport, physischerObjekt-/Toolabgleich,
+  Kraft-/Öffnungsabgleich/Beladungsprüfung. Historische0,005rad/s-Planidee liegt
+  überaktuellem0,003-Wächter; nichtsoausführen oderWächterzumBestehenanheben.
+  VorArmanfahrt KommandoboundgegenbeobachteteNativePeaksabgleichen undreplanen.
+
+## Schritt 3: feste Kartoneckziele und glatte Einzelbahnen, 2026-11-17
+
+- Nutzer fand gleichzeitig wechselnde Aufgabenposen/IKs verwirrend; neuer
+  Fall: jeder UR von oben an seine nächste Ecke des Avocado-Kartons. Genau
+  eine unveränderte Greifpose je Arm, verschiedene Gelenklösungen/Wege dazu.
+- Nullstart [0,0,0,0,0,0] modelliert kollidierend: LF-Wrist/Greifer schneidet
+  rechten Tisch,12FCL-Kontakte. Nutzer wählt nach konkreter Rückfrage ausdrücklich
+  aufrecht [0,-90,0,-90,0,0]Grad für alle4. FCL/Planungsreserven dort PASS.
+- Bestehender Karton an bildbasierter Pose/99,1cm-Basislayout lokal als statisches
+  Mesh-Hindernis ergänzt. Gemeinsame Szene/unabhängige Arbeiten unverändert.
+  Ecke jeweils eindeutig nächster Basis zugeordnet. Nominaler TCP145mm entlang
+  GreiferbasisZ,15mm unter oberer Ecke, Z senkrecht abwärts/Schließachse diagonal.
+  Annahmen für Geometrieprüfung, kein kalibrierter/tragfähiger Eckgriffnachweis.
+- Neuer Modul carton_paths.py und tools/plan_carton_corner_paths.py:96IK-Seeds,
+ 12behaltene Kandidaten/Arm für feste Ziele,20.736Kombinationen/18gültige Endpunkte.
+  Rückwärts-IK120mm nach oben, glatte Gelenktransit-/senkrechte Anflugprimitive,
+  C2 mit Stillstand an Übergängen. Bei Fehler optionale Pan-/Faltzwischenpunkte.
+- Acht geprüfte Einzelbahnen(2LF/2LR/3RF/1RR),12kompatible Bahnsätze. LR-Kandidat8
+  scheitert an allen3versuchten Gelenkrouten; keine Vollständigkeitsbehauptung.
+  Einzelprüfszene enthält Selbst/Tische/Kiste/alle festen Basen, andere bewegliche
+  Armteile separat in gemeinsamer Zeitdiagnose. Gelenksampling≤0,005rad.
+- Empfohlener Bahnsatz goal-8-1-3-0: gemeinsame Starts, nominal220,7s;423von2.208
+  Diagnosepunkten verletzen Paarreserven, keine FCL-Kollision an Prüfpunkten,
+  min Hüllabstand155,8mm. Orange Timeline macht offene Zeitkoordination sichtbar.
+  Nicht als gemeinsame kollisionsfreie/executable Trajektorie ausgeben.
+- Unabhängiger dichter Check tools/verify_carton_paths.py:32.784Zustände aller8
+  Einzelbahnen PASS, max Geradenabweichung0,000508mm im Modell/max Gelenkschritt
+ 0,002312rad. Solver-/Modellgenauigkeit, keine physische Messgenauigkeit.
+- Build PASS;88gezielte Pythonfälle(7neu) und nativer Vorfilter PASS. Eigenständiger
+  Viewer tools/preview_carton_paths.py/.html mit Play/Pause/Zeitschieber/Orbit/
+  Zoom/3Gelenklösungen/festen Zielen und verworfener Nullpose.20Browserfälle,
+  identische End-TCPs aller Vorschauvarianten PASS, Start/Ende visuell geprüft.
+- Reproduzierbarer Endstand setup/research/offline-carton-paths-20261117/case03/,
+  Anleitung docs/offline_carton_paths.md, Logs setup/logs/uwa-carton-*.
+  Erstversuch case01 im nativen Meshaufbau abgestürzt; Logs/unfertigen Fall erhalten.
+  Erfolgreich mit expliziter file-URI und beibehaltenem nativen Modellbesitz;
+  case02 Entwicklungsnachweis, case03 reproduzierbarer CLI. Keine Fehlerretusche.
+- MoveJ-/MoveL-artige Offlineprimitive, keine Ausführung/Identitätsgarantie
+  nativer UR-Interpolation. Offene Greifer, kein Schließen/Hub/Physiktest, keine
+  Hardware-/ROS-Knoten-/Kameraaktion. Feste Basen. Nächster Schritt4:
+  Startversätze/Warten und Alternativen zur Zeitkoordination mit Endprüfung.
+
+## Karton: 1×-/5×-Kontaktkraftvergleich, 2026-11-17
+
+- Nutzer möchte bestehenden Ablauf schrittweise beschleunigen; ersteStufe5×.
+  Implementiert: gemeinsameZeitkompression aller12Tragegelenke t/5,v×5,a×25,
+  Ruck×125; optionaleExplorationsparameter, perGelenk-Grenzen/Bremsreserveerhalten.
+- Vollständige5×-Drehung imkonservativenReservevorfilter abgewiesen (bis37mm
+  Fehlreserve). StattGrenzlockerung identischen147,812mmHubmitRücksetzen separat
+  getestet. DieserneueKontaktzyklus DONE/PASS; tatsächlicherCOM-Hub147,738mm,
+  Relativfehlermax0,373mm, VierpadkontaktbeimTragen, unterstütztesLösen/Holds.
+- Vergleichmithistorischem1×-Hub:56,538→11,308sSollzeit; alle2263Gelenkstützpunkte
+  stimmenbis1,70e−13radüberein, nativeCapsnichterreicht. GemesseneArmgipfel
+ 0,011477→0,057567rad/s. Material/Physikschritt/Engine/Kontaktbackendgleich;
+  RTF0,4→0,2gibtmehrRechenzeit, keineandereSimulationsgeschwindigkeitderRoboter.
+- Max10ms-Backenmittel1×→5×: RFlinks4,887→4,965N(+1,6%), RFrechts4,506→4,699N
+ (+4,3%); hinten−0,17/+0,10%. GrößtePhysikschritt-Peakobergrenze5,162→5,401N.
+  Lückenlose5653/1130Hubkraftfenster; gemeinsamerMessbereich99,947%desSollhubs.
+  Einzelhistorienvergleich, Betragsobergrenzen; keineMaterial-/Hardwarefreigabe.
+- Erstversuchebleibenerhalten:01/03Runnerstatuslücke,04ZustandslückevorHub;
+ 02wegenfalschverdrahtetem0,04rad/sNativeCapausdrücklichinvalidiert. FixnativeCap
+  folgtmaximalerproDOFGrenze; exaktePolynomprüfungin128Segmentblöckenohne
+  Fristlockerung. Erst05gültig. AlleeigenenExperimentprozessebeendet.
+- MaßgeblicherIndex setup/tasks/carton_speed5_20261117/comparison-final/result.json,
+  gültigerLauf fast-attempt05/, Quellen frozen02/. Bericht
+  [Kraftvergleich](docs/carton_speed_comparison_2026-11-17.md), Arbeit
+  work/carton-speed5-force.md. 95TasktestsundLyricalTaskbuildPASS.
+
+## Gemeinsame ROS-Greiferfunktionen für Agenten, 2026-11-17
+
+- Nutzerauftrag umgesetzt: Öffnen, Schließen mit vorgegebener Krafteinstellung
+  und relative Öffnung über neue `GripperCommand`-Action; Read/Capabilities als
+  Services, Python-Client und CLI. Eigenes Paket `uwa_cell_gripper_control` für
+  LF/LR/RF/RR; vorhandener rücklesegeprüfter Robotiq-Transport wiederverwendet.
+  Alte rohe Action `/command` kompatibel, neue Komfort-Action `/operate`.
+- Einheiten ausdrücklich Rohkraft0–255 und prozentualer Registerhub; echte
+  N-/mm-Kennlinien fehlen. Nutzer bestätigt anschließend ausdrücklich, dass
+  Rohkraft und relative Öffnung zunächst reichen; damit erster API-Umfang
+  bestätigt, keine ungeprüfte Umrechnung nötig. Ergebnisse nennen Istregister und native Kontakterkennung,
+  keine behauptete Klemmkraft oder tragfähige Vierpunktauflage.
+- Eigener Dienst `uwa-grippers.service` auf66/LOCALHOST läuft MONITOR ONLY;
+  alle vier Read-/Capabilities-Services real geprüft, keine SET-Kommandos oder
+  erneuten Finger-/Armbewegungen. Befehlsfreigabe über `scripts/grippers.sh enable`
+  mit expliziten Rohwertgrenzen. Default Kraftgrenze0/Geschwindigkeitsgrenze32.
+  Start/Exit aktivieren/öffnen nichts, letzter Greifauftrag bleibt am Gerät.
+- Höchstens ein Schreibauftrag je Arm über beide Actions. Bestehende Prozess-
+  Lease mit altem Adapter gemeinsam; kein fremder Besitzer verdrängt. Cancel
+  bleibt abgelehnt, da noch kein qualifizierter generischer Fingerstopp besteht.
+- Nur Interfacepaket und eigenes neues Paket gebaut.13API-Tests und echteROS-
+  Loopbackintegration67 bestanden: explizites Aktivieren, Öffnen/Weite/Kontakt-
+  schließen, Kraftgrenzen, konkurrierende alte/neue Action, doppelte Prozesse,
+  Monitor ohne Writes und Zielerhalt beim Exit. Keine Task-/Motionbibliotheken
+  oder fremden Simulationen neu gebaut/gestartet.
+- Anleitung docs/gripper_ros_api.md, Arbeit work/gripper-ros-api.md, Nachweise
+  setup/research/gripper-ros-api-20261117/{mock/result.json,hardware-readonly.json},
+  Logs setup/logs/uwa-gripper-api-*. Reale Kraft-/Weitenkalibrierung und
+  belasteter Griff sind weiterhin separate, nicht erbrachte Nachweise.
+
+## Reale Greifer-/Stopp-/Vierarmprüfung, 2026-11-17
+
+- Nutzer bestätigt heutige freieArm-/Fingerbereiche/Not-Halt-Präsenz und
+  quittiert nötigePolyScope-Sicherheitsmeldungen selbst. RegulärerBringup;
+  keineSafetyquittierung ausderFerne. NeuesOAKFoto weiterohnelinkenBoardfit;
+  ausdrücklich akzeptierten99,1cm-Fallback zentralübernommen (x±0,4955m),
+  übrigeMontageparameter vorläufig. Alte90cmPläne/Benchmarknichtübertragen.
+- Alle4Greifer real einzeln aktiviert/vollgeöffnet. AbschließendACT1/STA3/
+  FLT0/POS3/PRE0/OBJ3/SPE16/FOR0jeGerät. ACKaufSammelschreiben belegte
+  Parameternicht; jetztFOR/SPEeinzeln und zweimalzurücklesen vorPOS/GTO.
+  Aufallen4real bestätigt; keineN-/mm-Zuordnung, keinbeladenerGriff.
+- LangsameresProfil hardware_commissioning.yaml:0,003rad/s/0,006rad/s²;
+ 40mmReserve/Frische/10Hz/angenommeneStoppparameterunverändert. Hüllspalt
+ 133,7mmgegen79,3mmAnforderung. Vollszene/FingerhüllenfürTestwegePASS.
+- Einzelq6-StoppRF real beobachtet: Anforderung/physischerAbfall/ResourceHold/
+  Verriegelung bestätigt. Bestätigungsfenster nach0,699s, keineBremszeit.
+  OriginaleFehlversucheerhalten: initialveralteteClientzustellung; nebenläufige
+  falscheWatchdoganzeige(korrigiert/testbarreproduziert); zuletzt50µrad-
+  PrüfkriteriumunterstationäremEncoderrauschen. SeparateAnalysebestätigtHalt
+  bei0,2mradPositionsspanne/0,2mrad/sGeschwindigkeitundDrift; Laufzeitwächter-
+  Grenzenunverändert. KeineOriginalfehlresultate überschrieben.
+- Vierarmweg real versucht: tatsächlichegemeinsameBewegung≥1,45snachgewiesen.
+  KeinvollständigerZielweg: erstLFbei0,004554rad/sgegen0,003Grenze, danach
+  übrigeArmejeweilswegen eigenerGeschwindigkeitverriegelt. KeineFilter-/
+  Grenzlockerung.64GuardSamples: Callbackmedian4,692/p9927,003/max37,236ms
+  bei100msBudget; Intervallmax101,355ms, Quell-Empfangsaltermax48,17ms.
+- Endzustandfrischbestätigt: alle4Holdsaktiv/alle4stationär, qdmax0imSample;
+  Wächterweiterarmed, Greiferoffen. KeinReset/keineRückfahrt/keinResume.
+  RechenreservefürdiesenKurzversuchbelegt, nächsterSchrittIstgeschwindigkeits-
+  /Trackingabgleich vorerneutemvollständigemWeg. RealeStoppparameterunqualifiziert.
+  Bericht docs/hardware_commissioning_2026-11-17.md und
+  setup/research/hardware-commissioning-20261117/report.html, Rohdatendort.
+- Abschlussregression153Motiontests+24Greifer/Read-only-TestsPASS. Kombinierte
+  ErstcollectionscheiterteangleichnamigenTestmodulen; getrenntePaketimporte/
+  importliblösenohneTeständerung. Messkurven gerendert/visuellgeprüft.
+
+## Gemeinsame Offline-Zielauswahl, Schritt 2, 2026-11-17
+
+- Nutzer bestätigt anschaulichen Viewer und beauftragt Schritt2. Implementiert
+  und installiert: `cell_goal_selection`, neues isoliertes selection-Modul;
+  bestehende Planer/Controller und parallele Karton-/Hardwarearbeit erhalten.
+- Gespeicherte Kandidaten auf Modell/Mesh/Config, Gelenkgrenzen und ursprüngliche
+  Zielalternativen rückgeprüft. Suchraum ist Produkt der behaltenen Kandidaten,
+  unabhängig von bisherigem16-Endstellungen-Ausgabelimit. Alle6Paarabstände
+  gecacht; vorhandene4Nachbarreserven und statische Mindestreserve allerPaare.
+  Jeder gültige Endpunkt zusätzlich mit voller FCL-Szene/Planungsprüfung.
+- Drei Kriterien: Summe Gelenkverschiebungen minimieren, kleinsten Armabstand
+  und kleinste normierte Gelenkgrenzenreserve maximieren. Paretovergleich und
+  deterministische Politik mit6Dezimalstellen; ungerundete Metriken gespeichert.
+  Keine gewichtete Summe. Default kleinste Verschiebung, Alternativen für
+  Abstand/Gelenkgrenzen; vollständige gültige Ergebnisse bleiben für Fallbacks.
+- Neues synthetisches Vierarmbeispiel mit4gleichwertigen Flanschzielposen/Arm,
+ 8behaltenenIKs/Arm, eingefrorenem99,1cm-Modell:4.096Kombinationen vollständig
+  ausgewertet,2.192gültig,1.456Paarreserve-/448Vollszene-Ablehnungen,28Pareto,
+ 3Vorauswahlziele. Suche1,72s, mitRanking1,87s in einemLauf; ohne Modellladen/
+  Eingabeprüfung, keine allgemeine Laufzeitgarantie. Voriges90cm-Beispiel:
+ 4.096gültig, alle3Politiken wählen denselbenEndpunkt. Historische Daten erhalten.
+- Hauptdaten setup/research/offline-goal-selection-20261117/task-alternatives/:
+  request/candidates/selection.json, layout.yaml, model.urdf, viewer.html.
+  Unabhängiger Vollzustands-Bruteforce verify.py bestätigt alle4.096Entscheidungen,
+  Metriken und28Paretopunkte ohne Paarcache; verification.json PASS.
+- BuildPASS.81gezielte PythonfällePASS(18Auswahl,13Kandidaten,29Core,21Planung)
+  und nativerVorfilterPASS. Letzter zusätzlicher Cartesian-Provenienztest direkt
+  mitpytest; übrige übercolcon. Gesamtes altes test-result-Verzeichnis enthält
+  weiterhin den historischen Sandbox-Loopbackfehler, kein neuer Vollpaketlauf.
+  CLI zunächst wegen fehlendemExecutablebit nichtgefunden; Bit korrigiert,
+  installierterros2run-NachweisPASS. Initialfehler und Wiederholung erhalten.
+- Viewer um Vergleichstabelle, drei auswählbare Ziele und aufklappbaresDiagramm
+  ergänzt; synthetische Aufgabe/festesModell/keineBahn sichtbar.38neue und48alte
+  UI-Auswahlen imChromePASS, endgültigesLayout visuellgeprüft.
+  Logs setup/logs/uwa-goal-selection-*; Anleitung docs/offline_goal_selection.md.
+- Ergebnisse weiterhin executable:false. Keine Bahn-/Zeit-/MoveJ-Ausführung,
+  bewegte Basen oder Singularitätsbewertung implementiert. Nur Endstellungen;
+  IK unvollständig, Pareto/Empfehlung auf ausgewertete Kandidaten begrenzt.
+  NächsterSchritt3: glatte primitiveEinzelwege zu Vorauswahlzielen/Alternativen;
+  danach zeitliche Konfliktauflösung und vollständige Trajektorienprüfung.
+
 ## Zielkandidaten anschaulich anzeigen, 2026-11-17
 
 - Nutzer möchte Ergebnis sehen und Markdown korrekt lesen. Eigenständiger

@@ -82,7 +82,7 @@ def main():
                 moved=send(1,128,10,0);assert moved['success'] and moved['status']['registers']['PRE']==128
                 results['explicit_activate_and_move']=True
             process.send_signal(signal.SIGINT);process.wait(timeout=8.);assert process.returncode==0;process=None
-        assert writes==[{'ACT':0},{'ACT':1},{'POS':128,'SPE':10,'FOR':0},{'GTO':1}]
+        assert writes==[{'ACT':0},{'ACT':1},{'FOR':0},{'SPE':10},{'POS':128},{'GTO':1}]
         results['shutdown_no_open_reset_or_force_zero']=True
         report=dict(passed=True,domain=67,transport='loopback TCP emulator',hardware_commands_sent=False,
             checks=results,writes_to_emulator=writes,interpretation='ROS/interface evidence only; no physical activation, force calibration or grasp proof')

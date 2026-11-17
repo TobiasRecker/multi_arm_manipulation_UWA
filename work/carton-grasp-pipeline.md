@@ -838,3 +838,14 @@ beendet; eigene Liveprüfung wartet auf freie Greifwelt. Details work/carton-rol
 - Repositoryprüfung gezielt: geänderter Experimenttreiber2Tests PASS;
   vorheriger Task-Build mit42Tests PASS dokumentiert. Keine gemeinsamen
   Motionquellen dieser Arbeit verändert, fremde Änderungen erhalten.
+
+### Gleiche Hubbewegung bei5×, 2026-11-17
+
+Neuer147,812mm-Sollhub/Rücksetzzyklus fast-attempt05 vollständigPASS, tatsächlicher
+COM-Hub147,738mm/Relativfehlermax0,373mm. Vergleichmit1×-Referenz belegt gleiche
+2263Gelenkstützpunkte und5×Zeitgesetz; max10ms-Kontaktmittel vorn+1,6/+4,3%,
+hintennahegleich, größtePeakobergrenze5,162→5,401N. Kraftfensterlückenlos.
+Vollständige90°-Drehungbei5×nichtausgeführt, Reservevorfilterverweigertdiese.
+Details/Negativläufe docs/carton_speed_comparison_2026-11-17.md und
+work/carton-speed5-force.md; maßgeblich comparison-final/result.json unter
+setup/tasks/carton_speed5_20261117/. EigeneProzessebeendet,95Tasktests/BuildPASS.

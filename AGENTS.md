@@ -29,6 +29,11 @@
   Suchgrenzen/Pareto-Geltungsbereich nennen, Alternativen für folgende Planer
   erhalten; keine Vollständigkeit der IK oder globale Optimalität behaupten.
   Synthetische Zielalternativen als Demonstration kennzeichnen.
+- Korrektur17.11.: Für Schritt3 feste Greifpose jeArm an seiner nächstgelegenen
+  Ecke des Avocado-Kartons, Annäherung senkrecht vonoben. Nicht zugleich
+  Zielposen und IK-Konfigurationen variieren; Nutzer fand dies verwirrend.
+  GewünschterNullstart kollidiert imModell; Nutzer wählt nachPrüfung ausdrücklich
+  [0,-90,0,-90,0,0]Grad füralle4. ReineOfflinebahnprüfung, keinGriff-/Hubnachweis.
 - Bei variabler Basislage alle potenziell kollidierenden Paare berücksichtigen;
   die bisherige feste Vier-Nachbarpaar-Auswahl nicht ungeprüft übertragen.
   Kollisionsprüfung, globale Planung, zeitliche Koordination und lokale
@@ -71,10 +76,35 @@
 
 ## Modulare Manipulation und starre Greifverbünde (2026-11-13)
 
+- Gemeinsame Greifer-API seit17.11.: eigenes Paket `uwa_cell_gripper_control`,
+  Anleitung [ROS-Greifersteuerung](docs/gripper_ros_api.md). Für alle vier Arme
+  Python `GripperClient.open()`, `close_gripper(force_raw=...)`,
+  `set_opening(percent,...)`; ROS-Action `/uwa_hardware/<arm>/gripper/operate`,
+  Status-/Capabilities-Services daneben. Keine eigenen Socket-Schreiber starten.
+- `uwa-grippers.service` läuft zunächst MONITOR ONLY. Explizites `scripts/grippers.sh
+  enable max_force_raw:=...` nimmt Einzelaufträge an, aktiviert/bewegt aber
+  beim Start nichts. Bestehende minimale Kraftgrenze0 bleibt Default. Alte und
+  neue ROS-Endpunkte teilen eine Gerätesperre und einen einzelnen Writer.
+- Kraft ist ausdrücklich Rohwert0–255, Öffnung nomineller Registerhub0–100%,
+  keine kalibrierten N/mm. Aktivieren separat; Exit/Armstopp/Cancel niemals als
+  automatische Öffnung interpretieren. Details, Grenzen und Mocknachweis in
+  der Anleitung. Bestehende Hardware-Zugriffsabsprachen erhalten.
+- Nutzer bestätigt am17.11. ausdrücklich: Rohkraft und relative Öffnung reichen
+  zunächst. Eine N-/mm-Kalibrierung ist kein offener Pflichtteil dieser ersten
+  Greifer-API; Einheiten weiterhin eindeutig als Rohwert/Registerhub ausgeben.
+
 - Nutzer erlaubt17.11. OAK-Szenenchecks selbständig, z.B.ob Karton amPlatz.
   Vorhandenen Kameradienst/Lease nutzen und andere Agenten-/Gerätenutzung
-  erhalten. AndereAgenten nutzen aktuellURs: Kartonvorbereitung offline/Mock,
-  keine Controller-/Greifer-/Fahraktionen vor tatsächlicherÜbergabe.
+  erhalten. Bei geteilter UR-Nutzung vor Controller-/Greifer-/Fahraktionen
+  tatsächliche Übergabe abwarten. Nutzer bestätigt17.11. für diesen Kartontest
+  „Jetzt frei“; dies ersetzt die frühere Fremdbelegung, nicht die noch offenen
+  technischen Nachweise für den beladenen Greifverbund.
+
+- Hardwarestand17.11.: beide rechtenGreifer über gemeinsameROS-API einzeln
+  leer raw0→128→0/SPE16/FOR0 geprüft; anschließendMONITOR ONLY/offen. Gemeinsamen
+  Greiferdienst wiederverwenden, keinezweitenSocketwriter/Adapter. Leerfahrt
+  istkeinN-/mm-/Loadedstopnachweis. TransportfreierObjektreferenzkern und
+  Offline-Pregraspweg ersetzenkeinengekoppeltenHardware-Kommandopfad.
 
 - Neuer Auftrag16.11.: langsamen Realtest des Zweiarm-Kartongriffs vorbereiten;
   Nutzer startet URs erst auf Bereitschaft. Während Vorbereitung keine Power-,
@@ -125,6 +155,19 @@
   als Simulationsannahmen kennzeichnen, keine Hardwaregenauigkeit daraus ableiten.
 
 ## Vierarm-Kollisionswächter und PTP-Vergleich (2026-11-13)
+
+- Realnachweis17.11.: 4Armeparallelbewegt, Geometriecallbackim100msBudget;
+  vollständigerWegwegen nativerGeschwindigkeitspeaksabgebrochen. Künftige
+  KommandogeschwindigkeitvonüberwachterBetriebsgrenzeunterscheiden; keine
+  ungeprüfteFilterung/Rohwertunterdrückung zumBestehen. RealeStoppparameter
+  bleibenunqualifiziert, Fehlversuche imVergleich erhalten.
+- POWER_OFFkannnachSteuerungsstartnativeRTDE-q=0liefern, obwohldieArmeanders
+  stehen. SolcheWerte nichtalsphysischeStartposeverwenden; vorFahrprüfung
+  gültigenBetriebszustand/frischeEncoderwerte undDriver-FK-Abgleich verlangen.
+- RobotiqRealzugriff17.11.: ACKaufPOS/SPE/FOR-SammelbefehlistkeinParameter-
+  Nachweis. FOR/SPEeinzelnsetzen undbeidebestätigen, bevorPOSgeändertwird;
+  GTOkannvomvorigenBefehllatchedsein. Alle4offen/Parameterzurückgelesen,
+  RohwerteweiterhinkeineKraft-/ÖffnungskalibrierungoderbeladeneGreiffreigabe.
 
 - Nutzerfreigabe17.11.: nach erneutemOAK-Foto bei unbrauchbaremBoardfit99,1cm
   Basisabstand verwenden. NurAbstand als Nutzerakzeptanz übernehmen; keine

@@ -8,6 +8,14 @@ isolated `/uwa_grasp_*` namespace. No real power, brake or program commands exis
 See the compact [500g force/speed/stop report](carton_dynamic_validation_2026-11-16.md)
 for current measured results, profile differences and remaining limits.
 
+The [matched 1×/5× vertical-lift comparison](carton_speed_comparison_2026-11-17.md)
+records a completed 147.8 mm lift/return at fivefold carrying speed. Exploratory
+`carrying_speed_multiplier` (1–5) compresses the complete shared object law;
+`force_comparison_lift` selects this longer translation witness without rolling.
+Explicit `joint_velocity_overrides_rad_s` remain bound to individual right-arm
+joints and their full stopping budgets. No limit is automatically relaxed.
+The complete 90° roll remains unqualified at 5×.
+
 ## Exploration objective (clarified2026-11-16)
 
 Use contact simulation to explore fast task execution and find the limiting

@@ -1,7 +1,23 @@
 # Kleiner realer Vierarm-Lauf mit Kollisionswächter
 
-- Status: **langsame Live-Inbetriebnahme vorbereitet; heutige Vor-Ort-Bereitschaft
-  angefragt, noch keine Bewegung**, 2026-11-17 (Australia/Perth), Hauptagent.
+- Status: **realeVersucheabgeschlossen, vollständigerZielwegdurchGeschwindigkeits-
+  wächterabgebrochen**, 2026-11-17 (Australia/Perth), Hauptagent.
+- Abschluss17.11.: Alle4Greifer geöffnet/ParameterrückleseSPE16/FOR0bestätigt.
+  RFq6Softwarehalt realbeobachtet; ursprüngliches50µradPrüfkriteriumunter
+  Encoderrauschen, separateoffeneAnalyseHaltbestätigung0,699sinklRuhefenster.
+  Originalfehlresultateerhalten. Watchdog-Anzeigeracekorrigiert, keineFristlockerung.
+- VierArme realgleichzeitigbewegt (≥1,45s), Callbackmax37,236ms/100msBudget.
+  Zielwegnichtvollständig: IstgeschwindigkeitLF0,004554rad/sgegen0,003Grenze,
+  danachübrigeArmejeeigeneSpeedLimit-Verriegelung. Alle4Holds/Stillstandfrisch
+  bestätigt, Wächterweiterarmed/keinResume. NächsterSchrittTracking-/Istgeschwindig-
+  keitsabgleich, keine automatischeweitereFahrt. Quelle
+  docs/hardware_commissioning_2026-11-17.md / setup/research/hardware-commissioning-20261117/.
+- AbschließendeRegression153Motion-/24Greifer-Read-only-TestsPASS; ReportHTML/
+  PNG-Messkurvengeprüft. KeinweitererrealerBefehl nötig; Hardware bleibt
+  bewusstverriegelt. KeineoffeneBewegung/Testsitzung imHintergrund.
+
+## Historische Vorbereitung und Durchführung
+
 - Neuer Nutzerauftrag17.11.: Foto nach Wegstellen der Kiste erneut versuchen;
   bei nicht auswertbarem Bild99,1cm ausdrücklich übernehmen. Vollständiges
   Greiferöffnen prüfen und langsamen q1-/q6-Softwarestopp testen; danach kleiner

@@ -10,15 +10,21 @@ def interpolation_peaks(trajectory, derivative):
     times=np.array([p['time'] for p in points])
     if len(times)<2 or np.any(np.diff(times)<=0):
         raise ValueError('Strictly increasing trajectory times required')
-    values=[[p['positions'],p['velocities'],p['accelerations']] for p in points]
-    polynomial=PPoly.from_bernstein_basis(BPoly.from_derivatives(times,values)).derivative(derivative)
     peak=np.zeros(len(points[0]['positions']))
-    for i,width in enumerate(np.diff(times)):
-        for joint in range(len(points[0]['positions'])):
-            coefficients=polynomial.c[:,i,joint]
-            roots=np.roots(np.polyder(coefficients))
-            candidates=[0.,width]+[float(r.real) for r in roots if abs(r.imag)<1e-9 and 0<r.real<width]
-            peak[joint]=max(peak[joint],float(np.max(np.abs(np.polyval(coefficients,candidates)))))
+    # Bound native interpolation construction so the ROS executor can service
+    # its heartbeat while long recipes are checked. Each segment is independent;
+    # one shared endpoint keeps the exact controller polynomial unchanged.
+    for start in range(0,len(points)-1,128):
+        batch=points[start:start+129]
+        batch_times=times[start:start+len(batch)]
+        values=[[p['positions'],p['velocities'],p['accelerations']] for p in batch]
+        polynomial=PPoly.from_bernstein_basis(BPoly.from_derivatives(batch_times,values)).derivative(derivative)
+        for i,width in enumerate(np.diff(batch_times)):
+            for joint in range(len(points[0]['positions'])):
+                coefficients=polynomial.c[:,i,joint]
+                roots=np.roots(np.polyder(coefficients))
+                candidates=[0.,width]+[float(r.real) for r in roots if abs(r.imag)<1e-9 and 0<r.real<width]
+                peak[joint]=max(peak[joint],float(np.max(np.abs(np.polyval(coefficients,candidates)))))
     return peak
 
 

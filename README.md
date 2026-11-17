@@ -1,5 +1,15 @@
 # UWA four-arm laboratory cell
 
+All four grippers now have shared ROS actions, status services and Python/CLI
+helpers for opening, closing with an explicit raw-force setting and relative
+opening. The persistent service defaults to monitor mode. See the
+[agent guide and commands](docs/gripper_ros_api.md).
+
+Real hardware checks on17November: all four grippers opened, a measured
+single-arm software halt and actual four-arm overlap. The four-arm target
+was interrupted by reported speed excess; all arms remain held. See the
+[results, timing curves and remaining tracking work](docs/hardware_commissioning_2026-11-17.md).
+
 Open **UWA Robot Power** from the application menu for all four arms.
 **Standby** stops ROS on the robots and switches off the drives; **Start + ROS**
 prepares them again. The control boxes stay online. See the
@@ -497,9 +507,10 @@ calibrate rigid camera mounts separately, then estimate changing table relations
 ## Move the arms
 
 [Real carton commissioning preparation](docs/carton_hardware_commissioning.md)
-now includes a monitor-only ROS Robotiq adapter, real GET observations and
-loopback action tests. Physical activation, geometry alignment and coupled
-loaded execution still require commissioning; UR startup runs no task.
+now includes shared ROS Robotiq services/actions, native observations and two
+successful real empty partial-travel tests. A factory-model-checked path to the
+carton pregrasp is saved as offline evidence. Physical alignment and coupled
+loaded execution remain open; no carton has been gripped or lifted on hardware.
 
 The [modular manipulation harness](docs/manipulation_pipeline.md) adds versioned
 skills, agent review points and an opt-in physical-contact carton scene. After
@@ -517,6 +528,11 @@ or physical maximum is qualified by these simulations.
 An optional [90° carton-roll recipe](docs/manipulation_pipeline.md#experimental-longitudinal-quarter-turn-2026-11-16)
 reuses the same object-led pipeline for sideways placement facing OAK. It remains
 experimental; translation-only contact results do not qualify this new motion.
+
+The [matched 1×/5× contact-force comparison](docs/carton_speed_comparison_2026-11-17.md)
+completes a 147.8 mm vertical lift and return at fivefold carrying speed, with
+small per-jaw load changes. It does not qualify the full quarter turn; its
+configured stopping reserve rejects that complete path at 5×.
 
 For the new **simulation-only four-arm collision guard and PTP comparison**,
 see [the motion guide](docs/four_arm_motion.md). It provides a10Hz neighbor-pair
@@ -555,6 +571,12 @@ the retained candidate combinations and preserves Pareto alternatives for joint
 displacement, arm clearance and joint-limit reserve. `cell_goal_selection`
 exports a model-bound shortlist and an inspectable comparison; paths and timing
 remain subsequent work.
+
+[Step 3 uses fixed avocado-carton corner targets](docs/offline_carton_paths.md):
+four independent smooth joint transits followed by vertical120mm approaches,
+with an interactive model replay. Target poses stay fixed across IK variants.
+Individual paths pass sampled static/self/object checks; simultaneous starts
+still violate pair reserves, so joint timing coordination remains open.
 
 Select `/uwa_cell/controller_manager` and one of the four trajectory
 controllers in the **rqt Joint Trajectory Controller** window. Enable control

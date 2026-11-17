@@ -1,0 +1,19 @@
+# Convenience API. Percent means nominal raw-register stroke, NOT measured mm.
+# force_raw is an explicit0..255 Robotiq setting, NOT newtons.
+uint8 OPEN=1
+uint8 CLOSE=2
+uint8 SET_OPENING=3
+uint8 ACTIVATE=4
+uint8 operation
+float64 opening_percent
+uint8 speed_raw
+uint8 force_raw
+float64 timeout_s
+---
+bool success
+string message
+bool contact_detected
+uint8 position_raw
+string status_json
+---
+string status_json
