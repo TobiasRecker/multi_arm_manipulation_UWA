@@ -53,6 +53,15 @@
   innerhalb dieser zwei Optionen mit minimaler Summe horizontaler Abstände.
   Keine stille Verdrängung auf die drittnächste Seite. Anflug weiterhin
   von oben, Backen quer zur Seitenwand; feste Ziele und neues gemeinsames Prüfen.
+- Erweiterung17.11.: nach dem Griff ohne Loslassen/Umgreifen gemeinsam tragen.
+  Beispiel: anheben,20cm seitlich versetzen, absetzen. Gewünscht sind möglichst
+  kleine Abweichungen vom logischen Pick-and-Place-Profil, bevorzugt durch
+  Objektorientierung, nötigenfalls kurze räumliche Umwege. Zunächst Konzept/
+  Literatur/Offlineplanung; keine neue reale oder Kontaktphysik-Ausführung.
+  Parallelrobotermodell prüfen. Bei starren Griffen gemeinsame Objektbahn und
+  gemeinsames Zeitgesetz; Einzelarmglättung/-wartezeiten danach nicht übertragen.
+  Bewegte Basen bleiben spätere zusätzliche Planungsvariablen. Hubhöhe, Richtung
+  der20cm, zulässige Neigung/Objektinhalt sind noch keine festgelegten Parameter.
 - Bei variabler Basislage alle potenziell kollidierenden Paare berücksichtigen;
   die bisherige feste Vier-Nachbarpaar-Auswahl nicht ungeprüft übertragen.
   Kollisionsprüfung, globale Planung, zeitliche Koordination und lokale

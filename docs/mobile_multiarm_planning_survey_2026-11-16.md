@@ -406,3 +406,98 @@ Das adressiert konkrete V1-Schwächen, belegt aber weder die Behebung der
 individuellen Nutzerprobleme noch eine fertige MoveJ/MoveL-Abbildung. V2 als
 optionalem Vergleich eine kleine identische UWA-Suite geben, keine pauschale
 Überlegenheit oder lokale Funktionsfähigkeit behaupten.
+
+## Ergänzung 17.11.2026: vier Arme tragen dasselbe starre Objekt
+
+Nutzerziel: nach dem Griff nicht loslassen/umgreifen. Als Beispiel Objekt
+anheben,20cm seitlich versetzen und absetzen. Möglichst nahe am normalen
+Pick-and-Place-Profil bleiben, bevorzugt Orientierung unterwegs ändern;
+bei Bedarf kurze Positionsumwege. Hubhöhe, seitliche Richtung und erlaubte
+Neigung noch offen. Folgendes ist ein Architekturvorschlag, kein neuer
+berechneter Transport oder bestätigter Vierarmgriff.
+
+### Modell und tatsächlich verbleibende Freiheiten
+
+Mit Welt-Basispose B_i, Armvorwärtskinematik F_i(q_i), Objektpose X und
+festem Objekt→TCP-Griff G_i gilt für jeden Arm B_i F_i(q_i)=X G_i.
+Der Verbund ist kinematisch als Parallelmechanismus mit vier seriellen
+Ketten sinnvoll modelliert. Unter voller starrer6D-Kopplung, festen Basen
+und regulärer Kinematik ergeben30Koordinaten (24Gelenke+6Objekt) minus24
+unabhängige Zwangsbedingungen lokal6Bewegungsfreiheiten. Aktuierungsredundanz
+und mögliche innere Kräfte sind keine zusätzlichen freien Ellbogenbewegungen.
+Ein6R-Arm hat bei festem TCP normalerweise keine kontinuierliche Nullraumfreiheit.
+IK-Zweige gehören trotzdem zum Zustand; keine Sprünge zwischen Lösungen.
+Mit bewegten Basen oder nichtstarren/unvollständigen Kontakten ändert sich
+diese Zählung. Die zwei Tische erhalten nur ihre tatsächlich möglichen DOF.
+
+Zeitliche Koordination bleibt als EIN gemeinsamer Fortschritt erhalten.
+Unterschiedliches Retiming tragender Arme verletzt den Griff. In einer
+statischen Umgebung beseitigt gemeinsames Langsamerfahren keine geometrische
+Kollision; es hilft bei Ableitungs-/Kraftgrenzen. Zusätzliche dynamische
+Hindernisse wären ein separates Raum-Zeit-Problem.
+
+### Literatur mit konkretem Bezug
+
+| Quelle | Beitrag | Übertragbarkeit |
+|---|---|---|
+| [Berenson et al., Task Space Regions, IJRR2011](https://publications.ri.cmu.edu/task-space-regions-a-framework-for-pose-constrained-manipulation-planning) | Posebedingungen und CBiRRT2 für constrained Manipulationsplanung | Klassischer globaler Vergleich; Korridore und feste relative TCP-Posen formulieren |
+| [Jaillet/Porta, AtlasRRT, T-RO2013](https://www.iri.upc.edu/people/porta/Docs/tro13a.pdf) | Sampling/Expansion auf lokal parametrisierten Zwangsmannigfaltigkeiten | Geschlossene Ketten nicht mit beliebigen24D-Gelenksamples behandeln |
+| [Bordalba et al., Direct Collocation Methods, T-RO2023](https://arxiv.org/abs/2304.12908) | Trajektorienoptimierung mit Verfahren gegen kinematischen Drift | Kettenschluss auch zwischen Stützstellen beachten; nicht nur weiche Strafkosten |
+| [Kennel-Maushart/Coros, Payload-aware Trajectory Optimisation, RA-L2024](https://crl.ethz.ch/papers/Payload-aware_Trajectory_Optimisation_for_Non-holonomic_Mobile_Multi-robot_Manipulation_with_Tip-Over_Avoidance.pdf) | Gemeinsamer Transport mobiler Manipulatoren, Lastmodell, nicht-holonome Basen und Kippschutz | Besonders für spätere bewegte Tische/Basen; keine direkte Vier-UR-Integration |
+| [Di Leva et al., Force and time-optimal trajectory planning, MMT2024](https://www.sciencedirect.com/science/article/pii/S0094114X24001563) | Zeit- und innere Kraftoptimierung für unilaterales Zweiarmgreifen, Experimente | Belegt zusätzliche Kraft-/Dynamikebene; anderes Kontaktmodell als voller starrer Vierarmgriff |
+| [Lee/Kim, VAE-MPPI,2026](https://doi.org/10.7746/jkros.2026.21.3.363) | Gelernte Zwangsmannigfaltigkeit für nahe-zulässige Samples, GPU-KKT-Projektion für Kettenschluss | Modernes Vergleichskonzept; Dual-Panda/MuJoCo, keine Vier-UR-/Hardwarevalidierung. Kollisionskosten ersetzen keine finale Geometrieprüfung |
+
+[Patra et al.2025](https://arxiv.org/abs/2409.14910) koppeln globale Planung
+mit lokaler kinodynamischer Optimierung mobiler Arme/Basen; der Onlineanteil
+ist nicht unser aktueller Umfang. [DG-MAP,CoRL2025](https://proceedings.mlr.press/v305/parimi25a.html)
+erzeugt Einzelarmwege und löst paarweise Konflikte. Daraus folgt nicht die
+Erhaltung eines gemeinsamen starren Griffs; dafür wäre eine andere gemeinsame
+Repräsentation oder explizite Constraint-Projektion nötig.
+
+### Empfohlene Offline-Pipeline
+
+1. Greifzustand und konstante G_i festlegen. Der letzte Vierarm-Seitenfall
+   endet mit OFFENEN Greifern: ein angenommener starrer Griff muss in einem
+   Kinematikversuch ausdrücklich hypothetisch bleiben. Keine Kontaktdaten erfinden.
+2. Zielpose und gemeinsamen Arbeitsraum prüfen, dann kontinuierliche IK aus
+   dem Anfangszweig über den ganzen Transport. Falls unmöglich, frühere
+   Greifkonfigurationswahl mit Transporttest bewerten; nicht mitten im Griff
+   umkonfigurieren. Ein unerreichbares Ziel wird durch Umwege nicht erreichbar.
+3. Referenzprofil aus Hub,20cmTranslation und Absetzen erstellen. Rotation
+   um definierten Objektpunkt, z.B.Kartonmittelpunkt, nicht versehentlich um
+   die STL-Ecke. Anfangs-/Endpose und letzte Absetzorientierung festhalten.
+4. Zunächst Position des Objektpunkts fest, Orientierung in begrenztem Bereich
+   optimieren (z.B.Yaw zuerst; Neigung nur nach Aufgabenverträglichkeit).
+   Dann Positionskorridor stufenweise erweitern. Normalisierte Kosten für
+   Positions-/Winkelabweichung, Weglänge, Gelenkglätte und Singularitätsnähe.
+   Kollision/Kettenschluss/Gelenkgrenzen harte Bedingungen, keine weggewichtbaren
+   Präferenzen. Nicht bloß jedenZeitschritt gierig reparieren: gesamten Weg lösen.
+5. Lokaler Optimierer kann an Hindernisumgehungen scheitern. Objekt-SE(3)-Sampling
+   mit fortgesetzterIK oder CBiRRT/AtlasRRT auf dem gemeinsamen Constraintsystem
+   als globaler Fallback/Vergleich; danach annähernd kürzesten glatten Weg optimieren.
+6. Alle24Gelenke aus derselben Objektbahn ableiten, EIN gemeinsames glattes
+   Zeitgesetz anhand des begrenzenden Gelenks bestimmen. Zwischenpunkte der
+   tatsächlich verwendeten Interpolation auf Kettenschluss und Kollision prüfen.
+   Objekt bewegt sich in der Kollisionsszene mit; nur zulässige Pad-/Supportkontakte
+   gezielt ausnehmen, niemals ganze Greifer-/Objektkollision pauschal abschalten.
+
+Für einen modernen Vergleich zunächst paralleles Sampling von Objekt-Spline-
+Parametern mit geometrischer Prüfung erwägen, später VAE/Diffusion plus harte
+Projektion. Bei festen6R-Armen ist die Objektpose bereits eine natürliche6D-
+Parametrisierung; ein gelerntes latentes Modell hat hier nicht automatisch
+denselben Nutzen wie bei zwei redundanten7R-Armen.
+
+Vergleichsfälle: ideale Bahn bereits frei; Ideallinie blockiert, Rotation
+genügt; auch Positionsumweg nötig; Ziel außerhalb gemeinsamen Arbeitsraums.
+Metriken: Erfolg, maximale Positions-/Winkelabweichung, Umweg, Mindestabstand,
+Kettenschlussfehler, Gelenkreserve/Singularitätsnähe und geglättete Dauer.
+Keine erzwungene Abweichung zeigen, wenn die Idealbahn schon frei ist.
+
+Lokaler Bestand: `uwa_cell_tasks/core.py:GraspGroup` speichert feste
+Objekt→TCP-Offsets, `planning.py:object_trajectory` leitet gemeinsame Bewegungen
+aus Objektinterpolation ab. Beide sind auf das rechtePaar ausgelegt;
+automatische Vierarm-Objektbahnoptimierung fehlt. Die Existenz der Zweiarm-
+Kontaktversuche qualifiziert keine Vierarmfahrt. Für spätere physische
+Übertragung kommen Kraftverteilung, Reib-/Kontaktgrenzen, Objektsteifigkeit
+und gemeinsame Ausführung hinzu; unabhängige native MoveJ/MoveL-Aufrufe
+garantieren den Kettenschluss nicht.

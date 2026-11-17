@@ -44,6 +44,8 @@ def main():
     if path['kind'] not in ('serial_direct','simultaneous_direct'):
         raise ValueError('Expected direct pregrasp endpoint evidence')
     selected=[args.arm] if args.arm else ['right_front','right_rear']
+    if any(not 0<args.command_velocity<arm_velocity_limit(problem.cfg,r) for r in selected):
+        raise ValueError('Command speed must be strictly below each selected monitored arm cap')
     required_names=[j for r in selected for j in joint_names(r)]
     if path['joint_names']!=required_names or len(path['waypoints'][-1])!=len(required_names) or not np.isfinite(path['waypoints'][-1]).all():
         raise ValueError('Exactly the selected unloaded six-joint endpoints required')
@@ -72,7 +74,12 @@ def main():
         request = problem.normalize(dict(start=expected, goals={arm:[end[j] for j in joint_names(arm)]}))
         initial = [expected[j] for j in joint_names(arm)]
         if not problem.edge(request, initial, request['target']): raise ValueError('Fresh full-cell path verification failed')
-        report['segments'].append(dict(arm=arm, request=request, geometric_path=[initial, request['target']], executed=False))
+        trajectory=problem.time_parameterize(request,[initial,request['target']])
+        planned=root/(arm+'-planned-trajectory.json')
+        dump(planned,dict(executable=False,hardware_plan=False,request=request,trajectory=trajectory,
+                          supplemental_object_signature=problem.supplemental_signature))
+        report['segments'].append(dict(arm=arm, request=request, geometric_path=[initial, request['target']],
+            planned_trajectory=str(planned),nominal_duration_s=trajectory['duration_s'],executed=False))
         expected.update(zip(joint_names(arm), request['target']))
     if not args.execute:
         report.update(success=True, phase='OFFLINE_CHECKED_NOT_EXECUTED'); save(); return 0

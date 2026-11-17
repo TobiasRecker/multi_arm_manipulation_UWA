@@ -1,6 +1,7 @@
 """Per-manager resource interlocks and independent native-stop fallback."""
 import threading
 import time
+import math
 from pathlib import Path
 import tempfile
 import subprocess
@@ -15,7 +16,7 @@ from .hardware_state import dashboard_stop
 HOLD='collision_hold_controller'
 
 
-def standstill_deadline_expired(since,rid,now,*,blocked,guard_fresh,reported_stationary,latency):
+def standstill_deadline_expired(since,rid,now,*,blocked,guard_fresh,reported_stationary,quiet_stamp,latency):
     """Bound each absence of fresh quiet evidence, including after long holds.
 
     A stale packet never renews this deadline. An active hold/manager fault
@@ -23,8 +24,10 @@ def standstill_deadline_expired(since,rid,now,*,blocked,guard_fresh,reported_sta
     """
     if not blocked:
         since.pop(rid,None);return False
-    if guard_fresh and reported_stationary:
-        since[rid]=now;return False
+    if guard_fresh and reported_stationary and math.isfinite(quiet_stamp) and quiet_stamp<=now:
+        # Reusing one still-fresh packet must not keep extending the deadline.
+        since[rid]=max(since.get(rid,-float('inf')),quiet_stamp)
+        return now-since[rid]>latency
     since.setdefault(rid,now)
     return now-since[rid]>latency
 

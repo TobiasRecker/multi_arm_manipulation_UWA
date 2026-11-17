@@ -141,3 +141,21 @@
   unverändert. NochkeinehöhereGrenzeinderHardwareaktiviert. Zielnurunbeladene
   Anfahrtbeschleunigen, ruhendeArmenichtmitfiktivhohenGeschwindigkeitenbudgetieren.
   Aktuelle.003-KonfigurationundalleHoldsbleibenzunächstaktiv.
+- NacherstemgenehmigtenNeuladenalle4ProgrammeperPLAYwiederverbunden. NeuerTrace
+  erfasst12:01:14/monotonic7363.944515LF-nativeSTOP **vomSupervisor**:
+  „Blockedarm:measuredstandstillnotconfirmedwithinstoplatency“. Keine
+  Abstands-/Speedstörung. AlteStopfristliefseitVerriegelungweiter, trotzvieler
+  zwischenzeitlichbestätigterRuhefenster. DadurchreichteinfehlendesRuhefenster
+  Minuten späterfürsofortigesNativeSTOP. UrsachefehlendenFensters(noise/coverage/
+  echtekleineBewegung)nochgetrenntzumessen; frühererechteStoppsnichtendgültig
+  demselbenTriggerzugeschrieben. QuelleTraceundJournal.
+- FixinPrüfung: FristproerneuterAbwesenheit**frischer**Stillstandsevidenz;
+  AnkeristGuard-Evaluationsstempel, nichtwiederholtePaketrezeption. Alte/stale
+  QuietpaketekönnenFristnichtverlängern, initialerStoppweiter1s. KeineRohwert-
+  Filterung/Fristverlängerung/Schwellenänderung. Port-/Witnessfehlereskalieren
+  weiterhinseparat. GuardgibtjetztWindow/Samples/qd-/q-Spannen/Grundmitaus.
+- PerArm-Grenzen85gezielteTestsPASS; ersterFehlerwarTest-absaufeinerListe,
+  korrigiert. NeueRF.03/RR.008-OfflineProfile**nochNICHTdeployed**. Alleanderen
+  Armgrenzenje.003, volle40mmReserve/1sStopplatenz/.2Bremsung/.2Frischebleiben.
+  NurunbeladeneEinzelphasen; Loadedbackendweiteroffen. Hohe150mmVorposition
+  mit11:40OAK63Inlier/2,853px/1,798degalsGeometriekandidat, nochkeinRealflug.

@@ -1,5 +1,35 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Konzept für vierarmigen starren Transport, 2026-11-17
+
+- Neuer Nutzerwunsch: nach Griff ohne Loslassen20cm seitlich umsetzen; minimale
+  Abweichung vom Pick-and-Place-Profil, Orientierung als erster Ausweichhebel,
+  bei Bedarf räumlicher Umweg. Konzept-/Literaturfrage, noch kein Transportlauf.
+- Modell: vier geschlossene6R-Ketten mit starren Objekt→TCP-Transformationen;
+  bei festen Basen und regulärer Kinematik lokal6 Bewegungs-DOF des Objekts,
+ 24Antriebe bedeuten keine18 freien Gelenkbewegungen. IK-Zweige kontinuierlich
+  verfolgen, neue Zweige vor Griff wählen; bewegte Tische ergänzen Basis-DOF.
+- Architekturvorschlag (noch nicht implementiert/qualifiziert): Referenzbahn
+  anheben/versetzen/absetzen; zuerst feste Translation mit Orientierungsfreiheit,
+  dann erweiterter Positionskorridor, zuletzt globaler constrained Samplingplaner
+  +lokale Optimierung. Harte Griff-/Kollisions-/Gelenkconstraints, danach ein
+  geglättetes gemeinsames Zeitgesetz über alle24Gelenke. Endorientierung fest.
+- Vorab gemeinsamen Zielarbeitsraum und kontinuierlichen Transport aus der
+  Greifkonfiguration prüfen; bisherige kürzeste Anfahrt allein reicht nicht.
+  Aktuelle Vierarmvorschau endet offen und begründet keinen realen starren Griff.
+  Objektgeometrie muss mitbewegt, nur beabsichtigte Padkontakte ausgenommen werden.
+- Lokaler Code gelesen: GraspGroup in uwa_cell_tasks/core.py und Compiler
+  object_trajectory in planning.py haben bereits Objektbezug/gemeinsame Zeit,
+  sind auf rechtesPaar zugeschnitten und interpolieren vorgegebene Objektwege;
+  automatische Vierarm-Umwegoptimierung fehlt. Transportfreier Hardwarekern
+  hardware_object_reference.py ist kein ausführbarer Hardwareplan.
+- Primärquellen ergänzt im bestehenden Survey: CBiRRT/TSR2011, AtlasRRT2013,
+  driftfreie constrained Collocation2023, payload-aware mobile Manipulation2024,
+  Kraft-/Zeitoptimierung2024, VAE-MPPI2026 (nur Dual-Panda-Simulation).
+  DG-MAP2025 löst freie Armkonflikte, kein fertiger Starrverbundplaner.
+  Vorschlag: deterministische Objektbahnoptimierung als Hauptweg, constrained
+  Sampling als Vergleich/Fallback, gelerntes Sampling+Projektion später optional.
+
 ## Seitenmitten-Anflug und Glättung als Standard, 2026-11-17
 
 - Nutzer übernimmt Glättung als Standard für Offline-Anfahrbeispiele und

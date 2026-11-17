@@ -4,9 +4,9 @@ from uwa_cell_motion.hardware_ports import standstill_deadline_expired
 from uwa_cell_motion.guard_core import GuardState
 
 
-def due(since,now,*,quiet=False,fresh=True,blocked=True):
+def due(since,now,*,quiet=False,fresh=True,blocked=True,stamp=None):
     return standstill_deadline_expired(since,'right_front',now,blocked=blocked,
-        guard_fresh=fresh,reported_stationary=quiet,latency=1.)
+        guard_fresh=fresh,reported_stationary=quiet,quiet_stamp=now if stamp is None else stamp,latency=1.)
 
 
 def test_initial_stop_keeps_the_same_one_second_deadline():
@@ -31,6 +31,14 @@ def test_stale_quiet_packet_never_keeps_renewing_the_deadline():
     assert not due(since,10.,quiet=True)
     assert not due(since,10.8,quiet=True,fresh=False)
     assert due(since,11.01,quiet=True,fresh=False)
+
+
+def test_repeated_same_quiet_packet_uses_its_evaluation_time_not_receipt_time():
+    since={}
+    assert not due(since,10.,quiet=True,stamp=10.)
+    assert not due(since,10.2,quiet=True,stamp=10.)
+    assert since['right_front']==10.
+    assert due(since,11.01,quiet=True,stamp=10.)
 
 
 def test_unblock_discards_old_deadline_and_next_stop_is_a_new_episode():

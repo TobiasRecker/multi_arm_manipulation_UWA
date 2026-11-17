@@ -122,6 +122,7 @@ class HardwareGuard(MotionNode):
             model_signature=self.signature,model_match=all(self.model_match.values()),guard_config_signature=self.hardware_signature,
             source_time_s=now,stop_adapter_available=available,state_ages_s={r:now-v['received'] for r,v in self.records.items()},
             stationary_arms=[r for r in ROBOT_IDS if self.core.fresh(r,now,now) and self.core.stationary(r,now)],
+            stationarity_evidence={r:self.core.stationarity_evidence(r,now) for r in ROBOT_IDS},
             runtime_label=self.mode.upper()+('\nSTOP-GUARD-ARMED' if self.armed else '\nMONITOR-ONLY')+'\nStop-reserve:UNMEASURED\nTool:opening-envelope',
             model_uncertainty='World/table anchors provisional; hardware stop reserve unmeasured; gripper opening unobserved')
         self.publisher.publish(String(data=json.dumps(status,allow_nan=False)))
@@ -227,6 +228,7 @@ class HardwareSupervisor(MotionNode):
                     guard_fresh=self.guard.fresh(now,self.cfg['heartbeat_timeout_s'])
                     if standstill_deadline_expired(self.stopping_since,rid,now,blocked=rid in blocked,
                             guard_fresh=guard_fresh,reported_stationary=rid in (self.guard.value or {}).get('stationary_arms',[]),
+                            quiet_stamp=(self.guard.value or {}).get('evaluated_monotonic_s',-float('inf')),
                             latency=self.cfg['stop_latency_s']):
                         detail=(self.guard.value or {}).get('stationarity_evidence',{}).get(rid)
                         self.ports[rid].native_stop(f'Blocked arm: no fresh standstill evidence within stop latency; guard_fresh={guard_fresh}; evidence={detail}')
