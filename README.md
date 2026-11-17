@@ -526,7 +526,10 @@ demonstration recorder are not implemented yet.
 The follow-up [interactive and lifelong Code-as-Policy design](docs/interactive_code_policy_learning.md)
 focuses on two holding arms plus a working arm, simulation review/teleoperation
 corrections, and improvements from repeated execution. Collision-planner
-datasets are a separate research track; this task-learning design is not yet implemented.
+datasets are a separate research track. The first [cooperative drawing pilot](docs/box_drawing_pilot.md)
+executes a saved Python policy against a file-only three-arm kinematic model,
+with episode history and phase-scoped user feedback. Physical contact, force
+sensing and teleoperation takeover remain subsequent integration work.
 The latest [500g force and speed tests](docs/carton_dynamic_validation_2026-11-16.md)
 include two complete10mm/s Home cycles and three loaded stop cases with retained
 grip using exactly the same version-bound profile. The report preserves earlier

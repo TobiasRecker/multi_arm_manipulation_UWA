@@ -4,7 +4,7 @@ import sys
 import numpy as np
 import pytest
 sys.path.insert(0,str(Path(__file__).parents[1]))
-from uwa_cell_motion.common import config,nominal_state,joint_names,PAIRS
+from uwa_cell_motion.common import config,nominal_state,joint_names,PAIRS,ROBOT_IDS,BODY_RESERVE_MODEL
 from uwa_cell_motion.geometry import SphereModel,sphere_aabb,aabb_separated
 from uwa_cell_motion.planning import Problem
 
@@ -95,3 +95,81 @@ def test_guard_nearest_queries_still_return_exact_surface_points(problem):
         cached,bounds=problem.spheres.planning_world(state)
         problem.spheres.pair_clear(cached,bounds,a,b,.01)
         assert problem.spheres.nearest(world,a,b)==before
+
+
+def body_cloud_model(world,radii,totals):
+    model=SphereModel.__new__(SphereModel)
+    model.names={r:joint_names(r) for r in world};model.radii=radii
+    model.links={r:[r]*len(p) for r,p in world.items()}
+    model.planning_world=lambda _: (world,{})
+    def budget(r,*args):
+        total=np.asarray(totals[r]);zero=np.zeros(len(total))
+        return dict(total_m=total,speed_m_s=zero,data_age_m=zero,
+            sampling_m=zero,reaction_m=total,braking_m=zero)
+    model.body_budget=budget
+    model.planning_stats=dict(pair_queries=0,prefilter_clear=0,fine_queries=0)
+    return model
+
+
+def dense_body_clear(model,world,cfg):
+    from uwa_cell_motion.stopping_reserve import critical_pair
+    budgets={r:model.body_budget(r,None,None,None) for r in world}
+    return all(critical_pair(a,b,world,model.radii,model.links,budgets,cfg)['remaining_clearance_m']>0 for a,b in PAIRS)
+
+
+def test_body_prefilter_matches_dense_variable_reserves_on_random_clouds():
+    rng=np.random.default_rng(1706);coarse=0;valid=0
+    cfg=dict(model_margin_m=.04,heartbeat_timeout_s=.25,rate_hz=10.,state_timeout_s=.2)
+    for trial in range(600):
+        world={r:rng.normal(0,.4,(1+(trial+i)%17,3))+np.array([4*i if trial%2 else 0,0,0]) for i,r in enumerate(ROBOT_IDS)}
+        radii={r:rng.uniform(.01,.3,len(p)) for r,p in world.items()}
+        totals={r:rng.uniform(0,.5,len(p)) for r,p in world.items()}
+        model=body_cloud_model(world,radii,totals)
+        expected=dense_body_clear(model,world,cfg)
+        assert model.planning_body_clear({},cfg)==expected
+        coarse+=model.planning_stats['prefilter_clear'];valid+=expected
+    assert valid>=300 and coarse>=1000
+
+
+@pytest.mark.parametrize('offset',[-1e-10,-1e-14,0.,1e-14,1e-10])
+def test_body_prefilter_preserves_exact_near_threshold_decision(offset):
+    world={r:np.array([[i*10.,0,0]]) for i,r in enumerate(ROBOT_IDS)}
+    a,b=PAIRS[0];world[a]=np.array([[0.,0,0]]);world[b]=np.array([[1.54+offset,0,0]])
+    radii={r:np.array([.5]) for r in world};totals={r:np.array([.25]) for r in world}
+    cfg=dict(model_margin_m=.04,heartbeat_timeout_s=.25,rate_hz=10.,state_timeout_s=.2)
+    model=body_cloud_model(world,radii,totals)
+    assert model.planning_body_clear({},cfg)==dense_body_clear(model,world,cfg)
+    if abs(offset)<1e-12:assert model.planning_stats['fine_queries']>=1
+
+
+def test_body_bounds_are_recomputed_when_budget_changes_without_geometry_change():
+    world={r:np.array([[i*10.,0,0]]) for i,r in enumerate(ROBOT_IDS)}
+    radii={r:np.array([.5]) for r in world};totals={r:np.array([.1]) for r in world}
+    cfg=dict(model_margin_m=.04,heartbeat_timeout_s=.25,rate_hz=10.,state_timeout_s=.2)
+    model=body_cloud_model(world,radii,totals)
+    assert model.planning_body_clear({},cfg)
+    totals['left_front']=np.array([100.])
+    assert not model.planning_body_clear({},cfg)
+    totals['left_front']=np.array([np.nan])
+    with pytest.raises(ValueError):model.planning_body_clear({},cfg)
+
+
+def test_hardware_body_filter_matches_original_with_complete_opening_envelopes(tmp_path):
+    from uwa_cell_motion.hardware_model import HardwareProblem,inventory_path
+    cfg=config(Path(__file__).parents[1]/'config/hardware_right_front_stop_test.yaml')
+    cfg['joint_velocity_limits_rad_s']={r:[.003]*6 for r in ROBOT_IDS}
+    model=HardwareProblem(tmp_path,cfg,inventory_path());rng=np.random.default_rng(1707)
+    state=nominal_state(model.layout);checked=0
+    for trial in range(100):
+        current=dict(state)
+        for r in ROBOT_IDS:
+            for i,j in enumerate(joint_names(r)):
+                current[j]=[0.,-np.pi/2,0.,-np.pi/2,0.,0.][i]+float(rng.uniform(-.15,.15))
+        request=model.normalize(dict(start=current,goals={'left_front':[current[j] for j in joint_names('left_front')]}))
+        q=request['target'];expected=model.collision.check(current)[0]
+        if expected:
+            _,pairs=model.spheres.pairs(current,{r:np.zeros(len(n)) for r,n in model.names.items()},
+                {r:cfg['state_timeout_s'] for r in ROBOT_IDS},cfg)
+            expected=all(p['remaining_clearance_m']>0 for p in pairs);checked+=1
+        assert model.check(request,q)==expected
+    assert checked>10

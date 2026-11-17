@@ -17,6 +17,8 @@ def main():
     p = sub.add_parser('run')
     p.add_argument('--source', type=Path, required=True)
     p.add_argument('--output', type=Path, required=True)
+    p.add_argument('--variant',choices=('baseline','overlap','closer_coordinated'),default='baseline')
+    p.add_argument('--feedback-from',type=Path)
     p = sub.add_parser('summary')
     p.add_argument('run', type=Path)
     p = sub.add_parser('history')
@@ -30,7 +32,7 @@ def main():
     args = parser.parse_args()
     if args.command == 'run':
         from uwa_cell_tasks.box_drawing import compile_pilot
-        result = compile_pilot(args.source, args.output)
+        result = compile_pilot(args.source, args.output,variant=args.variant,feedback_from=args.feedback_from)
         print(json.dumps(dict(status=result['status'], output=str(args.output.resolve()),
                               validation=result['validation']), indent=2))
     elif args.command == 'history':

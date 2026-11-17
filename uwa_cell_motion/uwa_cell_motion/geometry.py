@@ -100,6 +100,31 @@ class SphereModel:
         self.planning_stats['fine_queries']+=1
         return bool(self.nearest(world,a,b)['clearance_m']>threshold)
 
+    def planning_body_clear(self,positions,cfg):
+        """Boolean v2 reserve check with the same exact fallback as the guard.
+
+        Expand each sphere by its own complete stopping budget before forming
+        the arm box. A clear box pair proves every fine sphere pair clear.
+        Recompute budgets/bounds per call; cache only state-bound geometry.
+        """
+        from .stopping_reserve import critical_pair
+        margin=cfg['model_margin_m']
+        if not np.isfinite(margin) or margin<0:raise ValueError('Invalid model margin')
+        world,_=self.planning_world(positions)
+        budgets={r:self.body_budget(r,np.zeros(len(n)),cfg['state_timeout_s'],cfg) for r,n in self.names.items()}
+        bounds={}
+        for rid in world:
+            expanded=np.nextafter(self.radii[rid]+budgets[rid]['total_m'],np.inf)
+            if not np.isfinite(expanded).all() or np.any(expanded<0):raise ValueError('Invalid expanded stopping envelope')
+            bounds[rid]=sphere_aabb(world[rid],expanded)
+        for a,b in PAIRS:
+            self.planning_stats['pair_queries']+=1
+            if aabb_separated(bounds[a],bounds[b],margin):
+                self.planning_stats['prefilter_clear']+=1;continue
+            self.planning_stats['fine_queries']+=1
+            if critical_pair(a,b,world,self.radii,self.links,budgets,cfg)['remaining_clearance_m']<=0:return False
+        return True
+
     def world(self, positions, partial=False):
         required = {j for names in self.names.values() for j in names}
         if (not partial and not required <= positions.keys()) or not np.isfinite([positions[j] for j in required if j in positions]).all():

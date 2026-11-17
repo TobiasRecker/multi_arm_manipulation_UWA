@@ -27,6 +27,7 @@ def follow(problem,client,plan,result):
     # correction from the measured state rather than a discontinuous t=0 jump.
     waypoints=[[baseline[j] for j in names]]+plan['trajectory']['waypoints']
     trajectory=problem.time_parameterize(request,waypoints)
+    if hasattr(client,'refresh_after_validation'):client.refresh_after_validation()
     client.health()
     if any(abs(client.positions[j]-baseline[j])>.0005 for n in problem.names.values() for j in n):return False
     client.activate([rid])

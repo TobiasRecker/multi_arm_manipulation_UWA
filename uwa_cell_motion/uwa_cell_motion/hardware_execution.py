@@ -137,6 +137,14 @@ class HardwareClient(MotionClient):
                     self.spin_once(timeout_sec=.005)
     def manager(self,rid,kind,endpoint,request):
         return self.service(kind,self.problem.profiles[rid]['namespace']+'/controller_manager/'+endpoint,request)
+    def refresh_after_validation(self):
+        """Rebuild fresh samples after blocking geometry work, before activation.
+
+        Runtime health never waits for recovery once a controller is owned.
+        No stale samples, extrapolation or wider spatial tolerance are allowed.
+        """
+        if self.owned:raise RuntimeError('Cannot refresh validation samples after motion activation')
+        self.connect()
     def activate(self,arms):
         if not set(arms)<=set(self.selected):raise RuntimeError('Arm was not selected for verified hardware execution')
         self.health();blocked=set(self.guard['blocked_arms'])|set(self.supervisor['blocked_arms'])
@@ -209,6 +217,7 @@ def execute(plan,output,mode):
             # Revalidate all timing/limits/full-cell collision states before any controller activation.
             verified=problem.time_parameterize(request,plan['trajectory']['waypoints'])
             if verified!=plan['trajectory']:raise ValueError('Trajectory differs from deterministic validated timing')
+            client.refresh_after_validation()
             result['stage']='EXECUTION';_follow(problem,client,plan,result)
             result.update(success=not result['stopped_arms'],final_positions=dict(client.positions),actual_wall_s=time.monotonic()-began)
             if result['success']:result['stage']='COMPLETE'

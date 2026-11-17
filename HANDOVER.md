@@ -1,5 +1,148 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Erster Feedbackzyklus: Boxzeichnung koordinieren, 2026-11-17
+
+- Nutzer hinterfragt Umkonfiguration des Arbeitsarms vor Unterseitenkreis;
+  schlägt höher/näher gehaltene Box oder gleichzeitiges Umstellen vor.
+  Rückmeldung in run08/episode an transfer_to_z_min gespeichert; neue
+  Modellvarianten binden diese Episode und Feedbackhashes als Herkunft.
+- Ursache im ersten Programm: Boxdrehen und Workerwechsel seriell, nähere
+  LF-IK scheitert bei Anfahrt an forearm/wrist2-Selbstkollision. Gewählter
+  anderer Zweig verlangt165,40°wrist1/129,74°wrist3. Keine Aussage, dass ein
+  solcher Wechsel für jede Boxpose nötig wäre. Mehrere Offlineprobes erhalten.
+- Neue CLI-Varianten --variant overlap und closer_coordinated, optional
+  --feedback-from RUN. Ursprung/Ende aller24Armgelenke und Zeichenaufgabe
+  unverändert. Baseline --variant baseline weiterhin reproduzierbar.
+- overlap01: gleiche Boxposition, vollständige Umkonfiguration gleichzeitig
+  mit80°Boxdrehung, gemeinsame Rückbewegung;49,837s statt66,858s Modellzeit
+  (17,022s/25,46%weniger). AchtPhasen/2504Prüfzustände≤20ms,
+  minArmhülle230,818mm. GroßeWristbewegung bleibt, separateWartephase entfällt.
+- closer01: 8cmWelt−XnäherzumLF, Verschieben undZurückversetzen tatsächlich
+  enthalten. DurchgängigerLF-Zweig und koordinierter Übergang, größter
+  Gelenkhub dabei33,66°statt165,40°. ZehnPhasen/3421Prüfzustände≤20ms,
+  minArmhülle213,628mm. Gesamtdauer68,073s; geringerer Gelenkhub ist hier
+  kein schnellerer Gesamtablauf unter gleichem v/a/Ruck-Profil.
+- Beide vollständigen Interpolanten/FCL/Markergeometrie/alle6Armpaare/
+  GriffzwängePASS, separateFK-/ZeitauditsPASS. Prüfungen unverändert;
+  gleiche Anfangs-/Endzustände im gespeicherten Vergleich nachgeprüft.
+  Modellbewegungsüberlappung aus tatsächlichenSplineableitungen geschätzt,
+  nicht allein aus gleichzeitigem Versand abgeleitet. KeineKontaktphysik.
+- Vergleich setup/tasks/box_drawing_pilot_20261117/feedback-comparison01/
+  viewer.html undcomparison.json; Baseline/overlap01/closer01 auswählbar.
+  13SoftwaretestsPASS,35/39Variantenbrowserchecks+7VergleichschecksPASS,
+  Screenshotsvisuellgeprüft. HöhereBoxen undalternativeStartzweige zunächst
+  nurStichproben, nichtvollständigqualifizierteWeitereVarianten.
+- Arbeitsstandwork/box-drawing-pilot.md, Anleitungdocs/box_drawing_pilot.md.
+  Beispiel für Nutzerfeedback→konkreteCodeänderung→geprüftenVergleich;
+  keine autonomeGewichtsaktualisierung, Realfahrt oderDienstaktion.
+
+## Hierarchischer Vorfilter auch mit neuen Stoppreserven, 2026-11-17
+
+- Nutzer wünscht die entwickelte Kollisionsmethode künftig bei Wegprüfungen
+  und eine Angabe der Berechnungsdauer. Als Arm-AABB-Methode16.11.interpretiert,
+  RückfragezurBestätigungoffen. NeuerkörperbezogenerReservezweigumgingbisher
+  derenPython-Vorfilter; jetztautomatischintegriert. JedeKugelumeigenes
+  Stoppbudgetaufweiten, sichereElternhüllentrennungnutzen, sonstunveränderte
+  Feinprüfung. GeometriecachemitAbhängigkeitsbindung, Budgetneuberechnung.
+- AktuellerLF-Weg01eoffline:20,182→10,074sfürgesamtePlanunginklEndprüfung/
+  Metriken; Modellaufbauzusätzlich1,471s. GeometrischeWegfindung2,567→1,144s.
+ 895Trajektorienpunkteexaktgleich;150Zustände×3Wiederholungen5,316→2,294ms
+  proZustand. NurdiesesBeispiel, keineallgemeineLaufzeitgarantie.
+- 50gezielteTestsund316gesamteMotion-PytestsPASS. ExakteWächter-/Leasewerte,
+  Grenzwerte/Geometrie/Profilbindungenunverändert. KeineRoboterbefehleoder
+  Dienstneustarts. q6-Profilfreigabebleibtseparatausstehend.
+  Details docs/collision_prefilter.md / work/body-reserve-prefilter.md;
+  Messung setup/calibration/oak_recalibration_20261117/body-prefilter-benchmark-01/result.json.
+
+## Hinteres Armpaar: erste Kollisionsstichprobe, 2026-11-17
+
+- Nutzer schlägt die näheren hinteren Arme für schwierigere Kartonfälle vor.
+  Offlineprobe mit vorhandenen ObjectTransport/TwoArmTeacher/discover_start,
+  individuellen TCPs, festen kurzen Seitengriffen, unveränderter FCL/20mm-Prüfung.
+  Basen hinten0,991m statt rechts1,35m; Karton quer gedreht und zwischen
+  hintereArme gesetzt. Frontarme bleiben modellierte aufrechte Hindernisse.
+- Drei Startlagen x0/y0,25/0,40/0,55m bei bisheriger angehobener Höhe geprüft:
+ 2/2/6gültigeIK-Kombinationen; ausgewählte Anfangsabstände der tragenden Arme
+ 230,8/221,1/84,8mm. Je±60°umWeltXYZ mit5cmZwischenhub, Start=Ende,
+ 61Stützstellen proReferenz. FCL-kollidierende Referenzen0/6,1/6,5/6;
+  IK-Abbrüche2/6,1/6,0/6. Andere Hüllenfehler getrennt erhalten.
+- Konkreter nativer Kontaktzeuge beim hintersten Start/+60°WeltZ:
+  left_rear_forearm_link gegen right_rear_forearm_link. Somit tatsächlich
+  Arm/Arm-Fall, nicht nur aufgeblähter Mindestabstand. Geprüfte freie Enden.
+- Diese kleine gezielte Stichprobe belegt geeignete schwierige Referenzen,
+  keine statistische Kollisionsrate, keine erfolgreiche Optimierung/Anfahrt,
+  Kontaktphysik oder Trainingsfreigabe. Rechter Kontrollstart bei denselben
+  Weltachsenproben1/6frei und5/6IK-Abbrüche; kein fairer allgemeiner Rankingbeweis.
+- Artefakte setup/research/rear-pair-screen-20261117/{result,summary}.json,
+  probe.py/check.py, nativer Kontaktlog. Zwei Fehler der Zeugenextraktion
+  (Zeilenschema) korrigiert; ursprüngliches Screening unverändert erhalten.
+  Keine produktiven Kernquellen/Geräte/Dienste verändert; Arbeitsstand
+  work/rear-pair-screen.md. Nächste fachliche Stufe: diese Fälle optimieren
+  und vollständig zeitparametriert prüfen, bevor BC-Beispiele exportiert werden.
+
+## Code-as-Policy-Pilot: erste Dreiarmszene und Episoden, 2026-11-17
+
+- Nutzer bestätigt Pilotstart und grenzt Auswertung ein: zunächst Dauer,
+  beobachteteKraftmaxima, Fehlgriff/Neuansatz, Objektverlust, Agenteneingriffe
+  und subjektives Endfeedback; detaillierteStrichbild-/Produktoptimierung
+  ist optional. FehlendeMessungen nicht alsNull, Nutzermeldungen getrennt.
+- Implementiert neue isolierte Module box_drawing.py/pilot_episode.py und
+  tools/box_drawing_pilot.py. Gespeichertes Pythonprogramm läuft gegen
+  file-only Kinematikadapter: beide rechtenArme halten, LF führt virtuellen
+  Marker, LR geparkt. Zwei benannte Flächen y_max/z_min, nichtalleBoxseiten.
+  In-airFixture16cm, offeneGreifer/festeGrifftransforms alsAnnahmen.
+- Erster Referenzlauf setup/tasks/box_drawing_pilot_20261117/run08/:
+  MODEL_SEQUENCE_COMPLETE, zehnPhasen/66,858sModellzeit,3358Prüfzustände≤20ms.
+  80°Präsentation derUnterseite, beideKreise, Arbeitsarmräumen undRückdrehung.
+  FCL/bewegterKarton/alle6Armpaare/virtuellerMarkerkörper geprüft;
+  minArmhüllabstand230,818mm. KeineKontaktphysik oder Last-/Stoppqualifikation.
+- Separater Audit PASS:1510FK-Zustände/2001AbleitungsprobenjePhase,
+  Phasenanschlusssprung0, gemeinsameHalteframes undKreisreferenz numerisch
+  erfüllt. v/a/Ruck-Spitzen0,35/0,40/1,463rad-Einheiten. WinzigeFK-Fehler
+  sind numerischeKonsistenz, keinephysischeGenauigkeit. result.json,
+  independent-audit.json undImplementierungs-/Modellhashes imLauf.
+- Episoden: manifest/hashgebundeneEreignisfolge, Modell-/Rechen-/Ausführungszeit
+  getrennt, deklarierteBeobachter, Kraftmaxima proSensor/Frame/Bezugspunkt,
+  Originalfeedback mitPhase. CLI summary/history/feedback; ImportfremderEpisode
+  oderPhaseabgewiesen. NochkeineangeschlossenenKraft-/Griff-/Verlustdetektoren,
+  entsprechendeFelderUNKNOWN; keinNutzerfeedbackstellvertretendangelegt.
+- viewer.html mitPlay/Pause/Zeitschieber/Orbit/Phasen/Code undFeedbackexport.
+ 13Softwaretests und39BrowserchecksPASS, Screenshotpreview.pngvisuellgeprüft.
+  Browser-QA-Beispieltext nichtinEpisodenimportiert. HTMListOriginalsnapshot;
+  CLIzeigt spätereFeedbackeinträge. Browser-Sandboxsocketblock, isolierte
+  Hostprüfungerfolgreich; keineÄnderungbestehenderBrowserprofile.
+- NegativeEntwicklungsversuche1–5erhalten: virtuelleSpitzengeometrie,
+  Transit/Selbstkollision undabschließendeBoxdrehungbeiMarkerimSchwenkraum.
+  KorrigiertdurchpassendePräsentation, vollständigeBranch-Vorprüfung und
+  explizitesArbeitsarmräumen. VerworfenesPlanningnichtalsRuntimeeingriffzählen.
+- Bedienung docs/box_drawing_pilot.md, Arbeitsstandwork/box-drawing-pilot.md.
+  Quellbaum-CLIohneNeuinstallationgeteilterKontaktplugins; keineROS-Nodes,
+  Hardware-/Kamera-/Dienstaktion oderTraining. NächsteStufe: Nutzerfeedback,
+  Kontakt-/Ausführungsadapter, Teleop undgetesteteProgrammverbesserung.
+
+## OAK-Aufnahmeanfahrt: LF-Handgelenkdiagnose, 2026-11-17
+
+- Hauptauftrag weiterhin vier Aufnahmestellungen plusFünfkameraGUI. ErsteLF-
+  Anfahrt automatisch gehalten, Zielnicht erreicht. Vergleich zeitversetzter
+  ROS-/RTDE-Werte korrigiert, unveränderte5mrad-Grenze einschließlich
+  Interpolationsunsicherheit; 40Tests/Build/separaterMockPASS, real lesend
+ 1.616Vergleiche max0,520mrad. Keine allgemeine0,3rad/s-Stoppqualifikation.
+- Nachfolgend LF-q6 imNativezustand Geschwindigkeitbis0,04446rad/s und
+ 0,001079radPositionsspanne/10s. Nutzer bestätigt kleine realeRucke; Ursache
+  ungeklärt, keinbloßerRauschennachweis. LFStillstandnichtbestätigt, Wächter
+  wiederholtSTOP; andere3ruhig. KeineFilter-/Stillstandslockerung.
+- Nutzerfreigabe ausschließlichLFStandbyundPower/Brake/ROS-NeustartzurDiagnose
+  erhalten. Standby tatsächlichPOWER_OFF/NORMAL/STOPPED bestätigt, keinFahrziel.
+  Power/Brake-NeustartbestätigtRUNNING/NORMAL/STOPPED; danachursprüngliche
+  StillstandsprüfungwiederPASS, LF2,016s/vmax0/Positionsspanne83,9µrad.
+  SoftwareReset/ROS-Wiederanlaufbestätigt. NeuerRealversuch01dbeiLFq6−0,03811
+  gegen0,00755rad/sgehalten; wiederstationär, Aufnahmestellungnicht erreicht.
+  Kandidat01emitq6-Monitor0,1inklneuerReserve/FCLPASS47,89snochNICHTaktiviert.
+  AutomatischePrüfunglehntkonkretenProfilwechselmangelseindeutigerFreigabeab;
+  expliziteBedienerzustimmungangefragt, keineUmgehung/keineTeilaktivierung.
+  KameraGUIläuftpausiert. Details work/oak-recalibration-20261117.md,
+  Daten setup/calibration/oak_recalibration_20261117/hardware-views-01/.
+
 ## BC-Zielketten und Arm/Tisch-Bedingung, 2026-11-17
 
 - Nutzer möchte längere Abläufe ohne Rücksetzen zur Mitte, freie Kontrollen

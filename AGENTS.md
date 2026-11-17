@@ -1,11 +1,32 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Hinteres Armpaar als Offline-Lehrer (2026-11-17)
+
+- Nutzer schlägt left_rear/right_rear statt der rechten beiden Arme vor,
+  um mit näheren Basen schwierigere Karton-Kollisionsfälle zu erhalten.
+  Vermutung über bisher geringe Schwierigkeit als Hypothese behandeln.
+  Zunächst Offline-Griffstarts/Referenzen, keine reale Gruppenumschaltung.
+  Feste Objektgriffe und gemeinsames Zeitgesetz wiederverwenden; ungültige
+  IK, native FCL-Kontakte und reine Hüllenverletzungen getrennt ausweisen.
+
 ## Programmierpipeline mit Demonstrationen und Sprache (2026-11-17)
 
 - Nutzerziel: schnelles einfaches LLM soll mit wiederverwendbaren Bausteinen
   möglichst zügig ein Aufgabenprogramm erstellen. Optional ein bis zwei
   erklärte Teleoperations-/Handführungsbeispiele mit Kameras, UR-Posen und
   Kräften nutzen; vollständiges Training einer Gesamtpolicy ist kein Ziel.
+- Pilotbeginn bestätigt17.11.: Box halten und Kreise zeichnen. Erste Auswertung
+  bewusst auf verfügbare Ausführungsdaten beschränken: Dauer, Kraftmaximum,
+  Fehlgriffe/Neuansätze, Objektverlust, Agenteneingriffe plus subjektives
+  Nutzerfeedback mit Phasenbezug. Detaillierte automatische Strichbild- oder
+  Produktqualitätsoptimierung ist später optional, keine Einstiegsvoraussetzung.
+  Fehlende Beobachter als UNKNOWN statt Null; Nutzermeldung und Messung trennen.
+- Erstes Pilotfeedback: Umkonfiguration vor Unterseitenkreis hinterfragen;
+  höhere/nähere Boxpose oder Umstellen während Boxdrehung prüfen. Anfangs-
+  und Endzustände beim Zeitvergleich gleich halten, zusätzliche Positionierung
+  mitrechnen. Freier Arbeitsarm darf mit der Boxgruppe gleichzeitig fahren;
+  deren gemeinsame Objekt-/Zeitbindung erhalten und alle Arme neu prüfen.
+  Beispiele aus diesem Feedback nicht als generelle Erreichbarkeitsregel übernehmen.
 - Präzisierung17.11.: **Code as Policy für Gesamtaufgaben**, z.B. zwei Arme
   halten/drehen den Karton, dritter stapelt oder zeichnet auf dessen Seiten.
   Der32-Aufgaben-/21-Bahnen-Pilot ist separate Kollisionsvermeidung, kein
@@ -21,12 +42,19 @@
   Toleranzen, Kraftgrenzen oder Steifigkeiten ableiten; Herkunft von Sprache,
   Messung und technischen Annahmen erhalten. Gemeinsame Objektsteuerung pro
   tragender Gruppe gilt auch für Demonstration und Retargeting.
-- Architektur/Pilot sind zunächst Empfehlungen der Recherche, keine bestätigte
-  Implementierungs- oder Hardwarefreigabe. Bericht:
+- Piloteinstieg ist bestätigt; weitere Architekturvarianten bleiben Empfehlungen,
+  keine pauschale Hardwarefreigabe. Erster file-only Modellstand/Bedienung:
+  docs/box_drawing_pilot.md. Forschungsbericht:
   docs/programming_pipeline_lbd_review_2026-11-17.md.
   Präzisierter Entwurf: docs/interactive_code_policy_learning.md.
 
 ## OAK-Neukalibrierung und Aufnahmefeedback (2026-11-17)
+
+- LF-q6 am17.11. nach angehaltener Aufnahmeanfahrt: native Geschwindigkeit
+  bis0,044rad/s bei kleinem Positionshub; Nutzer bestätigt reale kleine Rucke.
+  Nicht ungeprüft als Messrauschen filtern oder Stillstandsschwelle erhöhen.
+  Nutzer erlaubt ausdrücklich ausschließlichLF-Standby plusPower/Brake/ROS-
+  Neustart zur Diagnose; vor Fahrt erneut echten ruhigen Zustand nachweisen.
 
 - Nutzer hält auch9,2min für die vier Anfahrten für unzweckmäßig und schlägt
   0,1rad/s als Obergrenze vor; gibt eigenen Nothaltzugriff an. Als Kandidaten
@@ -354,6 +382,14 @@
   Hüllabstände ersetzen. Gleichheit zu bisheriger Prüfung und echte Laufzeit
   nachweisen; Modelldaten unverändert, eingefrorene Geometrie nur mit gültiger
   Zustands-/Abhängigkeitsbindung wiederverwenden.
+- Nutzerwunsch17.11.: die entwickelte hierarchische Kollisionsprüfung bei
+  künftigen Wegprüfungen verwenden und Berechnungsdauer nennen. Annahmehier:
+  Arm-AABB-Vorfilter; Bestätigungangefragt, nichtmitCDF-Planergleichsetzen.
+  Neuerper_body_joint_caps_v2-PlanungszweignutztjetztauchdiesenVorfilter:
+  jedesKugelvolumenumeigenenStoppwegaufweiten, ganzeArmhüllebilden,
+  beiunklarerTrennungunveränderteFeinprüfung. ExakteWächterabständeerhalten.
+  RechenzeitfürModellaufbau, Planung/EndprüfungundrealeFahrzeitgetrenntnennen;
+  EinzelbenchmarknichtalsallgemeineLaufzeitgarantieausgeben.
 
 - Nutzerauftrag: unabhängiger10Hz-Kugelwächter für genau LF/RF, LF/LR,
   RF/RR, LR/RR; Diagonalen aus dieser Paarüberwachung ausnehmen. Greifer

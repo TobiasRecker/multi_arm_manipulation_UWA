@@ -89,9 +89,7 @@ class Problem:
         if not self.collision.check(state)[0]:return False
         if margin:
             if self.cfg.get('stopping_reserve_model')==BODY_RESERVE_MODEL:
-                _,pairs=self.spheres.pairs(state,{r:np.zeros(len(n)) for r,n in self.names.items()},
-                    {r:self.cfg['state_timeout_s'] for r in self.names},self.cfg)
-                return all(p['remaining_clearance_m']>0 for p in pairs)
+                return self.spheres.planning_body_clear(state,self.cfg)
             world,bounds=self.spheres.planning_world(state)
             for pair in self.thresholds():
                 a,b=pair['arms']

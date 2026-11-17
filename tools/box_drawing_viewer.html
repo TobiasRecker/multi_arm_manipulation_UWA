@@ -23,7 +23,8 @@
 const data=__DATA__,$=id=>document.getElementById(id),canvas=$('view'),ctx=canvas.getContext('2d');
 let yaw=-.8,pitch=.5,zoom=1.25,scale=1,drag=null,playing=false,last=null,modelTime=0;
 const colours={left_front:'#7dd3fc',left_rear:'#b6edb7',right_front:'#ffca7a',right_rear:'#e8afff'};
-function current(){let i=data.frames.findIndex(f=>f.time_s>=modelTime);return data.frames[i<0?data.frames.length-1:i]}
+function phaseName(id){let face=id.includes('y_max')?'long wall':id.includes('z_min')?'bottom':'';if(id.startsWith('approach_'))return'Approach '+face;if(id.startsWith('draw_'))return'Draw on '+face;if(id.startsWith('retract_'))return'Retract from '+face;if(id.startsWith('transfer_'))return'Move to '+face;return({present_bottom:'Present bottom',park_worker:'Clear working arm',return_box:'Return box',overall:'Overall task'})[id]||id}
+function current(){let lo=0,hi=data.frames.length;while(lo<hi){let mid=(lo+hi)>>1;if(data.frames[mid].time_s<=modelTime+1e-9)lo=mid+1;else hi=mid}return data.frames[Math.max(0,lo-1)]}
 function project(p){let[x,y,z]=p;z-=1.15;let h=x*Math.cos(yaw)-y*Math.sin(yaw),d=x*Math.sin(yaw)+y*Math.cos(yaw);return[canvas.width/2+scale*h,canvas.height/2-scale*(z*Math.cos(pitch)-d*Math.sin(pitch)),z*Math.sin(pitch)+d*Math.cos(pitch)]}
 function line(a,b,c,w=1){a=project(a);b=project(b);ctx.strokeStyle=c;ctx.lineWidth=w*(devicePixelRatio||1);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}
 function transform(p,T){return T.slice(0,3).map(r=>r[0]*p[0]+r[1]*p[1]+r[2]*p[2]+r[3])}
@@ -36,11 +37,11 @@ for(let s of shapes){ctx.beginPath();if(s.kind==='sphere'){ctx.arc(s.p[0],s.p[1]
 let prior=null;for(let row of data.frames){if(row.time_s>modelTime)break;if(row.drawing){let p=transform(local(row.tip,row.pose),f.pose);if(prior&&prior.face===row.face)line(prior.p,p,'#ffeb3b',4);prior={p,face:row.face}}else prior=null}
 line(f.marker_base,f.tip,'white',4);let marker=project(f.tip);ctx.fillStyle='white';ctx.beginPath();ctx.arc(marker[0],marker[1],5*r,0,2*Math.PI);ctx.fill();
 }
-function refresh(){$('progress').value=modelTime/data.duration_s*1000;let f=current();$('status').textContent=(playing?'PLAYING':'PAUSED')+' — '+f.phase+' — KINEMATIC MODEL ONLY';$('clock').textContent=modelTime.toFixed(2)+' / '+data.duration_s.toFixed(2)+' s model time';draw()}
+function refresh(){$('progress').value=modelTime/data.duration_s*1000;let f=current();$('status').textContent=(playing?'PLAYING':'PAUSED')+' — '+phaseName(f.phase)+' — KINEMATIC MODEL ONLY';$('clock').textContent=modelTime.toFixed(2)+' / '+data.duration_s.toFixed(2)+' s model time';draw()}
 function stop(){playing=false;last=null;$('play').textContent='Play model'}
 $('play').onclick=()=>{if(playing)stop();else{if(modelTime>=data.duration_s)modelTime=0;playing=true;last=null;$('play').textContent='Pause model'}refresh()};
 $('progress').oninput=()=>{stop();modelTime=Number($('progress').value)/1000*data.duration_s;refresh()};
-let phases=data.summary.phases.filter(x=>x.kind==='phase_start');for(let p of phases){for(let id of['phaseJump','feedbackPhase']){let o=document.createElement('option');o.value=p.phase;o.textContent=p.phase;$(id).append(o)}}
+let phases=data.summary.phases.filter(x=>x.kind==='phase_start');for(let p of phases){for(let id of['phaseJump','feedbackPhase']){let o=document.createElement('option');o.value=p.phase;o.textContent=phaseName(p.phase);$(id).append(o)}}
 $('phaseJump').onchange=()=>{stop();modelTime=phases.find(p=>p.phase===$('phaseJump').value).model_time_s;$('feedbackPhase').value=$('phaseJump').value;refresh()};
 let m=data.summary,metrics=[['Model sequence',m.status],['Model duration',data.duration_s.toFixed(2)+' s'],['Processing time',m.processing_wall_s.toFixed(2)+' s'],['Physical execution time','UNKNOWN'],['Maximum force','UNKNOWN — no force sensor'],['Missed grasps','UNKNOWN — no detector'],['Regrasps / object loss','UNKNOWN — no detector'],['Agent interventions',String(m.detected_events.agent_intervention)],['User feedback',String(m.feedback.length)]];
 for(let[k,v]of metrics){let row=$('metrics').insertRow();row.insertCell().textContent=k;row.insertCell().textContent=v}

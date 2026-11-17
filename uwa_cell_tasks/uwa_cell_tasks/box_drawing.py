@@ -5,6 +5,7 @@ are assumptions; marker traces are visualization, not measured paint/contact.
 """
 import hashlib
 import itertools
+import importlib
 import json
 from pathlib import Path
 import time
@@ -25,11 +26,14 @@ PEN_LENGTH = .30
 PEN_RADIUS = .003
 STANDOFF = .06
 SURFACES = ('y_max', 'z_min')
+VARIANTS = ('baseline', 'overlap', 'closer_coordinated')
 
 
-def policy():
+def policy(variant='baseline'):
     """Readable program, stored with every run; this is its current scope."""
-    return dict(schema_version=1, name='hold_box_draw_two_faces_v1',
+    if variant not in VARIANTS:
+        raise ValueError('Unknown drawing policy variant')
+    result = dict(schema_version=1, name='hold_box_draw_two_faces_v1', variant=variant,
                 holding_arms=list(HOLDERS), working_arm=WORKER,
                 surfaces=list(SURFACES), circle_radius_m=.025, turn_deg=80.,
                 scope='Two named surfaces only; not all sides of the box',
@@ -38,6 +42,16 @@ def policy():
                        dict(id='draw_z_min', operation='draw_face', face='z_min'),
                        dict(id='park_worker', operation='clear_working_arm'),
                        dict(id='return_box', operation='rotate_held_object', angle_deg=0.)])
+    if variant != 'baseline':
+        result['name'] = 'hold_box_draw_two_faces_v2'
+        result['steps'] = [dict(id='draw_y_max', operation='draw_face', face='y_max'),
+                           dict(id='present_bottom', operation='reorient_together', mode='joint' if variant=='overlap' else 'cartesian'),
+                           dict(id='draw_z_min', operation='draw_face', face='z_min'),
+                           dict(id='return_box', operation='return_together')]
+        if variant=='closer_coordinated':
+            result['steps'].insert(0,dict(id='move_closer',operation='shift_box',world_offset_m=[-.08,0,0]))
+            result['steps'].append(dict(id='restore_position',operation='shift_box',world_offset_m=[.08,0,0]))
+    return result
 
 
 class DrawingModel:
@@ -72,6 +86,9 @@ class DrawingModel:
         else:
             raise ValueError('No checked worker fixture; see initial IK')
         self.initial_state = dict(self.state)
+        self.presentation_base = self.pose.copy()
+        self.worker_park_state = dict(self.state)
+        self.coordinated_outbound = None
 
     def tip_target(self, pose, face, theta, *, standoff=0.):
         if face not in SURFACES:
@@ -253,8 +270,8 @@ class DrawingModel:
 
     def rotate(self, name, angle_deg):
         initial = self.pose.copy()
-        target = self.holding.initial.copy()
-        target[:3, :3] = self.holding.initial[:3, :3] @ Rotation.from_euler('x', angle_deg, degrees=True).as_matrix()
+        target = self.presentation_base.copy()
+        target[:3, :3] = self.presentation_base[:3, :3] @ Rotation.from_euler('x', angle_deg, degrees=True).as_matrix()
         rv = Rotation.from_matrix(target[:3, :3] @ initial[:3, :3].T).as_rotvec()
         states, poses = [dict(self.state)], [initial]
         for u in np.linspace(0, 1, 81)[1:]:
@@ -264,24 +281,129 @@ class DrawingModel:
             poses.append(pose)
         self.phase(name, states, poses)
 
+    def shift_box(self, name, offset):
+        """Move holders and free marker together; include relocation in cycle time."""
+        offset = np.asarray(offset, dtype=float)
+        if offset.shape!=(3,) or not np.isfinite(offset).all() or np.linalg.norm(offset)>.15:
+            raise ValueError('Expected a small finite world translation')
+        initial = self.pose.copy()
+        tip = self.actual_tip(self.state)
+        states, poses = [dict(self.state)], [initial]
+        for u in np.linspace(0,1,81)[1:]:
+            pose = initial.copy();pose[:3,3] += u*offset
+            state = self.holding.solve(pose,states[-1])
+            target = tip.copy();target[:3,3] += u*offset
+            state = self.worker_ik(target,state)
+            self.check(pose,state)
+            states.append(state);poses.append(pose)
+        self.phase(name,states,poses)
+        self.presentation_base = self.pose.copy()
+        self.worker_park_state = dict(self.state)
+
+    def _check_face_branch(self, pose, state, face):
+        seed = dict(state)
+        for gap in np.linspace(STANDOFF,0.,25):
+            seed = self.worker_ik(self.tip_target(pose,face,0.,standoff=float(gap)),seed)
+            self.check(pose,seed)
+        for theta in np.linspace(0,2*np.pi,65):
+            seed = self.worker_ik(self.tip_target(pose,face,float(theta)),seed)
+            self.check(pose,seed)
+
+    def reorient_together(self, mode):
+        """Two holders keep one object law; the free worker shares the phase."""
+        if mode not in ('joint','cartesian'):
+            raise ValueError('Unknown free-worker motion mode')
+        initial = self.pose.copy()
+        target = self.presentation_base.copy()
+        target[:3,:3] = target[:3,:3]@Rotation.from_euler('x',80.,degrees=True).as_matrix()
+        worker_names = joint_names(WORKER)
+        first_tip = self.actual_tip(self.state)
+        last_tip = self.tip_target(target,'z_min',0.,standoff=STANDOFF)
+        rv = Rotation.from_matrix(last_tip[:3,:3]@first_tip[:3,:3].T).as_rotvec()
+        candidates = [None]
+        if mode=='joint':
+            seed = dict(self.state)
+            for u in np.linspace(0,1,81)[1:]:
+                pose = initial.copy();pose[:3,:3] = initial[:3,:3]@Rotation.from_euler('x',80.*u,degrees=True).as_matrix()
+                seed = self.holding.solve(pose,seed)
+            q0 = np.array([self.state[j] for j in worker_names])
+            candidates = []
+            for guess in [q0]+list(np.random.default_rng(19).uniform(-3.,3.,(20,6))):
+                try:
+                    q = solve_near(self.p,WORKER,seed,self.tool0_target(last_tip),guess)
+                    if not any(np.linalg.norm(q-v)<1e-5 for v in candidates):candidates.append(q)
+                except ValueError:continue
+            candidates.sort(key=lambda q:np.linalg.norm(q-q0))
+        for q in candidates:
+            states, poses = [dict(self.state)], [initial]
+            try:
+                for u in np.linspace(0,1,161)[1:]:
+                    pose = initial.copy();pose[:3,:3] = initial[:3,:3]@Rotation.from_euler('x',80.*u,degrees=True).as_matrix()
+                    seed = self.holding.solve(pose,states[-1])
+                    if mode=='joint':seed.update(zip(worker_names,(1-u)*q0+u*q))
+                    else:
+                        tip = first_tip.copy();tip[:3,:3] = Rotation.from_rotvec(u*rv).as_matrix()@first_tip[:3,:3]
+                        tip[:3,3] = (1-u)*first_tip[:3,3]+u*last_tip[:3,3]
+                        seed = self.worker_ik(tip,seed)
+                    self.check(pose,seed)
+                    states.append(seed);poses.append(pose)
+                self._check_face_branch(target,states[-1],'z_min')
+            except ValueError as error:
+                self.diagnostics.append(dict(stage='coordinated_candidate',mode=mode,reason=str(error)))
+                continue
+            self.phase('present_bottom',states,poses)
+            self.coordinated_outbound = (states,poses)
+            return
+        raise ValueError('No checked simultaneous reorientation')
+
+    def return_together(self):
+        if self.coordinated_outbound is None:
+            raise ValueError('No checked outbound motion to reverse')
+        states, poses = self.coordinated_outbound
+        self.phase('return_box',list(reversed(states)),list(reversed(poses)))
+
     def park_worker(self):
         target = dict(self.state)
         for name in joint_names(WORKER):
-            target[name] = self.initial_state[name]
+            target[name] = self.worker_park_state[name]
         self.phase('park_worker', [dict(self.state), target], [self.pose, self.pose])
 
-def compile_pilot(source, output):
+def compile_pilot(source, output, *, variant='baseline', feedback_from=None):
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=False)
     begun = time.monotonic()
-    program = policy()
+    modules = ['uwa_cell_motion.carton_paths', 'uwa_cell_motion.object_transport',
+               'uwa_cell_motion.smooth_paths', 'uwa_cell_motion.two_arm_teacher',
+               'uwa_cell_motion.geometry', 'uwa_cell_motion.planning', 'uwa_cell_motion.common',
+               'uwa_cell_calibration.model', 'uwa_cell_gazebo.charuco_views',
+               'uwa_cell_description.configuration', 'uwa_cell_description.scene_assets',
+               'uwa_cell_control.parallel_scan']
+    repo = Path(__file__).resolve().parents[2]
+    files = [Path(__file__), Path(__file__).with_name('pilot_episode.py'),
+             repo/'tools/box_drawing_pilot.py', repo/'tools/box_drawing_viewer.html']
+    files += [Path(importlib.import_module(name).__file__) for name in modules]
+    code_binding = {str(p.resolve()): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
+    program = policy(variant)
     write(output / 'program.json', program)
     code = 'def task(api):\n    api.draw_face("y_max")\n    api.rotate("present_bottom", 80.0)\n    api.draw_face("z_min")\n    api.park_worker()\n    api.rotate("return_box", 0.0)\n'
+    if variant!='baseline':
+        mode = 'joint' if variant=='overlap' else 'cartesian'
+        prefix = '    api.shift_box("move_closer", [-0.08, 0.0, 0.0])\n' if variant=='closer_coordinated' else ''
+        suffix = '    api.shift_box("restore_position", [0.08, 0.0, 0.0])\n' if variant=='closer_coordinated' else ''
+        code = 'def task(api):\n'+prefix+'    api.draw_face("y_max")\n    api.reorient_together("'+mode+'")\n    api.draw_face("z_min")\n    api.return_together()\n'+suffix
     (output / 'policy.py').write_text(code)
     code_sha = hashlib.sha256(code.encode()).hexdigest()
+    feedback_binding = None
+    if feedback_from is not None:
+        previous = Episode(Path(feedback_from)/'episode')
+        feedback = [r for r in previous.records() if r['kind']=='feedback']
+        if not feedback:raise ValueError('Feedback source has no user correction')
+        feedback_binding = dict(run=str(Path(feedback_from).resolve()),episode_sha256=previous.manifest['sha256'],
+                                feedback_sha256=[r['sha256'] for r in feedback])
     episode = Episode.create(output / 'episode', backend='kinematic_model', program_sha256=code_sha,
                              observable_events=('agent_intervention',),
-                             metadata=dict(task_scope=program['scope'], source=str(Path(source).resolve())))
+                             metadata=dict(task_scope=program['scope'], source=str(Path(source).resolve()),
+                                           feedback_source=feedback_binding))
     try:
         model = DrawingModel(output / 'model', source, episode)
         # Execute exactly the saved program against the file-only model API.
@@ -303,8 +425,14 @@ def compile_pilot(source, output):
             elapsed += phase['duration_s']
         report = dict(schema_version=1, artifact_type='cooperative_box_drawing_model_pilot', executable=False,
                       backend='kinematic_model', status='MODEL_SEQUENCE_COMPLETE', program=program,
+                      feedback_source=feedback_binding,
                       policy_sha256=code_sha, source_path=str(model.holding.source),
                       source_sha256=model.holding.source_sha256, model_signature=model.p.signature,
+                      implementation_sha256=code_binding,
+                      model_urdf_sha256=hashlib.sha256((output/'model/carton-moveit/robot.urdf').read_bytes()).hexdigest(),
+                      mesh_sha256=model.p.spheres.geometry.assets,
+                      dimensions_m=model.holding.dimensions.tolist(),
+                      holder_tcp_offsets={a: model.holding.tcp_offsets[a].tolist() for a in HOLDERS},
                       planning_diagnostics=model.diagnostics,
                       initial_state=model.initial_state, grasp_offsets={a: v.tolist() for a, v in model.holding.offsets.items()},
                       validation=dict(samples=sum(len(p['samples']) for p in model.phases), max_dt_s=.02,
@@ -315,6 +443,8 @@ def compile_pilot(source, output):
                                    'Open grippers, fixed holder transforms; virtual tool0 +Z 300 mm pen',
                                    'Two explicit surfaces, not every side; no force/drop/grasp sensing',
                                    'File-only kinematic execution, sampled geometry; not a physics or hardware run'])
+        if any(hashlib.sha256(Path(p).read_bytes()).hexdigest()!=sha for p, sha in code_binding.items()):
+            raise ValueError('Pilot dependencies changed during compilation; use a new run')
         write(output / 'result.json', report)
         episode.append('run_end', phase='end', source='model', model_time_s=elapsed,
                        details=dict(status=report['status'], processing_wall_s=time.monotonic()-begun))

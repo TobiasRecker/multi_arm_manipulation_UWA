@@ -4,7 +4,9 @@
   erneuter ausdrücklicher Fahrwunsch nach bestandenem RT-Stopptest;
   LF tatsächlich angefahren und nach Messzeitvergleich gehalten;
   korrigierter Vergleich offline, im Prozess-Mock und real lesend geprüft;
-  Restanfahrt wird frisch vorbereitet**,
+  LF-Neustart/RuheprüfungPASS; erneuteFahrtwegenq6-SpeedLimitgehalten;
+  neuergeprüfter0,1rad/s-q6-VertragnochNICHTaktiviert, konkreteFreigabe
+  nachautomatischerAblehnunganBedienergestellt**,
   2026-11-17, Hauptagent.
 - Auftrag: aktuelle OAK-Pose nach möglicher Stativbewegung beurteilen; danach
   vier URs in geeignete Aufnahmeposen und Fünfkamera-GUI öffnen. Aufnahmezustand,
@@ -18,6 +20,62 @@
   vollständiger aktueller Wegprüfung. Bekannter Frischestopp vom17.11. beachten.
 
 ## Nachweise und aktueller Stand
+
+- FolgefragezurKollisionsmethode: neuerkörperbezogenerPlanungszweignutzte
+  altenArm-AABB-Vorfilternicht; jetztkompatibelergänztundstandardmäßigaktiv.
+  AktuellerLF-Plan20,18→10,07sBerechnung, +1,47sModellaufbau,
+ 895Punkteexaktgleich;316MotiontestsPASS. work/body-reserve-prefilter.md.
+  Fahrdauer47,89sunverändert; keineHardwareaktion/FreigabeausdieserÄnderung.
+
+- Lauf01c vorAktivierungohneFahrzielabgebrochen: blockierendevollständige
+  TimingprüfungverursachteROS-Historienlücke. VorAktivierungjetzt erneutes
+  `connect`/unveränderteHealthprüfungnachGeometriearbeit; nachControllerbesitz
+  explizitverboten, keineLaufzeitwiederanlaufwartezeit. SnapshotCLIwartetebenfalls
+  auffrischeStartpakete. 41TestsundgetrennterProzessmockinklAusfällePASS.
+- Lauf01d/`01c-left_front/execution-refreshed.json` tatsächlichbewegt, nach
+ 42,69s inklVorprüfungvomq6-SpeedLimitgehalten: −0,03811rad/s gegen0,00755.
+  LFdanachwiederstationär/held, keinKollisions-/TrackingfehleralsUrsache.
+  NichtalsfertigeAufnahmestellungausgeben.
+- NeuerKandidat01e: LFq6überwacht0,1rad/s, Fahrkommando≤0,1,
+  vollständigneuberechneteStoppreserveundFCLPASS, Dauer47,89s. NochNICHTaktiv.
+  AutomatischeFreigabeprüfunglehntgeordnetenProfilwechselab: konkreteErhöhung
+  derSicherheitsüberwachungundProgrammstoppsaller4nichtklarvondamaliger
+  Allgemeinfreigabegedeckt. KeineTeilaktionausgeführt, keineUmgehung.
+  ExakteZustimmungfürdiesenVertrag/Programmstopps/ROS-Neuverbindung/Fahrt
+  angefragt; bisAntwortkeineabhängigeHardwareaktion.
+- ReineOfflinefolgeprüfung: LR-Schulterlift−0,7rad verschafftamEndefürLR/RR
+ 0,1rad/s-Kandidatenca62/68mmReserve. VorläufigerTrennwegkandidat0,01601rad/s
+  (Startreserve20mmZiel). Ganze82s-TrennbahnmitprojiziertemLF-Ende
+  vollständigmodellgeprüftPASS, ForecastnurBericht/keinausführbarerPlan.
+  EchterStartnachLF-Zielnochfrischzuprüfen. `rear-separation-forecast.json`.
+- LetzterStatuswährendFreigabewarten: alle4stationär, keineaktuellenFaults,
+  LFheld/blocked, Schutzdienstweiterarmed. KeineabhängigeHardwareaktionnach
+  automatischerAblehnung; keinerleiFahrprozessläuftweiter.
+
+- LF-Power/Brake-Neustart bestätigtRUNNING/NORMAL/STOPPED, nochohnePlay/Fahrziel.
+  AnschließendeursprünglichePrüfungPASS: alle4stationär, nativeLF2,016s/vmax0,
+  Positionsspanne≤83,9µrad. WiederanlaufdesSoftwarepfadsnachfrischemNachweis.
+  Standby selbstliefertebeiunverändertenPositionen eingefrorenenqd-Wert an
+  anderemGelenk; darauskeineStillstandsqualifikationbeiPowerOffableiten.
+
+- BedienerbestätigtpartielleleichteRucke amLF, nichtnurMessrauschen annehmen.
+  AusschließlichLF-StandbyundNeustartausdrücklicherlaubt. TatsächlicherBefehl
+  `power off`, RücklesePOWER_OFF/NORMAL/STOPPED; LF-StandbyJSONgespeichert.
+  SchutzdienstundübrigeArmeerhalten. KeinneuesFahrziel/keinResetdieserPhase.
+
+- Wiederaufnahme17.11. gegen17:34AWST: keine neue Fahrt/kein Reset gesendet.
+  Native10s-Messung `hardware-views-01/resumed-native.json`: LF-q6
+  Positionsspanne0,001079rad (0,0618°), Geschwindigkeitspeak0,04446rad/s,
+  übrigeLF-Achsen0; dreiandereArmeohnevergleichbareGeschwindigkeit.
+  LF RUNNING/NORMAL, ProgrammSTOPPED; übrige3PLAYING/Reverseverbunden.
+  FrischerSchutzstatusSTOPPING, LF nichtstill; unabhängigeMessung bestätigt
+  Wertequelle, Ursache(Servoschwingung/Messrauschen)nochungeklärt. KeineFilterung
+  oderStillstandslockerung. SchutzdiensthältLF/LR/RF undfordertwiederholt
+  nativenLF-STOP. NichtalsvollständigbestätigtenVierarmstillstandausgeben.
+  Bedienerbeobachtung und expliziteFreigabe für ausschließlichLF-Standby/
+  Power/Brake/ROS-Neustart angefragt; andereArme/Diensteerhalten.
+- FünfkameraGUIweiteraktiv, frischeUI-Diagnosedateien, VorschauPAUSED/SNAPSHOT,
+  keineAufnahmeläuft. Pauseunverändertgelassen.
 
 - Aktueller Realversuch unter `setup/calibration/oak_recalibration_20261117/hardware-views-01/`:
   LF fuhr tatsächlich bis ca.[125,38,-91,05,6,22,-94,33,-7,67,0,65]°;

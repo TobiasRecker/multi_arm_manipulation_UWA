@@ -5,6 +5,13 @@ Stand17.11.2026, Australia/Perth. Konkretisierung des
 Nutzerpräzisierung. Dies ist ein Entwicklungsentwurf, keine implementierte
 Lernplattform und kein neuer Simulations-/Hardware-Prüfnachweis.
 
+**Aktualisierung17.11.:** Nutzer bestätigt den Pilotbeginn. Für den Einstieg
+genügen verfügbare Ausführungsdaten (Dauer, Kraftmaximum, Fehlgriffe,
+Neuansätze, Objektverlust, Agenteneingriffe) und subjektives Endfeedback.
+Strichbild-/Produktoptimierung ist vorerst optional. Der erste umgesetzte
+Modell-/Episodenstand ist in [box_drawing_pilot.md](box_drawing_pilot.md)
+beschrieben; Kontaktphysik und Teleopübernahme bleiben weitere Integration.
+
 ## Nutzerziel und Abgrenzung
 
 Ein schnelles einfaches LLM entwickelt **ausführbare Aufgabenprogramme** für
@@ -141,12 +148,19 @@ lernt dabei aus seiner Durchführung; es ist kein vollständiges Policytraining
 nötig. Eine Suche über wenige kontinuierliche Parameter kann später numerisch
 erfolgen; Suchverfahren und Parameterraum sind noch nicht festgelegt.
 
-## Ergebnisprüfung ist die Voraussetzung für eigenes Lernen
+## Verfügbare Ausführungsdaten und subjektives Feedback zuerst
 
-Ein Programmabbruch ist ein klarer Fehler. Ein störungsfreier Ablauf ist
-dagegen noch kein korrektes Arbeitsergebnis. Der Codegenerator soll nicht
-seine eigene Erfolgserklärung als einziges Lernlabel verwenden. Aufgabenprüfer
-werden getrennt vom jeweils veränderten Arbeitsprogramm definiert.
+Für den ersten Lernzyklus zunächst die ohnehin verfügbaren Ereignisse und
+Messwerte erfassen: Ausführungsdauer, beobachtete Kraftmaxima mit Quelle und
+Abdeckung, verfehlter Griff, Neuansatz, Objektverlust, Eingriffe des Agenten.
+Dazu kommt das subjektive Nutzerfeedback, z.B. eine ungeschickte abschließende
+Drehrichtung. Der Originaltext bleibt mit der betroffenen Phase gespeichert.
+Damit ist Lernen über Wiederholungen möglich, bevor eine automatische
+Bewertung des gesamten Arbeitsergebnisses verfügbar ist.
+
+Ein Programmabbruch ist ein klarer Fehler. Ein störungsfreier Ablauf allein
+belegt noch keine fertige Zeichnung. Für spätere Qualitätsauswertung kommen
+zusätzliche Prüfer in Betracht; sie sind keine Voraussetzung des ersten Piloten:
 
 - **Stapelaufgabe:** Teil2 an gewünschter Position/Orientierung, tatsächlich
   unterstützt und vom Arbeitsgreifer frei; Teil1 und Haltegruppe stabil auch
@@ -178,11 +192,12 @@ Ausführung durch neue Codegenerierung verlangsamen.
 
 ## Konkreter Pilotvorschlag
 
-Empfehlung, noch keine vom Nutzer ausgewählte Reihenfolge: Mit **Box halten
-und Kreis zeichnen** beginnen. Das verbindet Rollen, Wiederholung,
+Vom Nutzer bestätigter Einstieg: **Box halten und Kreis zeichnen**.
+Das verbindet Rollen, Wiederholung,
 Umorientierung und Kontakt, während sich ein geometrisches Ergebnis gut
-definieren lässt. Benötigte neue Werkzeug-/Markierungs- und Prüffunktionen
-sind noch nicht vorhanden oder hier nachgewiesen.
+definieren lässt. Eine erste Zweiflächen-Modellvorführung mit Episoden und
+Feedbackschnittstelle ist inzwischen umgesetzt; Kraft-/Kontaktintegration
+und Teleop sind noch offen. Primäre Auswertung folgt der obigen Nutzerpräzisierung.
 
 Eine ausdrücklich kleinere erste Stufe kann zwei benannte zugängliche Flächen
 bearbeiten. Das erfüllt nicht bereits „jede Seite“. Für alle geforderten

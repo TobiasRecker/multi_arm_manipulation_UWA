@@ -117,7 +117,7 @@ def main(argv=None):
             with motion_context():
                 client=HardwareClient(problem,args.mode)
                 try:
-                    client.connect(guard=False)
+                    client.connect(guard=args.op=='snapshot')
                     if args.op=='reset':
                         answer=client.service(Trigger,'/uwa_cell/collision_supervisor/reset',Trigger.Request())
                         if not answer.success:raise RuntimeError(answer.message)

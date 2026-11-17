@@ -67,6 +67,17 @@ def test_rtde_codec_reads_native_program_and_safety_without_input_recipes():
     assert status==dict(runtime_state=2,robot_mode=7,safety_mode=1)
 
 
+def test_post_validation_refresh_is_forbidden_once_motion_controller_is_owned():
+    from uwa_cell_motion.hardware_execution import HardwareClient
+    calls=[]
+    client=NS(owned={'left_front'},connect=lambda:calls.append('connect'))
+    with pytest.raises(RuntimeError,match='after motion activation'):
+        HardwareClient.refresh_after_validation(client)
+    assert not calls
+    client.owned.clear();HardwareClient.refresh_after_validation(client)
+    assert calls==['connect']
+
+
 def test_rtde_subscription_negotiation_does_not_relax_runtime_state_timeout(monkeypatch):
     from uwa_cell_motion import hardware_state
     timeouts=[]
