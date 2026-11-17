@@ -1,6 +1,6 @@
 """Pure state machine: pair faults latch until an explicit stationary reset."""
 import numpy as np
-from .common import PAIRS,standstill_limits
+from .common import PAIRS,standstill_limits,arm_velocity_limit
 
 
 class GuardState:
@@ -41,22 +41,31 @@ class GuardState:
                     0 <= now-self.last_source_advance.get(rid, -np.inf) <= limit and
                     -.02 <= source_now-r['stamp'] <= limit)
 
-    def stationary(self, rid, now):
+    def stationarity_evidence(self, rid, now):
         window = self.cfg['standstill_window_s']
         h = [r for r in self.history.get(rid, []) if r[0] >= now-window-.05]
-        if len(h) < 3 or h[-1][0]-h[0][0] < window*.8:
-            return False
+        evidence=dict(confirmed=False,samples=len(h),window_s=0. if not h else h[-1][0]-h[0][0],reason='INSUFFICIENT_WINDOW')
+        if len(h) < 3 or evidence['window_s'] < window*.8:return evidence
         qs, vs = np.asarray([r[1] for r in h]), np.asarray([r[2] for r in h])
         velocity,span=standstill_limits(self.cfg,qs.shape[1])
-        return bool(np.all(abs(vs)<=velocity) and np.all(np.ptp(qs,axis=0)<=span))
+        peaks=np.max(abs(vs),axis=0);spans=np.ptp(qs,axis=0)
+        confirmed=bool(np.all(peaks<=velocity) and np.all(spans<=span))
+        evidence.update(confirmed=confirmed,reason='CONFIRMED' if confirmed else 'VELOCITY' if np.any(peaks>velocity) else 'POSITION_SPAN',
+            velocity_peaks_rad_s=peaks.tolist(),position_spans_rad=spans.tolist(),
+            velocity_limits_rad_s=velocity.tolist(),position_span_limits_rad=span.tolist())
+        return evidence
+
+    def stationary(self, rid, now):
+        return self.stationarity_evidence(rid,now)['confirmed']
 
     def evaluate(self, pairs, now, source_now):
         faults = list(self.external_faults)
         for rid,record in self.records.items():
-            if np.max(abs(record['v']))>self.cfg['velocity_limit_rad_s']*1.05:
+            limit=arm_velocity_limit(self.cfg,rid)
+            if np.max(abs(record['v']))>limit*1.05:
                 index=int(np.argmax(abs(record['v'])))
                 faults.append(dict(arms=[rid],reason='SPEED LIMIT',joint_index=index,
-                    measured_velocity_rad_s=float(record['v'][index]),configured_limit_rad_s=self.cfg['velocity_limit_rad_s']))
+                    measured_velocity_rad_s=float(record['v'][index]),configured_limit_rad_s=limit))
         for a, b in PAIRS:
             if not self.fresh(a, now, source_now) or not self.fresh(b, now, source_now):
                 detail={}

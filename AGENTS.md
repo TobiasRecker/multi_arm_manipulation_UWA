@@ -45,6 +45,14 @@
   Änderungen metrisch nachweisen. Individuelles Retiming verändert relative
   Armstellungen über Zeit und verlangt neue gemeinsame Kollisionsprüfung;
   Invarianz gilt nur für eine gemeinsame Zeitabbildung aller Arme.
+- Nutzerstandard17.11.: für weitere Offline-Anfahrbeispiele standardmäßig
+  die geprüften glatten Zeitgesetze verwenden, nicht erst nachträglich anbieten.
+  Gilt für freie Anfahrt, nicht für unabhängiges Retiming tragender Greifverbünde.
+  Nächster Test: jeUR eine eindeutige Seitenmitte statt Ecke; nächstgelegene
+  oder zweitnächste Seite, bei Konkurrenz eindeutige gemeinsame Zuordnung
+  innerhalb dieser zwei Optionen mit minimaler Summe horizontaler Abstände.
+  Keine stille Verdrängung auf die drittnächste Seite. Anflug weiterhin
+  von oben, Backen quer zur Seitenwand; feste Ziele und neues gemeinsames Prüfen.
 - Bei variabler Basislage alle potenziell kollidierenden Paare berücksichtigen;
   die bisherige feste Vier-Nachbarpaar-Auswahl nicht ungeprüft übertragen.
   Kollisionsprüfung, globale Planung, zeitliche Koordination und lokale

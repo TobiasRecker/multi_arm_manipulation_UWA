@@ -31,9 +31,21 @@ def config(path=None):
         path = Path(get_package_share_directory('uwa_cell_motion'))/'config/motion.yaml'
     data = yaml.safe_load(Path(path).read_text())
     for name, value in data.items():
+        if name=='arm_velocity_limits_rad_s':
+            if not isinstance(value,dict) or set(value)!=set(ROBOT_IDS):
+                raise ValueError('Explicit velocity limits for exactly all four arms required')
+            if any(isinstance(v,bool) or not isinstance(v,(int,float)) or not np.isfinite(v) or v<=0 for v in value.values()):
+                raise ValueError('Arm velocity limits must be positive finite numbers')
+            continue
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not np.isfinite(value) or value <= 0:
             raise ValueError('Configuration requires positive finite numbers: '+name)
     return data
+
+
+def arm_velocity_limit(cfg,rid):
+    """Same bound for measured speed checks and that arm's stopping envelope."""
+    values=cfg.get('arm_velocity_limits_rad_s')
+    return float(cfg['velocity_limit_rad_s'] if values is None else values[rid])
 
 
 def simulation_only():
@@ -80,7 +92,9 @@ def guard_signature(cfg):
     keys=('rate_hz','state_timeout_s','heartbeat_timeout_s','stop_latency_s','braking_acceleration_rad_s2',
           'velocity_limit_rad_s','model_margin_m','reset_hysteresis_m','standstill_velocity_rad_s',
           'standstill_window_s','sphere_spacing_m')
+    bounds={k:cfg[k] for k in keys}
+    if 'arm_velocity_limits_rad_s' in cfg:bounds['arm_velocity_limits_rad_s']=dict(cfg['arm_velocity_limits_rad_s'])
     return sha(json.dumps(dict(interlock_protocol=5,check_timebase='steady_wall',
         tool_standstill_velocity_rule='operating_cap_and_tight_position_span',
         tool_standstill_span_rad=TOOL_STANDSTILL_SPAN_RAD,
-        operating_bounds={k:cfg[k] for k in keys}),sort_keys=True))
+        operating_bounds=bounds),sort_keys=True))

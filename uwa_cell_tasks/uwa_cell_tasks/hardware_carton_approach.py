@@ -8,6 +8,7 @@ import hashlib
 import json
 from pathlib import Path
 import xml.etree.ElementTree as ET
+from types import SimpleNamespace
 
 import numpy as np
 
@@ -43,6 +44,8 @@ def checked_problem(directory, evidence_directory, inventory, *, command_velocit
     from uwa_cell_control.parallel_scan import collision_signature
     from uwa_cell_motion.geometry import SphereModel
     from uwa_cell_motion.hardware_model import HardwareProblem
+    from uwa_cell_motion.common import arm_velocity_limit
+    from uwa_cell_motion.planning import Problem
 
     directory = Path(directory).resolve()
     inventory = Path(inventory).resolve()
@@ -60,8 +63,13 @@ def checked_problem(directory, evidence_directory, inventory, *, command_velocit
         def time_parameterize(self, request, path):
             # First validate all geometry/timing under the original monitored
             # limits. Slowing it changes neither thresholds nor configuration.
-            original = super().time_parameterize(request, path)
-            return slow_trajectory(original, self.cfg['velocity_limit_rad_s'], command_velocity)
+            monitored=min(arm_velocity_limit(self.cfg,r) for r in request['selected'])
+            # The proxy changes timing only. Its collision/edge callbacks stay
+            # bound to this full, unchanged per-arm monitored configuration.
+            timing=SimpleNamespace(cfg=dict(self.cfg,velocity_limit_rad_s=monitored),
+                                   check=self.check,edge=self.edge)
+            original=Problem.time_parameterize(timing,request,path)
+            return slow_trajectory(original,monitored,command_velocity)
 
     problem = UnloadedCartonProblem(directory, evidence['configuration'], inventory)
     frozen = (evidence_directory/'moveit/robot.urdf').read_text()

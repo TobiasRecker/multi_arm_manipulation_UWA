@@ -28,7 +28,10 @@ def upright_start(layout):
 
 class CartonProblem(Problem):
     """Explicitly add the existing visual carton as a static planning obstacle."""
-    def __init__(self, directory, cfg, layout_path=None):
+    def __init__(self, directory, cfg, layout_path=None, *, endpoint_policy='stop_reserve'):
+        if endpoint_policy not in ('stop_reserve','static_margin'):
+            raise ValueError('Unknown offline endpoint policy')
+        self.endpoint_policy=endpoint_policy
         super().__init__(directory, cfg, layout_path)
         self.carton = next(i for i in instances(self.layout) if i['id'] == 'avocado_carton')
         root = ET.fromstring(self.description)
@@ -60,6 +63,13 @@ class CartonProblem(Problem):
                 if name not in anchored and any(name.startswith(other+'_') for other in ROBOT_IDS if other != arm):
                     for collision in link.findall('collision'): link.remove(collision)
             self.isolated[arm] = CollisionModel(ET.tostring(isolated, encoding='unicode'), self.directory/('single-'+arm))
+
+    def thresholds(self):
+        if self.endpoint_policy=='static_margin':
+            from itertools import combinations
+            return [dict(arms=[a,b],threshold_m=self.cfg['model_margin_m'])
+                    for a,b in combinations(ROBOT_IDS,2)]
+        return super().thresholds()
 
 
 def corner_targets(problem, *, entry_depth_m=.015, pregrasp_m=.12):

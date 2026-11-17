@@ -15,6 +15,20 @@ from .hardware_state import dashboard_stop
 HOLD='collision_hold_controller'
 
 
+def standstill_deadline_expired(since,rid,now,*,blocked,guard_fresh,reported_stationary,latency):
+    """Bound each absence of fresh quiet evidence, including after long holds.
+
+    A stale packet never renews this deadline. An active hold/manager fault
+    still uses its independent immediate native-stop fallback below.
+    """
+    if not blocked:
+        since.pop(rid,None);return False
+    if guard_fresh and reported_stationary:
+        since[rid]=now;return False
+    since.setdefault(rid,now)
+    return now-since[rid]>latency
+
+
 def matching_hardware(components,joints,mode):
     plugin='mock_components/GenericSystem' if mode=='mock' else 'ur_robot_driver/URPositionHardwareInterface'
     required={j+'/position' for j in joints}

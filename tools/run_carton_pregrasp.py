@@ -18,7 +18,7 @@ from std_srvs.srv import Trigger
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO/'uwa_cell_tasks'))
 from uwa_cell_tasks.hardware_carton_approach import checked_problem
-from uwa_cell_motion.common import ROBOT_IDS, joint_names, dump
+from uwa_cell_motion.common import ROBOT_IDS, joint_names, dump,arm_velocity_limit
 from uwa_cell_motion.execution import motion_context
 from uwa_cell_motion.hardware_execution import HardwareClient
 from uwa_cell_motion.single_execution import follow
@@ -33,6 +33,7 @@ def main():
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--inventory', type=Path, default=REPO/'config/hardware_inventory.yaml')
     p.add_argument('--command-velocity', type=float, default=.0015)
+    p.add_argument('--arm', choices=['right_front','right_rear'], help='One unloaded phase only; default both serially')
     p.add_argument('--execute', action='store_true')
     p.add_argument('--reset-unloaded', action='store_true')
     args = p.parse_args()
@@ -42,16 +43,17 @@ def main():
     evidence = problem.pregrasp_evidence; path = evidence['path']; expected = dict(evidence['saved_start'])
     if path['kind'] not in ('serial_direct','simultaneous_direct'):
         raise ValueError('Expected direct pregrasp endpoint evidence')
-    required_names=joint_names('right_front')+joint_names('right_rear')
-    if path['joint_names']!=required_names or len(path['waypoints'][-1])!=12 or not np.isfinite(path['waypoints'][-1]).all():
-        raise ValueError('Exactly the two right six-joint endpoints required')
+    selected=[args.arm] if args.arm else ['right_front','right_rear']
+    required_names=[j for r in selected for j in joint_names(r)]
+    if path['joint_names']!=required_names or len(path['waypoints'][-1])!=len(required_names) or not np.isfinite(path['waypoints'][-1]).all():
+        raise ValueError('Exactly the selected unloaded six-joint endpoints required')
     end=dict(zip(path['joint_names'],path['waypoints'][-1]))
     # Only a high pregrasp, not contact insertion, is permitted by this runner.
     for goal in evidence['goals'].values():
         pre = np.asarray(goal['tool0_pregrasp']); entry = np.asarray(goal['theoretical_tool0_entry'])
         if not np.allclose(pre[:3, :3], entry[:3, :3]) or not np.allclose((pre-entry)[:2, 3], 0) or pre[2, 3]-entry[2, 3] < .149:
             raise ValueError('First unloaded physical approach requires >=150mm vertical pregrasp')
-    for arm in ['right_front','right_rear']:
+    for arm in selected:
         actual=Chain(problem.original_description,'world',arm+'_tool0').forward(dict(expected,**end))
         wanted=np.asarray(evidence['goals'][arm]['tool0_pregrasp'])
         if (np.linalg.norm(actual[:3,3]-wanted[:3,3])>1e-4 or
@@ -59,12 +61,12 @@ def main():
             raise ValueError('Saved joint endpoint does not match the high pregrasp frame')
     report = dict(success=False, phase='OFFLINE_CHECK', arm_commands=[], finger_commands=[],
                   loaded_motion=False, command_velocity_rad_s=args.command_velocity,
-                  monitored_velocity_rad_s=problem.cfg['velocity_limit_rad_s'], segments=[],
+                  monitored_velocity_rad_s={r:arm_velocity_limit(problem.cfg,r) for r in selected}, segments=[],
                   base_guard_signature=problem.signature, supplemental_object_signature=problem.supplemental_signature)
     record = root/'result.json'
     def save():dump(record, report)
     save()
-    for index, arm in enumerate(['right_front','right_rear']):
+    for index, arm in enumerate(selected):
         # Derive and fully recheck serial motion even when the offline source
         # offered a simultaneous direct path. Both arms are still unloaded.
         request = problem.normalize(dict(start=expected, goals={arm:[end[j] for j in joint_names(arm)]}))

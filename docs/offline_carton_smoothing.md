@@ -1,5 +1,9 @@
 # Glattere Trajektorien für alle vier Eckanflüge
 
+Seit Nutzerbestätigung vom17.11. Standard für weitere Offline-Anfahrbeispiele.
+Der neue [Seitenmitten-Test und gemeinsame Planungsaufruf](offline_carton_sides.md)
+führen Glättung und dichte Nachprüfung automatisch aus.
+
 [Interaktiven Vergleich öffnen](../../../setup/research/offline-carton-smoothing-20261117/viewer.html).
 **Trajectory timing** wechselt zwischen dem bisherigen 10×-Fall und dem neuen
 Verlauf. **Playback** steht auf Echtzeit. **Compare velocity, acceleration and

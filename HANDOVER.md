@@ -1,5 +1,38 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Seitenmitten-Anflug und Glättung als Standard, 2026-11-17
+
+- Nutzer übernimmt Glättung als Standard für Offline-Anfahrbeispiele und
+  beauftragt vier eindeutige Seitenmitten statt Ecken. Neue Pipeline
+  tools/plan_carton_grasp_paths.py liefert standardmäßig geglättete, erneut
+  geprüfte Trajektorien; Primitive/10×-Fall bleiben als Vergleich erhalten.
+- Gemeinsame Zuordnung unter je zwei nächsten Seiten nach horizontaler
+  Basisdistanz: LF→A/x_min (Rang1), LR→D/y_max (Rang2), RF→C/y_min (Rang2),
+  RR→B/x_max (Rang1). Minimale Distanzsumme, keine Zeitoptimalitätsaussage.
+  120 mm Anflug von oben, TCP15 mm unter Oberkante, Backen quer zur Wand.
+- Negative Vorversuche erhalten: greedy verdrängte LF auf Rang3/keine IK
+  (`primitive/`); ursprüngliche Bremsreserve verwarf sämtliche 20.736
+  Endkombinationen (`case02/`). Aktuelle Offline-Auswahl explizit static_margin:
+  volle FCL-Szene und 20 mm für alle sechs Paare. Reservediagnose unverändert
+  separat; kein Verändern aktiver Hardware-/Simulationsgrenzen.
+- 12 IK jeArm, 315 gültige Endkombinationen, 10 Einzelwege, 36 kompatible
+  Wegkombinationen; gewählt goal-0-2-3-0. Begrenzte IK-Menge, keine Vollständigkeit.
+  Neue Dauer12,746 s; analytische v/a/Ruck-Obergrenzen0,450/0,400/1,105.
+  Max. gemessene TCP-Bahnänderung durch Glättung0,000640 mm nur im Modell.
+- 32.008 isolierte Prüfstellungen +1.276 gemeinsame Zeitpunkte≤10 ms ohne
+  Kollision/20-mm-Unterschreitung. Dichtere Nachprüfung2.551 Punkte≤5 ms,
+  min. Armhüllabstand53,697 mm, max. Gelenkschritt0,002250 rad ebenfallsPASS.
+  Unabhängige Zeitgesetzrekonstruktion800.008 PunktePASS (Ruckspitze0,791).
+  Reserve weiterhin1.145/1.276 verletzt, auch am ruhenden Ziel wegen alter
+  Betriebscap-Untergrenze. Kein Nachweis unter dieser Bremsreserve.
+- Build,31 gezielte Tests und20 BrowserfällePASS; Draufsicht/Endstellung visuell
+  geprüft. Vollständiger Standardlauf einschließlich NachprüfungPASS, identische
+  Trajektorien zur ersten erfolgreichen Auswertung. Daten/Viewer unter
+  setup/research/offline-carton-sides-20261117/standard/, Anleitung
+  docs/offline_carton_sides.md; Logs setup/logs/uwa-carton-sides-*.
+  Nur Offlinekinematik, Basen fest, Greifer offen; keine Kontakt-/Hardwareaktion.
+  Diskrete Modellprüfung, kein kontinuierlicher oder physischer Kollisionsbeweis.
+
 ## Geglättete Eckanflüge aller vier URs, 2026-11-17
 
 - Nutzer bestätigt alle vier Arme; bisheriges Tempo grundsätzlich okay,

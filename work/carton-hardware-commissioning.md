@@ -136,3 +136,8 @@
 - NutzerhatanschließenddenStop/Neuladen/Wiederverbindenfür**allevierURs**
   ausdrücklichfreigegeben. GeordneterDienststoppjetztausgeführt, Neustartmit
   identischerKonfiguration; keinUmgehungswegundkeinegelockertenGrenzen.
+- NeuerOfflineSchritt: expliziteGeschwindigkeitsgrenzenjeArm inMotionkern;
+  dieselbenWertefürIstgeschwindigkeitundBremsreserve/Signatur. DefaultohneMap
+  unverändert. NochkeinehöhereGrenzeinderHardwareaktiviert. Zielnurunbeladene
+  Anfahrtbeschleunigen, ruhendeArmenichtmitfiktivhohenGeschwindigkeitenbudgetieren.
+  Aktuelle.003-KonfigurationundalleHoldsbleibenzunächstaktiv.

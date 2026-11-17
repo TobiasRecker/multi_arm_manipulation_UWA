@@ -588,6 +588,12 @@ reduces the duration further to15.99s with almost unchanged path geometry,
 lower acceleration/jerk bounds and a new sampled simultaneous collision check.
 Its viewer compares both motions and plots their derivatives at real-time playback.
 
+Smooth timing is now the default for the offline carton-approach pipeline:
+`tools/plan_carton_grasp_paths.py`. The [four-side-centre test](docs/offline_carton_sides.md)
+assigns one of each UR's two nearest walls, reaches all four targets in12.75s,
+and passes a denser5ms sampled geometry check with53.7mm minimum arm gap.
+Stopping reserves remain separate diagnostics; no physical grasp is performed.
+
 Select `/uwa_cell/controller_manager` and one of the four trajectory
 controllers in the **rqt Joint Trajectory Controller** window. Enable control
 and adjust joint targets conservatively. This is direct joint control, not

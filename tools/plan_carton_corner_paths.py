@@ -14,12 +14,17 @@ from uwa_cell_motion.carton_paths import (CartonProblem, corner_targets, diagnos
                                         independent_paths, pose_goal, upright_start)
 from uwa_cell_motion.candidates import enumerate_candidates
 from uwa_cell_motion.selection import select_goals
+from uwa_cell_motion.carton_sides import side_targets
 
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-dir',required=True);parser.add_argument('--layout')
-    parser.add_argument('--config');args=parser.parse_args()
+    parser.add_argument('--config')
+    parser.add_argument('--grasp-pattern',choices=['corners','sides'],default='corners')
+    parser.add_argument('--endpoint-policy',choices=['stop_reserve','static_margin'],default='stop_reserve',
+                        help='Offline geometry policy; stopping reserves remain separate diagnostics')
+    args=parser.parse_args()
     out=Path(args.output_dir).resolve();out.mkdir(parents=True,exist_ok=False)
     path=Path(args.layout or default_layout_path()).resolve();layout=yaml.safe_load(path.read_text())
     profile=layout.get('calibration_profile')
@@ -28,10 +33,10 @@ def main():
     (out/'layout.yaml').write_text(yaml.safe_dump(layout,sort_keys=False))
     cfg=config(args.config);(out/'motion.yaml').write_text(yaml.safe_dump(cfg,sort_keys=False))
     with tempfile.TemporaryDirectory(prefix='uwa-carton-paths-') as d:
-        p=CartonProblem(d,cfg,out/'layout.yaml');(out/'model.urdf').write_text(p.description)
-        start=upright_start(p.layout);targets=corner_targets(p)
+        p=CartonProblem(d,cfg,out/'layout.yaml',endpoint_policy=args.endpoint_policy);(out/'model.urdf').write_text(p.description)
+        start=upright_start(p.layout);targets=(side_targets if args.grasp_pattern=='sides' else corner_targets)(p)
         if not p.collision.check(start)[0]:raise ValueError('Upright start collides in this model')
-        task=dict(start=start,targets=targets,object_pose=p.carton['T_world_object'].tolist(),
+        task=dict(start=start,targets=targets,grasp_pattern=args.grasp_pattern,object_pose=p.carton['T_world_object'].tolist(),
                   dimensions_m=p.carton['manifest']['dimensions_m'],
                   object_mesh_sha256=p.carton['manifest']['files'][p.carton['manifest']['solid_mesh']],
                   entry_depth_m=.015,pregrasp_m=.12,
@@ -42,8 +47,10 @@ def main():
         dump(out/'request.json',request)
         candidates=enumerate_candidates(p,request,seeds=96,budget_s=120,max_per_arm=12,
                                         max_combinations=16,max_checks=4096)
+        candidates['offline_endpoint_policy']=args.endpoint_policy
         dump(out/'candidates.json',candidates)
         selection=select_goals(p,candidates,budget_s=60,max_checks=20736,shortlist_size=6)
+        selection['offline_endpoint_policy']=args.endpoint_policy
         dump(out/'selection.json',selection)
         compatible_ids={cid for c in selection['evaluated_combinations'] for cid in c['candidate_ids']}
         begun=time.monotonic()
@@ -59,6 +66,7 @@ def main():
                     status='INDEPENDENT_PATHS_FOUND' if compatible else 'NO_COMPATIBLE_PATH_SET_FOUND',
                     task=task,model_signature=p.signature,mesh_sha256=p.spheres.geometry.assets,
                     configuration=cfg,paths=paths,rejected_attempts=failures,combinations=compatible,
+                    offline_endpoint_policy=args.endpoint_policy,
                     planning_elapsed_s=time.monotonic()-begun,
                     assumptions=['Fixed bases and open grippers; one immutable target pose per arm',
                                  'Quintic joint primitives and Cartesian-line IK spline; not native UR MoveJ/MoveL execution',

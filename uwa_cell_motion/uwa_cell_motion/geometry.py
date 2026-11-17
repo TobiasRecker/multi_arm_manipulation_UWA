@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 
 from uwa_cell_control.scan_separation import Geometry, Body
-from .common import PAIRS
+from .common import PAIRS,arm_velocity_limit
 
 
 def box_spheres(lo, hi, spacing):
@@ -126,7 +126,7 @@ class SphereModel:
 
     def arm_budget(self, rid, velocities, age, cfg):
         # Joint-space triangle-inequality bounds cover every point in every body.
-        v = np.maximum(np.abs(velocities), cfg['velocity_limit_rad_s'])
+        v = np.maximum(np.abs(velocities), arm_velocity_limit(cfg,rid))
         radii = self.motion_radii[rid]
         speed = float(np.max(radii @ v))
         braking = float(np.max(radii @ (v*v/(2*cfg['braking_acceleration_rad_s2']))))

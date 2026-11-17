@@ -99,6 +99,7 @@ def main():
         peaks={key:max(s['smooth_bounds'][key] for path in paths.values() for s in path['segments'])
                for key in ['velocity_rad_s','acceleration_rad_s2','jerk_rad_s3']}
         report=dict(schema_version=1,artifact_type='offline_smoothed_carton_paths',executable=False,
+                    offline_endpoint_policy=json.loads(baseline_raw).get('offline_endpoint_policy','stop_reserve'),
                     source_sha256=hashlib.sha256(raw).hexdigest(),source_path=str(source/'trajectory-10x.json'),
                     model_signature=p.signature,mesh_sha256=prior['mesh_sha256'],object_mesh_sha256=prior['object_mesh_sha256'],
                     task=old['task'],paths=paths,limits=limits,geometry=stats,peaks=peaks,
@@ -114,7 +115,7 @@ def main():
         # Reuse only frozen visual assets of the source viewer; replace every moving frame.
         html=(source/'viewer.html').read_text();data,_=json.JSONDecoder().raw_decode(html.split('<script>const data=',1)[1])
         assert data['task']==old['task'];baseline=data['sets'][1]
-        baseline['label']='10x baseline — 22.07 s';baseline['id']='10x baseline'
+        baseline['label']=f'10x baseline — {baseline["diagnostic"]["duration_s"]:.2f} s';baseline['id']='10x baseline'
         baseline['derivative_series']=[]
         from uwa_cell_motion.carton_paths import evaluate
         for t in np.linspace(0,baseline['diagnostic']['duration_s'],241):
@@ -144,7 +145,7 @@ def main():
             series.append([max(float(np.max(abs(path_at(path,float(t),n)))) for path in paths.values()) for n in [1,2,3]])
             preview.append(dict(time_s=float(t),world={r:w.round(5).tolist() for r,w in world.items()},fcl_clear=p.collision.check(state)[0],stages=stages,
                                 gaps=[dict(arms=c['arms'],gap_mm=c['gap_m']*1000,required_mm=c['required_m']*1000,violation=c['gap_m']<c['required_m']) for c in pairs]))
-        data['sets']=[baseline,dict(label=f'Smoothed — {duration:.2f} s',id='smoothed fixed-corner paths',frames=preview,traces=traces,
+        data['sets']=[baseline,dict(label=f'Smoothed — {duration:.2f} s',id='smoothed fixed-target paths',frames=preview,traces=traces,
                                    diagnostic=diagnostic,peaks=peaks,derivative_series=series)]
         data['comparison']=dict(old_duration_s=baseline['diagnostic']['duration_s'],new_duration_s=duration,
                                 old_peaks=baseline['peaks'],new_peaks=peaks,geometry=stats)

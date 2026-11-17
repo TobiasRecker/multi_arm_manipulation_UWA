@@ -25,7 +25,7 @@ from .guard_node import CollisionGuard
 from .interlock import Interlock,expired_pair_leases
 from .hardware_model import HardwareProblem,matching_arm
 from .hardware_state import require_domain,signature,packet,Peer,DeviceStates,RtdeStates
-from .hardware_ports import StopPort
+from .hardware_ports import StopPort,standstill_deadline_expired
 from .status_markers import interlock_markers
 
 
@@ -224,10 +224,12 @@ class HardwareSupervisor(MotionNode):
                     for rid in affected-blocked:ports[rid]=self.ports[rid].tick(True,True)
                     blocked=set(self.core.blocked);held=[r for r,p in ports.items() if p['held']]
                 for rid in ROBOT_IDS:
-                    if rid not in blocked:self.stopping_since.pop(rid,None);continue
-                    self.stopping_since.setdefault(rid,now)
-                    if now-self.stopping_since[rid]>self.cfg['stop_latency_s'] and rid not in (self.guard.value or {}).get('stationary_arms',[]):
-                        self.ports[rid].native_stop('Blocked arm: measured standstill not confirmed within stop latency')
+                    guard_fresh=self.guard.fresh(now,self.cfg['heartbeat_timeout_s'])
+                    if standstill_deadline_expired(self.stopping_since,rid,now,blocked=rid in blocked,
+                            guard_fresh=guard_fresh,reported_stationary=rid in (self.guard.value or {}).get('stationary_arms',[]),
+                            latency=self.cfg['stop_latency_s']):
+                        detail=(self.guard.value or {}).get('stationarity_evidence',{}).get(rid)
+                        self.ports[rid].native_stop(f'Blocked arm: no fresh standstill evidence within stop latency; guard_fresh={guard_fresh}; evidence={detail}')
             self.sequence+=1;status=packet(self.signature,self.armed,self.instance,self.sequence,state=self.core.reason,blocked_arms=sorted(blocked),held_arms=held,
                 guard_config_signature=self.signature,interlock_confirmed=self.armed and blocked<=set(held),ports=ports,
                 guard_age_s=None if not self.guard.value else now-self.guard.value['evaluated_monotonic_s'],

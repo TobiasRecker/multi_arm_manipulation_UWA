@@ -10,7 +10,7 @@ from scipy.spatial.transform import Rotation
 
 from uwa_cell_control.parallel_scan import collision_signature
 from uwa_cell_gazebo.charuco_views import Chain
-from .common import ROBOT_IDS, PAIRS, all_names, joint_names, dump, model_context
+from .common import ROBOT_IDS, PAIRS, all_names, joint_names, dump, model_context,arm_velocity_limit
 from .geometry import SphereModel
 
 
@@ -259,7 +259,8 @@ class Problem:
         for a,b in zip(reduced,reduced[1:]):
             delta=b-a;peak=float(np.max(abs(delta)))
             if peak<1e-10:continue
-            duration=max(.1,1.875*peak/self.cfg['velocity_limit_rad_s'],np.sqrt(5.774*peak/self.cfg['acceleration_limit_rad_s2']))
+            velocity=min(self.cfg['velocity_limit_rad_s'],*(arm_velocity_limit(self.cfg,r) for r in request['selected']))
+            duration=max(.1,1.875*peak/velocity,np.sqrt(5.774*peak/self.cfg['acceleration_limit_rad_s2']))
             count=max(2,int(np.ceil(duration/.1)),int(np.ceil(1.875*peak/self.cfg['joint_check_step_rad'])))
             for u in np.linspace(0,1,count+1):
                 if points and u==0:continue

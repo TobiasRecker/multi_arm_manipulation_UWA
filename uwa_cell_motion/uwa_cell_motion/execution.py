@@ -27,7 +27,7 @@ from trajectory_msgs.msg import JointTrajectory,JointTrajectoryPoint
 from controller_manager_msgs.srv import SwitchController,ListControllers
 from action_msgs.msg import GoalStatus
 
-from .common import ROBOT_IDS,PAIRS,config,all_names,joint_names,load_layout,default_layout_path,dump,simulation_only,guard_signature,standstill_limits
+from .common import ROBOT_IDS,PAIRS,config,all_names,joint_names,load_layout,default_layout_path,dump,simulation_only,guard_signature,standstill_limits,arm_velocity_limit
 from .supervisor import hold_name
 from .node import MotionNode
 from uwa_cell_control.parallel_scan import collision_signature
@@ -223,7 +223,8 @@ class MotionClient(MotionNode):
     def phase(self,targets,cfg,blocked,stationary=None):
         arms=list(targets);q0={r:np.array([self.positions[j] for j in joint_names(r)]) for r in arms}
         peak=max(np.max(abs(targets[r]-q0[r])) for r in arms)
-        duration=max(.2,1.875*peak/cfg['velocity_limit_rad_s'],np.sqrt(5.774*peak/cfg['acceleration_limit_rad_s2']))
+        velocity=min(cfg['velocity_limit_rad_s'],*(arm_velocity_limit(cfg,r) for r in arms))
+        duration=max(.2,1.875*peak/velocity,np.sqrt(5.774*peak/cfg['acceleration_limit_rad_s2']))
         count=max(2,int(np.ceil(duration/.1)));self.handles={};self.pending={}
         for rid in arms:
             if not self.actions[rid].server_is_ready():raise RuntimeError(rid+': action server unavailable')

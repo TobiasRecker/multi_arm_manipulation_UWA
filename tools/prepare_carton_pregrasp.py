@@ -134,8 +134,9 @@ def prepare(args):
         if q.shape != (6,) or not np.isfinite(q).all(): raise ValueError('Invalid saved joints')
         start.update(zip(names[:6], q)); start.update({j: 0. for j in names[6:]})
     goal_frames = targets(problem.original_description, source_plan['candidate']['contacts'], T, args.pregrasp_m)
+    selected=tuple(args.arm) if args.arm else MEMBERS
     goals = {}
-    for arm in MEMBERS:
+    for arm in selected:
         pre = np.asarray(goal_frames[arm]['tool0_pregrasp'])
         goals[arm] = dict(frame_id='world', target_link=arm+'_tool0',
                           pose=dict(position=pre[:3, 3].tolist(), orientation_xyzw=Rotation.from_matrix(pre[:3, :3]).as_quat().tolist()))
@@ -146,7 +147,7 @@ def prepare(args):
     # closest limit-respecting equivalent endpoint, preserving raw evidence.
     # This is endpoint branch selection before planning, never live rebasing.
     alternatives = {}
-    for arm in MEMBERS:
+    for arm in selected:
         names = joint_names(arm)
         initial = [start[j] for j in names]; bounds = [problem.collision.bounds[j] for j in names]
         values = []
@@ -192,7 +193,7 @@ def prepare(args):
     evidence = dict(schema_version=1, artifact_type='offline_hardware_pregrasp_evidence',
         executable=False, hardware_plan=False, motion_ready=False, device_commands=[],
         status='GEOMETRIC_PATH_FOUND' if path is not None else 'NO_CHECKED_PATH_FOUND',
-        saved_start_valid=start_valid, saved_start=start, world_object_candidate=T.tolist(),
+        saved_start_valid=start_valid, saved_start=start, selected=list(selected),world_object_candidate=T.tolist(),
         goals=goal_frames, attempts=attempts,
         path=None if path is None else dict(kind=kind, joint_names=normalized['joint_names'], waypoints=path),
         model_signature=problem.signature, mesh_sha256=problem.spheres.geometry.assets,
@@ -219,4 +220,5 @@ if __name__ == '__main__':
     parser.add_argument('--config', type=Path, default=REPO/'uwa_cell_motion/config/hardware_commissioning.yaml')
     parser.add_argument('--layout', type=Path)
     parser.add_argument('--pregrasp-m', type=float, default=.08)
+    parser.add_argument('--arm', choices=MEMBERS, action='append', help='Optional unloaded phase member; other arms remain measured obstacles')
     print(json.dumps(prepare(parser.parse_args()), indent=2))
