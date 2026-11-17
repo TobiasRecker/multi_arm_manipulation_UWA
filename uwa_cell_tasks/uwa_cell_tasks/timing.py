@@ -4,7 +4,7 @@ import numpy as np
 from scipy.interpolate import BPoly, PPoly
 
 
-def interpolation_peak(trajectory, derivative):
+def interpolation_peaks(trajectory, derivative):
     """Position/velocity/acceleration points select quintic interpolation in JTC."""
     points=trajectory['points']
     times=np.array([p['time'] for p in points])
@@ -12,14 +12,18 @@ def interpolation_peak(trajectory, derivative):
         raise ValueError('Strictly increasing trajectory times required')
     values=[[p['positions'],p['velocities'],p['accelerations']] for p in points]
     polynomial=PPoly.from_bernstein_basis(BPoly.from_derivatives(times,values)).derivative(derivative)
-    peak=0.
+    peak=np.zeros(len(points[0]['positions']))
     for i,width in enumerate(np.diff(times)):
         for joint in range(len(points[0]['positions'])):
             coefficients=polynomial.c[:,i,joint]
             roots=np.roots(np.polyder(coefficients))
             candidates=[0.,width]+[float(r.real) for r in roots if abs(r.imag)<1e-9 and 0<r.real<width]
-            peak=max(peak,float(np.max(np.abs(np.polyval(coefficients,candidates)))))
+            peak[joint]=max(peak[joint],float(np.max(np.abs(np.polyval(coefficients,candidates)))))
     return peak
+
+
+def interpolation_peak(trajectory,derivative):
+    return float(np.max(interpolation_peaks(trajectory,derivative)))
 
 
 def limit_shared_jerk(trajectory, limit):
@@ -63,3 +67,38 @@ def object_law_duration(spline, velocity_limit, acceleration_limit):
         speed_bound=max(speed_bound,float(np.max(grad))*ds)
         acceleration_bound=max(acceleration_bound,float(np.max(curvature))*ds**2+float(np.max(grad))*dds)
     return max(speed_bound/velocity_limit,np.sqrt(acceleration_bound/acceleration_limit))
+
+
+def scale_object_time(trajectory,cfg):
+    """Compress the complete object's time law; never retime members separately."""
+    from .core import seal,verify,digest
+    from .operating import velocity_limits
+    verify(trajectory)
+    factor=cfg.get('carrying_speed_multiplier',1.)
+    if not np.isfinite(factor) or not 1<=factor<=5:raise ValueError('Invalid carrying speed multiplier')
+    velocity_peaks=interpolation_peaks(trajectory,1)*factor
+    acceleration_peak=interpolation_peak(trajectory,2)*factor**2
+    if np.any(velocity_peaks>velocity_limits(trajectory['joint_names'],cfg)+1e-8):
+        raise ValueError('Time-scaled controller exceeds bound per-joint velocity')
+    if acceleration_peak>cfg['joint_acceleration_rad_s2']+1e-8:
+        raise ValueError('Time-scaled controller exceeds acceleration envelope')
+    result=deepcopy(trajectory)
+    for p in result['points']:
+        p['time']/=factor
+        p['velocities']=(np.asarray(p['velocities'])*factor).tolist()
+        p['accelerations']=(np.asarray(p['accelerations'])*factor**2).tolist()
+        if np.any(abs(np.asarray(p['velocities']))>velocity_limits(result['joint_names'],cfg)+1e-8):
+            raise ValueError('Time-scaled motion exceeds bound per-joint velocity')
+        if np.max(abs(np.asarray(p['accelerations'])))>cfg['joint_acceleration_rad_s2']+1e-8:
+            raise ValueError('Time-scaled motion exceeds acceleration envelope')
+    result['duration_s']/=factor
+    if 'jerk_retiming' in result:
+        result['jerk_retiming']['controller_interpolation_peak_rad_s3']*=factor**3
+        if result['jerk_retiming']['controller_interpolation_peak_rad_s3']>cfg['joint_jerk_rad_s3']*(1+1e-5):
+            raise ValueError('Time-scaled motion exceeds jerk envelope')
+    result['time_scaling']=dict(multiplier=factor,controller_velocity_peaks_rad_s=velocity_peaks.tolist(),
+        controller_acceleration_peak_rad_s2=float(acceleration_peak),source_trajectory_sha256=trajectory['sha256'],
+        position_path_sha256=digest(dict(joint_names=trajectory['joint_names'],
+            points=[dict(positions=p['positions'],object_pose=p.get('object_pose')) for p in trajectory['points']])),
+        statement='Identical positions and object poses, t/f, v*f, a*f^2, jerk*f^3')
+    return seal(result)

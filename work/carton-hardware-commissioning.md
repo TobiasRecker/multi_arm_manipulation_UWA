@@ -43,3 +43,16 @@
   automatic_carton_lift_ready=false. EigeneROS-Testknoten beendet, keine
   Hardware-Aktivierung/-Fahrt; Nutzer kann als nächsten Schritt URs starten,
   danach zunächst frische lesende Prüfung.
+
+## Vorbereitung während fremdem UR-Test,2026-11-17
+
+- Nutzer meldet beideURsbereit, aber andererAgent nutzt Arme. Keine eigenen
+  UR-/Greiferabfragen, Nodes, Controllerwechsel oder Schreibbefehle während
+  dessen Zugriff; ausschließlich Offline-/eigeneMockarbeit. FremdeQuellen im
+  Task-/Motionpaket werden nicht bearbeitet oder neugebaut.
+- Karton lautNutzer wiederamPlatz. Nutzer erlaubt jederzeitigeOAK-Szenenprüfung;
+  vorhandenenKameradienst/Lease nutzen, laufendenZugriff erhalten. NeuePose
+  nach tatsächlicherÜbergabe messen, keinealtenHomeziele übernehmen.
+- Arbeit: eigener reiner gemeinsamerObjekt-/Zeitbasiskern und Mockprüfungen,
+  konkrete vorbereiteteÜbergabesequenz. VollständigerRealgriff bleibt offen;
+  bloße Beendigung eines fremdenProzesses ist keine Bewegungsfreigabe.

@@ -44,3 +44,32 @@ def test_local_object_timing_bounds_endpoint_curvature_without_global_slowdown()
     gradient=spline(np.linspace(0,1,100001),1);curvature=spline(np.linspace(0,1,100001),2)
     old=max(1.875*np.max(abs(gradient))/.04,np.sqrt((np.max(abs(curvature))*1.875**2+np.max(abs(gradient))*5.774)/.25))
     assert duration<old/2
+
+
+def test_fivefold_time_compression_preserves_geometry_and_controller_polynomial():
+    from uwa_cell_tasks.core import seal
+    from uwa_cell_tasks.timing import scale_object_time,interpolation_peak
+    from scipy.interpolate import BPoly
+    name='right_front_wrist_1_joint'
+    source=seal(dict(kind='rigid_object',joint_names=[name],duration_s=10.,points=[
+        dict(time=0.,positions=[0.],velocities=[0.],accelerations=[0.],object_pose=np.eye(4).tolist()),
+        dict(time=10.,positions=[.01],velocities=[0.],accelerations=[0.],object_pose=np.eye(4).tolist())]))
+    cfg=dict(carrying_speed_multiplier=5.,joint_velocity_rad_s=.04,joint_acceleration_rad_s2=.25)
+    fast=scale_object_time(source,cfg)
+    assert fast['duration_s']==2. and source['duration_s']==10.
+    assert [p['positions'] for p in fast['points']]==[p['positions'] for p in source['points']]
+    def polynomial(t):return BPoly.from_derivatives([p['time'] for p in t['points']],
+        [[p['positions'],p['velocities'],p['accelerations']] for p in t['points']])
+    old,new=polynomial(source),polynomial(fast);u=np.linspace(0,2,101)
+    for derivative in range(4):
+        np.testing.assert_allclose(new.derivative(derivative)(u),old.derivative(derivative)(u*5)*5**derivative,atol=1e-12)
+
+
+def test_time_compression_rejects_an_envelope_violation():
+    from uwa_cell_tasks.core import seal
+    from uwa_cell_tasks.timing import scale_object_time
+    source=seal(dict(kind='rigid_object',joint_names=['right_front_wrist_1_joint'],duration_s=1.,
+        points=[dict(time=0.,positions=[0.],velocities=[.02],accelerations=[0.]),
+                dict(time=1.,positions=[.02],velocities=[.02],accelerations=[0.])]))
+    with pytest.raises(ValueError,match='per-joint velocity'):
+        scale_object_time(source,dict(carrying_speed_multiplier=5,joint_velocity_rad_s=.04,joint_acceleration_rad_s2=.25))

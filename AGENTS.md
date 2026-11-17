@@ -17,9 +17,12 @@
 - Zwei bewegliche Tische mit je zwei starr montierten Armen sind das erste
   Fallbeispiel; langfristig vier mobile Manipulatoren. Bewegungsfreiheitsgrade,
   Antriebsmodell und Verfügbarkeit vorgegebener Basisbahnen bleiben zu klären.
-- Aktueller Auftrag ist zunächst Literatur-/Methodenvergleich einschließlich
-  CDF und unserer Vorarbeiten; danach Anwendungskonzept. Keine neue reale
-  Bewegung oder Umrüstung allein aus diesem Forschungsziel ableiten.
+- Auftrag17.11.: Plan als PDF festhalten und mit Schritt1 beginnen: mehrere
+  Zielkonfigurationen je UR aus expliziten Aufgabenposen/Alternativen erzeugen.
+  Offline-CLI `cell_goal_candidates`, Anleitung docs/offline_goal_candidates.md.
+  Kinematische Kandidaten von gemeinsam modellgeprüften Endstellungen trennen;
+  beides ist noch kein Bahn-/Ausführungsnachweis. Keine reale Bewegung oder
+  Umrüstung allein aus diesem Forschungsziel ableiten.
 - Bei variabler Basislage alle potenziell kollidierenden Paare berücksichtigen;
   die bisherige feste Vier-Nachbarpaar-Auswahl nicht ungeprüft übertragen.
   Kollisionsprüfung, globale Planung, zeitliche Koordination und lokale
@@ -61,6 +64,11 @@
   ROS-Treiber-Launch allein führt weiterhin keine Dashboard-Schreibaktion aus.
 
 ## Modulare Manipulation und starre Greifverbünde (2026-11-13)
+
+- Nutzer erlaubt17.11. OAK-Szenenchecks selbständig, z.B.ob Karton amPlatz.
+  Vorhandenen Kameradienst/Lease nutzen und andere Agenten-/Gerätenutzung
+  erhalten. AndereAgenten nutzen aktuellURs: Kartonvorbereitung offline/Mock,
+  keine Controller-/Greifer-/Fahraktionen vor tatsächlicherÜbergabe.
 
 - Neuer Auftrag16.11.: langsamen Realtest des Zweiarm-Kartongriffs vorbereiten;
   Nutzer startet URs erst auf Bereitschaft. Während Vorbereitung keine Power-,
@@ -111,6 +119,16 @@
   als Simulationsannahmen kennzeichnen, keine Hardwaregenauigkeit daraus ableiten.
 
 ## Vierarm-Kollisionswächter und PTP-Vergleich (2026-11-13)
+
+- Nutzerfreigabe17.11.: nach erneutemOAK-Foto bei unbrauchbaremBoardfit99,1cm
+  Basisabstand verwenden. NurAbstand als Nutzerakzeptanz übernehmen; keine
+  neue aktuelle6D-Kalibrierung behaupten. ZentralesLayoutjetztx±0,4955m,
+  Orientierungen/Y/Zvorläufig, laufendeWelten nicht automatischversetzen.
+- Nutzer beauftragt unbeladenenlangsamenq1-/q6-Stoppversuch und fragt nach
+  vollständigemGreiferöffnen. Greiferaktivierung kann Finger übervollständigen
+  Wegbewegen; Leerraum prüfen. Keine N-Zuordnung ausRobotiqRohwerten ableiten.
+  LangsameresInbetriebnahmeprofil darf abgeleiteteStoppwege überniedrigere
+  durchgesetzteBewegungsgrenzen reduzieren; Modellreserve/Frische nicht lockern.
 
 - Nutzer-Messbezug16.11.: hintere Basis-Montagezentren laut Zollstock100cm,
   Greifer offen und ungefähr20cm Spalt; frühere30cm-Schätzung ersetzt.

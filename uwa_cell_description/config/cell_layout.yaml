@@ -4,9 +4,14 @@
 # Cable bearings (user estimate, 2026-11-06): left_front toward the operator
 # (-Y), left_rear +Y, right_front toward the centre (-X), right_rear +X.
 # left_front is rotated -90 degrees from the initial layout (+90 -> 0).
+# Rear base spacing 0.991 m: user-accepted fallback, 2026-11-17, consistent
+# with the operator's 1.00 m ruler measurement and historical board chain.
+# Only symmetric X spacing corrected; table rotations/Y/Z remain provisional.
+# See docs/rear_base_spacing_review_2026-11-16.md. Existing running worlds
+# are not relocated; new model instances use this shared geometry.
 tables:
   left:
-    xyz: [-0.45, 0.0, 0.0]
+    xyz: [-0.4955, 0.0, 0.0]
     rpy: [0.0, 0.0, 0.0]
     width: 0.80
     length: 1.70
@@ -14,7 +19,7 @@ tables:
     top_thickness: 0.05
     leg_width: 0.05
   right:
-    xyz: [0.45, 0.0, 0.0]
+    xyz: [0.4955, 0.0, 0.0]
     rpy: [0.0, 0.0, 0.0]
     width: 0.80
     length: 1.70

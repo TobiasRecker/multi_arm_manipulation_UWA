@@ -1,5 +1,56 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Zielkandidaten anschaulich anzeigen, 2026-11-17
+
+- Nutzer möchte Ergebnis sehen und Markdown korrekt lesen. Eigenständiger
+  HTML-Viewer setup/research/offline-goal-candidates-20261117/viewer.html erstellt
+  und per xdg-open im vorhandenen Browser geöffnet. Vierarm-Endstellungen und
+  einzelne kinematische Kandidaten mit unterschiedlicher Textkennzeichnung.
+- Orbit/Zoom,6Paarabstände und Gelenkwinkel; keine Zwischenanimation als
+  vermeintlich geprüfte Bahn. Historisches90cm-Modell und Full-Turn-Mehrdeutigkeit
+  ausdrücklich erklärt. Gespeicherte URDF-/Meshbindung vor Export geprüft.
+- Generator tools/preview_goal_candidates.py plus HTML-Vorlage. Chrome-Render
+  visuell geprüft,48Zustandswechsel und Status/Tabellen/Auswahlanzeigen im
+  Headless-Browser PASS. setup/logs/uwa-goal-candidates-viewer-check.txt.
+- Anleitung docs/offline_goal_candidates.md um Browseransicht und VS-Code-
+  Markdownvorschau ergänzt. Keine Modelle/Planer/Roboteraktionen geändert.
+
+## Offline-Zielkandidaten und Plan-PDF, 2026-11-17
+
+- Nutzer beauftragt PDF des vorgeschlagenen Plans und Beginn von Schritt1.
+  Dreiseitige A4-PDF output/pdf/uwa_offline_multiarm_plan_2026-11-17.pdf,
+  alle Seiten gerendert und visuell geprüft. Reproduzierbarer Generator
+  tools/build_offline_planning_pdf.py, ReportLab aus .venvs/charuco-print.
+- Implementiert/installiert: `cell_goal_candidates`, separates Modul candidates.py.
+  Explizite Weltposen/Gelenkziele und mehrere Alternativen jeArm, Multistart-IK,
+  getrennte Positions-/Rotationsresiduen, Duplikatfusion und begrenzte gemeinsame
+  Endstellungsprüfung. Bestehende Planer unverändert. Anleitung
+  docs/offline_goal_candidates.md; keine frei formulierte Aufgaben-/Greifsynthese.
+- Kinematische Einzelkandidaten nicht gegen Startstellungen anderer ausgewählter
+  Arme verwerfen. Gemeinsame Ziele: volle FCL-Szene, bestehende Nachbarreserven,
+  statische Mindestreserve über alle6Armpaare. Kein Pfad/Timing/MoveJ-Execute;
+  Ergebnisse `executable:false`. Budgetgrenzen und fehlende Vollständigkeit sichtbar.
+- Installierte CLI in zwei Vierarmbeispielen: je8Kandidaten/Arm und16gültige
+  Kombinationen innerhalb gesetzter Ausgabegrenze, ca0,81/1,58s reine Suche.
+  64Kandidatenposen/32Endstellungen unabhängig nachgerechnet. Daten unter
+  setup/research/offline-goal-candidates-20261117/, verification.json.
+- Parallel änderte anderer Auftrag Standard-Basisabstand90→99,1cm. Signaturcheck
+  erkannte Änderung; historische Beispiele mit zugehöriger alter Layoutfassung
+  und generierter URDF separat gesichert, keine gemeinsame Änderung zurückgesetzt.
+  Erste gescheiterte Verifikation erhalten; spätere passende Verifikation PASS.
+- Lyrical-Build PASS.13neueTests PASS; Paketlauf126Pythonfälle:125PASS,
+  ein bestehender Loopbacktest durch Sandbox-Socketverbot blockiert, derselbe
+  Test separat außerhalb Sandbox PASS(127.0.0.1). Nativer Vorfiltertest PASS.
+  Initiale Build/Testaufrufe erkannten doppeltes Paket im eingefrorenen Task-
+  Snapshot; Wiederholung mit `--base-paths src` erfolgreich. Originalfehlerlogs
+  erhalten unter setup/logs/uwa-goal-candidates-*. Kein Hardware-/ROS-Knotenstart.
+-13Kandidatentests auch nach gemeinsamem Layoutwechsel erneutPASS. Installierte
+  CLI mit eingefrorenem Beispiellayout reproduziert Kandidaten und Kombinationen
+  exakt; Zeitmessung separat. PDF-Zwischenbilder nach Sichtprüfung entfernt.
+- Nächster Schritt: Kandidatenauswahl mit alternativen primitiven Einzelwegen
+  verbinden, dann Bahnfortschritts-/Zeitkoordination. Bewegte Basisbahnen sind
+  weiterhin spätere Erweiterung, keine reaktive Steuerung hinzugefügt.
+
 ## Langsamer realer Kartontest vorbereitet, Live-Inbetriebnahme offen, 2026-11-16
 
 - Nutzer beauftragt Vorbereitung eines deutlich langsameren Realtests; startet

@@ -81,9 +81,23 @@ def configuration(path=None):
     if cfg.get('schema_version') != 1 or tuple(cfg.get('arms', [])) != ARMS:
         raise ValueError('v1 requires schema1 and the two right arms in stable order')
     for key, value in cfg.items():
-        if key in ('schema_version', 'arms', 'object_id', 'simulation_assumptions','gripper_transmission','physics_engine','force_observation','exploration_mode','roll_long_axis','placement_table'): continue
+        if key in ('schema_version', 'arms', 'object_id', 'simulation_assumptions','gripper_transmission','physics_engine','force_observation','exploration_mode','roll_long_axis','placement_table','force_comparison_lift','joint_velocity_overrides_rad_s'): continue
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
             raise ValueError('Expected positive finite ' + key)
+    comparison=cfg.get('force_comparison_lift',False)
+    multiplier=cfg.get('carrying_speed_multiplier',1.)
+    if not isinstance(comparison,bool):raise ValueError('force_comparison_lift must be boolean')
+    if comparison and (not cfg['exploration_mode'] or cfg.get('roll_long_axis')):
+        raise ValueError('Force comparison requires explicit exploration and a translation-only prefix')
+    if not 1<=multiplier<=5 or (multiplier!=1 and not cfg['exploration_mode']):
+        raise ValueError('Carrying multiplier requires exploration and must be in[1,5]')
+    overrides=cfg.get('joint_velocity_overrides_rad_s',{})
+    from uwa_cell_description.configuration import joint_names
+    allowed={j for a in ARMS for j in joint_names(a)}
+    if not isinstance(overrides,dict) or set(overrides)-allowed:raise ValueError('Only carrying-arm joints may override velocity')
+    if overrides and not cfg['exploration_mode']:raise ValueError('Velocity overrides require exploration')
+    if any(isinstance(v,bool) or not isinstance(v,(int,float)) or not math.isfinite(v) or not 0<v<=1 for v in overrides.values()):
+        raise ValueError('Invalid per-joint velocity envelope')
     if cfg.get('placement_table') not in (None,'left','right'):raise ValueError('placement_table must be left or right')
     if not isinstance(cfg.get('roll_long_axis',False),bool):raise ValueError('roll_long_axis must be boolean')
     if cfg.get('maximum_roll_lift_m',.25)>.25:raise ValueError('Roll lift exceeds simulation envelope')
@@ -92,7 +106,7 @@ def configuration(path=None):
         raise ValueError('Physics step must be between0.1ms and1ms')
     if cfg['gripper_motor_torque_limit_nm']>(2. if exploration else .35):
         raise ValueError('Task exceeds the simulation motor torque envelope')
-    if cfg['lift_m'] > .05 or cfg['joint_velocity_rad_s'] > (1. if exploration else .05) or cfg['joint_acceleration_rad_s2'] > (2. if exploration else .10):
+    if cfg['lift_m'] > (.25 if comparison else .05) or cfg['joint_velocity_rad_s'] > (1. if exploration else .05) or cfg['joint_acceleration_rad_s2'] > (2. if exploration else .10):
         raise ValueError('Task exceeds the first simulation operating envelope')
     if cfg['finger_velocity_limit_rad_s']>(2. if exploration else .05) or cfg['braking_acceleration_rad_s2']>5.:
         raise ValueError('Task exceeds the simulation observation/stop envelope')

@@ -1,7 +1,23 @@
 # Kleiner realer Vierarm-Lauf mit Kollisionswächter
 
-- Status: **Modell-/Realabgleich benötigt – Bewegung noch nicht ausgeführt**,
-  2026-11-16 (Australia/Perth), Hauptagent dieses Chats.
+- Status: **langsame Live-Inbetriebnahme vorbereitet; heutige Vor-Ort-Bereitschaft
+  angefragt, noch keine Bewegung**, 2026-11-17 (Australia/Perth), Hauptagent.
+- Neuer Nutzerauftrag17.11.: Foto nach Wegstellen der Kiste erneut versuchen;
+  bei nicht auswertbarem Bild99,1cm ausdrücklich übernehmen. Vollständiges
+  Greiferöffnen prüfen und langsamen q1-/q6-Softwarestopp testen; danach kleiner
+  Vierarmtest. Freigabe gilt diesem unbeladenen Test, nicht Kartongriff/CDF.
+- Neues Foto20261117-101007-standard-37a99717: rechts24Ecken/2,050pxPrüf-RMS,
+  links0Ecken/0Marker, daher autorisierten99,1cm-Fallback übernommen. Zentrales
+  Layoutx±0,4955m, nurAbstand korrigiert; Y/Z/Winkelweiterhinvorläufig. Bestehende
+  laufendeSimulationen nicht umgestellt/neugestartet. AltePläneinvalidieren.
+- HeutigerStatus: alle4POWER_OFF/NORMAL, ProgrammeSTOPPED, keineTreiber/kein
+  Hardwarewächter. Alle4GreiferserverGETerreichbar, ACT0/STA0/FLT0; POS3beiLF/LR/RF,
+  POS230beiRR. UnaktivierteRegister sind noch kein Öffnungs-/Kraftnachweis.
+- Eigenes hardware_commissioning.yaml fürunbeladenenq6-Test: vmax0,003rad/s,
+  amax0,006rad/s²; unverändert40mmModellreserve,10Hz,200msFrische,1sangenommene
+  Stopplatenz/0,2rad/s²angenommeneBremsung. Keine festeAbstandsschwelle gesenkt;
+  begrenztereBewegung reduziert berechnetenStoppweg. VorRealbewegung vollständige
+  Geometrie-/Istzustandsprüfung und heutigefreieBereiche/Not-Halt-Bereitschaft.
 - Aktuelle Nutzerkorrektur: Greifer offen, physischer Abstand eher20cm;
   hintere Montagezentren mit Zollstock recht genau100cm. Ersetzt frühere
  30cm-/ungefähre100cm-Angaben. Keine Messunsicherheit des Zollstocks bestimmt.

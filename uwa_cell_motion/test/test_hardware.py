@@ -46,6 +46,19 @@ def test_peer_replay_transport_age_and_mode_mismatch_are_rejected():
     assert not peer.fresh(1.3,.2)
 
 
+def test_connection_waits_for_fresh_packets_without_activating_or_relaxing_runtime_health():
+    from uwa_cell_motion.hardware_execution import HardwareClient
+    calls=[]
+    def health():
+        calls.append('health')
+        if calls.count('health')<3:raise RuntimeError('HARDWARE STATE STALE')
+    client=NS(positions={'q':0.},names={'r':['q']},guard={},supervisor={},selected=['r'],driver={'r':{}},
+              wait=lambda predicate,timeout:predicate(),health=health,
+              spin_once=lambda **kwargs:calls.append('spin'))
+    HardwareClient.connect(client)
+    assert calls==['health','spin','health','spin','health']
+
+
 def test_rtde_codec_reads_native_program_and_safety_without_input_recipes():
     reader=object.__new__(MotionOutputReader);reader.recipe=3
     payload=b'\x03'+struct.pack('>13dIii',12.,*([.1]*6),*([.2]*6),2,7,1)
@@ -89,6 +102,21 @@ def test_hardware_envelope_is_valid_at_nominal_and_internal_exemptions_are_scope
     srdf=ET.parse(problem.directory/'moveit/robot.srdf')
     pairs=[p for p in srdf.findall('disable_collisions') if p.get('reason')=='CoupledToolOpeningEnvelope']
     assert pairs and all(p.get('link1').split('_robotiq_')[0]==p.get('link2').split('_robotiq_')[0] and '_robotiq_' in p.get('link1') and '_robotiq_' in p.get('link2') for p in pairs)
+
+
+def test_slow_commissioning_reduces_motion_bound_without_relaxing_other_reserves(problem):
+    from uwa_cell_gazebo.charuco_views import Chain
+    root=Path(__file__).parents[1]/'config'
+    regular=config(root/'hardware_motion.yaml');slow=config(root/'hardware_commissioning.yaml')
+    assert {k for k in slow if slow[k]!=regular[k]}=={'velocity_limit_rad_s','acceleration_limit_rad_s2'}
+    assert slow['velocity_limit_rad_s']<regular['velocity_limit_rad_s']
+    assert slow['acceleration_limit_rad_s2']<regular['acceleration_limit_rad_s2']
+    for rid,names in problem.names.items():
+        v=np.zeros(len(names))
+        assert problem.spheres.arm_budget(rid,v,.2,slow)[0]<problem.spheres.arm_budget(rid,v,.2,regular)[0]
+    bases=[Chain(problem.description,'world',rid+'_base_link').forward({})[:3,3]
+           for rid in ('left_rear','right_rear')]
+    assert np.linalg.norm(bases[1]-bases[0])==pytest.approx(.991)
 
 
 def test_tool_envelope_covers_full_body_volume_at_between_sample_openings(problem):

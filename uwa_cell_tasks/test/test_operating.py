@@ -50,3 +50,14 @@ def test_stopping_budget_accounts_for_faster_fingers_and_actual_overspeed():
     assert speed==pytest.approx(.075) and reserve==pytest.approx(.02525)
     reserve,speed=model.arm_budget('right_front',[.2,0.],.02,cfg)
     assert speed==pytest.approx(.125) and reserve==pytest.approx(.04375)
+
+
+def test_carrier_override_remains_in_full_stopping_budget_and_excludes_obstacles(tmp_path):
+    names=['right_front_wrist_1_joint','left_front_wrist_1_joint','right_front_robotiq_85_left_knuckle_joint']
+    cfg=configuration();cfg.update(exploration_mode=True,force_observation=True,
+        force_comparison_lift=True,lift_m=.147548945,carrying_speed_multiplier=5,
+        joint_velocity_overrides_rad_s={names[0]:.065})
+    path=tmp_path/'comparison.yaml';path.write_text(yaml.safe_dump(cfg));accepted=configuration(path)
+    np.testing.assert_allclose(velocity_limits(names,accepted),[.065,.05,cfg['finger_velocity_limit_rad_s']])
+    cfg['joint_velocity_overrides_rad_s'][names[1]]=.2;path.write_text(yaml.safe_dump(cfg))
+    with pytest.raises(ValueError,match='Only carrying-arm'):configuration(path)

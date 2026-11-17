@@ -350,7 +350,7 @@ def _run_task(directory,scene_directory,layout_file,namespace,reference):
                     # This geometric witness is distinct from the actual
                     # contact-bound plan recomputed after grasp confirmation.
                     extra={}
-                    if cfg.get('roll_long_axis'):
+                    if cfg.get('roll_long_axis') or cfg.get('force_comparison_lift'):
                         recipe=compile_object_recipe(witness,predicted,grasp_state,obj,cfg)
                         lift_witness=recipe['motions']['lift']
                         extra=dict(object_recipe_witness=recipe)
@@ -410,7 +410,7 @@ def _run_task(directory,scene_directory,layout_file,namespace,reference):
             write_json(directory/'object-targets.json',seal(poses))
             lifted=poses['lifted']
             sim.phase='move_object';store.event('RUNNING','move_object')
-            recipe=compile_object_recipe(contact_problem,group,dict(sim.q),obj,cfg) if cfg.get('roll_long_axis') else None
+            recipe=compile_object_recipe(contact_problem,group,dict(sim.q),obj,cfg) if (cfg.get('roll_long_axis') or cfg.get('force_comparison_lift')) else None
             if recipe:write_json(directory/'object-recipe.json',seal(recipe))
             trajectory=recipe['motions']['lift'] if recipe else object_trajectory(contact_problem,group,dict(sim.q),obj,lifted,cfg)
             truth_before=np.array(sim.object['T_world_object'])

@@ -92,7 +92,17 @@ class HardwareClient(MotionClient):
     def connect(self,guard=True):
         self.wait(lambda:len(self.positions)==sum(map(len,self.names.values())) and self.guard is not None and self.supervisor is not None,timeout=15.)
         if guard:
-            self.wait(lambda:all(r in self.driver for r in self.selected),timeout=5.);self.health()
+            self.wait(lambda:all(r in self.driver for r in self.selected),timeout=5.)
+            # Discovery can deliver the first state before the corresponding
+            # current driver/manager packets. Wait only during connection,
+            # before any activation; runtime health remains fail-fast and
+            # keeps the same source-age limits.
+            deadline=time.monotonic()+5.
+            while True:
+                try:self.health();break
+                except RuntimeError:
+                    if time.monotonic()>=deadline:raise
+                    self.spin_once(timeout_sec=.005)
     def manager(self,rid,kind,endpoint,request):
         return self.service(kind,self.problem.profiles[rid]['namespace']+'/controller_manager/'+endpoint,request)
     def activate(self,arms):

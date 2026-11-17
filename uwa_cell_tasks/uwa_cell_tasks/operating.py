@@ -15,7 +15,8 @@ def motion_configuration(task):
 def velocity_limits(names,task):
     arm=task['joint_velocity_rad_s'];finger=task.get('finger_velocity_limit_rad_s',arm)
     # Unselected left obstacles retain their commissioning envelope.
-    return np.array([(finger if '_robotiq_' in n else arm)
+    overrides=task.get('joint_velocity_overrides_rad_s',{})
+    return np.array([(finger if '_robotiq_' in n else overrides.get(n,arm))
         if n.startswith(('right_front_','right_rear_')) else .05 for n in names])
 
 

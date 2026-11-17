@@ -13,6 +13,21 @@ def problem(tmp_path_factory):
     return Problem(tmp_path_factory.mktemp('cell-motion'),config(Path(__file__).parents[1]/'config/motion.yaml'))
 
 
+@pytest.fixture(scope='module')
+def historical_problem(tmp_path_factory):
+    """The immutable 20261113 suite describes 90 cm, not today's real cell."""
+    import yaml
+    from uwa_cell_description.configuration import nominal_layout_path, default_layout_path
+    root=tmp_path_factory.mktemp('historical-benchmark')
+    layout=yaml.safe_load(nominal_layout_path().read_text())
+    layout['tables']['left']['xyz'][0]=-.45
+    layout['tables']['right']['xyz'][0]=.45
+    reference=default_layout_path()
+    layout['calibration_profile']=str((reference.parent / yaml.safe_load(reference.read_text())['calibration_profile']).resolve())
+    path=root/'layout-90cm.yaml';path.write_text(yaml.safe_dump(layout))
+    return Problem(root/'model',config(Path(__file__).parents[1]/'config/motion.yaml'),path)
+
+
 def simple(problem):
     start=nominal_state(problem.layout);rid='left_front'
     q=[start[j] for j in joint_names(rid)];q[-1]+=.04
@@ -91,16 +106,17 @@ def test_waiting_coordinator_produces_checked_stationary_arm_phases(problem):
     assert all(problem.edge(r,a,b) for a,b in zip(path,path[1:]))
 
 
-def test_fixed_suite_has_30_balanced_bound_cases(problem):
+def test_fixed_suite_has_30_balanced_bound_cases(historical_problem):
     import json
     from collections import Counter
     suite=json.loads((Path(__file__).parents[1]/'config/benchmark_suite_20261113.json').read_text())
-    assert suite['model_signature']==problem.signature
+    assert suite['model_signature']==historical_problem.signature
     assert len(suite['cases'])==30 and set(Counter(c['category'] for c in suite['cases']).values())=={5}
 
 
-def test_fixed_neighbor_cases_really_intersect_sphere_paths(problem):
+def test_fixed_neighbor_cases_really_intersect_sphere_paths(historical_problem):
     import json
+    problem=historical_problem
     suite=json.loads((Path(__file__).parents[1]/'config/benchmark_suite_20261113.json').read_text())
     for case in suite['cases']:
         if case['category']!='neighbor_crossing':continue

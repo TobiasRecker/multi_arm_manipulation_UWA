@@ -544,6 +544,12 @@ of two moving tables with two arms each; the current cell model still has fixed
 table-to-world joints. The survey is a research comparison, not an implemented
 mobile-base planner.
 
+A first [offline goal-candidate stage](docs/offline_goal_candidates.md) now
+preserves multiple target/IK alternatives per arm and checks bounded combined
+endpoints using the full cell model. `cell_goal_candidates` produces research
+data, not executable trajectories. The [three-page implementation plan](output/pdf/uwa_offline_multiarm_plan_2026-11-17.pdf)
+records the subsequent primitive-path and time-coordination stages.
+
 Select `/uwa_cell/controller_manager` and one of the four trajectory
 controllers in the **rqt Joint Trajectory Controller** window. Enable control
 and adjust joint targets conservatively. This is direct joint control, not

@@ -43,7 +43,7 @@ def main():
             for candidate in candidates:
                 try:
                     result=plan_approach(problem,start,candidate)
-                    if scene['cfg'].get('roll_long_axis'):
+                    if scene['cfg'].get('roll_long_axis') or scene['cfg'].get('force_comparison_lift'):
                         from .planning import grasp_entry,PlannedObjectConstraint,compile_object_recipe
                         witness=TaskProblem(args.output/('witness-'+candidate['id']),description,load_layout(args.layout),scene,obj,static=False)
                         pre=dict(start,**dict(zip(result['request']['joint_names'],result['request']['target'])))

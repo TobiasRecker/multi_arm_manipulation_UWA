@@ -19,7 +19,7 @@ from match_cooperative_handling.rigid_object import rigid, interpolate, pose_err
 from .core import ARMS, seal
 from .scene import apply_object,mass_properties,inherit_pad_adjacency
 from .operating import motion_configuration,TaskSphereModel
-from .timing import limit_shared_jerk,object_law_duration
+from .timing import limit_shared_jerk,object_law_duration,scale_object_time
 
 
 def support_exemptions(problem,object_pose):
@@ -403,4 +403,5 @@ def object_trajectory(problem, group, start, object_start, object_end, cfg, *, p
         group=group.record(),scene_sha256=problem.scene_record['sha256'],
         statement='One object path and one shared time law; no independent arm trajectory planning')
     if cfg.get('joint_jerk_rad_s3') is not None:trajectory=limit_shared_jerk(trajectory,cfg['joint_jerk_rad_s3'])
-    return seal(trajectory)
+    trajectory=seal(trajectory)
+    return scale_object_time(trajectory,cfg)

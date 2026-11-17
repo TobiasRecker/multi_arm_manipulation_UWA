@@ -38,7 +38,7 @@ class TaskGuard(MotionNode):
         inherit_pad_adjacency(self.collision)
         # The base guard's scalar check is supplemented by strict per-joint
         # latching below. Geometry uses the full per-DOF stopping budget.
-        core_cfg=dict(self.cfg,velocity_limit_rad_s=max(self.cfg['velocity_limit_rad_s'],self.scene['cfg'].get('finger_velocity_limit_rad_s',.05)))
+        core_cfg=dict(self.cfg,velocity_limit_rad_s=float(max(velocity_limits([n for names in self.names.values() for n in names],self.scene['cfg']))))
         self.core=GuardState(core_cfg);self.positions={};self.pairs=[];self.speed_violations={}
         self.instance=str(uuid.uuid4());self.sequence=0;self.group=None;self.supervisor={}
         self.object=None;self.contacts=None;self.object_received=0.;self.contacts_received=0.
