@@ -46,7 +46,10 @@ def object_pose(initial,offset,lift,s,yaw=0.):
 
 
 class ObjectTransport:
-    def __init__(self,directory,source):
+    def __init__(self,directory,source,*,arms=None):
+        self.arms=tuple(ROBOT_IDS if arms is None else arms)
+        if not self.arms or len(set(self.arms))!=len(self.arms) or set(self.arms)-set(ROBOT_IDS):
+            raise ValueError('Expected unique known carrying arms')
         self.source=Path(source).resolve();raw=self.source.read_bytes();self.saved=json.loads(raw)
         self.source_sha256=hashlib.sha256(raw).hexdigest()
         if self.saved['executable'] is not False:raise ValueError('Expected offline source')
@@ -66,10 +69,12 @@ class ObjectTransport:
         n=struct.unpack_from('<I',mesh_raw,80)[0]
         self.triangles=np.array([[struct.unpack_from('<3f',mesh_raw,84+k*50+12+i*12) for i in range(3)] for k in range(n)])
         self.initial=np.array(self.saved['task']['object_pose']);self.initial[:3,3]+=self.initial[:3,:3]@(self.dimensions/2)
-        self.start=dict(self.saved['task']['start']);self.names=[j for a in ROBOT_IDS for j in joint_names(a)]
-        for arm,path in self.saved['paths'].items():self.start.update(zip(joint_names(arm),path['segments'][-1]['positions'][-1]))
+        self.start=dict(self.saved['task']['start']);self.names=[j for a in self.arms for j in joint_names(a)]
+        for arm in self.arms:
+            path=self.saved['paths'][arm]
+            self.start.update(zip(joint_names(arm),path['segments'][-1]['positions'][-1]))
         self.tcp_offsets={a:np.array(self.saved['task']['targets'][a]['tool0_to_tcp']) for a in ROBOT_IDS}
-        self.offsets={a:np.linalg.inv(self.initial)@p.chains[a].forward(self.start)@self.tcp_offsets[a] for a in ROBOT_IDS}
+        self.offsets={a:np.linalg.inv(self.initial)@p.chains[a].forward(self.start)@self.tcp_offsets[a] for a in self.arms}
         for value in self.offsets.values():value.setflags(write=False)
         # Use the original robot-only scene: the carton must NOT remain fixed in
         # its old URDF position or inherit fixed-world collision exemptions.
@@ -115,7 +120,7 @@ class ObjectTransport:
 
     def solve(self,pose,seed):
         state=dict(seed)
-        for arm in ROBOT_IDS:
+        for arm in self.arms:
             names=joint_names(arm);target=pose@self.offsets[arm];initial=np.array([seed[j] for j in names])
             q=initial.copy()
             for _ in range(30):
@@ -133,7 +138,7 @@ class ObjectTransport:
 
     def differential(self,pose,state):
         blocks=[];sigmas={};S=np.diag([2.,2.,2.,1.,1.,1.])
-        for arm in ROBOT_IDS:
+        for arm in self.arms:
             tcp,J=self.arm_kinematics(arm,state);A=np.eye(6);A[:3,3:]=-skew(tcp[:3,3]-pose[:3,3])
             sv=np.linalg.svd(S@J,compute_uv=False)
             sigmas[arm]=float(sv[-1])
@@ -143,7 +148,7 @@ class ObjectTransport:
 
     def distances(self,pose,state,gradients=False):
         p=self.problem
-        if gradients:world,jac=p.spheres.jacobians(state,ROBOT_IDS);K,sigmas=self.differential(pose,state)
+        if gradients:world,jac=p.spheres.jacobians(state,self.arms);K,sigmas=self.differential(pose,state)
         else:world=p.spheres.world(state)
         result=[]
         for a,b in PAIRS:
@@ -237,7 +242,7 @@ def shared_trajectory(problem,offset,lift,controls,knots_per_phase=101):
     return dict(executable=False,phases=phases,duration_s=sum(p['time_law']['duration_s'] for p in phases),
                 controls=list(controls),offset_m=list(offset),lift_m=lift,joint_names=problem.names,
                 limits=dict(velocity_rad_s=.45,acceleration_rad_s2=.4,jerk_rad_s3=2.),
-                timing='One shared C3 progress law per phase across all 24 joints; full stops between phases')
+                timing='One shared C3 progress law per phase across all carrying joints; full stops between phases')
 
 
 def trajectory_at(problem,trajectory,t):
@@ -269,7 +274,7 @@ def validate_trajectory(problem,trajectory,*,dt=.01,margin=.02,extra_margin=0.,s
         pairs=problem.distances(pose,state);K,sigmas=problem.differential(pose,state)
         gap=min(v['clearance_m'] for v in pairs);sigma=min(sigmas.values());minimum=min(minimum,gap);sigma_min=min(sigma_min,sigma)
         pe=ae=0.
-        for arm in ROBOT_IDS:
+        for arm in problem.arms:
             actual=problem.problem.chains[arm].forward(state)@problem.tcp_offsets[arm];target=pose@problem.offsets[arm]
             pe=max(pe,float(np.linalg.norm(actual[:3,3]-target[:3,3])))
             ae=max(ae,float(np.linalg.norm(Rotation.from_matrix(actual[:3,:3]@target[:3,:3].T).as_rotvec())))
@@ -281,8 +286,10 @@ def validate_trajectory(problem,trajectory,*,dt=.01,margin=.02,extra_margin=0.,s
             failures.append(dict(time_s=float(t),s=row['s'],fcl_clear=clear,gap_m=gap,required_m=required,
                                  joint_bounds_ok=bounds_ok,sigma_min=sigma,closure_m=pe,closure_rad=ae))
         p=problem.problem;budgets={}
-        for i,arm in enumerate(ROBOT_IDS):
-            vel=np.zeros(len(p.names[arm]));vel[:6]=row['velocity'][i*6:i*6+6]
+        for arm in ROBOT_IDS:
+            vel=np.zeros(len(p.names[arm]))
+            if arm in problem.arms:
+                i=problem.arms.index(arm);vel[:6]=row['velocity'][i*6:i*6+6]
             budgets[arm]=p.spheres.arm_budget(arm,vel,p.cfg['state_timeout_s'],p.cfg)[0]
         reserves+=any(v['clearance_m']<margin+budgets[v['arms'][0]]+budgets[v['arms'][1]]
                       for v in pairs if tuple(v['arms']) in NEIGHBOURS or tuple(v['arms'][::-1]) in NEIGHBOURS)

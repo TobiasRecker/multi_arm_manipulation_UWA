@@ -208,3 +208,9 @@ def test_offline_hardware_preview_labels_backend_and_unmeasured_reserve(problem,
     plan=problem.plan(dict(start=start,goals={'right_rear':target}),'rrtconnect');plan['execution_mode']='hardware'
     output=tmp_path/'preview.html';render(plan,output);text=output.read_text()
     assert 'HARDWARE — PTP preview' in text and 'reserve UNMEASURED' in text and 'no motion sent' in text
+
+
+def test_rtde_frequency_is_validated_before_connecting(monkeypatch):
+    import pytest
+    for hz in (0,501,float('nan'),True):
+        with pytest.raises(ValueError):MotionOutputReader('must-not-connect',frequency_hz=hz)

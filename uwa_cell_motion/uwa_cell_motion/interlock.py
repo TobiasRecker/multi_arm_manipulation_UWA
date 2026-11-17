@@ -1,6 +1,6 @@
 """Independent heartbeat latch; a guard restart never implicitly releases it."""
 import math
-from .common import ROBOT_IDS
+from .common import ROBOT_IDS,BODY_RESERVE_MODEL
 
 
 SUPERVISOR_PERIOD_S=.02
@@ -20,6 +20,12 @@ def expired_pair_leases(decision,now,cfg):
         if not math.isfinite(evaluated) or evaluated>now+.001:raise ValueError()
         expired=set()
         for pair in decision['pairs']:
+            if cfg.get('stopping_reserve_model')==BODY_RESERVE_MODEL:
+                lease=float(pair['maximum_evaluation_age_s'])
+                if (pair['reserve_model']!=BODY_RESERVE_MODEL or not math.isfinite(lease)
+                        or not 0<=lease<=cfg['heartbeat_timeout_s']):raise ValueError()
+                if now-evaluated>=lease:expired.update(pair['arms'])
+                continue
             speed=float(pair['relative_speed_bound_m_s']);gap=float(pair['clearance_m']);threshold=float(pair['threshold_m'])
             if not all(map(math.isfinite,(speed,gap,threshold))) or speed<0:raise ValueError()
             lease=cfg['heartbeat_timeout_s']

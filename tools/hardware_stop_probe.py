@@ -35,9 +35,17 @@ def quiet_window(rows):
                 and np.max(abs(slope)) <= .0002)
 
 
+def moving_window(rows,baseline):
+    if not rows:return False
+    recent=[r for r in rows if r['received']>=rows[-1]['received']-.12]
+    return bool(len(recent)>=3 and recent[-1]['received']-recent[0]['received']>=.08
+        and all(abs(r['v'][5])>=.0012 for r in recent)
+        and abs(recent[-1]['q'][5]-baseline[5])>=.0005)
+
+
 class Observer:
-    def __init__(self, host):
-        self.reader=MotionOutputReader(host)
+    def __init__(self, host, sample_hz=20.):
+        self.reader=MotionOutputReader(host,frequency_hz=sample_hz)
         self.rows=[];self.error=None;self.lock=threading.Lock();self.done=threading.Event()
         self.worker=threading.Thread(target=self.run, daemon=True);self.worker.start()
 
@@ -78,13 +86,10 @@ class Probe(HardwareClient):
         if self.observer.error or not rows or now-rows[-1]['received'] > .2:
             raise RuntimeError('Independent RTDE observer unavailable: '+str(self.observer.error))
         if self.stop_future is not None or not self.pending:return
-        recent=rows[-3:]
-        if (len(recent)==3 and recent[-1]['received']-recent[0]['received'] >= .08
-                and all(abs(r['v'][5]) >= .0012 for r in recent)
-                and abs(recent[-1]['q'][5]-self.baseline[5]) >= .0005):
+        if moving_window(rows,self.baseline):
             client=self.stop_clients['right_front']
             if not client.service_is_ready():raise RuntimeError('Supervisor stop service unavailable')
-            self.stop_sent=now
+            self.stop_sent=time.monotonic()
             self.stop_future=client.call_async(Trigger.Request())
 
 
@@ -92,6 +97,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('plan',type=Path);parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--execute',action='store_true',required=True)
+    parser.add_argument('--sample-hz',type=float,default=20.)
     args=parser.parse_args();require_domain('hardware')
     if args.output.exists():raise ValueError('Output exists; use a unique test record')
     plan=json.loads(args.plan.read_text());rid='right_front';names=joint_names(rid)
@@ -104,13 +110,14 @@ def main():
         raise ValueError('Only a checked q6 displacement of at most0.03rad is allowed')
     result=dict(success=False,kind='intentional_unloaded_software_stop_probe',
                 phase_count=0,guard_stops=0,record_path=str(args.output),stage='CONNECT',
+                requested_observer_frequency_hz=args.sample_hz,
                 qualification='RTDE receive-time observation; not hardware E-stop or certified braking accuracy')
     with motion_context(), tempfile.TemporaryDirectory(prefix='uwa-stop-probe-') as directory:
         problem=HardwareProblem(directory,plan['config'],plan['inventory'],plan.get('layout_path'))
         if problem.binding != plan['hardware_binding'] or problem.spheres.geometry.assets != plan['mesh_sha256']:
             raise ValueError('Plan binding changed; replan')
         observer=Observer(problem.profiles[rid]['robot_ip'] if 'robot_ip' in problem.profiles[rid]
-                          else problem.profiles[rid]['ip'])
+                          else problem.profiles[rid]['ip'],sample_hz=args.sample_hz)
         client=Probe(problem,observer)
         try:
             client.connect();client.health()

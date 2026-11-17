@@ -100,11 +100,14 @@ from uwa_cell_control.capture_rtde import OutputReader
 
 
 class MotionOutputReader(OutputReader):
-    def __init__(self,host):
+    def __init__(self,host,frequency_hz=20.):
+        if isinstance(frequency_hz,bool) or not np.isfinite(frequency_hz) or not 1<=frequency_hz<=500:
+            raise ValueError('Output RTDE frequency must be in[1,500]Hz')
+        self.frequency_hz=float(frequency_hz)
         self.socket=socket.create_connection((host,30004),timeout=.2);self.socket.settimeout(2.)
         try:
             if self.request(86,struct.pack('>H',2))!=b'\x01':raise RuntimeError('RTDE protocol2 rejected')
-            recipe=self.request(79,struct.pack('>d',20.)+b'timestamp,actual_q,actual_qd,runtime_state,robot_mode,safety_mode')
+            recipe=self.request(79,struct.pack('>d',self.frequency_hz)+b'timestamp,actual_q,actual_qd,runtime_state,robot_mode,safety_mode')
             if len(recipe)<2 or recipe[0]==0 or recipe[1:]!=b'DOUBLE,VECTOR6D,VECTOR6D,UINT32,INT32,INT32':raise RuntimeError('Unexpected motion RTDE output recipe')
             self.recipe=recipe[0]
             if self.request(83)!=b'\x01':raise RuntimeError('RTDE output streaming rejected')

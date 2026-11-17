@@ -2,7 +2,7 @@
 
 Stand 2026-11-17. Zunächst nur vorbereitet; im Folgeauftrag ausdrücklich
 Kernelinstallation und UR-Treiber-Echtzeitrechte beauftragt und abgeschlossen.
-**Neustart wartet auf den Nutzer.** Keine laufenden UR-Treiber neu gestartet,
+**Nutzerneustart erfolgt; RT-Kernel und Ressourcenrechte aktiv (Nachprüfung siehe unten).** Keine laufenden UR-Treiber neu gestartet,
 keine Hardwarewächter-/Bewegungsgrenzen geändert, kein Bremsversuch.
 
 ## Befund auf ROSmini
@@ -202,3 +202,31 @@ geordnet beenden. Danach Kernel (`uname -r`, `/sys/kernel/realtime`), tatsächli
 Prozesslimits und Thread-Scheduling der frisch gestarteten UR-Treiber prüfen;
 erst anschließend die dokumentierten Latenztests durchführen. Ein Paket-/Rechte-
 Nachweis ist noch keine gemessene Reaktionszeit oder Bremsqualifikation.
+
+## Nach Neustart geprüft (2026-11-17)
+
+Nutzer hat neu gestartet. LaufenderKernel7.0.0-43-realtime,
+/sys/kernel/realtime=1 undCONFIG_PREEMPT_RT=y bestätigt. AktuelleSitzung sowie
+tatsächlicherBenutzermanagerprozess habenrtprio99/99 undmemlockunlimited.
+Alle4UR-Treiberinaktiv, keineControllerthreads: DieUR-Threadprioritätenwerden
+erstnachseparatemTreiberstart geprüft. KeineStarts/Robotaktionen ausdieser
+Statusprüfung. KeineLatenz-/Bremsqualifikation daraus ableiten. LesenderNachweis:
+`setup/realtime/postboot-20261117/verification.json`.
+
+## UR-Treiber anschließend gestartet und geprüft (2026-11-17)
+
+Nach Nutzerstart laufen alle vier UR-Treiber. In jedem ros2_control_node
+je zwei echte SCHED_FIFO-Threads mit Priorität50 bestätigt. Tatsächliche
+Prozesslimits99/99 undmemlockunlimited. Die99istdieerlaubteObergrenze,
+50dieaktuellgenutztePriorität; keinepauschaleHochsetzungnötig.
+AllevierReverseverbindungenimStartjournalbelegt. ReinlesendePrüfung;
+Latenz-/Bremsmessungenstehenweiteraus. FrühereInaktivitätsmeldungüberholt.
+Nachweise: `setup/realtime/postboot-20261117/ur-driver-threads.json` und
+`ur-realtime-startup.json`.
+
+## Einzelarmtest vorbereitet
+
+[Reaktions-/Stopptest right_front](right_front_realtime_stop_test.md):
+aktuellerModellplan, nachgewiesener500HzOutput-Beobachter undOfflineauswertung.
+NochkeineechteAusführung; bisherigerSchutzdienstbeobachtend, Armübergabeund
+FreigabevorDurchführungseparat.

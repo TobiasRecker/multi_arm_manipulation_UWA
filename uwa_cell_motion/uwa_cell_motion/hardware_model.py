@@ -15,7 +15,7 @@ from uwa_cell_control.parallel_scan import collision_signature
 from uwa_cell_control.scan_separation import Geometry
 from uwa_cell_calibration.model import CollisionModel
 from uwa_cell_gazebo.configuration import render_description
-from .common import all_names,load_layout,default_layout_path,nominal_state,joint_names,sha
+from .common import all_names,load_layout,default_layout_path,nominal_state,joint_names,sha,BODY_RESERVE_MODEL
 from .geometry import SphereModel,box_spheres
 from .planning import Problem
 
@@ -116,6 +116,8 @@ class HardwareProblem(Problem):
         self.directory=Path(directory);self.cfg=cfg;self.layout_path=layout_path;self.inventory=str(Path(inventory).resolve())
         self.layout,self.profiles,self.original_description,self.description,self.collision,self.envelope_audit=model_context(directory,inventory,layout_path)
         self.names=all_names(self.layout);self.spheres=SphereModel(self.description,self.names,cfg['sphere_spacing_m'])
+        if cfg.get('stopping_reserve_model')==BODY_RESERVE_MODEL:
+            self.spheres.enveloped_dofs={r:tuple(range(6,len(n))) for r,n in self.names.items()}
         self.signature=collision_signature(self.description)
         self.binding=sha(json.dumps(dict(inventory=load_profiles(inventory),model=self.signature,config=cfg,
             policy='all-tool-openings-v1'),sort_keys=True))

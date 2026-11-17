@@ -518,6 +518,11 @@ grasping, the carrying arms follow one rigid object's motion on a common time
 law. Its isolated validation world does not restart this cell. Development and
 actual grasp evidence are recorded separately in HANDOVER; software availability
 alone is not a successful physical-contact lift.
+The [programming-pipeline and demonstration review](docs/programming_pipeline_lbd_review_2026-11-17.md)
+maps this foundation to task programs inferred from language and a few
+demonstrations, with primary literature, recording requirements and a proposed
+pilot. It is a design review; the generic task interpreter and multimodal
+demonstration recorder are not implemented yet.
 The latest [500g force and speed tests](docs/carton_dynamic_validation_2026-11-16.md)
 include two complete10mm/s Home cycles and three loaded stop cases with retained
 grip using exactly the same version-bound profile. The report preserves earlier
@@ -593,6 +598,19 @@ Smooth timing is now the default for the offline carton-approach pipeline:
 assigns one of each UR's two nearest walls, reaches all four targets in12.75s,
 and passes a denser5ms sampled geometry check with53.7mm minimum arm gap.
 Stopping reserves remain separate diagnostics; no physical grasp is performed.
+
+The [diverse-start teacher](docs/teacher_start_diversity.md) searches distinct
+object poses and coupled arm configurations before planning from each start.
+It preserves a frozen copy of its Python sources for the offline dataset run.
+
+The [3D/6D teacher dataset runner](docs/teacher_dataset_6d.md) generates a fixed
+32-task pilot with family-level train/validation/test splits, validated geometric
+BC transitions and a trajectory gallery. Network training remains a later step.
+
+The [two-arm BC teacher experiment](docs/two_arm_object_teacher.md) uses the two
+right arms on opposite short carton sides, with XYZ/orientation corrections,
+a shared 12-joint clock and independent trajectory checks. It is offline only;
+the left arms remain stationary obstacles and no BC network is trained yet.
 
 The [four-arm object transport experiment](docs/offline_object_transport.md)
 continues from that side-grasp configuration with fixed object-to-TCP transforms:

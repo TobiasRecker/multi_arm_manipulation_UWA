@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 
 from uwa_cell_control.scan_separation import Geometry, Body
-from .common import PAIRS,arm_velocity_limit
+from .common import PAIRS,arm_velocity_limit,joint_velocity_limits,BODY_RESERVE_MODEL
 
 
 def box_spheres(lo, hi, spacing):
@@ -125,6 +125,9 @@ class SphereModel:
                     centres=[world[a][i].tolist(), world[b][j].tolist()])
 
     def arm_budget(self, rid, velocities, age, cfg):
+        if cfg.get('stopping_reserve_model')==BODY_RESERVE_MODEL:
+            budget=self.body_budget(rid,velocities,age,cfg)
+            return float(np.max(budget['total_m'])),float(np.max(budget['speed_m_s']))
         # Joint-space triangle-inequality bounds cover every point in every body.
         v = np.maximum(np.abs(velocities), arm_velocity_limit(cfg,rid))
         radii = self.motion_radii[rid]
@@ -133,8 +136,24 @@ class SphereModel:
         latency = 1/cfg['rate_hz']+age+cfg['stop_latency_s']
         return speed*latency+braking, speed
 
+    def body_budget(self,rid,velocities,age,cfg):
+        from .stopping_reserve import body_budgets
+        caps=joint_velocity_limits(cfg,rid,len(velocities))
+        v=np.asarray(velocities,float).copy()
+        for index in getattr(self,'enveloped_dofs',{}).get(rid,()):
+            # Only HardwareProblem supplies this proof: the complete opening
+            # sweep is already in fixed model-coordinate geometry.
+            if v[index]!=0.:raise ValueError('Enveloped tool coordinate must remain fixed in the model')
+            caps[index]=0.
+        return body_budgets(self.motion_radii[rid],v,caps,age,cfg)
+
     def pairs(self, positions, velocities, ages, cfg,partial=False):
         world = self.world(positions,partial=partial)
+        if cfg.get('stopping_reserve_model')==BODY_RESERVE_MODEL:
+            from .stopping_reserve import critical_pair
+            budgets={r:self.body_budget(r,velocities[r],ages[r],cfg) for r in world}
+            return world,[critical_pair(a,b,world,self.radii,self.links,budgets,cfg)
+                for a,b in PAIRS if a in world and b in world]
         budgets = {rid: self.arm_budget(rid, velocities[rid], ages[rid], cfg) for rid in world}
         result = []
         for a, b in PAIRS:

@@ -27,7 +27,7 @@ from trajectory_msgs.msg import JointTrajectory,JointTrajectoryPoint
 from controller_manager_msgs.srv import SwitchController,ListControllers
 from action_msgs.msg import GoalStatus
 
-from .common import ROBOT_IDS,PAIRS,config,all_names,joint_names,load_layout,default_layout_path,dump,simulation_only,guard_signature,standstill_limits,arm_velocity_limit
+from .common import ROBOT_IDS,PAIRS,config,all_names,joint_names,load_layout,default_layout_path,dump,simulation_only,guard_signature,standstill_limits,arm_velocity_limit,joint_timing_duration,BODY_RESERVE_MODEL
 from .supervisor import hold_name
 from .node import MotionNode
 from uwa_cell_control.parallel_scan import collision_signature
@@ -223,8 +223,11 @@ class MotionClient(MotionNode):
     def phase(self,targets,cfg,blocked,stationary=None):
         arms=list(targets);q0={r:np.array([self.positions[j] for j in joint_names(r)]) for r in arms}
         peak=max(np.max(abs(targets[r]-q0[r])) for r in arms)
-        velocity=min(cfg['velocity_limit_rad_s'],*(arm_velocity_limit(cfg,r) for r in arms))
-        duration=max(.2,1.875*peak/velocity,np.sqrt(5.774*peak/cfg['acceleration_limit_rad_s2']))
+        if cfg.get('stopping_reserve_model')==BODY_RESERVE_MODEL:
+            duration=joint_timing_duration(cfg,arms,np.concatenate([targets[r]-q0[r] for r in arms]),minimum=.2)
+        else:
+            velocity=min(cfg.get('command_velocity_limit_rad_s',cfg['velocity_limit_rad_s']),*(arm_velocity_limit(cfg,r) for r in arms))
+            duration=max(.2,1.875*peak/velocity,np.sqrt(5.774*peak/cfg['acceleration_limit_rad_s2']))
         count=max(2,int(np.ceil(duration/.1)));self.handles={};self.pending={}
         for rid in arms:
             if not self.actions[rid].server_is_ready():raise RuntimeError(rid+': action server unavailable')
@@ -312,6 +315,12 @@ def safe_targets(problem,client,desired,active):
     current=np.array([start[j] for j in names]);goal=np.array([desired[j] for j in names])
     peak=np.max(abs(goal-current))
     factor=min(1.,.15/max(peak,1e-12))
+    body_pairs=None
+    if cfg.get('stopping_reserve_model')==BODY_RESERVE_MODEL:
+        _,values=problem.spheres.pairs(start,
+            {r:np.asarray([client.velocities[j] for j in n]) for r,n in problem.names.items()},
+            {r:cfg['state_timeout_s'] for r in problem.names},cfg)
+        body_pairs={frozenset(p['arms']):p for p in values}
     for scale in (1.,.5,.25,.125,.0625,.03125):
         q=current+(goal-current)*factor*scale;candidate=dict(start,**dict(zip(names,q)))
         displacement={}
@@ -323,6 +332,13 @@ def safe_targets(problem,client,desired,active):
             displacement[rid]=float(np.max(problem.spheres.motion_radii[rid]@delta))
         safe=True;unsafe=set()
         for a,b in combinations(ROBOT_IDS,2):
+            if body_pairs is not None and frozenset((a,b)) in body_pairs:
+                # The selected risk pair need not be the geometrically nearest
+                # pair. Its least residual clearance bounds *all* sphere pairs.
+                remaining=body_pairs[frozenset((a,b))]['remaining_clearance_m']-displacement[a]-displacement[b]
+                if remaining<=0 and (a in active or b in active):
+                    safe=False;unsafe.update({a,b}&set(active))
+                continue
             clearance=problem.spheres.nearest(world,a,b)['clearance_m']-displacement[a]-displacement[b]
             threshold=cfg['model_margin_m']
             for pair in client.guard['pairs']:

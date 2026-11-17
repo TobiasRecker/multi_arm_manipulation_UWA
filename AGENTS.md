@@ -1,5 +1,37 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Programmierpipeline mit Demonstrationen und Sprache (2026-11-17)
+
+- Nutzerziel: schnelles einfaches LLM soll mit wiederverwendbaren Bausteinen
+  möglichst zügig ein Aufgabenprogramm erstellen. Optional ein bis zwei
+  erklärte Teleoperations-/Handführungsbeispiele mit Kameras, UR-Posen und
+  Kräften nutzen; vollständiges Training einer Gesamtpolicy ist kein Ziel.
+- Dieses Aufgabenlernen vom bestehenden BC-Vergleich für numerisch optimierte
+  Objektbahnen unterscheiden. Aus wenigen Demos keine allgemein gültigen
+  Toleranzen, Kraftgrenzen oder Steifigkeiten ableiten; Herkunft von Sprache,
+  Messung und technischen Annahmen erhalten. Gemeinsame Objektsteuerung pro
+  tragender Gruppe gilt auch für Demonstration und Retargeting.
+- Architektur/Pilot sind zunächst Empfehlungen der Recherche, keine bestätigte
+  Implementierungs- oder Hardwarefreigabe. Bericht:
+  docs/programming_pipeline_lbd_review_2026-11-17.md.
+
+## OAK-Neukalibrierung und Aufnahmefeedback (2026-11-17)
+
+- Nutzer hinterfragt17.11. einen zusätzlichen17,3cm-Abstand bei bereits großen
+  Kollisionshüllen. Hüllenradius, freier Oberflächenabstand, Modellunsicherheit
+  und dynamische Stoppannahmen getrennt ausweisen. Den profilabhängigen
+  Ingenieurwert nicht als gemessenen festen Mindestabstand darstellen;
+  Hüllengeometrie nicht doppelt zählen.
+
+- Nutzer vermutet eine versetzte OAK und möchte zuerst die aktuelle Sicht/Montage
+  beurteilen, danach vier UR-Aufnahmestellungen und die Fünfkamera-GUI.
+  Alte OAK-Extrinsics nicht als aktuelle Registrierung verwenden. Neue Fahrwege
+  anhand frischer Zustände prüfen, historische Sichtstellungen sind nur Ziele.
+- Aufnahme-GUI: großer dauerhafter RECEIVED/RUNNING/DONE/FAILED-Text, HOLD STILL
+  bis Abschluss aller Prüfungen, Fortschritt je Kamera; vollständige gespeicherte
+  Sätze, verwendbare Sätze und Einzelbilder getrennt zählen. Live-/Pausemeldungen
+  dürfen das letzte Aufnahmeergebnis nicht verdrängen. Englisch und hoher Kontrast.
+
 ## Forschungsziel bewegte Basen und vier URs (2026-11-16)
 
 - Neueste Präzisierung: zunächst ausschließlich **Offlineplanung**, vollständige
@@ -78,6 +110,26 @@
   feste Griffe. Netzstruktur und RL sind offen, keine Trainings-/Hardwareaktion
   beauftragt. Deterministischer Ansatz bleibt Referenz; Policy-Rollouts können
   vollständig offline erfolgen. Greifmatrix allein enthält keine Armgeometrie.
+- Folgeauftrag17.11. zum Lernen: BC ausdrücklich gewählt, zunächst guten Lehrer
+  und aussagekräftige Lernbeispiele entwickeln. Einstieg mit zwei Armen an den
+  gegenüberliegenden kurzen Kartonseiten, Translation und insbesondere
+  Orientierung variieren/optimieren. Langfristiges Montagebild: zwei Arme
+  halten Teil1, ein Arm Teil2, ein Arm Werkzeug; kein gemeinsamer Vierarmgriff
+  als allgemeine Montageannahme. Vorerst Offlineplanung, kein reales Greifen.
+  Starre Kopplung und gemeinsames Retiming gelten pro tragender Gruppe;
+  andere Arme und Objekte bleiben Kollisionsgeometrie. Training folgt erst
+  auf Lehrer-/Beispielprüfung, keine bereits trainierte BC-Policy behaupten.
+- BC-Datengeneration17.11.: Nutzer wünscht mehr Teacher-Beispiele, gleichzeitig
+  mehrachsige Rotation und Translation. Reine3D-Translations-/3D-Rotations-
+  und gemischte6D-Aufgaben untersuchen; getrennte Netze nur als offene Option,
+  nicht als Nutzerentscheidung festhalten. Referenzaufgabenklasse von erlaubten
+  Ausweichfreiheiten trennen. Ganze Aufgabenfamilien vorab inTrain/Validierung/
+  Test aufteilen; nahe Varianten und Nachbarpunkte einerBahn nicht verteilen.
+- BC-Startvielfalt17.11.: Nutzer bemängelt ähnliche Abläufe durch nahezu
+  gleichen Ausgangszustand. Deutlich verschiedene Objektstartlagen und
+  passende Armkonfigurationen einbeziehen, nicht nur Ziel-/Zwischenbahnen
+  variieren. Startpose, IK-Zweig und gewünschte Bewegungsrichtung getrennt
+  auswerten; gleiche/nahe Startfamilien über alle Varianten im selben Split.
 - Offline-Objekttransport17.11.: zuerst unverändertes Idealprofil prüfen;
   bereits ausreichende Bahn nicht allein zur Demonstration verändern. Getrennte
   Zusatzabstandsversuche klar als solche kennzeichnen. Um Kartonmittelpunkt
@@ -959,3 +1011,9 @@
   BenutzerspezifischePAM-/user@1000-/UR-Dienstlimits99/unlimitedbereit,
   laufendeTreibernichtneu gestartet. NachBoot tatsächlicheLimits/Scheduling
   prüfen, keinenLatenz-/BremsnachweisalleinausInstallationableiten.
+
+- Nutzerauftrag17.11.: Reaktions-/Bremstestbevorzugtamright_frontvorbereiten,
+  keineAusführungalleinausdieserVorbereitung. Bestehendensingle-q6Probe
+  wiederverwenden, optionaler500HzOutput-Beobachter; Default20HzdesWächters
+  erhalten. Softwarestopppfad/EmpfangslatenzvonphysischemBremsbeginntrennen.
+  Detailsdocs/right_front_realtime_stop_test.md; Armübergabe/Kalibrierungbeachten.

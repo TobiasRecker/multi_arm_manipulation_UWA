@@ -10,7 +10,7 @@ from scipy.spatial.transform import Rotation
 
 from uwa_cell_control.parallel_scan import collision_signature
 from uwa_cell_gazebo.charuco_views import Chain
-from .common import ROBOT_IDS, PAIRS, all_names, joint_names, dump, model_context,arm_velocity_limit
+from .common import ROBOT_IDS, PAIRS, all_names, joint_names, dump, model_context,arm_velocity_limit,joint_timing_duration,BODY_RESERVE_MODEL
 from .geometry import SphereModel
 
 
@@ -88,6 +88,10 @@ class Problem:
         state=self.state(request,q)
         if not self.collision.check(state)[0]:return False
         if margin:
+            if self.cfg.get('stopping_reserve_model')==BODY_RESERVE_MODEL:
+                _,pairs=self.spheres.pairs(state,{r:np.zeros(len(n)) for r,n in self.names.items()},
+                    {r:self.cfg['state_timeout_s'] for r in self.names},self.cfg)
+                return all(p['remaining_clearance_m']>0 for p in pairs)
             world,bounds=self.spheres.planning_world(state)
             for pair in self.thresholds():
                 a,b=pair['arms']
@@ -259,8 +263,13 @@ class Problem:
         for a,b in zip(reduced,reduced[1:]):
             delta=b-a;peak=float(np.max(abs(delta)))
             if peak<1e-10:continue
-            velocity=min(self.cfg['velocity_limit_rad_s'],*(arm_velocity_limit(self.cfg,r) for r in request['selected']))
-            duration=max(.1,1.875*peak/velocity,np.sqrt(5.774*peak/self.cfg['acceleration_limit_rad_s2']))
+            command=self.cfg.get('command_velocity_limit_rad_s',self.cfg['velocity_limit_rad_s'])
+            if self.cfg.get('stopping_reserve_model')==BODY_RESERVE_MODEL:
+                duration=joint_timing_duration(self.cfg,request['selected'],delta)
+            else:
+                velocity=min(command,*(arm_velocity_limit(self.cfg,r) for r in request['selected']))
+                velocity_duration=1.875*peak/velocity
+                duration=max(.1,velocity_duration,np.sqrt(5.774*peak/self.cfg['acceleration_limit_rad_s2']))
             count=max(2,int(np.ceil(duration/.1)),int(np.ceil(1.875*peak/self.cfg['joint_check_step_rad'])))
             for u in np.linspace(0,1,count+1):
                 if points and u==0:continue

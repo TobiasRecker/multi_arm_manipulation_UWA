@@ -174,7 +174,10 @@ class CollisionGuard(MotionNode):
             label.type=Marker.TEXT_VIEW_FACING; label.pose.orientation.w=1.; label.scale.z=.045
             p=np.mean(pair['centres'],axis=0); label.pose.position=Point(x=float(p[0]),y=float(p[1]),z=float(p[2]+.08))
             label.color.r=label.color.g=label.color.b=label.color.a=1.
-            label.text=f"{pair['clearance_m']*1000:.0f}mm\nSTOP:{pair['threshold_m']*1000:.0f}mm"; markers.append(label)
+            label.text=f"{pair['clearance_m']*1000:.0f}mm\nSTOP:{pair['threshold_m']*1000:.0f}mm"
+            if 'geometric_min_clearance_m' in pair:
+                label.text='CRITICAL\n'+label.text+f"\nNearest:{pair['geometric_min_clearance_m']*1000:.0f}mm"
+            markers.append(label)
         for marker in markers:marker.lifetime.nanosec=350_000_000
         self.markers.publish(MarkerArray(markers=markers))
 

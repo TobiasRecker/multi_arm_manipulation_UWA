@@ -1,0 +1,14 @@
+# Vorbereiteter RT-Stopptest right_front
+
+2026-11-17Nutzerauftrag: vorbereitenamvorderenrechtenUR, keineAusführung.
+Status: lesende500Hz-Prüfung/Modellplanerfolgreich, Werkzeugeerweitertundgeprüft.
+Bestehenderq6Probe, langsamesProfilunverändert. Schutzdienstmonitor-onlynicht
+angefasst.235MotiontestsPASS/BuildPASS; ersteCollectionLoopbacksandboxbedingt
+1FAILerhalten,HostwiederholungallePASS. ErsterPreflightrelativerXacroPfadFAIL,
+zweiterabsolutPASS. KeineRobotaktionen; fremdeQuellenänderungenerhalten.
+
+Bedienung/Annahmen/Grenzendocs/right_front_realtime_stop_test.md. Artefakte
+setup/realtime/right-front-stop-20261117-02/, Logsuwa-right-front-stop-*.
+BeipätererAusführungseparateArbeitsraum-/ArmübergabeundfrischenStartprüfen.
+NochkeinBremsnachweis: Empfangsintervalle2msdevice/max2,788mshostüberca1s,
+keineGrenzqualifikation. Parameter500HzistOutput-only, Guarddefaultweiter20Hz.

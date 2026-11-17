@@ -1,5 +1,9 @@
 # Four-arm hardware collision guard and PTP
 
+The opt-in [body/joint stopping-reserve revision](stopping_reserve.md) separates
+command speed from monitored axis caps and checks all body pairs. Existing
+profiles retain their previous calculation; no live profile was switched.
+
 First real tests were carried out on17November: an observed single-arm
 software halt and simultaneous four-arm motion. Reported speed excesses
 interrupted the four-arm target; arms remain held. See

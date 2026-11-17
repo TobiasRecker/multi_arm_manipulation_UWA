@@ -136,8 +136,11 @@ class Window(QtWidgets.QMainWindow):
         self.count_label = {3: 'THREE', 5: 'FIVE'}.get(len(self.camera_names), str(len(self.camera_names)))
         self.data, self.pixmaps, self.errors, self.changes = {}, {}, {}, {}
         self.busy = self.closing = False
+        self.reports = {}
+        self.capture_directory = None
+        self.previous_sets = set()
         self.setWindowTitle('UWA Camera Capture · ' + rig.board_config['board_id'])
-        self.resize(1470, 820)
+        self.resize(1470, 1020 if len(self.camera_names) > 3 else 900)
         self.setStyleSheet('QMainWindow,QWidget {background:#171c24;color:#ffffff;} '
             'QLabel {font-size:15px;} QPushButton {background:#f0f3f7;color:#111827;'
             'border:3px solid white;border-radius:5px;padding:12px;font-size:18px;font-weight:bold;}'
@@ -155,8 +158,29 @@ class Window(QtWidgets.QMainWindow):
             f"{board['square_length'] * 1000:g} mm squares · Camera controls only")
         title.setStyleSheet('font-size:21px;font-weight:bold;')
         layout.addWidget(title)
+        self.capture_state = QtWidgets.QLabel('CONNECTING · No capture running')
+        self.capture_state.setWordWrap(True)
+        self.capture_state.setStyleSheet('background:#fff;color:#000;font-size:26px;font-weight:bold;padding:10px;border:3px solid #fff;')
+        layout.addWidget(self.capture_state)
+        self.totals = QtWidgets.QLabel()
+        self.totals.setStyleSheet('font-size:20px;font-weight:bold;padding:5px;')
+        layout.addWidget(self.totals)
+        self.progress = QtWidgets.QProgressBar()
+        self.progress.setRange(0, len(self.camera_names) + 1)
+        self.progress.setValue(0)
+        self.progress.setFormat('No capture running')
+        self.progress.setMinimumHeight(30)
+        self.progress.setStyleSheet('QProgressBar {background:#fff;color:#000;border:2px solid white;text-align:center;font-weight:bold;} QProgressBar::chunk {background:#59bfff;}')
+        capture_summary = QtWidgets.QHBoxLayout()
+        capture_summary.addWidget(self.progress, 1)
+        self.last_result = QtWidgets.QLabel('LAST CAPTURE · None in this session')
+        self.last_result.setWordWrap(True)
+        self.last_result.setStyleSheet('background:#fff;color:#000;font-size:17px;font-weight:bold;padding:7px;')
+        capture_summary.addWidget(self.last_result, 2)
+        layout.addLayout(capture_summary)
+        self.update_totals()
         self.overall = QtWidgets.QLabel('WAITING FOR ' + self.count_label + ' CAMERAS')
-        self.overall.setMinimumHeight(48)
+        self.overall.setMinimumHeight(34)
         layout.addWidget(self.overall)
         row = QtWidgets.QGridLayout()
         self.labels, self.states, self.details = {}, {}, {}
@@ -167,6 +191,8 @@ class Window(QtWidgets.QMainWindow):
             column.addWidget(label)
             self.labels[name] = QtWidgets.QLabel('Waiting for camera…')
             self.labels[name].setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            self.labels[name].setSizePolicy(QtWidgets.QSizePolicy.Policy.Ignored,
+                                           QtWidgets.QSizePolicy.Policy.Ignored)
             self.labels[name].setMinimumSize(240, 145 if len(self.camera_names) > 3 else 320)
             self.labels[name].setStyleSheet('background:#000;border:2px solid #cbd5e1;')
             column.addWidget(self.labels[name], 1)
@@ -175,7 +201,7 @@ class Window(QtWidgets.QMainWindow):
             column.addWidget(self.states[name])
             self.details[name] = QtWidgets.QLabel('No image received')
             self.details[name].setWordWrap(True)
-            self.details[name].setMinimumHeight(60 if len(self.camera_names) > 3 else 90)
+            self.details[name].setMinimumHeight(50 if len(self.camera_names) > 3 else 90)
             column.addWidget(self.details[name])
             row.addLayout(column, index // 3, index % 3)
         if len(self.camera_names) > 3:
@@ -189,7 +215,7 @@ class Window(QtWidgets.QMainWindow):
             layout.addLayout(row, 1)
         self.action = QtWidgets.QLabel('CONNECTING · Starting camera previews…')
         self.action.setWordWrap(True)
-        self.action.setMinimumHeight(65)
+        self.action.setMinimumHeight(45)
         self.action.setStyleSheet('background:#fff;color:#111;font-size:19px;font-weight:bold;padding:8px;')
         layout.addWidget(self.action)
         controls = QtWidgets.QHBoxLayout()
@@ -216,7 +242,7 @@ class Window(QtWidgets.QMainWindow):
         layout.addWidget(note)
         self.worker = Worker(rig)
         self.worker.frame.connect(self.on_frame)
-        self.worker.message.connect(self.action.setText)
+        self.worker.message.connect(self.on_message)
         self.worker.camera_error.connect(self.on_error)
         self.worker.result.connect(self.on_result)
         self.worker.finished.connect(self.on_finished)
@@ -226,13 +252,35 @@ class Window(QtWidgets.QMainWindow):
         self.timer.start(250)
 
     def take(self):
+        if self.busy or self.closing:
+            return
         self.busy = True
         self.started = time.monotonic()
+        self.previous_sets = set(self.rig.session.glob('set_*'))
+        self.capture_directory = None
+        self.capture_state.setText('RECEIVED · HOLD STILL · Capture requested')
+        self.capture_state.setStyleSheet('background:#ffe066;color:#000;font-size:26px;font-weight:bold;padding:10px;border:3px solid #fff;')
+        self.progress.setValue(0)
+        self.progress.setFormat('Starting capture · HOLD STILL')
         self.capture.setEnabled(False)
         self.pause.setEnabled(False)
         self.mode.setEnabled(False)
         self.action.setText('RECEIVED · Capture all ' + self.count_label.lower() + ' requested. HOLD STILL.')
         self.worker.commands.put(('capture', self.mode.currentIndex() == 0))
+
+    def on_message(self, text):
+        self.action.setText(text)
+        if text.startswith('FAILED'):
+            self.capture_state.setText(text)
+        elif not self.busy and not self.reports:
+            self.capture_state.setText('READY · No capture running' if text.startswith(('LIVE', 'PAUSED')) else text)
+
+    def update_totals(self):
+        reports = list(self.reports.values())
+        saved = sum(bool(r.get('all_captured')) for r in reports)
+        usable = sum(bool(r.get('all_usable')) and r.get('stationary_set_confirmed') is not False for r in reports)
+        photos = sum(bool(c.get('success')) for r in reports for c in r.get('cameras', {}).values())
+        self.totals.setText(f'THIS SESSION · {saved} complete sets · {usable} usable sets · {photos} saved photos · {len(reports) - usable} sets need review')
 
     def toggle_live(self, checked):
         self.action.setText('RECEIVED · Pausing live view…' if checked else 'RECEIVED · Resuming live view…')
@@ -253,6 +301,8 @@ class Window(QtWidgets.QMainWindow):
 
     def on_result(self, report):
         self.busy = False
+        self.reports[report['directory']] = report
+        self.update_totals()
         self.capture.setEnabled(True)
         self.pause.setEnabled(True)
         self.mode.setEnabled(True)
@@ -269,6 +319,18 @@ class Window(QtWidgets.QMainWindow):
                 for name, r in report['cameras'].items())
             text += ' ' + report.get('error', '')
         self.action.setText(text + '\n' + report['directory'])
+        complete = report['all_captured'] and report.get('stationary_set_confirmed') is not False
+        usable = complete and report.get('all_usable', False)
+        outcome = 'DONE · Usable board views' if usable else 'DONE · Board views need review' if complete else 'FAILED · Review diagnostics'
+        self.last_result.setText(f'LAST CAPTURE · Set {len(self.reports)} · {outcome}')
+        self.last_result.setToolTip(text + '\n' + report['directory'])
+        self.capture_state.setText(('DONE · Capture finished · You may move the board' if usable else
+            'DONE · Board view needs review · You may move the board' if complete else
+            'FAILED / PARTIAL · Capture ended · Review the saved diagnostics'))
+        self.capture_state.setStyleSheet('background:' + ('#8effa2' if usable else '#ffe066' if complete else '#ffb4b4') +
+            ';color:#000;font-size:26px;font-weight:bold;padding:10px;border:3px solid #fff;')
+        self.progress.setValue(len(self.camera_names) + 1)
+        self.progress.setFormat('Capture finished' if complete else 'Capture ended with errors')
         (self.rig.session / 'latest-set.txt').write_text(report['directory'] + '\n')
 
     def refresh(self):
@@ -313,7 +375,29 @@ class Window(QtWidgets.QMainWindow):
         self.overall.setStyleSheet('background:' + ('#8effa2' if ready else '#ffe066') +
             ';color:#000;font-size:19px;font-weight:bold;padding:8px;')
         if self.busy:
-            self.capture.setText(f'CAPTURING · {time.monotonic() - self.started:.0f} s')
+            elapsed = time.monotonic() - self.started
+            self.capture.setText(f'CAPTURING · {elapsed:.0f} s')
+            if self.capture_directory is None:
+                new = set(self.rig.session.glob('set_*')) - self.previous_sets
+                if new:
+                    self.capture_directory = sorted(new)[-1]
+            records = {}
+            if self.capture_directory:
+                for name in self.camera_names:
+                    try:
+                        records[name] = json.loads((self.capture_directory / name / 'record.json').read_text())
+                    except (OSError, ValueError):
+                        pass  # A record may still be in the process of being written.
+            saved = sum(bool(r.get('success')) for r in records.values())
+            failed = sum(not r.get('success', False) for r in records.values())
+            self.progress.setValue(len(records))
+            phase = 'Checking stationarity / resuming preview' if len(records) == len(self.camera_names) else 'Taking photos'
+            self.progress.setFormat(f'{saved}/{len(self.camera_names)} photos saved · {failed} failed · {phase}')
+            self.capture_state.setText(f'RUNNING · HOLD STILL · {elapsed:.0f} s · {saved}/{len(self.camera_names)} photos saved')
+            for name in self.camera_names:
+                record = records.get(name)
+                self.states[name].setText('PHOTO SAVED · Awaiting set checks' if record and record.get('success') else
+                    'PHOTO FAILED · See result' if record else 'CAPTURE PENDING / RUNNING')
         else:
             self.capture.setText('CAPTURE ALL ' + self.count_label)
 
@@ -329,9 +413,13 @@ class Window(QtWidgets.QMainWindow):
             event.accept()
 
     def on_finished(self):
+        self.busy = False
         if self.closing:
             self.close()
         else:
+            self.capture_state.setText('FAILED · Camera worker stopped · Capture unavailable')
+            self.capture_state.setStyleSheet('background:#ffb4b4;color:#000;font-size:26px;font-weight:bold;padding:10px;')
+            self.progress.setFormat('Worker stopped · Review status below')
             self.capture.setEnabled(False)
             self.pause.setEnabled(False)
 
@@ -370,7 +458,7 @@ def main():
     app = QtWidgets.QApplication(sys.argv[:1])
     window = Window(rig)
     available = app.primaryScreen().availableGeometry()
-    window.resize(min(1470, available.width() - 30), min(820, available.height() - 70))
+    window.resize(min(1470, available.width() - 30), min(1020 if len(rig.cameras) > 3 else 900, available.height() - 70))
     window.show()
     return app.exec()
 

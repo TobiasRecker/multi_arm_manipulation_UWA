@@ -24,6 +24,16 @@ time. Hold the board still until **DONE**, including camera startup/restoration.
 Photos are requested concurrently but **not exposure-synchronized**. A moving
 handheld board produces incompatible observations; there is no timing correction.
 
+Since17November the large **RECEIVED / RUNNING / DONE / FAILED** banner remains
+visible above all feeds. During capture it shows elapsed seconds and the number
+of photos saved. Keep holding until the banner explicitly says capture finished:
+all photos saved still leaves stationarity checks and preview recovery pending.
+The session counters distinguish complete saved sets, usable sets, individual
+saved photos and sets needing review. A failed stationarity audit never counts
+as a usable set. **LAST CAPTURE** preserves the outcome when live view resumes;
+hover for full details and the saved directory. Counters cover this window's
+session, not earlier sessions. Five-camera windows use more screen height.
+
 - Default: native wrist2592×1944 MJPEG bursts (three originals, last frame selected),
   plus one native OAK8000×6000 PNG via the existing photo service.
 - Quick mode: wrist640×480 HTTP JPEGs, OAK still8000×6000. Keep modes separate

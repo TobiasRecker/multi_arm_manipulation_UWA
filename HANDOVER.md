@@ -1,5 +1,276 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## BC-Teacher mit verschiedenen Ausgangszuständen, 2026-11-17
+
+- Nutzer bestätigt weitere schwierige Fälle und bemängelt praktisch gleichen
+  Start aller bisherigen Abläufe. Startvielfalt ist ausdrücklich Teil des
+  nächsten Datensatzes, nicht nur Ziel-/Zwischenbahnvariation.
+- Neue Module/CLI teacher_starts.py, generate_diverse_teacher_dataset.py und
+  review_diverse_teacher_dataset.py. Zwölf vorab festgelegte Startfamilien,
+  je zwei Ziele; getrennte Multistart-IK je Arm, anschließend gemeinsame
+  Prüfung aller Kombinationen. Volle Gelenkumdrehungen dedupliziert.
+- Startbank geprüft: neun von zwölf Posen gültig, je2–12gültige Armkombinationen.
+  Auswahl einer gültigen Kombination mit kleinstem Armhüllabstand je Pose.
+  Startausdehnung32×32×14cm, Orientierungsunterschiedbis125°, kleinster
+  Start-Armhüllabstand58,91mm. Noch keine Aussage über alle folgenden Bahnen.
+- Quellen eingefroren im Forschungsordner frozen-source/ wegen paralleler
+  Änderungen am Planungsunterbau. Ursprüngliche Pilotquellen unverändert.
+  Offline-Trajektorienlauf unter setup/research/two-arm-diverse-starts-20261117/
+  run01/ abgeschlossen:13/24gültige Bahnen ausachtStarts,1.300Übergänge.
+  AkzeptierteStartabdeckung32×32×10cm,max34,76cm/125°zwischenStarts;
+  mindestens13,4cmvomaltenAnker. SechsAufgabenohnegültigenStart,fünfReferenz-
+  IK-Fehler. HauptlaufminArmabstand32,22mm, eineReferenzkorrektur.
+- Zusatzdiagnoseencounters01: sechsvorabfixierteZwischenrotationsverstärkungen
+  anzweiStarts, Start-/Endposeunverändert, Eltern-Hashes/Splitsübernommen.
+ 4/6gültig,400Übergänge. ZweiRF/RR-Armabstandsverletzungenkorrigiert:
+ 15,82→21,00mm(max2,05mm/1,17°) und5,64→21,00mm(max4,74mm/3,48°).
+  ReferenzenkeineFCL-Kontaktkollision,20mmHüllabstandsbedingungverletzt.
+  EinKonditionsfehlerundeinIK-Fortsetzungsfehlererhalten. GezielteDiagnose
+  nachSichtung,keinunabhängigerBlindtest. Insgesamt17neueBahnen/1.700Übergänge.
+- Buildund18TestsPASS, beideExportauditsPASS, WiederaufnahmebeiderLäufePASS,
+ 199/73BrowserchecksPASSundScreenshotsgeprüft. Galerienjeweilsviewer.html.
+  StartorientierungzumaltenAnkerundlaufendeÄnderungzumneuenStartgetrennt.
+  NochkeinausgewogenerTrainingskorpus: positiverMisch-Trainanteilimhiesigen
+  Hauptlaufleer, ArmkorrekturdiagnosenerbenTestsplit. WeitereFamiliennötig.
+- Gleiche feste Griffe/Objekt/Basen/parkendeArme. Unabhängige Anfangszustände,
+  kein Nachweis einer Anfahrt oder eines IK-Zweigwechsels bei starrem Griff.
+  Kein Netztraining, keineGeräte-/Dienstaktionen. Anleitung
+  docs/teacher_start_diversity.md, Arbeitsstandwork/teacher-start-diversity.md.
+
+## Programmierpipeline: wenige Demonstrationen plus Sprache, 2026-11-17
+
+- Nutzer möchte bestehende Pipeline für ein schnelles einfaches LLM verfeinern
+  und optional Vormachen per Teleoperation/Handführung mit Bildern, UR-Posen,
+  Kräften und sprachlicher Erklärung nutzen. Keine vollständige Gesamtpolicy.
+- Code-/Dokumentationsreview und Primärliteraturrecherche abgeschlossen:
+  docs/programming_pipeline_lbd_review_2026-11-17.md; Arbeitsnachweis
+  work/programming-pipeline-lbd-review.md. Bestehende parallele Änderungen erhalten.
+- Empfehlung: gemeinsame typisierte Aufgabenbeschreibung für Sprache und Demo,
+  objektrelative Phasen/Bedingungen, danach vorhandene Skills und numerische
+  Prüfung. Bestehender Skillkatalog ist noch kein generischer Interpreter;
+  Kartonfolge derzeit in runtime._run_task. Planner-BC bleibt getrennte Ebene.
+- Vorhandenes pilot02-summary/export-audit gelesen:21/32Bahnen,2100Übergänge,
+  Auditpassed:true; kein neues Training/Prüflauf. Rotations-Testabdeckung fehlt,
+  Bild-/Sprach-/Kraftkonditionierung nicht Teil dieser52D-Planereingabe.
+- Besonders passend ShowTell, Demo2Code, DROC; ergänzend Code as Policies,
+  DINOBot, task-parametrisierte Few-Demo-Skills, Forceful Manipulation und
+  MimicGen. ACE-CaP-0(12.11.2026) als neuer Preprint separat eingeordnet;
+  kein Beleg schneller kleiner Modelle oder genereller Zwei-Demo-Garantie.
+- Offener Bedarf: gemeinsame Aufnahme/Zeitqualität, Quellen-/Framebindung,
+  Phasensegmentierung und harte/weiche Bedingungen, MRS-Rollen/Greifgruppen,
+  beobachtbare Erfolgsbedingungen, reale Kraft-/Kontaktintegration. HQ-Standbilder
+  ersetzen keinen dynamischen Demostream; aktuelle OAK-Neuregistrierung beachten.
+- Pilotempfehlung: vorhandenen Simtrace importieren, dann erklärtes Zweiarm-
+  Versetzen und Übertragung auf zurückgehaltene Objektlagen. Sprache/1Demo/2Demos
+  und kleines/stärkeres Modell bei gleicher Bibliothek vergleichen; Zeit bis
+  validiertem Programm einschließlich Bedienaufwand messen. Empfehlungen noch
+  nicht vom Nutzer als Implementierung beschlossen. Nur Dokumentation ergänzt,
+  keine Geräte-, Dienst-, Fahr- oder Trainingsaktion.
+
+## Zusätzliche 3D-/6D-Teacher-Beispiele für BC, 2026-11-17
+
+- Neuer Nutzerauftrag: mehr Teacherbewegungen mit gleichzeitiger Translation
+  und Rotation um mehrere Achsen. Frage nach getrennten Translations-/Rotations-
+  und Mischnetzen bleibt eine Abwägung, keine festgelegte Netzarchitektur.
+- Empfehlung: gemeinsame6D-Policy; reine3D-Translation, reine3D-Rotation und
+  gemischte6D-Referenzen als getrennte Aufgaben-/Auswertungsklassen. Auch eine
+  reine Drehreferenz kann Positionskorrekturen benötigen. Kein Netz trainiert.
+- Implementiert reproduzierbarer32Aufgaben-Pilot aus16Familien×2Varianten,
+ 8Translations-/8Rotations-/16Mischaufgaben; vorab festgelegte16/8/8Aufgaben
+  inTrain/Validierung/Test, naheVariantenbleibenzusammen. KleineStartposevariation,
+  nichtparalleleZiel-/Auslenkungsrotationsvektoren, alleaktivenAchsenvariiert.
+- Neue CLI `tools/generate_teacher_dataset.py`, Reviewer/Galerie
+  `tools/review_teacher_dataset.py`; Anleitung docs/teacher_dataset_6d.md.
+  NurzeitlichundamExportrastergeprüfteBahnenliefernje100geometrischeBC-Übergänge
+  (Δs=0,01),52D-BeobachtungmitReferenzausblick und6D-Weltposeaktion. Keine
+  LehrerkorrekturimReferenzeingang, keine100Hz-/Geschwindigkeitsaktion.
+- VollständigerOfflinebatch `pilot02` unter
+  `setup/research/two-arm-teacher-dataset-20261117/` abgeschlossen:
+ 21/32gültig (Translation8/8,Rotation5/8,Mischung8/16), zehnReferenzenkorrigiert
+  (neunFCL-Kollisionen,eineAbstandsverletzung),elfReferenz-IK-Fehlererhalten.
+ 2.100BC-Übergänge; akzeptiertTrain12/Validierung5/Test4ganzeBahnen.
+  ReineDrehaufgabenbenötigen9,5–21,1mmTranslationskorrektur, größteMischkorrektur
+ 46,4mm/11,3°. Endposenfest, Zwischenreferenzenweich.
+- Abdeckungnochlückenhaft: reineRotationimpositivenTestsatzleer, gültige
+  Mischtestbahnenbereitsfrei. NeueKorrekturenbetreffenKarton/Umgebung;
+  Referenz-Armhüllabstandmindestens196,4mm, keineengenArm/Arm-Begegnungenim
+  neuenPilot. Früherer−100°Fallbleibtseparat. NochkeinbelastbarerTrainings-
+  oderGeneraliserungsnachweisfürArm/Arm-Kollisionsvermeidung.
+- 48.859Zeitprüfpunkte≤5msund2.121ExportzuständePASS,201,48mmminimaler
+  Armabstand/3,611mmKartonumwelt/107,87mmKartonarm. Exportauditmitunabhängiger
+  Aktions-/Beobachtungsrekonstruktionund20.001AbleitungsprobenjeBahnPASS.
+  Buildund15TestsPASS, Wiederaufnahme32/32erkannt,309BrowserchecksPASS,
+  Screenshotvisuellgeprüft. viewer.html/summary.json/export-audit.json.
+  Höchstens2CPU-Worker/niceness10/BLAS1; keinNetztrainiert.
+- FrüherLauf `pilot01` wegenzuweiterVersionsbindungabgebrochen: parallele
+  Änderungvonunbenutztemhardware_state.py. ZehnpositiveEinzelfällehistorisch
+  erhalten, nichtinpilot02übernommen. NeueBindungauf19tatsächlichrelevante
+  Planungs-/Modellquellen, Quellen-/Szenen-/Meshbindungweiteraktiv.
+- Arbeitsstand work/teacher-dataset-6d.md. KeineGeräte-/ROS-/Dienstaktion;
+  festeBasen/Griffe, hypothetischstarreoffeneGreifer, linkerArmzustandgeparkt.
+  KleinePilotmengekeinGeneraliserungsnachweis; vollständigePolicy-Rollouts,
+  weitereAufgabenfamilienundvariableSzenenbleibenspäter.
+
+## right_front-RT-Stopptest vorbereitet,2026-11-17
+
+- NutzerbeauftragtVorbereitungamvorderenrechtenArm192.168.8.103. KeineBewegung,
+  keinReset/Play/Power/Brake/Greifer-/StopkommandoindieserArbeit.
+- Bestehenderhardware_stop_probe: nurq6max+0,03rad,0,003rad/s/0,006rad/s²,
+  Stoppnach80msbestätigterBewegung/0,5mradVersatz. KeineRückfahrt/Auto-Reset.
+  OptionalerRTDEOutputfrequencyparameter1–500Hz(Default20weiterfürGuard),
+  Probezeitfenstertriggertauchbei500Hz. OfflineauswertungtrenntGeschwindigkeits-
+  abfall/Niedriggeschwindigkeit/nachAnforderungzurückgelegtenWeg/Holdbestätigung.
+- LesendeVorprüfungall4RUNNING/NORMAL/stationär; RFtatsächlich500Hz,
+  Geräteschritt2ms, Empfangslückemax2,788msüberca1s. ModellplanPASS(q6+0,03,
+ 18,75snominal),FCL/Greiferöffnungshüllen/Paarreservevorhanden. Momentaufnahme,
+  vorAusführungIststart/Arbeitsbereich/Übergabefrischprüfen.
+- Artefakte setup/realtime/right-front-stop-20261117-02/{plan.json,preview.html,
+  native-state.json,preparation.json,manifest.json}. ErsterFall01vorNativezugriff
+  amrelativenModellpfadgescheitert,korrigiert. Toolprepare_right_front_stop_test.py
+  ausschließlichlesend; keinService/Action/Controllerwechsel.
+- VorhandenerSchutzdienstbeiPrüfungmonitor-only. Nichtumgestellt; spätere
+  tatsächlicheSchutzfreigabeseparatabstimmen. ParalleleHardware-/OAK-Arbeit
+  erhalten.235MotiontestsHostPASS/BuildPASS; initialSocket-Fakeservertestdurch
+  Sandboxblockiert(234PASS1FAIL),danachkompletterLoopbackfähigerLaufPASS.
+- Bedienung/nochkeineAusführungsfreigabe:docs/right_front_realtime_stop_test.md,
+  work/right-front-realtime-stop.md. KeineRT-Bremsgrenzequalifiziert.
+
+## Kalibrier-Aufnahmestellungen: Reserve geklärt, noch keine Fahrt, 2026-11-17
+
+- Nutzer bestätigt feste OAK und freien Vierarmbereich. Alle4URs danach
+  RUNNING/NORMAL, ros.urpPLAYING/Reverse verbunden; vorhandene Treiber erhalten.
+  Vier CollisionHold-Regler inaktiv provisioniert; Schutzdienst MONITOR ONLY.
+- Frischer kompletter FCL-Start kollisionsfrei, aber freie hintere
+  Hüllenoberflächen nur133,50mm auseinander. Standardprofil verlangt172,90mm:
+ 40mm Modellreserve +30,09mm Takt/Datenalter +100,31mm angenommene1sReaktion
+  +2,51mm angenommene Bremsung. Radien bereits abgezogen, Wert nicht gemessen.
+- Nutzer widerspricht zusätzlicher17,3cmReserve bei großen Hüllen. Herkunft
+  erläutert; keine Hüllengröße als neue Stoppmessung ausgegeben. Zusätzlichen
+  langsamen Trennweg zunächst zurückgestellt, keinerlei Fahrziel gesendet.
+- Offlinealternative mit Kommando0,004/überwacht0,006rad/s erfordert bei sonst
+  gleichen Annahmen119,14mm. Erste Sichtstellung links vorne vollständig geprüft,
+  aber1196,75s; übrige serielle Pläne noch in Berechnung. Nutzer zu sehr langsamer
+  Fahrt versus zuerst konkreterer Reserveberechnung gefragt. Keine solche neue
+  Reserveberechnung oder geänderte physische Stoppqualifikation behaupten.
+- Belege setup/calibration/oak_recalibration_20261117/motion/ und
+  motion-planning-slow.log. Bestehende Kamera-GUI weiter offen/Fokus107.
+
+## OAK nach bestätigter Neumontage geprüft, 2026-11-17
+
+- Nutzer bestätigt neue Montage. Letzter Bildausschnitt passt für weitere
+  Kalibrieraufnahmen: beide Tische/Zentrum sichtbar, unten mehr Rand. Diese
+  Montage vorerst beibehalten; Höhe nicht gemessen. Frühere Empfehlung einer
+  zusätzlichen Abwärtsneigung bezog sich auf den ersten15:10-Ausschnitt.
+- Neue native8K-Prüfungen: Fokus116 im ersten Ausschnitt rechts13/links0Ecken;
+  Autofokus107 im späteren Ausschnitt rechts24/links15; fester100 im ähnlichen
+  späteren Ausschnitt rechts19/links8. Montage und Fokus änderten sich zwischen
+ 116/107, deshalb keinen isolierten Fokusvergleich daraus behaupten.
+- GUI wieder offen mit vorläufig festem107 und datensatzlokalem Aufnahmeprofil.
+  Factory-Intrinsics bei116 sind für107 noch nicht validiert; neue Sitzung
+  kennzeichnet bisherige Registrierung nach Stativbewegung als historisch.
+  Kein globales Profil geändert und keine Kalibrierung aktiviert.
+- Quellen setup/oak4/photos/{20261117-151025-standard-6bc0b63c,
+  20261117-151245-standard-15690ce1,20261117-151413-standard-f8e7dbe9}/;
+  Messübersicht setup/calibration/oak_recalibration_20261117/remounted/.
+- Ursprünglich gewünschte vier Aufnahmestellungen noch ausstehend. Vorher
+  Rückmeldung über feste Montage/freien Bewegungsbereich erfragt, weil Personen
+  im Prüfbild direkt hinter den Tischen stehen; danach frische Hardware-/Wegprüfung.
+  In dieser Sicht-/Fokusprüfung keine UR-Schreibbefehle.
+
+## UR-Echtzeitthreads nach Nutzerstart bestätigt,2026-11-17
+
+- Nutzer hat Treiber gestartet. Alle4UR-Treiberdiensteactive; actual
+  ros2_control_nodePIDs26053(LF)/26312(LR)/26571(RF)/26824(RR).
+- ProTreiberje2ThreadsmitSCHED_FIFO(policy1)/Priorität50 direkt amHost
+  nachgewiesen; tatsächlicheProzesslimitsrtprio99/99,memlockunlimited.
+  Kernelweiter7.0.0-43-realtime,/sys/kernel/realtime=1.99istRechtobergrenze,
+  keineVorgabealleThreadsauf99zusetzen. Reverse-VerbindungenimStartjournalalle4.
+- Ausschließlichlesend,0Robot-/Dienstkommandos. KeineLatenz-/Bremsqualifikation
+  oderÄnderungderWächtergrenzen. VorigerBefund„Treiberinaktiv“istüberholt.
+- Nachweise setup/realtime/postboot-20261117/ur-driver-threads.json und
+  ur-realtime-startup.json; docs/realtime_preparation.mdaktualisiert.
+
+## Zweiarm-Lehrer für Behavioral Cloning: erster Beispielsatz geprüft, 2026-11-17
+
+- Nutzer bestätigt BC und Reihenfolge: zuerst Lehrer und gute Beispiele,
+  anschließend Training. Bewegungen voraussichtlich ähnlich (Nutzerannahme).
+  Neuer Einstieg zwei Arme an kurzen Kartonseiten; insbesondere Orientierung
+  variieren. Montageziel: zwei Arme Teil1, dritter Teil2, vierter Werkzeug.
+- Offlinearbeit: work/two-arm-object-teacher.md. Beide rechten Arme
+  erreichen x_min/x_max des404×342×163mm-Kartons. Andere Arme bleiben im
+  Modell aufrecht/stationär. Korrekturen inXYZ und3DRotation, feste Griffe,
+  gemeinsames12Gelenk-Zeitgesetz; keine Hardware-/Kontaktphysikaktionen.
+- Erste Referenzproben und verworfene Korrekturen zeigen zusätzlich zu
+  Armabständen Objekt/Tisch- und Objekt/Unterarmkollisionen. Diese Abstände
+  sind als eigene Optimierungsbedingungen ergänzt, FCL bleibt Endprüfung.
+- Implementiert `two_arm_teacher.py`, CLI `tools/plan_two_arm_teacher.py`,
+  unabhängiger Verifier und englischer Vorher/Nachher-Viewer. Bestehender
+  ObjectTransport jetzt selektierbare Greifgruppe, DefaultvierArme erhalten.
+  Sechs6D-Splinekontrollen, feste Endpose, Trust-Region/SQP mit deterministischen
+  Hub-/Rotationsinitialisierungen; analytische Paar-/Objektarmgradienten,
+  numerische Objekt/Umgebung-Quadergradienten. Lokaler begrenzter Lehrer.
+- Ergebnis `setup/research/two-arm-object-teacher-20261117/run02/`: drei gültige
+  Beispiele ausvierAufgaben, zwei ursprünglich kollidierende Referenzen korrigiert.
+  FreierZielversatz(10,3,1)cm+35°Yaw unverändert4,863s.−100°Welt-Y-Zwischen-
+  drehung: Armabstand5,17→109,78mm, maxKorrektur50,40mm/26,06°,20,353s;
+  erreicht ungefähr−74°, Zwischenreferenz istweich. +70°Fall: max30,58mm/0,98°,
+ 18,482s. BeideDrehfällekehrenzurStartposezurück, Endposeimmerfest.
+  +100°Yaw ohneTranslation scheitert anRR-IK, keinUnlösbarkeitsbeweis.
+- AkzeptierteInterpolanten974/4072/3698Samples≤5msPASS; Objekt-/Umwelt-/Selbst-
+  FCL, alle6Paare,3mmObjekthüllabstand,20mmArmabstand, starreGriffe und
+  v/a/j0,45/0,4/2geprüft. NumerischerGriffschluss≤1,45e−9m/1,35e−9rad,
+  keinephysischeGenauigkeit. GeparkteArmeunverändert. Referenzfehlererhalten.
+- Build/28Pythonprüfungen, alterVierarm-Verifier,80Browserchecks undvisueller
+  ScreenshotPASS. UnabhängigeFDmaxK/Paar/Objektarmfehler5,51e−11/5,36e−10/
+ 4,01e−10; sechsNächstfeaturewechsel separatprotokolliert, festeFeature-
+  Ableitunggeprüft, keineeindeutigeMinableitungbeiBindungbehauptet.
+ 20.001AbleitungsprobenjeakzeptiertemFall undnegativeObjekt/TischprüfungPASS.
+- Grenzen: hypothetischstarre/offeneGriffe,8cmhöhererInitialzustandkein
+  Pickupnachweis, festeBasen, teilweisenurvisuelleModelldetails, konservative
+  Hüllquader, diskretePrüfung, keineStopp-/Kraft-/Hardwarequalifikation.
+  OptimierungEinzellauf86,4/80,1s, keineLaufzeitstatistik/globaleOptimalität.
+  Noch kein trainiertes Netz und keine allgemeine Lehrerqualifikation.
+  Nächster Schritt: ganzeStart-/Ziel-/Drehfamilien fürDatengeneration definieren
+  undTrain/Test nachFamilientrennen. Anleitung docs/two_arm_object_teacher.md.
+
+## OAK-Pose erneut beurteilt / Fünfkamera-Feedback,2026-11-17
+
+- Nutzer vermutet fremde Stativbewegung und beauftragt zuerst Posebeurteilung,
+  danach4UR-Aufnahmeposen und5Kamera-GUI; deutlichere Aufnahmezustände/Zähler.
+  VorherigeChatvolltexte nicht direkt verfügbar; lokale Übergaben ausgewertet.
+- FrischesStandardfoto14:04,Fokus116,native8000×6000:
+  setup/oak4/photos/20261117-140400-standard-f9d95b9e/. Rechts24/24Ecken,
+  links0/24. Gute zentrale Übersicht, fernesBoard klein/unscharf. Keine aktuelle
+  gemeinsameKalibrieransicht. Empfehlung höher(max2m), steilerzurMittebeiderTische;
+  Fokus zusätzlich prüfen. Alte v3-OAK-Pose bleibt historischevorläufigeReferenz,
+  nichtalsnachBewegunggültigbestätigt; keinProfilüberschrieben/aktiviert.
+- NeueGUI: großer dauerhafter RECEIVED/RUNNING/DONE/FAILED-Banner, HOLD STILL
+  bisBackendabschluss, laufendeFotozahl, getrennteZähler fürvollständige/
+  verwendbareSätze/Einzelbilder/Review, letztesErgebnisbleibtnachLive/Pause.
+  GleichbleibendeBildfeldgrößen verhindernWachstum/VerdrängunguntererFeeds.
+  12gezielteTestsPASS inklusiveLivebild-Layoutregression; diff--checkPASS.
+- EigeneKamera-GUI sichtbar: uwa-oak-recalibration-view-20261117.service,
+  mobile38mmReferenz, alle4Wrists+OAK, keep-camera-settings, RTDE nurlesend.
+  Diagnose/UI-Belege setup/calibration/oak_recalibration_20261117/.
+  EswurdenkeineKalibrierfotosetsoderArmfahrtenausgelöst.
+- ErsteAbfragealle4URsRUNNING/NORMAL, Abschlussabfragelesendalle4POWER_OFF/
+  NORMAL, ros.urpSTOPPED, lokaleTreiber/ReverseLinksfehlen; eigenecommands[]leer.
+  Kameramontage/Rückmeldungnochabzustimmen; danachfrischeZustände,Wegprüfung
+  undbeauftragteAufnahmeposen. KeinealtenAusführungspläneungeprüftwiederverwenden.
+
+## Echtzeitkernel nach Nutzerneustart bestätigt,2026-11-17
+
+- Nutzer meldet Neustart; ausschließlich lesend geprüft, keine Dienst-/Roboter-
+  Aktion. Aktiv7.0.0-43-realtime, /sys/kernel/realtime=1, CONFIG_PREEMPT_RT=y.
+- Tatsächliche aktuelleSitzung undBenutzermanagerPID6118: rtprio99/99,
+  memlockunlimited/unlimited. NeueSystemrechtealsoaktiv,nichtnurzurInstallation
+  vorgemerkt. Boot-IDundNachweise setup/realtime/postboot-20261117/verification.json.
+- Alle4UR-Treiberdiensteinactive/MainPID0, keineControllerthreads. Daher
+  tatsächlicheUR-FIFO-Prioritätennochungeprüft. KeinautomatischerStart allein
+  ausStatusfrage. Echtzeitlatenz-/Bremsmessungweiteroffen.
+- VorigerAbschnitt„NeustartwartetaufNutzer“isthistorischerInstallationsstand;
+  NeustartinzwischenvomNutzerdurchgeführt. Fallkernelweitererhalten.
+
 ## Lernbasierter Objektplaner als Vergleich: Einschätzung, 2026-11-17
 
 - Nutzer nimmt Lernverfahren als Vergleich wieder auf: gewünschter Objektversatz

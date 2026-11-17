@@ -21,3 +21,14 @@ undvierUR-Diensteinstalliert; frischePAM-Sitzunggeprüft. KeinePrioritätaktiver
 Prozessegeändert, keinReboot/Robot-/Dienstrestart. Generic43/42erhalten.
 NutzerkündigtNeustartbereitschaftnoch an. Logs/Backups/Dateimanifest
 setup/realtime/installation-20261117/, detailsdocs/realtime_preparation.md.
+
+## Postboot
+
+2026-11-17Nutzerneustartbestätigt: RT7.0.0-43läuft/realtime=1, tatsächliche
+Sitzungs-/Usermanagerlimits99/unlimited.4UR-Treiberinaktiv, keineThreads;
+Schedulingbeweisdortausstehend. Nurlesendgeprüft, keineStart-/Robotaktion.
+Nachweissetup/realtime/postboot-20261117/verification.json.
+
+NachNutzerstart17.11.all4Treiberactive, je2SCHED_FIFO50Threadsund99/unlimited
+Prozesslimitsdirektgeprüft, Reverseverbindungenbelegt. Nurlesend; keinStart/
+Robotkommando. ur-driver-threads.json/ur-realtime-startup.jsonimPostbootordner.
