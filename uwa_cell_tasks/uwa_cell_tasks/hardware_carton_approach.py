@@ -8,9 +8,18 @@ import hashlib
 import json
 from pathlib import Path
 import xml.etree.ElementTree as ET
+import time
 from types import SimpleNamespace
 
 import numpy as np
+
+
+def wait_service_spinning(client, spin, timeout=3., clock=time.monotonic):
+    """Discovery must not block native/driver callbacks before a hardware RPC."""
+    end=clock()+timeout
+    while not client.service_is_ready():
+        if clock()>=end:raise TimeoutError('Hardware service discovery timed out')
+        spin(timeout_sec=.005)
 
 
 def unloaded_open_status(status):

@@ -34,3 +34,32 @@
   Armcommands[]/Fingercommands[], ursprünglicheVor-Greifstellungenunverändert.
   NativeStoppursachewirdanhandJournalgeprüft, keineSafetyquittierung/keinblindes
   Play/keinGreifbefehl. inspect_real01/result.json bleibtalsnegativerNachweis.
+
+- Journalzuordnung15:46:25: Controller-/Hardware-RPC-Frische0,27–0,38s löst
+  All4nativeSTOPaus; danachWatchdoggelatcht, wiederholteSTOPs. EigeneOpenCV-
+  Lastbegrenzungauf2Threads/BLAS/OMP1alsMitigation, CPUursachenurHypothese.
+  LängererTrace6sbestätigttatsächlichwiederfrische3Peerströme/alle4stationär/
+  keineGuardfaults/alle4Holds. Witnessalleinexplizitzurückgesetzt, Haltungen
+  beibehalten; reguläresPlayaller4danachREADY, keineSafetyquittierung.
+- ZweiterBlickvorcheckohneArmziel: globaleSoftwarelatcheszurückgesetzt,
+  anschließendDriveralignment-SamplelückebeimService-Discovery. Ursache:
+  blockierendeswait_for_serviceverarbeiteteArmcallbacks nicht. ApproachClient
+  nutztjetztservice_is_ready+eigenesSpinning; Frische-/Lipschitz-/Raumgrenzen
+  unverändert,11gezielteTestsPASS. FehlendeFehlerholds nachglobalemResetebenfalls
+  korrigiert: nacherfolgreichemResetbeiAbbruchalle4stoppen, auchnochownedleer.
+  ExistierendeHoldssofortperSupervisorrückgestellt/bestätigt, keineFahrziele.
+- DritterBlicklauf tatsächlichPASS: RF80mmTangentfahrt,2,27snominal0,1rad/s,
+  echteHolds/Latches/Guardruhe/unabhängigeRuhefensterbestätigt. Andere3gehalten,
+  FingerweiterACT0/offen. NativeNahbildRFausneuerStellungläuft(wrist02).
+  UrsprünglichermittigerVorgriffwirdnichtalsaktuellerRF-Stand ausgegeben;
+  aktuelletelemetriegebundeneBlickposeistnachfolgenderPlanstart.
+
+- Wrist02nachRF80mm-Blickfahrt: nativeFotoPASS/qd0. GanzeWandmitteschlecht
+  sichtbar; gewünschterRim-PunktnachkorrekterKamerageometrieamunterenRand,
+  keineFreigabeausExtrapolation. TatsächlicherRandmehrlagigmitZwischenraum,
+  dahervereinfachtes2,5mm-SinglewallmodellnichtalsbelegteIstgeometrieausgeben.
+- ReineOffline-FrustumplanungliefertneuevollständigeWristansicht: RFaußerhalb
+  derkurzenWandbeiObjektx−180mm, y171,16mm, Hochabstand300mm, Greiferum90°
+  gedreht(keineGreiforientierung!). GesamterModellrandundGreifpunktsamt±35mm
+  NormalvarianteninnerhalbBild, mindestens84,5pxRand. DieseBlickzielestellen
+  KEINErealenKlemmstellen dar. VollständigerWeg/FCLnochvorderFahrtprüfen.

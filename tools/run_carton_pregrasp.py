@@ -17,7 +17,7 @@ from std_srvs.srv import Trigger
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO/'uwa_cell_tasks'))
-from uwa_cell_tasks.hardware_carton_approach import checked_problem, unloaded_open_status, unloaded_guard_ready
+from uwa_cell_tasks.hardware_carton_approach import checked_problem, unloaded_open_status, unloaded_guard_ready, wait_service_spinning
 from uwa_cell_motion.common import ROBOT_IDS, joint_names, dump,arm_velocity_limit
 from uwa_cell_motion.execution import motion_context
 from uwa_cell_motion.hardware_execution import HardwareClient
@@ -37,6 +37,13 @@ class ApproachClient(HardwareClient):
         rows=self.observer.snapshot()
         if self.observer.error or not rows or time.monotonic()-rows[-1]['received']>.2:
             raise RuntimeError('Independent native approach trace stale/failed: '+str(self.observer.error))
+    def service(self,kind,name,request):
+        client=self.create_client(kind,name)
+        try:
+            wait_service_spinning(client,self.spin_once)
+            future=client.call_async(request);self.wait(future.done,5.)
+            return future.result()
+        finally:self.destroy_client(client)
 
 
 def main():
@@ -174,7 +181,14 @@ def main():
                 segment['executed'] = True; dump(root/(arm+'-execution.json'), execution); save()
             except BaseException as error:
                 report['error'] = str(error); report['phase'] = 'STOPPED_'+arm
-                if client is not None and client.owned: report['stop_result'] = client.stop(client.owned)
+                import traceback
+                report['error_traceback']=traceback.format_exc()
+                if client is not None:
+                    # A successful global unloaded reset can release all holds
+                    # before this client owns a controller. Restore the group
+                    # holds on any subsequent preflight/activation failure.
+                    stops=set(ROBOT_IDS) if segment.get('reset_response',{}).get('success') else client.owned
+                    if stops:report['stop_result']=client.stop(stops)
                 save(); return 1
             finally:
                 if observer is not None:

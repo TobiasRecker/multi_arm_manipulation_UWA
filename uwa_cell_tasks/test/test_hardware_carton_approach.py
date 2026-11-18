@@ -2,7 +2,7 @@
 import copy
 import numpy as np
 import pytest
-from uwa_cell_tasks.hardware_carton_approach import slow_trajectory, canonical_base, unloaded_open_status, unloaded_guard_ready
+from uwa_cell_tasks.hardware_carton_approach import slow_trajectory, canonical_base, unloaded_open_status, unloaded_guard_ready, wait_service_spinning
 
 
 def test_time_dilation_preserves_geometry_and_does_not_mutate_original():
@@ -45,6 +45,16 @@ def test_clear_guard_has_physical_quiet_without_a_guard_latched_stop():
     assert not unloaded_guard_ready(guard)
     guard['stationary_arms'].append('right_rear');guard['faults']=['stale']
     assert not unloaded_guard_ready(guard)
+
+
+def test_service_discovery_processes_telemetry_instead_of_blocking():
+    from types import SimpleNamespace
+    ticks=[]
+    client=SimpleNamespace(service_is_ready=lambda:len(ticks)>=4)
+    wait_service_spinning(client,lambda **kw:ticks.append(kw),clock=lambda:len(ticks)*.005)
+    assert len(ticks)==4
+    with pytest.raises(TimeoutError):
+        wait_service_spinning(SimpleNamespace(service_is_ready=lambda:False),lambda **kw:ticks.append(kw),timeout=.01,clock=lambda:len(ticks)*.005)
 
 
 def test_supplemental_object_does_not_hide_a_changed_robot_link():

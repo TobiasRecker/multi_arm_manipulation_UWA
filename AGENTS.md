@@ -1,5 +1,12 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Zweite Übersichtskamera links (2026-11-18)
+
+- Nutzer wünscht die USB-OAK am N100 hoch gegenüber der Ethernet-OAK4;
+  Befestigung am linken Tisch ohne Tischbohrungen. Standardentwurf und
+  Druckteile unter `hardware/oak_d_pro_left/`. Kamera und Mast bei der
+  späteren Modellierung an den linken Tisch binden.
+
 ## Hinteres Armpaar als Offline-Lehrer (2026-11-17)
 
 - Nutzer schlägt left_rear/right_rear statt der rechten beiden Arme vor,

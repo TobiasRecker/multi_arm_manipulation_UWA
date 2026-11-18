@@ -1,5 +1,22 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Linke USB-Übersichtskamera und Klemmmast, 2026-11-18
+
+- Nutzerauftrag: zweite Luxonis-Kamera auf der linken Tischseite hoch
+  montieren, bohrungsfrei; verlinktes Ø10 × 1 mm Alurohr als Idee, andere
+  Geometrien offen. N100-SDK-Artefakt bestätigt OAK-D Pro AF (RVC2),
+  Geräte-ID 18443010314F3B1300, RGB-Sensor meldet Autofokus.
+- Vorentwurf unter [hardware/oak_d_pro_left](hardware/oak_d_pro_left/README.md).
+  Technischer Vorschlag: 40 × 40 × 1,6 mm Stahlmast, ausgesteifte
+  Stahlfußplatte mit zwei Schraubklemmen, kompakter Metall-Neigekopf.
+  Vorläufige Optikhöhe 1,85–2,0 m. Vergleichsrechnung für beide Rohre und
+  STL-Dateien für Rückseiten-Lochschablone und USB-Kabelsattel abgelegt.
+  Beide STL-Meshes sind geschlossen und konsistent orientiert.
+- Plattenstärke, freier Untergriff, Zarge und endgültige Kameraposition
+  müssen vor Festlegung der Fußmaße gemessen werden. Montage, reale
+  Steifigkeits-/Sichtprüfung, Kollisionsgeometrie und Tischregistrierung
+  stehen aus. Keine Robotik- oder Kameradienste angesprochen.
+
 ## Schritt 4: variierte Lehrerbahnen für die hinteren Arme, 2026-11-18
 
 - Fünf modellgeprüfte Starts auf zwei archivierten Startankern, 40 Referenzen.
