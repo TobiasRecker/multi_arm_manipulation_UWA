@@ -15,6 +15,14 @@ hardware at the retained0.1rad/s command limit, with open grippers and confirmed
 final holds. No grasp or lift was attempted. See the
 [current evidence and photo](work/carton-pregrasp-20261118.md).
 
+The subsequent wrist inspection found inconsistent image/pose evidence. The
+user reports the carton stayed stationary; physical carton movement has not
+been established. Fingers remain open and right front is held in an inspection
+pose. Current high targets were recalculated and model-checked; execution
+was rejected before any goal because the protection service lost fresh manager
+status. See the
+[current physical state and wrist evidence](work/carton-contact-grasp-20261118.md).
+
 Open **UWA Robot Power** from the application menu for all four arms.
 **Standby** stops ROS on the robots and switches off the drives; **Start + ROS**
 prepares them again. The control boxes stay online. See the

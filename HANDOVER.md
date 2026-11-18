@@ -1,5 +1,41 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Kartongriff: Wrist-Abgleich und aktuelle Neuberechnung, 2026-11-18
+
+- Nutzer beauftragt Greifen und fragt nach Wrist-Zentrierung. Vorherige
+  Vor-Greifpose war OAK/FK-geprüft, nicht bereits durch Wristkameras zentriert.
+  Jetzt native Bilder beider rechten Kameras und zusätzliche RF-Blickfahrten
+  bei unverändert0,1rad/s ausgeführt; keine Fingerbefehle/kein Kontakt/kein Hub.
+- Wrist-Abgleich verworfen: Bilder und berechnete Kamerabewegung passen nicht
+  ausreichend zusammen. Die erste Zuordnung zu einer Kartonbewegung war zu
+  voreilig. Nutzer bestätigt anschließend: zwischen den Wristaufnahmen blieb
+  der Karton stehen. Die109mm/7,71° sind eine Differenz zweier Objektschätzungen,
+  kein nachgewiesener physischer Versatz. Ursache des früheren Paars offen.
+  Basisbindungen bleiben unverändert fest übernommen; alte Greifziele nicht
+  ohne erneuten Abgleich weiterverwenden.
+- Aktuell RF außerhalb in gedrehter Inspektionspose, RR am alten Vorgriff;
+  beide nicht als aktuell mittig bestätigt ausgeben. Alle4 Arme gehalten
+  und stationär bestätigt, Guard CLEAR/keine Faults, Watchdog nicht getrippt;
+  rechte Finger inaktiv/offen ACT0/POS3/PRE0. RR-Programm STOPPED nach bestehendem
+  Stillstandswächter16:28; keine automatische Wiederaufnahme am Ende.
+- Kein mittiger Griff bestätigt, Greifen nicht versucht. Aktueller Index
+  `setup/tasks/carton_grasp_20261118_scene03/result.json`, neue reine
+  Objektbeobachtung ebenfalls in scene03. Details und
+  Callback-/Fehlerhold-Korrekturen: [Arbeitsstand](work/carton-contact-grasp-20261118.md).
+  Fortsetzung braucht einen unveränderten Szenenstand, neue Zielbindung und
+  offenen Einfahrkorridor; nach Kontakt keine unabhängigen Armbewegungen.
+- Neuberechnung nach Nutzerkorrektur: OAK16:50:12/Fokus107,27Inlier/3,051px;
+  gegenüber16:40-Schätzung0,506mm/0,438° Differenz. Wrist bei identischer Pose
+  wiederholt:1277Bildmatches,95%-Bildverschiebung0,985px. Interne Wiederholbarkeit,
+  keine absolute Genauigkeitsfreigabe. Neue Kontur visuell zum Wrist passend.
+- Beide150mm-Vor-Greifziele neu berechnet, aktuelle Istpose gültig, vollständige
+  Geometrieprüfung und Offline-Replay PASS bei unverändert0,1rad/s. Vor jedem
+  neuen Fahrziel jedoch Abbruch: vorhandener Schutzdienst stoppt16:57:12 wegen
+  Hardware-/Manager-Statusalter0,26–0,32s. Keine Arm-/Fingerziele und kein Reset
+  gesendet. Reguläres RR-Play unmittelbar zuvor erfolgte unter geprüften Holds;
+  danach keine erneuten Startschleifen. Frische-/Stoppgrenzen unverändert.
+  `carton_grasp_20261118_recalc_plan01`, `recalc_checked01`, `recalc_real01`.
+
 ## Linke USB-Übersichtskamera und Klemmmast, 2026-11-18
 
 - Nutzerauftrag: zweite Luxonis-Kamera auf der linken Tischseite hoch
@@ -332,6 +368,22 @@
   LFfährttatsächlichmitWächterCLEAR/keinenFaults; andere3stationär.
   EigenesExecuwa-capture-motion-20261118-01; nachAbschlussweiterLR→RR→RF,
   keineerneuteidentischeallgemeineFreigabeabfrage.
+
+## Neuplanung des Gazebo-Drei-Kreis-Ablaufs, 2026-11-18
+
+- Folgeauftrag: alternative Trajektorie für die Gazebo-Kontaktgeometrie
+  berechnen. Boxbewegung und Kreisziele beibehalten. Rechts vorne vor
+  Greifschluss anderer IK-Zweig, rechts hinten ursprünglicher Zweig.
+- Offline bestanden: Anfahrt und Greifeinfahrt separat, 17 gemeinsame
+  Phasen ab Hub bis Absetzen, 39.303 Zustände ≤20 ms, alle sechs
+  Armpaare, FCL, Griffzwang und virtueller Stift. Kleinster
+  Hüllenabstand 47,35 mm, 785,56 s Modellzeit Hub bis Absetzen.
+- Vorschau und Bahn unter
+  `setup/tasks/box_drawing_gazebo_replan_20261118_01/`. Kontakttransform
+  aus Bild vor Kontakt und Werkzeugposen am Vier-Pad-Stopp abgeleitet.
+  Ausführung in Gazebo offen. Frischen Griff binden und Zeichenarm mit
+  gemeinsamer Sollzeit, Stoppbindung und 0,1 rad/s einbinden. Der aktuelle
+  Kontakt-Runner behandelt ihn als unselektierten Arm (0,05 rad/s).
 
 ## Gazebo-Übertragung des Drei-Kreis-Piloten, 2026-11-18
 

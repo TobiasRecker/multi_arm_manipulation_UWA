@@ -124,6 +124,21 @@ user-adopted base bindings. Both final holds, guard quiet and independent quiet
 windows passed. See work/carton-pregrasp-20261118.md and the source-bound
 setup/tasks/carton_pregrasp_20261118_completed/result.json. All arms remain held,
 grippers open/inactive; no finger commands or contact/lift were attempted.
+Later18November wrist inspection superseded that current-pose statement:
+right front is held in a turned outside inspection pose, while right rear
+remains at the old pregrasp. User reports the carton stayed stationary between
+wrist captures. The109mm/7.71deg difference between object estimates is not
+established physical motion; its cause is unresolved. Old grasp targets require
+fresh validation and the wrist stereo pair was rejected. No wrist-centering approval or finger command was
+issued. Read work/carton-contact-grasp-20261118.md and
+setup/tasks/carton_grasp_20261118_current_check/grasp-status.json before any
+continuation. Reobserve a stationary scene and rebuild targets; do not replay
+the historical pregrasp result as the current two-arm configuration.
+Latest recalculation: setup/tasks/carton_grasp_20261118_scene03/result.json.
+Both new150mm high targets and offline replay pass, but real preflight was
+rejected before any arm/finger goal after existing manager/hardware verification
+freshness limits triggered native STOP. Targets have NOT been reached. Preserve
+freshness/stop thresholds; no blind reset/play loop or inferred centering approval.
 Keep the current0.1rad/s command limit, without an extra time dilation. Use the
 fresh per-base camera transforms rather than substituting nominal world mounts;
 check the conservative union of carton representations in the model. Do not
