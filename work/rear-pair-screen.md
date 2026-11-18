@@ -48,6 +48,13 @@
 
 ## Fortsetzung zu einer eigenen Zielpose, 2026-11-18
 
-- In Arbeit. Nutzer fragt nach dem Ziel nach der Ausweichbewegung. Archivierter
-  Viewer und Pose bei 100 % geprüft. Ausgangsfall kehrt zur Startpose zurück.
-  Gezielte Offlineprobe mit eigenem Ziel und freiem Wegstück nach dem Konflikt.
+- Abgeschlossen. Der archivierte Viewer startet mitten in der Bewegung, bei
+  100 % kehren beide Varianten exakt zur Startpose zurück. Neuer Fall unter
+  `goal-continuation/` mit eigenem Ziel (8 cm seitlich, 1 cm höher, +10° um
+  Welt-Z). Drei Vorschläge mit ungültigem Ende bleiben in `screening.json`.
+- Referenz hat 20 von 61 FCL-Kollisionspunkten, Korrektur null bei 1.201
+  Wegpunkten und 20,92 mm Mindestarmabstand. Gemeinsame Zielpose am Ende
+  eines weiteren Wegstücks jenseits des ursprünglichen Konfliktbereichs.
+- `checked/viewer.html` startet bei 0 % und bietet Ziel- und Kontaktsprung.
+  Neun Browserprüfungen bestanden. Reproduktion über `--task task.json
+  --candidate optimize.json` mit dem vorhandenen Lehrerwerkzeug.

@@ -27,6 +27,12 @@ def unloaded_open_status(status):
     return ((r.get('ACT'),r.get('STA'),r.get('OBJ')) in ((0,0,0),(1,3,3)))
 
 
+def unloaded_guard_ready(guard):
+    """Freshness is checked by the client; physical quiet is per-arm evidence."""
+    return (set(guard.get('stationary_arms',[]))==
+            {'left_front','left_rear','right_front','right_rear'} and not guard.get('faults'))
+
+
 def slow_trajectory(trajectory, monitored_velocity, command_velocity):
     """Uniform time dilation, preserving geometry and monitored stop budgets."""
     if not (np.isfinite([monitored_velocity, command_velocity]).all() and

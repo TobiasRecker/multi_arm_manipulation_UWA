@@ -17,7 +17,7 @@ from std_srvs.srv import Trigger
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO/'uwa_cell_tasks'))
-from uwa_cell_tasks.hardware_carton_approach import checked_problem, unloaded_open_status
+from uwa_cell_tasks.hardware_carton_approach import checked_problem, unloaded_open_status, unloaded_guard_ready
 from uwa_cell_motion.common import ROBOT_IDS, joint_names, dump,arm_velocity_limit
 from uwa_cell_motion.execution import motion_context
 from uwa_cell_motion.hardware_execution import HardwareClient
@@ -130,7 +130,11 @@ def main():
                 client.health()
                 if any(abs(client.positions[j]-segment['request']['start'][j])>.0005 for n in problem.names.values() for j in n):
                     raise ValueError('Actual start changed; replan, no automatic reposition')
-                if not client.guard.get('standstill_confirmed') or client.guard.get('faults'):
+                # standstill_confirmed describes a *guard-latched* stop; it is
+                # deliberately false in CLEAR even when all arms are quiet.
+                # Reset eligibility needs fresh per-arm physical evidence.
+                segment['stationary_arms_before_reset']=client.guard.get('stationary_arms',[])
+                if not unloaded_guard_ready(client.guard):
                     raise ValueError('Stationary clear guard required before explicit unloaded reset')
                 # Preserve all old causes in the report; reset is a separate
                 # explicit operation, never failure recovery or loaded resume.
@@ -147,14 +151,13 @@ def main():
                 request = problem.normalize(dict(start=baseline, goals=segment['request']['goals']))
                 # Revalidate the measured tiny start correction at unchanged
                 # monitored reserves; timing uses the smaller command bound.
-                trajectory = problem.time_parameterize(request, [[baseline[j] for j in joint_names(arm)], request['target']])
-                # Geometry work is blocking. Before owning a motion controller,
-                # consume fresh native/guard samples without changing limits.
-                client.refresh_after_validation()
-                plan = dict(request=request, trajectory=trajectory)
+                # follow() rechecks and times the measured-start path, then
+                # refreshes telemetry before activation. Do that work once.
+                plan = dict(request=request, trajectory=dict(waypoints=
+                    [[baseline[j] for j in joint_names(arm)]]+segment['geometric_path'][1:]))
                 execution = dict(stage='UNLOADED_PREGRASP_'+arm, record_path=str(root/(arm+'-execution.json')),
                                  phase_count=0, guard_stops=0)
-                segment['nominal_duration_s'] = trajectory['duration_s']; report['phase'] = 'APPROACH_'+arm; save()
+                report['phase'] = 'APPROACH_'+arm; save()
                 report['arm_commands'].append(dict(arm=arm, goal=request['goals'][arm], requested_monotonic_s=time.monotonic())); save()
                 follow(problem, client, plan, execution)
                 segment['execution'] = execution

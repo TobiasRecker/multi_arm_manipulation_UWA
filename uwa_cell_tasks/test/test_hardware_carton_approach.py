@@ -2,7 +2,7 @@
 import copy
 import numpy as np
 import pytest
-from uwa_cell_tasks.hardware_carton_approach import slow_trajectory, canonical_base, unloaded_open_status
+from uwa_cell_tasks.hardware_carton_approach import slow_trajectory, canonical_base, unloaded_open_status, unloaded_guard_ready
 
 
 def test_time_dilation_preserves_geometry_and_does_not_mutate_original():
@@ -36,6 +36,15 @@ def test_inactive_open_gripper_does_not_require_an_activation_stroke():
         assert not unloaded_open_status(changed)
     status['busy']=True
     assert not unloaded_open_status(status)
+
+
+def test_clear_guard_has_physical_quiet_without_a_guard_latched_stop():
+    guard=dict(standstill_confirmed=False,stationary_arms=['left_front','left_rear','right_front','right_rear'],faults=[])
+    assert unloaded_guard_ready(guard)
+    guard['stationary_arms'].pop()
+    assert not unloaded_guard_ready(guard)
+    guard['stationary_arms'].append('right_rear');guard['faults']=['stale']
+    assert not unloaded_guard_ready(guard)
 
 
 def test_supplemental_object_does_not_hide_a_changed_robot_link():

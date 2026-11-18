@@ -16,6 +16,11 @@
   in Position und Orientierung korrigieren. Gemeinsame Kartonbahn, feste
   Greiftransformationen, Start und Ziel bilden den Vergleichsrahmen. Die
   zeitparametrierte Trajektorienprüfung ist der nächste Schritt.
+- Für aussagekräftigere zielgerichtete Beispiele nach Nutzeranregung vom
+  18.11. gültige, voneinander verschiedene Start- und Zielposen wählen. Die
+  kollidierende Referenz und der Ausweichweg haben dasselbe feste Ziel. Nach
+  der Konfliktregion muss noch ein Wegstück bis dorthin folgen. Viewer bei
+  solchen Beispielen am Start öffnen und die Zielpose direkt anwählbar machen.
 
 ## Programmierpipeline mit Demonstrationen und Sprache (2026-11-17)
 

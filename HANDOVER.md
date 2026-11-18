@@ -1,5 +1,25 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Hinteres Armpaar mit Ziel hinter der Konfliktregion, 2026-11-18
+
+- Nutzer fragt nach der scheinbar anderen Endpose. Archivierter Viewer öffnete
+  bei 50 %, während der Korrektur. Bei 100 % stimmen beide Kartonposen exakt
+  überein. Der ursprüngliche Fall hat dieselbe Start- und Zielpose.
+- Neuer Offlinefall mit 8 cm Versatz in Welt-X, 1 cm Hub und +10° um Welt-Z
+  als eigenem Endziel. Start und Ziel im Modell geprüft. Drei vorwärts
+  versetzte Vorschläge hatten ungültige Enden und sind in `screening.json`
+  erhalten. Die Seitenvariante kollidiert nominal an 20 von 61 Wegpunkten
+  zwischen 35 und 66,7 %. Danach verbleiben rund 6,5 cm Kartonweg der Korrektur.
+- Bestehender Lehrer mit vorheriger Korrektur als Startwert. 1.201 korrigierte
+  Wegpunkte ohne FCL-Kollision, minimal 20,92 mm Armhüllabstand und 3,58 mm
+  Karton/Umgebung-Trennung nach Boxmodell. Identische Zielpose und gleicher
+  Endzweig der Gelenke im Vergleich zur Referenz (max. 4,16e-10 rad Differenz).
+- `setup/research/rear-pair-screen-20261117/goal-continuation/checked/` enthält
+  Resultat, Vergleichsviewer, Zielbild und neun erfolgreiche Browserprüfungen.
+  Öffnet bei 0 %, `Show goal` zeigt 100 %, `Jump to contact` den Referenzkonflikt.
+  `tools/plan_rear_pair_teacher.py --task` lädt Ziele im bestehenden Aufgabenformat.
+  Zeitparametrierte Prüfung ist weiterhin Schritt 3.
+
 ## Hinteres Armpaar mit korrigierter Kartonbahn, 2026-11-18
 
 - Schritt 2 abgeschlossen. Der bestehende `TwoArmTeacher` optimierte dieselbe
@@ -32,7 +52,7 @@
 - Nachweise im selben Ordner. `preview-check.json`, 17 native Kontaktlogs,
   `contact.png` und zehn erfolgreiche Browserprüfungen einschließlich der
   bestehenden Lehreransicht. Die Anzeige läuft als Offline-Referenz über
-  Wegfortschritt ist der archivierte Ausgangspunkt für Schritt 2 oben.
+  Wegfortschritt und liefert den archivierten Ausgangspunkt für Schritt 2 oben.
 
 ## Basisanbindungen fest übernommen, 2026-11-18
 
