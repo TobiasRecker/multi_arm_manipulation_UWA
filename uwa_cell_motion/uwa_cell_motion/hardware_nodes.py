@@ -123,7 +123,8 @@ class HardwareGuard(MotionNode):
             source_time_s=now,stop_adapter_available=available,state_ages_s={r:now-v['received'] for r,v in self.records.items()},
             stationary_arms=[r for r in ROBOT_IDS if self.core.fresh(r,now,now) and self.core.stationary(r,now)],
             stationarity_evidence={r:self.core.stationarity_evidence(r,now) for r in ROBOT_IDS},
-            runtime_label=self.mode.upper()+('\nSTOP-GUARD-ARMED' if self.armed else '\nMONITOR-ONLY')+'\nStop-reserve:UNMEASURED\nTool:opening-envelope',
+            runtime_label=self.mode.upper()+('\nSTOP-GUARD-ARMED' if self.armed else '\nMONITOR-ONLY')+
+                ('\nStop-reserve:OFF (GEOMETRIC ONLY)' if self.cfg.get('stopping_reserve_policy')=='geometric_only' else '\nStop-reserve:UNMEASURED')+'\nTool:opening-envelope',
             model_uncertainty='World/table anchors provisional; hardware stop reserve unmeasured; gripper opening unobserved')
         self.publisher.publish(String(data=json.dumps(status,allow_nan=False)))
         state=packet(self.hardware_signature,self.armed,self.instance,self.sequence,records=self.records,model_state=self.positions,

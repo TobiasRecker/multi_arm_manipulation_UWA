@@ -1,5 +1,68 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Dauerhafte Geschwindigkeitsvorgabe, 2026-11-18
+
+- Nach der erfolgreichen Umstellung auf0,1rad/s verlangt der Nutzer ausdrücklich,
+  diese Entscheidung dauerhaft festzuhalten: **keine weiteren Reduktionen der
+  Geschwindigkeit ohne seine ausdrückliche Aufforderung**.
+- Vorgabe in Workspace- und Projekt-AGENTS.md hinterlegt. Keine stillen
+  Rückfälle auf alte Langsamprofile, niedrigere Kommandogrenzen oder gezielte
+  Zeitstreckung. Bei einem Konflikt mit bestehenden Bedingungen konkret melden,
+  statt eigenmächtig langsamer zu fahren. Sicherheitsstopps bleiben bestehen;
+  keine höhere Geschwindigkeitsfreigabe erfunden.
+- In diesem Arbeitsgang ausschließlich Dokumentation geändert; aktuelles
+  Aufnahmeprofil mit0,1rad/s unverändert.
+
+## Bedienerwunsch: dynamische Reserve aus, 0,1rad/s, 2026-11-18
+
+- WährendOAK-AnfahrtfordertNutzerausdrücklichEntfernungdeszusätzlichen
+  Stoppschutzesund0,1rad/s. AlterLR-Laufgezieltangehalten, Holds/Stillstand
+  bestätigtundalterExecbeendet; LFistbereitsamAufnahmeziel, LRteilweise.
+- Opt-in`stopping_reserve_policy: geometric_only`implementiert: zusätzliche
+  dynamischeDistanzbudgets0, PaarleasebestehendeHeartbeatfrist. Modell/FCL/
+ 40mmgeometrischerPuffer, Daten-/Heartbeat-/Speedprüfung,Holds,nativeUR-
+  Sicherheitbleiben. Policy/hashgebunden; DefaultandererProfileenforce.
+ 33gezielteTestsPASS. Nativensicherheitsstoppsnichtquittiert.
+- Aufnahmeprofilalle24GelenkeKommando/Monitor0,1rad/s,amax0,2; vorhandene5%-
+  Monitortoleranzbleibt. KeinequalifizierteBremswegabsicherungindiesemModus.
+  NeuenModusnachbestätigtemHaltaktiviert; StatusOFF(GEOMETRICONLY)/CLEAR.
+  LR/RR/RF damit erfolgreich, kein Wächterstopp. Zusammen mit LF sind alle4
+  Aufnahmeziele erreicht; gemeinsame native Endabweichung maximal0,000295rad
+  (0,0169°) beim letzten Fahrtende. Nominelle Restdauern25,55/56,80/29,53s.
+  Fünfkamera-GUI geöffnet, alle5Livefeeds frisch/fehlerfrei; keine Fotos/Fit/
+  Profilübernahme. Spätere Abfrage alle4POWER_OFF/STOPPED/NORMAL, Ursache/
+  Akteur unbekannt. Eigene Folge enthält kein Power-off, kein automatisches
+  Wiedereinschalten. PowerOff-qd teils stale und kleine Posenänderungen;
+  nicht als aktuellen ROSReady-/Ruhebeleg ausgeben. Quelle
+  setup/calibration/oak_capture_proposal_20261118/geometric-only/.
+
+## OAK-Anfahrt: schneller Vorschlag zur Bedienerbewertung, 2026-11-18
+
+- Nutzer möchte wenige Prüfungen und zuerst einen plausiblen Pfad inRViz/
+  Animationbewerten. EinmaligengeometrischenVorschlagumgesetzt, keineganze
+  Test-/BenchmarkfolgevorerneuterVorschau. RealeAusführungweiterseparat.
+- Aktuelllesendalle4POWER_OFF/NORMAL/STOPPED mitq=0. Daherletztenvaliden
+  Messstart17.11.verwendet, imFensterexplizithistorischmarkiert. Keine
+  aktuelleArmstellungausNulltelemetrieabgeleitet, keineAntriebsaktion.
+- VorschlagLF→LR→RR→RF, direkteGelenksegmentezuAufnahmestellungenmitkürzester
+  erlaubter2π-Entsprechung. EineFCL-/statischeHüllenprüfung266Stützstellen
+  ≤0,035rad/alle6Paare/40mm, vollständigeÖffnungshüllen. Berechnung2,122s.
+  NominaleVorschlagszeit170,09sbei0,1rad/s/0,2rad/s², keineRealprofilfreigabe.
+- EigenesRVizundenglischesPlay/Pause/Zeitschieber/Endposenfenster,
+  Domain74/LOCALHOST, nurVorschau-JointStates/TF/Marker.
+  Dienstuwa-capture-proposal-20261118, Quelletools/preview_capture_approach.py,
+  Daten setup/calibration/oak_capture_proposal_20261118/.
+  Boardressourcenuntereigenemmodel/-Verzeichnispersistentgehalten.
+  NutzerbeauftragtanschließendAusführung. Alle4nochPOWER_OFF/NORMAL,
+  Treiber/Schutzinaktiv; gebündeltePower/Brake/ROS-/Profilfreigabeinkl
+  LFq6=.1am18.11.ausdrücklicherhalten, Bereichfrei bestätigt.
+  PendantbestätigunganLR/RF/RRvomBedienererhalten; danachalle4ROSReady.
+  FrischerStartmax0,358°vomVorschlagentfernt. LF-Direktwegfrischgeprüft,
+  q6=.1-Profilaktiviert, aktuellerStillstands-/HoldnachweisundResetPASS.
+  LFfährttatsächlichmitWächterCLEAR/keinenFaults; andere3stationär.
+  EigenesExecuwa-capture-motion-20261118-01; nachAbschlussweiterLR→RR→RF,
+  keineerneuteidentischeallgemeineFreigabeabfrage.
+
 ## Erster Feedbackzyklus: Boxzeichnung koordinieren, 2026-11-17
 
 - Nutzer hinterfragt Umkonfiguration des Arbeitsarms vor Unterseitenkreis;

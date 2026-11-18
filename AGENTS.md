@@ -48,7 +48,37 @@
   docs/programming_pipeline_lbd_review_2026-11-17.md.
   Präzisierter Entwurf: docs/interactive_code_policy_learning.md.
 
+## Geschwindigkeiten: dauerhafte Nutzervorgabe (2026-11-18)
+
+- **Keine weitere Geschwindigkeitsreduktion ohne ausdrückliche Aufforderung
+  des Nutzers.** Die zuletzt vereinbarte Geschwindigkeitsgrenze beibehalten;
+  aktueller Stand für die UWA-Arme:0,1rad/s.
+- Keine eigenmächtigen niedrigeren Kommandogrenzen, langsameren Ersatzprofile,
+  zusätzlichen Reserven mit Temposenkung oder gezielte Zeitstreckung. Frühere
+  Langsamprofile sind kein Anlass, die aktuelle Nutzerentscheidung zu übergehen.
+- Ist ein angeforderter Ablauf unter den bestehenden Bedingungen nicht
+  ausführbar, den konkreten Konflikt melden, statt unbemerkt langsamer zu fahren.
+  Native Sicherheitsstopps und die geometrische Kollisionsüberwachung bleiben
+  bestehen. Keine pauschale Freigabe über0,1rad/s daraus ableiten.
+
 ## OAK-Neukalibrierung und Aufnahmefeedback (2026-11-17)
+
+- NeuesteAnweisung18.11.: fürdiegezeigteAufnahmeanfahrtzusätzlicheberechnete
+  dynamischeStoppreserveentfernen, KommandosundüberwachteArmgelenkgrenzen
+  auf0,1rad/ssetzen. ExpliziterProfilmodus `stopping_reserve_policy: geometric_only`.
+  GeometrischeKollisionsprüfung/40mmModellpuffer, Daten-/Heartbeatüberwachung,
+  Hold-/StoppfunktionundUR-eigeneSicherheitbleibenaktiv. Keineautomatische
+  nativeSicherheitsquittierung. VorherigeAnnahmenerzwingenkeinlangsamesTempo
+  mehrindiesemModus; keinequalifizierteBremswegabsicherungbehaupten.
+  AndereProfilebleibenstandardmäßigenforce; ModusimStatusundLogausweisen.
+
+- Nutzerkorrektur18.11.: zuerst zügig einen plausiblen Pfadvorschlag erstellen,
+  inRViz/andererAnimationzeigen undBedienerbewertungabwarten. Keineumfangreichen
+  Wiederholungsprüfungen/RegressionsläufevorjedemVorschlag. FürdieseVorschau
+  einegrundlegendeModell-Kollisionsprüfunggenügt; Vorschlagvonphysischer
+  Ausführungsfreigabeunterscheiden. BestehendeUR-/Laufzeitsicherheitbeibehalten.
+  BeiPOWER_OFF/NulltelemetriezuletztgültigenMessstartalsHistoriekennzeichnen,
+  keinenNullstartalsaktuelleArmstellungausgeben.
 
 - LF-q6 am17.11. nach angehaltener Aufnahmeanfahrt: native Geschwindigkeit
   bis0,044rad/s bei kleinem Positionshub; Nutzer bestätigt reale kleine Rucke.
@@ -56,10 +86,10 @@
   Nutzer erlaubt ausdrücklich ausschließlichLF-Standby plusPower/Brake/ROS-
   Neustart zur Diagnose; vor Fahrt erneut echten ruhigen Zustand nachweisen.
 
-- Nutzer hält auch9,2min für die vier Anfahrten für unzweckmäßig und schlägt
-  0,1rad/s als Obergrenze vor; gibt eigenen Nothaltzugriff an. Als Kandidaten
-  prüfen, nicht als gemessene Stoppqualifikation dokumentieren. Ein kurzer
-  Engpass soll nicht ungeprüft das Tempo der gesamten Fahrt bestimmen.
+- Historie17.11.: Nutzer hält auch9,2min für vier Anfahrten für unzweckmäßig
+  und schlägt0,1rad/s vor, mit eigenem Nothaltzugriff. Seit18.11. ist0,1rad/s
+  tatsächlich verwendet und als beizubehaltende Grenze bestätigt (siehe oben).
+  Daraus keine gemessene Stoppqualifikation ableiten.
 
 - Nutzer beauftragt17.11. nach dem unzweckmäßigen72min-Anfahrvorschlag eine
   allgemeine Reserveüberarbeitung. Kommandotempo und einzelne überwachte

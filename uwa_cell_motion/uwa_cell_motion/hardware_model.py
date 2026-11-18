@@ -142,5 +142,7 @@ class HardwareProblem(Problem):
     def plan(self,request,method,seed=0,normalized=False):
         result=super().plan(request,method,seed,normalized=normalized)
         result.update(simulation_only=False,hardware_plan=True,hardware_binding=self.binding,inventory=self.inventory,
-            tool_policy='all_openings_envelope_no_gripper_command',stop_budget_qualification='ENGINEERING ASSUMPTIONS - NOT MEASURED ON HARDWARE')
+            tool_policy='all_openings_envelope_no_gripper_command',stop_budget_qualification=(
+                'DYNAMIC RESERVE DISABLED BY OPERATOR; GEOMETRIC CHECKS RETAINED'
+                if self.cfg.get('stopping_reserve_policy')=='geometric_only' else 'ENGINEERING ASSUMPTIONS - NOT MEASURED ON HARDWARE'))
         return result

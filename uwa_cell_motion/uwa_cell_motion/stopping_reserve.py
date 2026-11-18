@@ -21,6 +21,10 @@ def body_budgets(motion_radii,velocities,caps,age,cfg):
     parts=dict(data_age_m=speeds*age,sampling_m=speeds/cfg['rate_hz'],
         reaction_m=speeds*cfg['stop_latency_s'],
         braking_m=r@(speed_bound**2/(2*cfg['braking_acceleration_rad_s2'])))
+    if cfg.get('stopping_reserve_policy','enforce')=='geometric_only':
+        # Explicit operator choice: geometric model margin only. Keep speed
+        # monitoring, geometry and independent state/heartbeat checks intact.
+        parts={name:np.zeros_like(value) for name,value in parts.items()}
     return dict(speed_m_s=speeds,total_m=sum(parts.values()),**parts)
 
 
@@ -40,6 +44,8 @@ def critical_pair(a,b,centres,radii,links,budgets,cfg):
     np.divide(slack,speeds,out=extra,where=speeds>0)
     lease=0. if np.any(slack<=0) else min(cfg['heartbeat_timeout_s'],max(0.,
         1/cfg['rate_hz']-SUPERVISOR_PERIOD_S+float(np.min(extra))))
+    policy=cfg.get('stopping_reserve_policy','enforce')
+    if policy=='geometric_only':lease=0. if np.any(slack<=0) else cfg['heartbeat_timeout_s']
     direction=cb[j]-ca[i];length=np.linalg.norm(direction)
     direction=direction/length if length>1e-12 else np.array([1.,0.,0.])
     components={key:float(ba[key][i]+bb[key][j]) for key in
@@ -47,7 +53,7 @@ def critical_pair(a,b,centres,radii,links,budgets,cfg):
     return dict(arms=[a,b],clearance_m=float(gaps[i,j]),threshold_m=float(thresholds[i,j]),
         geometric_min_clearance_m=float(np.min(gaps)),remaining_clearance_m=float(slack[i,j]),
         relative_speed_bound_m_s=float(speeds[i,j]),maximum_evaluation_age_s=float(lease),
-        reserve_model=BODY_RESERVE_MODEL,speed_tolerance_factor=SPEED_TOLERANCE,
+        reserve_model=BODY_RESERVE_MODEL,reserve_policy=policy,speed_tolerance_factor=SPEED_TOLERANCE,
         reserve_components_m=dict(model_m=cfg['model_margin_m'],**components),
         sphere_indices=[int(i),int(j)],links=[links[a][i],links[b][j]],
         surface_points=[(ca[i]+direction*radii[a][i]).tolist(),(cb[j]-direction*radii[b][j]).tolist()],

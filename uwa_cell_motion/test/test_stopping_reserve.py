@@ -60,6 +60,34 @@ def test_body_distance_bound_and_actual_overspeed_are_explicit(cfg):
         ('data_age_m','sampling_m','reaction_m','braking_m')))
 
 
+def test_explicit_geometric_policy_removes_only_dynamic_distance_budgets(cfg,tmp_path):
+    before=guard_signature(cfg);cfg['stopping_reserve_policy']='geometric_only'
+    assert before!=guard_signature(cfg)
+    file=tmp_path/'policy.yaml';file.write_text(yaml.safe_dump(cfg));assert config(file)==cfg
+    result=body_budgets(np.ones((2,6)),np.zeros(6),np.full(6,.1),.2,cfg)
+    assert np.all(result['total_m']==0) and np.all(result['speed_m_s']>0)
+    pair=make_pair([[1.,0,0]],[[0,0,0]],budgets([0],[1]),budgets([0],[1]),cfg)
+    assert pair['threshold_m']==cfg['model_margin_m']
+    assert pair['reserve_policy']=='geometric_only' and pair['maximum_evaluation_age_s']==cfg['heartbeat_timeout_s']
+    pair['arms']=list(ROBOT_IDS[:2]);decision=dict(evaluated_monotonic_s=1.,pairs=[pair])
+    assert not expired_pair_leases(decision,1.1,cfg)
+    assert expired_pair_leases(decision,1.3,cfg)==set(pair['arms'])
+    cfg.pop('stopping_reserve_policy')
+    assert expired_pair_leases(decision,1.1,cfg)==set(ROBOT_IDS)
+
+
+def test_geometric_policy_still_stops_for_distance_speed_and_stale_state(cfg):
+    cfg['stopping_reserve_policy']='geometric_only'
+    pair=make_pair([[.02,0,0]],[[0,0,0]],budgets([0],[1]),budgets([0],[1]),cfg)
+    assert pair['remaining_clearance_m']<0 and pair['maximum_evaluation_age_s']==0
+    pair['arms']=list(ROBOT_IDS[:2]);guard=GuardState(cfg)
+    for rid in ROBOT_IDS:guard.receive(rid,np.zeros(6),np.zeros(6),1.,1.)
+    guard.receive('left_front',np.zeros(6),np.full(6,.2),1.,1.)
+    reasons={f['reason'] for f in guard.evaluate([pair],1.,1.)['faults']}
+    assert {'DISTANCE','SPEED LIMIT'}<=reasons
+    assert any(f['reason']=='STATE STALE' for f in guard.evaluate([],1.3,1.3)['faults'])
+
+
 @pytest.mark.parametrize('r,v,caps,age',[
     ([[1.,-1.]],[0,0],[.1,.1],.1),([[1.,1.]],[0],[.1],.1),
     ([[1.,1.]],[float('nan'),0],[.1,.1],.1),([[1.,1.]],[0,0],[-.1,.1],.1),

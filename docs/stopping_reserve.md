@@ -1,5 +1,30 @@
 # Stoppreserve nach Körper und Gelenk
 
+## Expliziter geometrischer Modus seit18.11.2026
+
+Für die OAK-Aufnahmeanfahrt hat der Bediener ausdrücklich verlangt, die
+zusätzliche dynamische Reserve abzuschalten und0,1rad/s zuzulassen.
+Das zugehörige Profil setzt `stopping_reserve_policy: geometric_only` beim
+Backend `per_body_joint_caps_v2`; ohne diese Auswahl gilt weiterhin `enforce`.
+
+In diesem Modus sind die berechneten Distanzanteile für Datenalter, Prüftakt,
+Reaktion und Bremsung null. Die geometrischen Körper/Öffnungshüllen, der40mm-
+Modellpuffer und die vollständige FCL-Wegprüfung bleiben. Paarentscheidungen
+gelten nur innerhalb der bestehenden Heartbeatfrist; keine zusätzliche aus
+Geschwindigkeit/Bremsreserve abgeleitete Frist. Frische-/Epochprüfungen,
+Geschwindigkeitsüberwachung, Haltfunktionen und native UR-Sicherheit bleiben.
+Policy und Konfiguration sind signaturgebunden, Status meldet
+`Stop-reserve:OFF (GEOMETRIC ONLY)`.
+
+Aktuelles Aufnahmeprofil: alle24Gelenkgrenzen und Kommandogrenze0,1rad/s,
+Beschleunigungsgrenze0,2rad/s². Die vorhandene5%-Betriebstoleranz der
+Geschwindigkeitsüberwachung bleibt; dies ist keine harte0,1-Istwertgarantie.
+Die geometrische Prüfung stellt keinen nachgewiesenen Bremswegpuffer bereit.
+Gezielte Prüfung33TestsPASS, einschließlich weiter aktiver Distanz-/Speed-/
+Stale-Stopps, unveränderter Defaultrechnung und Policy-/Leasebindung.
+
+## Historie der Reserveüberarbeitung
+
 Stand17.11.2026. Neuer ausdrücklich wählbarer Modus
 `per_body_joint_caps_v2` für Planung und Wächter. Vorhandene Profile bleiben
 bei der bisherigen Rechnung. Keine reale Fahrt oder Dienstumschaltung wurde

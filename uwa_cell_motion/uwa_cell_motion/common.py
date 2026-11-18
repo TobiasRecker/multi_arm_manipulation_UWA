@@ -33,6 +33,9 @@ def config(path=None):
         path = Path(get_package_share_directory('uwa_cell_motion'))/'config/motion.yaml'
     data = yaml.safe_load(Path(path).read_text())
     for name, value in data.items():
+        if name == 'stopping_reserve_policy':
+            if value not in ('enforce','geometric_only'):raise ValueError('Unknown stopping reserve policy')
+            continue
         if name == 'stopping_reserve_model':
             if value != BODY_RESERVE_MODEL:raise ValueError('Unknown stopping reserve model')
             continue
@@ -56,6 +59,8 @@ def config(path=None):
         raise ValueError('Per-body reserve model and complete joint caps must be selected together')
     if 'joint_velocity_limits_rad_s' in data and 'arm_velocity_limits_rad_s' in data:
         raise ValueError('Choose joint caps or legacy arm caps, not both')
+    if data.get('stopping_reserve_policy')=='geometric_only' and data.get('stopping_reserve_model')!=BODY_RESERVE_MODEL:
+        raise ValueError('Geometric-only policy requires the explicit body-reserve backend')
     return data
 
 
@@ -131,7 +136,7 @@ def guard_signature(cfg):
           'standstill_window_s','sphere_spacing_m')
     bounds={k:cfg[k] for k in keys}
     if 'arm_velocity_limits_rad_s' in cfg:bounds['arm_velocity_limits_rad_s']=dict(cfg['arm_velocity_limits_rad_s'])
-    for name in ('stopping_reserve_model','joint_velocity_limits_rad_s','command_velocity_limit_rad_s'):
+    for name in ('stopping_reserve_model','stopping_reserve_policy','joint_velocity_limits_rad_s','command_velocity_limit_rad_s'):
         if name in cfg:bounds[name]=cfg[name]
     return sha(json.dumps(dict(interlock_protocol=6 if 'stopping_reserve_model' in cfg else 5,check_timebase='steady_wall',
         tool_standstill_velocity_rule='operating_cap_and_tight_position_span',

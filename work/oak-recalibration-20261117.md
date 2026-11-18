@@ -1,13 +1,9 @@
 # OAK-Neukalibrierung und deutliche Fünfkamera-Aufnahme
 
-- Status: **Montage fest und Bewegungsbereich vom Nutzer freigegeben;
-  erneuter ausdrücklicher Fahrwunsch nach bestandenem RT-Stopptest;
-  LF tatsächlich angefahren und nach Messzeitvergleich gehalten;
-  korrigierter Vergleich offline, im Prozess-Mock und real lesend geprüft;
-  LF-Neustart/RuheprüfungPASS; erneuteFahrtwegenq6-SpeedLimitgehalten;
-  neuergeprüfter0,1rad/s-q6-VertragnochNICHTaktiviert, konkreteFreigabe
-  nachautomatischerAblehnunganBedienergestellt**,
-  2026-11-17, Hauptagent.
+- Status: **Vier Aufnahmestellungen angefahren und Fünfkamera-GUI geöffnet.
+  Dynamische Reserve auf Nutzerwunsch aus, Kommandogrenze0,1rad/s.
+  Spätere Endabfrage alle Antriebe POWER_OFF; keine Kalibrieraufnahme/Übernahme**,
+  2026-11-18, Hauptagent.
 - Auftrag: aktuelle OAK-Pose nach möglicher Stativbewegung beurteilen; danach
   vier URs in geeignete Aufnahmeposen und Fünfkamera-GUI öffnen. Aufnahmezustand,
   Abschluss und Anzahl gespeicherter Sätze deutlich darstellen.
@@ -20,6 +16,99 @@
   vollständiger aktueller Wegprüfung. Bekannter Frischestopp vom17.11. beachten.
 
 ## Nachweise und aktueller Stand
+
+- Abschluss18.11.: LF01 und LR/RR/RF im geometric_only-Modus erfolgreich.
+  Restfahrten wall inklusive Vorprüfung39,66/82,81/47,25s, nominelle Bewegung
+ 25,55/56,80/29,53s. Kein Wächterstopp im neuen Modus. Beim letzten Fahrtende
+  alle vier nativen Gelenkstellungen gemeinsam innerhalb0,001rad am Ziel;
+  maximale Abweichung0,000295rad (0,0169°). Abschlussbeleg final-result.json.
+- Spätere native Abfrage: alle4POWER_OFF/STOPPED/NORMAL, Ursache/Akteur nicht
+  festgestellt. Eigene Fahrfolge enthält kein Power-off, keine erneute
+  Einschaltung. PowerOff liefert erneut teils stale qd und kleine Positions-
+  abweichungen bis0,57°; deshalb diese spätere Beobachtung vom erreichten
+  Endzustand unterscheiden. final-native-observation.json/final-actual.json.
+- Fünfkamera-GUI neu geöffnet: uwa-oak-recalibration-view-20261118.
+  Alle5Feeds frisch und fehlerfrei, Fensterbild visuell geprüft. Gewähltes
+  Mobile38mm-Profil erkennt links0/24 trotz deutlich sichtbarer Boards,
+  rechts teilweise, OAK24/24. Kein fehlender Feed. Zähler0, keine Aufnahme,
+  kein Fit oder Profil aktiviert; OAK-Fokus107 bleibt intrinsisch unvalidiert.
+
+- LF01erfolgreichamZiel, LR02Zwischenstellungerfolgreich; LR03bzuerstmit
+  altemReserveprofilweitergefahren. NutzerfordertdanachexplizitEntfernung
+  deszusätzlichenStoppschutzesund0,1rad/s. Deshalbgezieltgehalten:
+  StopCLIbestätigtnativeSTOP/Holds/Stillstandaller4; alterExec03binaktiv,
+  FehlrecorddurchgeplantenBedienerhaltbewahrtnichtalsZielerreichunggewertet.
+- Opt-in-policygeometric_onlyimplementiert: dynamischeKörperdistanzbudgets0,
+  geometrischer40mmPuffer/FCL, Geschwindigkeitsgrenzen, State-/Heartbeat-
+  WatchdogsundnativeSicherheitbleiben. ZeitlichedynamischePaarleasentfallen
+  zugunstenbestehender250msHeartbeatfrist; Policy-Signatur/Mismatchprüfung.
+  Standardverhaltenenforceunverändert.33gezielteTestsPASS/1,56s.
+- NeuesProfilalle24AchsenKommando/Monitor0,1rad/s, amax0,2, bestehendeHold-
+  Verzögerung/Frische/Hystereseunverändert. DreiRestplänevonfrischemHaltzustand
+  vorbereitet. NeuerModusnachgeordneterProfilumschaltung/QuietProof/Reset/
+  ROS-Neuverbindungaktiv. RuntimeOFF(GEOMETRICONLY), CLEAR/keineFaults;
+  LRinBewegung. TailjobsetztRR/RFnurbeiErfolgfort, keineFehlerwiederholung.
+
+- Bedienerbestätigt18.11.Sicherheitskonfigurationanallen3Pendants.
+  GemeinsamerBringupdanachalle4Ready/RUNNING/NORMAL/PLAYING/Reverseverbunden.
+  FrischerMessstartmax0,358°vomreviewtenStartentfernt(mod2π), LF-Direktweg
+  ausActualStartfrischgeprüft47,926s. Schutzprofilq6=.1scharf, aktueller
+  Native-/Holds-/StillstandsnachweisPASS, expliziterResetundROS-Neuverbindung.
+- EigenesExecuwa-capture-motion-20261118-01läuft; LFtatsächlichinBewegung,
+  WächterCLEAR/keineFaults, andere3stationär. Quelle01-left-frontim18.11.-Ordner.
+  FürhinterenAbschnittkannZeitaufteilungaufderselbenreviewtenGelenkgeraden
+  nötigsein; geometrischeReihenfolgebleibtLF→LR→RR→RF.
+
+- FreigegebenerBringupausgeführt: LFPowerOn/BrakeRelease/Playerfolgreich,
+  RUNNING/NORMAL/PLAYING/Reverseverbunden. LR/RF/RRros.urpgeladen(gespeicherte
+  tobias.installation), danachjeweilsCONFIRM_SAFETY. NativeSchrankenicht
+  quittiert/umgangen; BedienerzurPrüfungundBestätigungandreiPendantsgebeten.
+  NeuerStartdanachbereitsfreigegeben, keineerneuteallgemeineFreigabenötig.
+  Quellebringup.jsonimVorschlagsordner. KeinneuesFahrzielgesendet.
+- KollisionsdienstMONITORgestartet, alle4Haltereglerausschließlichinaktiv
+  provisioniert. KeinArming/ResetunterunbestätigterKonfiguration. Wegennoch
+  uninitialisierterArmekeineaktuellenNullwertealsHindernisposenverwenden.
+
+- AusdrücklicheAntwort18.11.: Bereichfrei; Startaller4/Power/Brake/ROS,
+  erforderlicheSchutzprofilwechselinklLFq6=.1undFahrtfreigegeben.
+  FrüherekonkreteFreigabelückeistdamitgeschlossen. GemeinsamerBringup--apply
+  gestartet; KollisionsdienstzunächstMONITOR, Haltereglerinaktivvorbereitet.
+  KeineerneuteAbfragegleicherFreigabe; nachNativeReadyfrischenStartverwenden.
+
+- Nutzer18.11.: „bitteführediebewegungenaus“ nachRViz-Vorschlag.
+  GezeigteFolgedamitzurAusführungbeauftragt; notwendigePower/Brake/ROS-
+  Startaktionenaller4lautWorkspace-Regelseparat, bishernurLF-Diagnoseneustart
+  am17.11.freigegeben. GebündelteFreigabeStart/ProfileinklLFq6=.1undfreie
+  Bewegungsbereicheangefragt; keineabhängigeAktionvorAntwort.
+- FrischerDashboardstatusalle4POWER_OFF/NORMAL/STOPPED; LFros.urpgeladen,
+  andere3gespeichertesunnamed.urp. Schutzdienstund4Einzeltreiberinaktiv.
+  KeinevorgegebeneNullpositionfahren. Quellepre-execution-status.jsonim
+  Vorschlagsordner. NachStartaktuelleEncoderdatenmitVorschlagabgleichen;
+  keineerneutenBenchmark-/Regressionsreihen.
+- Inzwischenalle4fehlendenlokalenTreiberübergemeinsamenBringup-Einstieg
+  vorbereitetundScript-Listenerbestätigt. dashboard_commands[]leerbei allen4,
+  keineAntriebs-/Programm-/Fahraktion. driver-preparation.jsongespeichert.
+  Antriebs-/Profilfreigabebleibtausstehend; Schutzdienstnochinaktiv.
+
+- NeueVorgabe18.11.: keineumfangreichenPrüfwiederholungen, einfachenplausiblen
+  PfadzeigenundBedienerbewertungabwarten. AktuellelesendeNativeabfragealle4
+  POWER_OFF/NORMAL/STOPPED mitq=0; nichtalsphysischenStartverwendet.
+- EinmaligerVorschlagvomzuletztgültigenMessstart17.11. aus
+  hardware-views-01/lf-speed-stop-snapshot.json. SerielleDirektsegmente
+  LF→LR→RR→RF, jeweilskürzestezulässige2π-GelenkäquivalenzzualtenSichtzielen.
+ 266FCL-Stützstellen≤0,035rad, alle6Armpaaremit40mmstatischemHüllabstand,
+  vollständigeGreiferöffnungshüllen. Berechnung2,122s, nominell170,09sbei
+  ≤0,1rad/s/0,2rad/s²; Vorschau4×standardmäßig. KeineRealtrajektorie.
+  setup/calibration/oak_capture_proposal_20261118/proposal.json.
+- EigenesRViz+Play/Pause/Slider/Endposenfenster über
+  tools/preview_capture_approach.py, Domain74/LOCALHOST, eigeneTF-/JointTopics.
+  KeinPower/Brake/Play/Reset/Profilwechsel/Fahrziel. HistorischerStartimFenster
+  deutlichgekennzeichnet. VisuelleBewertungersetztnichtdenspäterenStartabgleich.
+- ViewerlebtmitfrischemStatusPREVIEW_PAUSED/t0/RVizrunning/Domain74,
+  RViz-OpenGLgestartetundnachRessourcenpfadkorrekturohneLadefehler.
+  AnfangsflüchtigeBoarddateienaufpersistentesmodel/umgestellt; nureigener
+  Vorschauprozessneugeladen. EigenenQt-SIGTERM-Abschlusskorrigiert.
+  KeinezusätzlicheRegressionssuite, keineHardwareaktion.
 
 - FolgefragezurKollisionsmethode: neuerkörperbezogenerPlanungszweignutzte
   altenArm-AABB-Vorfilternicht; jetztkompatibelergänztundstandardmäßigaktiv.

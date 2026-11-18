@@ -227,7 +227,8 @@ def execute(plan,output,mode):
             if client.owned:result['stop_result']=client.stop(client.owned)
         finally:
             result.update(guard_status=client.guard,supervisor_status=client.supervisor,total_wall_s=time.monotonic()-began,
-                stop_budget_qualification='NOT MEASURED ON HARDWARE',execution_mode=mode)
+                stop_budget_qualification=('DYNAMIC RESERVE DISABLED BY OPERATOR; GEOMETRIC CHECKS RETAINED'
+                    if cfg.get('stopping_reserve_policy')=='geometric_only' else 'NOT MEASURED ON HARDWARE'),execution_mode=mode)
             if not result['success'] and not result.get('error'):result['error']='Hardware interlock stopped selected arms'
             dump(output,result);client.destroy_node()
     return result

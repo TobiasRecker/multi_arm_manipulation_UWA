@@ -24,6 +24,7 @@ def expired_pair_leases(decision,now,cfg):
                 lease=float(pair['maximum_evaluation_age_s'])
                 if (pair['reserve_model']!=BODY_RESERVE_MODEL or not math.isfinite(lease)
                         or not 0<=lease<=cfg['heartbeat_timeout_s']):raise ValueError()
+                if pair.get('reserve_policy','enforce')!=cfg.get('stopping_reserve_policy','enforce'):raise ValueError()
                 if now-evaluated>=lease:expired.update(pair['arms'])
                 continue
             speed=float(pair['relative_speed_bound_m_s']);gap=float(pair['clearance_m']);threshold=float(pair['threshold_m'])
