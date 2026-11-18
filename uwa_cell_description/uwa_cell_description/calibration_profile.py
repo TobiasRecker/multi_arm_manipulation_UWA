@@ -123,6 +123,25 @@ def load_profile(path):
             read_artifact(path.parent, arm['rejected_handeye'])
         if 'camera_info' in arm:
             read_artifact(path.parent, arm['camera_info'])
+    if 'base_bindings' in profile:
+        bindings = json.loads(read_artifact(path.parent, profile['base_bindings']).read_text())
+        decision = bindings.get('acceptance', {})
+        if (bindings.get('schema_version') != 1 or bindings.get('status') != 'fixed_user_accepted'
+                or set(bindings.get('robots', {})) != {'left_front', 'left_rear', 'right_front', 'right_rear'}
+                or decision.get('authorized_by') != 'user' or not decision.get('authorization')
+                or not decision.get('date')):
+            raise ValueError('Fixed base bindings require the four measured anchors and user acceptance')
+        for rid, binding in bindings['robots'].items():
+            if binding.get('board_id') != ('left' if rid.startswith('left') else 'right') + '_table_board':
+                raise ValueError('Base binding belongs to the wrong table board')
+            raw = json.loads(read_artifact(path.parent, binding['source']).read_text())
+            matrix = rigid(binding['T_base_board'])
+            if not np.allclose(matrix, rigid(raw['robots'][rid]['T_base_board']), atol=1e-12, rtol=0):
+                raise ValueError('Fixed base binding differs from its measured source')
+            arm = profile['robots'][rid]
+            arm['base_binding'] = dict(binding, status='fixed_user_accepted')
+            arm.setdefault('quality_status', {})['base_binding'] = 'fixed_user_accepted'
+        profile['base_binding_policy'] = bindings['acceptance']
     if 'overview_camera' in profile:
         from .overview_profile import load_overview
         profile['overview_camera'] = load_overview(path.parent, profile['overview_camera'], profile['robots'])
@@ -176,6 +195,13 @@ def apply_description(description, layout):
     root = ET.fromstring(description)
     for rid, arm in layout['calibration']['robots'].items():
         tools = layout['robots'][rid]['tools']
+        binding = arm.get('base_binding', arm.get('fit'))
+        if binding is not None:
+            ET.SubElement(root, 'link', name=rid+'_measured_board_frame')
+            joint = ET.SubElement(root, 'joint', name=rid+'_measured_board_joint', type='fixed')
+            ET.SubElement(joint, 'parent', link=rid+'_base_link')
+            ET.SubElement(joint, 'child', link=rid+'_measured_board_frame')
+            origin(joint, rigid(binding['T_base_board']))
         if not tools['camera_enabled']:
             continue
         sensor = root.find(f"gazebo[@reference='{rid}_wrist_camera_link']/sensor")
@@ -186,12 +212,6 @@ def apply_description(description, layout):
             gz = local.copy()
             gz[:3, :3] = local[:3, :3] @ np.array([[0, -1, 0], [0, 0, -1], [1, 0, 0]])
             sensor.find('pose').text = ' '.join(map(str, [*gz[:3, 3], *Rotation.from_matrix(gz[:3, :3]).as_euler('xyz')]))
-            # Measured board relation is a reference frame only, never a world/base relocation.
-            ET.SubElement(root, 'link', name=rid+'_measured_board_frame')
-            joint = ET.SubElement(root, 'joint', name=rid+'_measured_board_joint', type='fixed')
-            ET.SubElement(joint, 'parent', link=rid+'_base_link')
-            ET.SubElement(joint, 'child', link=rid+'_measured_board_frame')
-            origin(joint, rigid(arm['fit']['T_base_board']))
         if 'camera' in arm:
             camera = sensor.find('camera')
             k = np.asarray(arm['camera']['camera_matrix'])

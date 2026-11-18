@@ -1,5 +1,163 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Hinteres Armpaar mit korrigierter Kartonbahn, 2026-11-18
+
+- Schritt 2 abgeschlossen. Der bestehende `TwoArmTeacher` optimierte dieselbe
+  +60°-Referenz aus `rear_y0.55` mit festen Griffen und Endposen. Lokale 6D-Suche
+  mit 121 Stützstellen, 13 Iterationen und 41,5 s Rechenzeit. Modell und
+  Startkonfiguration sind an den Archivfall gebunden.
+- Korrigierte Geometrie an 1.201 gleichmäßig verteilten Wegpunkten geprüft.
+  Null FCL-Kollisionen, kleinster Armhüllabstand 20,92 mm bei 20 mm Vorgabe,
+  kleinste Karton/Umgebung-Trennung nach Boxmodell 4,00 mm. Gelenkgrenzen,
+  Griffschluss und beide Endzustände bestanden. Fremdarme stehen in der Szene.
+- Maximale Abweichung von der Referenz 45,0 mm Translation und 33,44°
+  Orientierung. Der Karton kippt zusätzlich, während die Z-Drehung in der
+  verwendeten Eulerzerlegung bis 61,2° erreicht. Start und Ziel identisch.
+- `setup/research/rear-pair-screen-20261117/teacher-step2/checked/` enthält
+  `result.json`, `viewer.html`, `correction.png` und elf Browserprüfungen.
+  Beide Varianten bei gleichem Wegfortschritt umschaltbar. Geometrische
+  Modellbahn. Gemeinsames Zeitgesetz und dessen Prüfung folgen in Schritt 3.
+
+## Hinteres Armpaar im 3D-Viewer, 2026-11-18
+
+- Schritt 1 abgeschlossen. `tools/preview_rear_pair_collision.py` erzeugt die
+  Ansicht aus dem archivierten Griffstart `rear_y0.55` und der +60°-Referenz
+  um Welt-Z mit 5 cm Zwischenhub. Das gebundene historische Modell sowie Pose
+  und Gelenkzustand des gespeicherten Kontaktzeugen wurden erneut geprüft.
+- `setup/research/rear-pair-screen-20261117/contact-preview/viewer.html` öffnet
+  bei 50 % Wegfortschritt. Wiedergabe, Schieber, Zoom und Rotation funktionieren.
+  Die rote Spur umfasst 17 von 61 Prüfpunkten bei 36,7 bis 63,3 % Fortschritt.
+  In allen 17 meldet FCL die beiden hinteren Unterarme. Rot hebt diese Körper
+  hervor. Das weiße Kreuz zeigt die aus Kugelhüllen geschätzte Kontaktregion.
+- Nachweise im selben Ordner. `preview-check.json`, 17 native Kontaktlogs,
+  `contact.png` und zehn erfolgreiche Browserprüfungen einschließlich der
+  bestehenden Lehreransicht. Die Anzeige läuft als Offline-Referenz über
+  Wegfortschritt ist der archivierte Ausgangspunkt für Schritt 2 oben.
+
+## Basisanbindungen fest übernommen, 2026-11-18
+
+- Ausdrückliche Nutzerentscheidung: bisher keine Probleme beobachtet;
+  vorhandene Basisanbindungen aller vier URs einschließlich left_front als
+  fest übernehmen. Kalibrierproblem-/Diagnosehinweise dazu aus aktiven
+  Berichten/Anzeigen/Übergaben entfernen; erst bei konkret auftretenden
+  Problemen erneut untersuchen. Dauerhaft in beiden AGENTS.md festgehalten.
+- Neues Standardprofil hardware_20261118_base_fixed_v1: vier SHA-gebundene
+  gemessene T_base_board, Statusfixed_user_accepted und Originalfreigabe.
+  LF aus vorhandenem HD-Boardfit gleichberechtigt übernommen. Aktuelles
+  OAK-Export enthält alle vier Basistransformationen unter transforms, keine
+  separate diagnostic_transforms-Gruppe mehr. Ursprungsberichte erhalten.
+- Gemeinsame Beschreibung und RViz-Overlay laden feste Boardframes unabhängig
+  von optischer Hand-Auge-Anwendung. Basisanbindungen sind keine Aufgabe der
+  laufenden OAK-Optik-/Posenprüfung mehr. Details applied_calibrations.md.
+- Zwei betroffene Pakete gebaut;16gezielte Profil-/Consumer-/Overlaytests
+  bestanden. Ein vorhandener Overlaytest erwartete noch90cmTischbreite;
+  auf bereits verwendete99,1cm korrigiert, Modellwerte unverändert. Aktives
+  installiertes Profil und alle vier OAK-Exporttransformationen geprüft,
+  bestehende Kinematik-/Optikartefakte identisch. Zusätzlich11Foto-Kontext-Tests
+  bestanden (gesamt27). Nachweis
+  setup/calibration/oak_capture_proposal_20261118/base-bindings-adoption-check.json.
+
+## Übergabe und protokollierter Agententest vorbereitet, 2026-11-18
+
+- Nutzer bestätigt Boxzeichnungsvarianten und wünscht einen anderen Agenten
+  zur Reproduktion/Erweiterung testen. Ziel: weitere Rotation und dritter
+  Kreis auf der abgewandten Längswand. Für den Test ausdrücklich als
+  Objektfläche y_min konkretisiert, y_max/z_min und25mmRadius erhalten.
+- Kurze Einstiegskarte docs/agent_trials/BOX_DRAWING_HANDOFF.md, kopierfertiger
+  PROMPT_AWAY_FACE.md und TRACE_PROTOCOL.md. Dateien/Artefakte/Umgebung,
+  zweiflächenfeste Erweiterungsstellen, Modellgrenzen und Abnahme benannt.
+  Aktuelle0,1rad/s vonhistorischem0,35rad/s-Modellprofil unterschieden;
+  keine eigenmächtige zusätzliche Temposenkung oder alte Ausnahme erfunden.
+- Neuer Standardlib-Logger tools/agent_trial.py: init/start/end/run/note/
+  finish/summary, Git-Ausgangsstand, monotone Schritt-/Befehlszeiten,
+  argv/CWD/Exitcode und vollständige stdout/stderr. Fehlversuche bleiben
+  auch nach Reparatur im Bericht. Parallele Befehlsintervalle nur einmal
+  zählen; Restzeit explizit Lesen/Bearbeiten/Chat/Warten, keine Denkzeit.
+- Shelllogging erfasst keine fremden API-/Browser-/Editor-/Chatausgaben
+  automatisch; Protokoll verlangt dafür Notizen/Artefakte bzw. sichtbaren
+  Client-Export. Tokenwerte/Modellname nur bei belegten Angaben. Entwicklung
+  und robotische Episoden bleiben getrennt, kein nachträglich erfundener
+  vollständiger Trace des bisherigen Entwicklungsagenten.
+- Logger mit sieben gezielten Tests einschließlich Timeout/Startfehler, Parallelität,
+  Rohtext, Literalargv und Unterbrechung geprüft; CLI-Smoke mit achtAufrufen
+  und absichtlich erhaltenem Exit3 erfolgreich. Artefakte
+  setup/agent_trials/logger_smoke_20261118/, ausdrücklich kein Fremdagentenlauf.
+- DritteZeichenfläche nicht selbst implementiert oder neuerAgent gestartet;
+  das bleibt der vorbereitete Testauftrag. Keine Robot-/Kamera-/Dienstaktion.
+  Eigener Arbeitsstandwork/box-drawing-agent-handoff.md.
+## OAK-Kalibrierung fortgesetzt, 2026-11-18
+
+- Neuer Berechnungsstand nach Nutzeraufnahmen:14vollständigeFünfkamera-Sätze,
+ 70nativeFotos;1vorAufnahmeabgebrochenenVersuchausgeschlossen. Offline neu alle
+  dreiBoards getrennt erkannt; alle14OAK-Mobileansichten verwendbar. Vorabfolge
+  ergibt10Fit-/4Prüfstellungen. AlleBild-SHAs/Format/Fokusbestätigt, keineFahrt.
+  Vorläufiger gemeinsamer OAK-Posekandidat gespeichert unter
+  setup/calibration/oak_capture_proposal_20261118/calibration_candidate_v1/:
+  oak_pose_candidate.json/.yaml, Ergebnis.txt und calibration_quality.png.
+- Fokus107: Factory-D/Hauptpunkt/Aspekt plus neu gefittete Brennweitenskalierung
+  0,978326, fx5832,357/fy5831,934px. DisjunktePrüfeckenMedian1,242/Max1,375px.
+  FesterTischboardfitalleinPrüfunglinks~0,3/rechts~0,9px. Gemeinsamer robuster
+  Fit aller fünf Kameras/Boards konvergiert; Wristvorhersage auf4zurückgehaltenen
+  mobilenAnsichten2,32–9,22nativeOAK-Pixel. Keine Millimetergenauigkeit bestätigt.
+  Nach erster Prüfdatensichtung explorativ verfeinert; neuer unabhängiger
+  Abschlusstest weiterhin offen. Kein stilles Auswechseln des globalen Profils.
+- Alle vier bestehenden Basisanker sind seit Nutzerentscheidung18.11. fest
+  übernommen und im OAK-Kandidat gleichberechtigt enthalten.
+  Mobile Bildabdeckung nurx25–58%/y27–79%; weitere schräge seitliche Randansichten
+  bei107 würden die Optikprüfung ergänzen. GUI undFokus107 bleiben bestehen.
+  Weitere Details/Nachweise work/oak-recalibration-20261117.md.
+
+- Neuester Fokusauftrag: beide festen Boards vorne/hinten gemeinsam scharf.
+  Vier native Vergleichsfotos mit unveränderter Montage:100/107/112/116.
+  Fokus107 bei beiden Referenzen visuell und per kontrastnormalisierter
+  Schärfemetrik bester getesteter Wert, beide24/24Ecken. Andere Werte
+  links/rechts100=9/18,112=19/24,116=0/21. Readbacks korrekt. Nachweise
+  setup/calibration/oak_capture_proposal_20261118/focus_both_static/.
+  Eigene GUI geordnet geschlossen und als Fünfkameraansicht wieder gestartet;
+  acquisition_active.yaml hält107 für Vorschau/Fotos, Wristwerte unverändert.
+  Keine Intrinsics/Extrinsics angewandt; alte Bilder/Importzähler erhalten.
+
+- Neueste Präzisierung: Ziel ist OAK-Pose gegenüber Robotern/Welt. Die zuvor
+  geöffnete OAK-only-GUI ist ein Intrinsics-Hilfsschritt bei Fokus107, keine
+  Extrinsicsmessung eines frei bewegten Bretts. Zur Fünfkamera-Aufnahme zurück:
+  mobile gemeinsame Sicht OAK+mindestens eine Wristkamera, feste unveränderte
+  Tischboards als zusätzliche Basisanker; kein Zwang zur gemeinsamen Sicht
+  aller fünf. Absoluter Weltanker bleibt bisher provisorisch. Eigene
+  Einzelkamera-GUI geordnet beendet; Fünfkamera-GUI uwa-oak-pose-view-20261118
+  gestartet und visuell geprüft: alle fünf Feeds frisch, OAK/RF mobiles Brett
+  je24/24. Tischboards ebenfalls erkannt, Referenzidentität unter jedem Bild.
+  Knopf CAPTURE ALL FIVE. Sitzung five_camera_pose/20261118_140254_3e66161f
+  unter setup/calibration/oak_capture_proposal_20261118; vier bisherige Sätze
+  mit20Fotos in Zählern übernommen. Keine neue Aufnahme automatisch gestartet,
+  keine Roboterkommandos oder neue Kalibrierung angewandt.
+
+- Vorheriger Stand: Nutzer möchte weitere Aufnahmen über passendeGUI starten.
+  EigenesOAK-Intrinsicsfenster geöffnet: Mobile38mm/IDs75–91, Fokus107,
+  native8000×6000, nurOAK-Aufnahme. Dienstuwa-oak-intrinsics-20261118,
+  Sitzungszeiger setup/calibration/oak_capture_proposal_20261118/intrinsics-session.txt.
+  VierOriginalbilderübernommen:2mobilebrauchbar24/24,2Reviewmit2/9Ecken.
+  Ziel12unterschiedlicheBoardstellungen;8Fit/4Validierungvorabzugeordnet,
+  naheDublettenzusammenhalten. GUILive24/24/fehlerfreiundScreenshotgeprüft.
+  Capture-All-1istderaktuelleKnopf, speichertnurOAK. KeineArmfahrt oder
+  Geschwindigkeitsänderung; keineKalibrierungangewandt.
+
+- Nutzer meldet wieder aktivierte Antriebe und beauftragt Fortsetzung.
+  Lesend nach Hochlauf alle4RUNNING/NORMAL, keine erneuten Armfahrten oder
+  Programmaktionen.0,1rad/s und keine eigenmächtige Reduktion gelten weiter.
+- Beide festen Tischboards laut Nutzer unverändert relativ zu den Basen.
+  Kamera-GUI auf `both` statt Mobile-Muster gestellt, linke Referenzen jetzt
+  erkannt. Erster nativer Fünfkamera-Satzgespeichert/all_usable/StillstandPASS:
+  LF20/LR19/RF24/RR24/OAK24Ecken. GUI1kompletter/1verwendbarerSatz/5Fotos.
+  Sitzung20261118_133517_0068a219/set_133728_183314 im Aufnahmeordner.
+- NativeOAKbeideTischboards24/24. FactoryK/DvonFokus116nurinitialverwendet:
+  disjunkteEckenlinks0,283px/rechts1,402px(Kriterium1px). Fokus107weiter
+  intrinsischunvalidiert; T_base_oak-KandidatenbeiderRearankerundrelative
+  Basenmatrixnichtangewandt. first-oak-reference-check.json.
+- NächsterSchrittmobilegeneigteBoardansichtenfürIntrinsics107;12Startansichten
+  mit8Fit/4vorabdefinierterValidierunggeplant. ErsteBrettplatzierungamrechten
+  Tisch30–45°angelehntvomBedienerangefordert. KeineweiterenArmfahrtenoder
+  Geschwindigkeitsreduktion. work/oak-recalibration-20261117.md.
+
 ## Dauerhafte Geschwindigkeitsvorgabe, 2026-11-18
 
 - Nach der erfolgreichen Umstellung auf0,1rad/s verlangt der Nutzer ausdrücklich,

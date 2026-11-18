@@ -1,13 +1,21 @@
 # Übernommene Kalibrierungen und Referenzposen
 
-Stand2026-11-12. Der Nutzer hat die Speicherung und gemeinsame Verwendung der
+Stand2026-11-18. Der Nutzer hat die Speicherung und gemeinsame Verwendung der
 ermittelten Posen/Kalibrierungen ausdrücklich beauftragt. Profil:
-[`hardware_20261112_v3`](../uwa_cell_description/config/calibration/hardware_20261112_v3/profile.json).
+[`hardware_20261118_base_fixed_v1`](../uwa_cell_description/config/calibration/hardware_20261118_base_fixed_v1/profile.json).
 Es wird mit `uwa_cell_description` installiert und enthält SHA256-Referenzen
 auf unveränderte Ergebniskopien und individuelle UR-Kinematikdateien. Die
 Rohbilder und ursprünglichen Sitzungsergebnisse unter `setup/calibration/`
 bleiben erhalten. Deren historisches `activated:false` wird nicht umgeschrieben;
 die spätere Übernahme ist durch dieses separate Profil dokumentiert.
+
+Seit ausdrücklicher Nutzerentscheidung18.11. sind die vorhandenen
+**Basisanbindungen aller vier URs einschließlich links vorne fest übernommen**.
+Sie sind im Profil als `fixed_user_accepted` hinterlegt und als Basis→Board-
+Referenzframes verfügbar, unabhängig von der optischen Hand-Auge-Anwendung.
+Erneute Untersuchung erst bei tatsächlich beobachteten Problemen. Die Annahme
+steht mit Datum/Originalauftrag in `base_bindings.json`; alte Messberichte
+bleiben historisch. Der neue OAK-Posekandidat ist separat gespeichert.
 
 | Teil | Übernommen | Grenze |
 |---|---|---|
@@ -16,11 +24,11 @@ die spätere Übernahme ist durch dieses separate Profil dokumentiert.
 | Intrinsics K/D | right_rear640×480, Fokus404 manuell | Bildränder nicht unabhängig geprüft |
 | Intrinsics K/D | right_front2592×1944 nativ, Fokus435 manuell | ausdrücklich trotz überschrittener Pixelgrenzen übernommen; passt nicht zum HTTP-VGA-Bild |
 | Hand-Auge tool0→optical | left_rear und right_rear | interne unabhängige Prüfung bestanden; keine absolute Genauigkeitszusage |
-| Basis→Board-Relation | beide Rear-Arme und Front rechts, als eigene Referenzframes | Front unterhalb Qualitätsgrenze übernommen; kein vermessener Welt-/Tischanker |
+| Basis→Board-Relation | **alle vier URs, fest vom Nutzer übernommen** | `fixed_user_accepted`, eigene Referenzframes einschließlich links vorne |
 | Park-/erste Aufnahmeposen | beide rechten Arme, benannte Gelenkreferenzen | neu planen, nicht als Live-Zustand verwenden |
-| Front-HD-Hand-Auge | **auf ausdrücklichen Nutzerauftrag angewendet** | automatische Qualität weiter FAIL:1,925px/0,588°; als `operator_accepted_below_threshold` gekennzeichnet |
+| Front-HD-Hand-Auge | auf ausdrücklichen Nutzerauftrag angewendet | ursprüngliche Messberichte im Archiv |
 | OAK-Extrinsics | vorläufig ausdrücklich übernommen inv3 | relativer Kamerafit; Weltanker bleibt nominal, keine unabhängige Hardwaregenauigkeit |
-| Welt-/Tisch-/Basisrelation | weiterhin nicht kalibriert | keine Messwerte erfinden |
+| Welt-/Tischbezug | vorhandener Arbeitsbezug | Basisanbindungen als feste Referenzen verwenden |
 
 Die [nachfolgende vorläufige OAK-Übernahme](oak_preliminary_adoption_2026-11-12.md)
 ergänztv2 bei unveränderten Roboterartefakten. Sie gilt für die digitale Zelle,

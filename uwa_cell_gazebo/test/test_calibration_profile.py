@@ -13,6 +13,22 @@ from uwa_cell_gazebo.configuration import load_layout, nominal_layout_path, rend
 from uwa_cell_gazebo.charuco_views import Chain
 
 
+def test_user_fixed_base_bindings_include_left_front_without_changing_optics(tmp_path):
+    layout = load_layout()
+    profile = layout['calibration']
+    assert profile['base_binding_policy']['authorized_by'] == 'user'
+    assert profile['base_binding_policy']['revisit_only_on_observed_issue'] is True
+    description = render_description(layout, tmp_path)[0]
+    for rid in ('left_front', 'left_rear', 'right_front', 'right_rear'):
+        arm = profile['robots'][rid]
+        assert arm['quality_status']['base_binding'] == 'fixed_user_accepted'
+        np.testing.assert_allclose(Chain(description, rid+'_base_link',
+            rid+'_measured_board_frame').forward({}), arm['base_binding']['T_base_board'], atol=1e-12)
+    assert 'fit' not in profile['robots']['left_front']
+    source = json.loads((Path(profile['file']).parent / 'left_front_base_binding_source.json').read_text())
+    assert source['passed'] is False  # Historical measurement remains unchanged.
+
+
 def test_measured_model_preserves_world_anchors_and_housing(tmp_path):
     nominal = load_layout(nominal_layout_path())
     measured = load_layout()

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "robot_id": "right_front",
+  "capture_source": "wrist_hd_service",
+  "acquisition_complete": true,
+  "accepted_count": 40,
+  "fit_count": 32,
+  "validation_count": 8,
+  "image_size": [
+    2592,
+    1944
+  ],
+  "unique_pixel_hashes": 40,
+  "corners_min": 20,
+  "corners_max": 24,
+  "passed": false,
+  "activated": false,
+  "reason": "Fixed intrinsic1px fit RMS threshold exceeded; downstream hand-eye diagnostic also fails independent reprojection and rotation limits",
+  "intrinsic_fit_rms_px": 1.1984062412274838,
+  "intrinsic_validation_median_rms_px": 1.0031315684318542,
+  "handeye_diagnostic_validation": {
+    "median_reprojection_rms_px": 1.9247828426487326,
+    "board_translation_rms_m": 0.0012669425801688035,
+    "board_rotation_rms_deg": 0.5883728209164406
+  },
+  "excluded_samples": [],
+  "thresholds": {
+    "intrinsic_fit_rms_px": 1.0,
+    "handeye_validation_median_rms_px": 1.0,
+    "board_translation_rms_m": 0.005,
+    "board_rotation_rms_deg": 0.5
+  },
+  "validation_used_for_fit": false,
+  "ground_truth_used_for_fit": false,
+  "independent_diagonal_arm": "left_rear",
+  "diagonal_reach_basis": "User statement, not measured reach calibration",
+  "raw_records": "../records",
+  "plan": "../final_plan/batch.json",
+  "readback": "completion-state.json",
+  "raw_data_manifest": "raw-data-sha256.json"
+}

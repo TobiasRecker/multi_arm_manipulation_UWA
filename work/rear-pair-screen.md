@@ -22,3 +22,26 @@
 - result.json/summary.json/Kontaktlog und reproduzierbare Prüfscripte im obigen
   Ordner. Zeugenextraktionsfehler separat erhalten/korrigiert. Keine Geräte-,
   ROS-, Simulationsdienst- oder Fahraktion. Weitere Optimierung noch offen.
+
+## Kontakt im 3D-Viewer, 2026-11-18
+
+- Abgeschlossen. Schritt 1 visualisiert die +60°-Referenz zwischen den hinteren
+  Armen in der archivierten Szene. Der vorhandene HTML-Viewer zeigt die 17 von
+  61 FCL-Kollisionspunkten und die beiden Unterarme. Startansicht bei 50 %.
+- Pose, Gelenkzustand und Kollisionspaar des ursprünglichen Kontaktzeugen
+  reproduziert. Die markierte Region ist aus den Kugelhüllen geschätzt. Zehn
+  Browserprüfungen bestanden und die Startansicht visuell geprüft.
+- Bedienung und Nachweis unter `contact-preview/` im Forschungsordner.
+  Reproduktion über `tools/preview_rear_pair_collision.py SCREENING_ORDNER
+  --output-dir NEUER_ORDNER` in der Zellumgebung.
+
+## Korrektur durch den Lehrer, 2026-11-18
+
+- Abgeschlossen. Bestehender Lehrer für dieselbe archivierte Referenz mit
+  festen Endposen und Griffen. 1.201 geprüfte Wegpunkte mit null FCL-Kollisionen
+  und mindestens 20,92 mm Armhüllabstand. Maximal 45,0 mm und 33,44° Korrektur.
+- Reproduktion in der Zellumgebung mit `tools/plan_rear_pair_teacher.py
+  SCREENING_ORDNER --output-dir NEUER_ORDNER`. `--candidate` prüft vorhandene
+  Optimierergebnisse erneut. Resultat und Vergleichsviewer unter
+  `teacher-step2/checked/`. Elf Browserprüfungen bestanden. Gemeinsames
+  Zeitgesetz sowie Prüfung der zeitparametrierten Bahn folgen in Schritt 3.

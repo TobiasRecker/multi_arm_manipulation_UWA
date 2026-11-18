@@ -17,7 +17,7 @@ def main():
     p = sub.add_parser('run')
     p.add_argument('--source', type=Path, required=True)
     p.add_argument('--output', type=Path, required=True)
-    p.add_argument('--variant',choices=('baseline','overlap','closer_coordinated'),default='baseline')
+    p.add_argument('--variant',choices=('baseline','overlap','closer_coordinated','away_face'),default='baseline')
     p.add_argument('--feedback-from',type=Path)
     p = sub.add_parser('summary')
     p.add_argument('run', type=Path)

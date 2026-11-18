@@ -1,8 +1,9 @@
 # OAK-Neukalibrierung und deutliche Fünfkamera-Aufnahme
 
-- Status: **Vier Aufnahmestellungen angefahren und Fünfkamera-GUI geöffnet.
-  Dynamische Reserve auf Nutzerwunsch aus, Kommandogrenze0,1rad/s.
-  Spätere Endabfrage alle Antriebe POWER_OFF; keine Kalibrieraufnahme/Übernahme**,
+- Status: **Offline-Berechnung abgeschlossen: vorläufiger OAK-Posekandidat aus
+  14Fünfkamera-Sätzen/70Fotos,10Fit- und4Prüfstellungen. Mehrkameraabweichung
+  noch2,32–9,22nativeOAK-Pixel; keine Millimetergenauigkeit bestätigt und keine
+  globale Übernahme. GUI/Fokus107 bleiben bestehen**,
   2026-11-18, Hauptagent.
 - Auftrag: aktuelle OAK-Pose nach möglicher Stativbewegung beurteilen; danach
   vier URs in geeignete Aufnahmeposen und Fünfkamera-GUI öffnen. Aufnahmezustand,
@@ -16,6 +17,144 @@
   vollständiger aktueller Wegprüfung. Bekannter Frischestopp vom17.11. beachten.
 
 ## Nachweise und aktueller Stand
+
+- Neueste Nutzerentscheidung18.11.: bisher keine Probleme beobachtet,
+  Basisanbindungen aller vier Arme als fest übernehmen und Problemhinweise
+  aus aktiven Ausgaben entfernen. Neues Standardprofil
+  hardware_20261118_base_fixed_v1 mit vier unveränderten T_base_board-Quellen,
+  Statusfixed_user_accepted und expliziter Nutzerentscheidung. LF-Boardframe
+  wird unabhängig von der optischen Hand-Auge-Anwendung geladen. Keine
+  ursprünglichen Messberichte umgeschrieben. OAK-Export jetzt alle vier
+  Transformationen regulär unter transforms, gleiche numerische Werte;
+  separate diagnostic_transforms-Gruppe/Ankerproblemtexte entfernt.
+- Neues Profil installiert und aus Standardlayout geladen, alle vier
+  base_binding-Statusfixed_user_accepted. Beschreibung/Overlay-Boardframes,
+  bestehende Optik-/Kinematikbytes und Export geprüft;16gezielte TestsPASS.
+  Veraltete90cm-Erwartung im vorhandenen Overlaytest auf bereits geltende
+  99,1cm berichtigt, keine Modellpose geändert. Erneuerter Fotokontext führt
+  feste Basisanbindungen aus dem aktiven Profil mit. Keine laufenden Dienste
+  neu gestartet oder Roboteraktionen aus dieser Übernahme ausgelöst.
+- Zusätzlich11bestehendeFoto-KontexttestsPASS (gesamt27); global übernommene
+  Basisanbindungen und separat gespeicherte neue OAK-Pose im Export eindeutig
+  als unterschiedliche Übernahmestände gekennzeichnet.
+
+- Nutzer bittet nach manuellen Fotos um Berechnung.15Manifeste eingefroren,
+ 14vollständige stationäre Sätze/70nativeFotos; ein vor Aufnahme abgebrochener
+  Versuch ohne Kamerabilder ausgeschlossen. Alle Originalbild-SHAs, Formate
+  und Fokuswerte geprüft. Boarddetektion separat für beide40mm-Tischboards
+  und mobiles38mm/IDs75–91 wiederholt. Dadurch alle14OAK-Mobileansichten
+  verwendbar, auch frühere GUI-Reviewbilder. Vorbestehende Rollenfolge und
+  vor Fit definierte Dublettenregel ergeben10Fit-/4Prüfstellungen.
+- Fokus107-Intrinsics: Factory-Verzeichnung/Hauptpunkt/Aspekt behalten,
+  gemeinsame Brennweitenskalierung aus10Trainingsansichten0,978326,
+  fx5832,357/fy5831,934px. Trainings-RMS0,802px, disjunkte Prüfecken neuer
+  Ansichten Median1,242/Maximum1,375px. Freier Brown4-Diagnosefit ist wegen
+  begrenzter Abdeckung/Parameteränderungen keine automatische Ersatzwahl.
+- Zuerst beide festen OAK-Boardposen getrennt geschätzt; zurückgehaltene
+  Boardbilder links0,287–0,339/rechts0,899–0,940px. Das sind Reprojektion und
+  Wiederholbarkeit, kein absoluter Genauigkeitsnachweis. Mobile Gegenprüfung
+  zeigt besondersRR deutliche Abweichungen. Anschließend robuste gemeinsame
+  Schätzung aller fünf stationären Kameraposen, relativer Tischboardpose und
+  mobilen Brettposen mit festen passenden Intrinsics. Linksboard fixiert,
+  historische T_base_board-Anker erhalten; keine nominale Basenlage zum Fit.
+- Gemeinsame Schätzung konvergiert (sparse Initialisierung, dichter Abschluss).
+  OAK-Mobilevorhersage nur aus Wristbildern auf vier zurückgehaltenen Stellungen
+  RMS9,222/2,875/8,607/2,322px. OAK feste Boards im gemeinsamen Fit0,829–1,710px.
+  Verfeinerung nach Sichtung erster Prüfungen als explorativ kennzeichnen;
+  diese vier Ansichten sind kein neuer unangesehener Abschlusstest.
+- Kandidat nach allen vier Roboterbasen; vorhandene gemessene T_base_board
+  laut Nutzerentscheidung18.11. fest übernehmen. LF gleichberechtigt enthalten.
+- Ausgabe calibration_candidate_v1/{oak_pose_candidate.json,.yaml,Ergebnis.txt,
+  calibration_quality.png,numerical_checks.json} unter Aufnahmewurzel; vollständige
+  Daten, Skripte, Split und beide Fits daneben. Rigidität/Inverse, getrennte
+  Rollen/keine identischen OAK-Bilder über Splits, Fokus107, Bild-SHAs und
+  Konvergenz geprüft. Mobiles Brett deckt nurx25–58%/y27–79% des OAK-Bildes ab;
+  zusätzliche geneigte linke/rechte Randansichten und neue unabhängige Prüfungen
+  wären für umfassendere Optikvalidierung hilfreich. Keine Roboteraktion,
+  keine globale Registrierung/EEPROM-Änderung oder Geschwindigkeitssenkung.
+
+- Nutzer beauftragt Fokus für vorderes und hinteres statisches Board gemeinsam.
+  Eigene Fünfkamera-GUI im nicht aufnehmenden Zustand geordnet geschlossen;
+  über bestehenden OAK-Fotopfad vier native8000×6000-Vergleichsfotos bei
+  100/107/112/116, tatsächliche Lens-Readbacks jeweils bestätigt. Montage
+  unverändert; beide Boardregionen separat an denselben Bildkoordinaten
+  ausgewertet. Kontrastnormalisierte Schärfemetrik und visuelle Kantenprüfung
+  bevorzugen107 an BEIDEN Boards. Detektion links/hinten bzw. rechts/vorne:
+  100=9/18,107=24/24,112=19/24,116=0/21Ecken. Keine globale Fokusoptimalität
+  oder Kalibriergenauigkeit daraus behaupten; AE/ISO waren leicht verschieden.
+- Nachweis focus_both_static/{captures,comparison,decision}.json und
+  comparison.jpg unter Aufnahmewurzel; Rohbilder weiter setup/oak4/photos/.
+  Neues datensatzlokales acquisition_active.yaml enthält weiterhin107 und
+  unveränderte Wristwerte. pose_gui.py nutzt diesen Fokus für Vorschau UND
+  Fotos, Titel/Kontext dynamisch; beim Wiederöffnen frühere importierte Sätze
+  rekursiv aus Herkunftsliste erhalten. Kein bereits gespeichertes Fokus107-
+  Bild umetikettiert, keine Intrinsicsfreigabe oder Roboteraktion.
+- Wiederhergestellte Sitzung20261118_140754_8caebf54: alle fünf Feeds frisch,
+  fehlerfrei; tatsächlicher OAK-Vorschau-Readback107 bestätigt. Vorige vier
+  Sätze/20Fotos in GUI erhalten. restored_gui.json enthält Vorschau-Metadaten.
+
+- Nutzer hinterfragt reine OAK-Aufnahmen: Ziel ist ausdrücklich Extrinsics
+  gegenüber Robotern/Welt. Klarstellung: mobile OAK-only-Bilder helfen nur der
+  Optikprüfung bei Fokus107. Bekannte unveränderte Tischboards erlauben dagegen
+  die Basisanbindung auch ohne neue Wristbilder; absolute Weltanbindung bleibt
+  von deren bisherigem Weltanker abhängig/provisorisch. Für die weitere Reihe
+  alle fünf Kameras speichern und mobile gemeinsame Sicht OAK+mindestens eine
+  angebundene Wristkamera herstellen. Keine Pflicht, dass alle fünf dasselbe
+  Board gleichzeitig sehen. Vorige OAK-only-Reihe bleibt erhalten.
+- Eigener tasklokaler Wrapper pose_gui.py gestartet: mobiles38mm und beide
+  Tischboardmodelle mit unterschiedlichen IDs/Skalen, eindeutige Referenznamen,
+  vorhandene fünfteilige Sätze in Zählern wiederverwenden; keine Aufnahme
+  automatisch, kein Fit/Profilwechsel und keine Roboterkommandos.
+- Eigene OAK-only-GUI über SIGTERM/Qt-Schließablauf beendet, Dienst inaktiv;
+  Fünfkamera-Dienst uwa-oak-pose-view-20261118 aktiv. Neue Sitzung
+  five_camera_pose/20261118_140254_3e66161f, Zeiger pose-viewer-session.txt,
+  Zustand/Screenshot pose-viewer-status.json/pose-viewer.png. Alle fünf Feeds
+  frisch und fehlerfrei im geprüften Fenster; LF24/LR19/RF24/RR19/OAK24Ecken.
+  RF/OAK beide uwa_mobile_a4, übrige feste Tischboards. Vier frühere native
+  Fünfkamera-Sätze in Zählern enthalten:20Fotos,2usable/2Review nach damaliger
+  Detektion. Zähler sind kein Nachweis vollständiger Extrinsics-Kalibrierung.
+
+- Nutzer möchte weitere Bilder direkt in passender GUI auslösen. Dafür eigene
+  OAK-Einzelansicht geöffnet (`uwa-oak-intrinsics-20261118`), mobiles38mm-Brett,
+  IDs75–91, Fokus107fest, native8000×6000. KeineWristaufnahmeninIntrinsics-
+  Phase, keineRoboterkommandos. FünfkameraansichtfürspäterePoseregistrierung
+  bleibtseparatvorhanden. AlteGUIwarbeimUmstellenschonbeendet, keinFremdprozess
+  gestoppt. NeueSitzungintrinsics_focus107/20261118_135449_64a7a980.
+- VierOAK-BilderbestehenderSätze überOriginalbild-Symlinksimportiert, mobile
+  Referenzerkennungneu:24/24/2/9Ecken. Zählerkorrekt4Fotos/2usable/2Review,
+  OriginalmanifestalsHerkunftgespeichert. ErsteflacheundgeneigteAnsichtFit,
+  weiterebrauchbareunterschiedlichePosenmitvorabdefinierter8/4-Rollenfolge;
+  DublettennichtalsunabhängigeValidierungverwenden. Ziel12verschiedenePosen.
+- Oberflächevisuellgeprüft: großesOAK-Bild, aktuellemobileErkennung24/24grün,
+  Capture-All-1speichertnurOAK. NativeModusohneVerstellenvonFokus/Belichtung,
+  Kamera-LeaseweiterüberbestehendenFotopfad. KeineAufnahmeautomatischausgelöst.
+
+- Referenzset set_133728_183314 erfolgreich: nativeWrists2592×1944/OAK8000×6000,
+ 5/5gespeichert, all_usable=true, Stillstand während gesamter Aufnahme bestätigt.
+  EckenLF20/LR19/RF24/RR24/OAK24. GUIzeigt1kompletten/1verwendbarenSatz,
+ 5Fotos/DONE. FokusWrist245/406/435/388, OAK107. KeineOptikwerte zurückgesetzt.
+- NativeOAK-ErkennungseparatbeiderTischboardsje24Ecken. MitFactoryK/D
+  (an116gebunden, aktueller107unvalidiert) disjunkteEckenprüfunglinks0,283px,
+  rechts1,402px gegen1px-Kriterium. LinkeAnkerposealsInitialkandidatberechnet,
+  beideT_base_oak-KandidatenundrelativeRearbasenmatrixgespeichert, nichtangewandt.
+  Quellefirst-oak-reference-check.json, StatusINITIAL_POSE_CANDIDATE_NOT_APPLIED.
+- FürpassendeFokus107-Intrinsics12mobileAnsichtenalsStartumfangvorgeschlagen,
+ 8Fit/4vordefinierteValidierung. ProtokollvorMobileaufnahmenfixiert.
+  Bedienergebetenmobiles38mm-BrettamrechtenTisch30–45°stabilanzulehnen;
+  nächsteAufnahmewartetaufBereitschaft. KeineArmbewegung/Geschwindigkeitsänderung.
+
+- Neue Nutzerangabe18.11.: Antriebe wieder aktiviert; Fortsetzung der
+  Kalibrierung beauftragt. Lesender Status nach RR-Hochlauf alle4RUNNING/NORMAL.
+  Keine neuen Armfahrten/Startaktionen;0,1rad/s/Geschwindigkeitspolitik erhalten.
+- Nutzer bestätigt beide festen Tischboards seit vorheriger Kalibrierung
+  unverändert relativ zu den Basen. Historische Board-Anker für Posefit
+  verwendbar, ihre Messunsicherheit bleibt. OAK-Fokus107 weiterhin ohne eigene
+  intrinsische Validierung, keine finale Genauigkeit/Profilübernahme behaupten.
+- Kamera-GUI geordnet auf vorhandene Tischboardmodelle `both` umgestellt:
+  LF/RF/RR/OAK24Ecken, LR19bereits in der Vorschau. Vorherige linke0/24 waren
+  im gewählten Mobile-Modell, kein fehlender Bildfeed. Neue Sitzung
+  five_camera/20261118_133517_0068a219. Expliziter nativerCapture angefordert;
+  Bedienerfeedback/Counts laufen in derselben GUI. Keine Bewegung/Fitaktivierung.
 
 - Abschluss18.11.: LF01 und LR/RR/RF im geometric_only-Modus erfolgreich.
   Restfahrten wall inklusive Vorprüfung39,66/82,81/47,25s, nominelle Bewegung

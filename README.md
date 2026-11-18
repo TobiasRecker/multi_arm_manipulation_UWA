@@ -52,15 +52,13 @@ two tables carrying one UR5, one UR7e and two UR5e robots. It starts simulated
 hardware by default. The layout is provisional, not a calibrated digital twin.
 Separate, explicit local hardware preparation is available in the UWA Arms app.
 
-Updated2026-11-12, the default model applies the versioned
-[measured calibration bundle](docs/applied_calibrations.md): individual factory
-kinematics for left-rear and both right arms, validated rear VGA optics, and
-explicitly accepted front native-HD intrinsics/hand-eye despite their failed
-automatic quality thresholds. The original quality flags remain visible.
-The current **hardware_20261112_v3** also applies the user's accepted
-preliminary OAK registration to Gazebo/RViz and shared model/view planning.
-The original nominal layout remains available. Table/base world poses and the
-OAK world anchor remain provisional.
+Updated2026-11-18, the default model applies
+[hardware_20261118_base_fixed_v1](docs/applied_calibrations.md).
+All four measured robot base-to-board bindings, including left front, are
+fixed working references by explicit user adoption. Revisit them when an
+actual issue is observed. Existing wrist optics, factory kinematics and the
+previous OAK registration are preserved. The newly calculated OAK pose is
+saved separately as a candidate. The original nominal layout remains available.
 The external camera stays world-fixed when a table moves. See
 [OAK adoption, frames and renderer limits](docs/oak_preliminary_adoption_2026-11-12.md).
 Named parking/capture joint references are saved without automatic execution.
@@ -95,9 +93,8 @@ motion; failure records remain intact. Camera settings are restored and LEDs off
 An initial [photo-textured silhouette model](docs/student_robot_visual_hull.md)
 is now available as an unvalidated candidate; cage openings and hidden interiors
 are not reconstructed. A validated dense mesh backend remains open.
-The [left-front camera diagnosis](docs/left_front_camera_diagnosis_2026-11-16.md)
-documents the native edge reprojection errors and radial-model extrapolation
-for independent parallel work.
+Earlier camera investigations remain in the historical measurement reports;
+the current fixed base-binding policy is documented above.
 Actual lower-reasoning quality/latency comparison remains to be measured.
 
 A first [assisted object-digitization pipeline](docs/object_digitization.md)
@@ -530,6 +527,10 @@ datasets are a separate research track. The first [cooperative drawing pilot](do
 executes a saved Python policy against a file-only three-arm kinematic model,
 with episode history and phase-scoped user feedback. Physical contact, force
 sensing and teleoperation takeover remain subsequent integration work.
+For an independent agent trial, use the [short handoff](docs/agent_trials/BOX_DRAWING_HANDOFF.md),
+[away-face prompt](docs/agent_trials/PROMPT_AWAY_FACE.md) and
+[development trace protocol](docs/agent_trials/TRACE_PROTOCOL.md). The standalone
+`tools/agent_trial.py` records stage times, commands, raw outputs and retained failures.
 The latest [500g force and speed tests](docs/carton_dynamic_validation_2026-11-16.md)
 include two complete10mm/s Home cycles and three loaded stop cases with retained
 grip using exactly the same version-bound profile. The report preserves earlier

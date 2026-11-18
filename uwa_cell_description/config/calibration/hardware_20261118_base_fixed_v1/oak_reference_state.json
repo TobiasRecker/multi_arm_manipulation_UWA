@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "robot_id": "right_front",
+  "snapshot": {
+    "positions": [
+      -5.624958876763479,
+      -0.2211281818202515,
+      -1.9787074327468872,
+      -1.1754136842540284,
+      1.0903189182281494,
+      0.2501395046710968
+    ],
+    "source": "live_joint_states",
+    "received_monotonic": 105971.960221938,
+    "recorded_at": "2026-11-12T07:59:08.071396+00:00",
+    "joint_names": [
+      "right_front_shoulder_pan_joint",
+      "right_front_shoulder_lift_joint",
+      "right_front_elbow_joint",
+      "right_front_wrist_1_joint",
+      "right_front_wrist_2_joint",
+      "right_front_wrist_3_joint"
+    ]
+  },
+  "source_manifest": "/home/rosmatch/UWA_ws/setup/calibration/three_camera_mobile/20261112_155233_897f400a/set_155905_367552/manifest.json",
+  "source_manifest_sha256": "08f73db67c92e20c2d36ee64e2b8277b21e20bb45c75d74fd5becf69e4a17370",
+  "parent_profile": "hardware_20261112_v2",
+  "parent_profile_sha256": "e7b25d250ca31bcf1959027224329b09a29d237ef1be1ffe85338a0f0116758a",
+  "anchor_warning": "Model world/base mount is provisional; measured joint snapshot is not an initial pose or motion command"
+}

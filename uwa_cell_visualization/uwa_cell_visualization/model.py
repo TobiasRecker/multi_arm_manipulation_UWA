@@ -60,12 +60,16 @@ def description(profile,layout,offset=(0.,0.,0.)):
     base.find('parent').set('link',top_frame)
     base.find('origin').set('xyz',vector(mount['mount_xyz']))
     base.find('origin').set('rpy',vector(mount['mount_rpy']))
-    # Display measured optical and board frames without relocating provisional bases.
+    # Display the adopted board anchors independently of optical calibration.
+    frames = []
     if 'fit' in measured:
+        frames.append(('wrist_camera_optical_frame', prefix+'tool0', measured['fit']['T_tool0_camera']))
+    binding = measured.get('base_binding', measured.get('fit'))
+    if binding is not None:
+        frames.append(('measured_board_frame', prefix+'base_link', binding['T_base_board']))
+    if frames:
         from uwa_cell_description.calibration_profile import origin, rigid
-        for suffix,parent,matrix in [
-                ('wrist_camera_optical_frame',prefix+'tool0',measured['fit']['T_tool0_camera']),
-                ('measured_board_frame',prefix+'base_link',measured['fit']['T_base_board'])]:
+        for suffix,parent,matrix in frames:
             ET.SubElement(robot,'link',name=prefix+suffix)
             joint=ET.SubElement(robot,'joint',name=prefix+suffix+'_joint',type='fixed')
             ET.SubElement(joint,'parent',link=parent);ET.SubElement(joint,'child',link=prefix+suffix)

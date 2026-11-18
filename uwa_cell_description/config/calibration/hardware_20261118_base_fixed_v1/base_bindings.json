@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "status": "fixed_user_accepted",
+  "transform_convention": "T_base_board maps table-board coordinates into robot base_link",
+  "acceptance": {
+    "authorized_by": "user",
+    "date": "2026-11-18",
+    "authorization": "bitte nimm das mit den Kalibrierproblemen erstmal \u00fcberall raus und \u00fcbernimm die basisanbindung als fest. Es gab bis jetzt keine Probleme und ich gehe das erst an wenn es probleme gibt.",
+    "revisit_only_on_observed_issue": true
+  },
+  "robots": {
+    "left_front": {
+      "board_id": "left_table_board",
+      "parent_frame": "left_front_base_link",
+      "T_base_board": [
+        [
+          0.9999992122752465,
+          0.0003220246436149859,
+          0.0012131566327164747,
+          -0.12774676291726847
+        ],
+        [
+          0.0003249779334702391,
+          -0.9999969826395881,
+          -0.0024349745505552393,
+          0.8094535216291889
+        ],
+        [
+          0.0012123688503738236,
+          0.0024353668816009875,
+          -0.9999962995681148,
+          -0.00016236889305040067
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source": {
+        "file": "left_front_base_binding_source.json",
+        "sha256": "c37a0571153375e1026a337ff02055a731ef7c5357d11f77755f1eb125fd6935"
+      }
+    },
+    "left_rear": {
+      "board_id": "left_table_board",
+      "parent_frame": "left_rear_base_link",
+      "T_base_board": [
+        [
+          -0.9999134950906299,
+          0.013143516931373828,
+          0.0005002982263562869,
+          0.12963899450124072
+        ],
+        [
+          0.01314387848162637,
+          0.9999133516649865,
+          0.0007263749397856192,
+          0.6033960816922469
+        ],
+        [
+          -0.0004907077550283651,
+          0.0007328879638790846,
+          -0.9999996110404901,
+          0.0005720542139035341
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source": {
+        "file": "left_rear_handeye_result.json",
+        "sha256": "2c42ed1cf1a29ef15d5e28d43a4ad9260033688a4f6d03b34ed0b1f23b60b6e0"
+      }
+    },
+    "right_front": {
+      "board_id": "right_table_board",
+      "parent_frame": "right_front_base_link",
+      "T_base_board": [
+        [
+          0.0023149792422765933,
+          0.9999708244137391,
+          0.007279504956715659,
+          -0.8009201464949217
+        ],
+        [
+          0.9999952272251791,
+          -0.0023000186101973965,
+          -0.0020628720888594193,
+          -0.17076319617352234
+        ],
+        [
+          -0.002046068906483376,
+          0.007284245719342874,
+          -0.9999713762735062,
+          0.00029607456554829495
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source": {
+        "file": "right_front_hd_handeye_result.json",
+        "sha256": "0bef86cd3fd2d1d9c0cd059e13505dcfa930fcf8b8daad7beb34c5831f83257a"
+      }
+    },
+    "right_rear": {
+      "board_id": "right_table_board",
+      "parent_frame": "right_rear_base_link",
+      "T_base_board": [
+        [
+          -0.004911751580199403,
+          -0.9999716793847958,
+          -0.005702203500897407,
+          -0.5988541471561952
+        ],
+        [
+          -0.9999761214589088,
+          0.004883893501434372,
+          0.0048891815536327606,
+          0.16894318397003752
+        ],
+        [
+          -0.004861194134381428,
+          0.005726081785818737,
+          -0.9999717899915828,
+          0.0005580121098534959
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source": {
+        "file": "right_rear_handeye_result.json",
+        "sha256": "f1ce3641c5ab05f89a4141a0ba2b845842a0224885662df98583aa0480da99c0"
+      }
+    }
+  }
+}

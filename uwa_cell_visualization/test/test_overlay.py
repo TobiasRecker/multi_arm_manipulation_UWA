@@ -46,7 +46,8 @@ def test_models_unique_joints_no_control_plugins_correct_mounts():
         assert robot.find('ros2_control') is None and robot.find('gazebo') is None
         assert 'ur5e/collision/' in text
         assert all(link.get('name')=='world' or link.get('name').startswith('real_') for link in robot.findall('link'))
-        assert mount_transform(robot)[:3,3]==pytest.approx([.45,y,.9])
+        # The measured table width is 0.991m (updated from the old 0.900m).
+        assert mount_transform(robot)[:3,3]==pytest.approx([.4955,y,.9])
     assert len(set(names))==12
 
 

@@ -266,7 +266,9 @@ class CaptureRig:
                 overview_registration=overview['registration'],
                 physical_oak_intrinsics=overview['factory'],
                 quality_status=overview['quality_status'],
-                note='Accepted preliminary registration; world/base anchor remains provisional. No new calibration performed.'))
+                robot_base_bindings={rid: arm['base_binding'] for rid, arm in calibration['robots'].items()
+                                     if 'base_binding' in arm},
+                note='Stored OAK registration; fixed robot base references follow the active profile. No new calibration performed.'))
         self.preview = OakPreview(self.ws, self.inventory['cameras']['oak4'], self.session / 'preview',
                                   self.optics['oak_manual_focus'])
         self.busy = threading.Lock()

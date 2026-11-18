@@ -8,6 +8,14 @@
   Zunächst Offline-Griffstarts/Referenzen, keine reale Gruppenumschaltung.
   Feste Objektgriffe und gemeinsames Zeitgesetz wiederverwenden; ungültige
   IK, native FCL-Kontakte und reine Hüllenverletzungen getrennt ausweisen.
+- Nutzer beginnt am 18.11. mit der Visualisierung der kollidierenden Referenz.
+  Im gemeinsamen 3D-Viewer die gemeldeten Kollisionskörper hervorheben und die
+  ungefähre Markierung aus den Hüllen als solche beschriften. Die Ansicht
+  gegen den archivierten Kontaktzustand und das ursprüngliche Modell prüfen.
+- Schritt 2 für dieselbe Referenz bestätigt. Der Lehrer darf die Zwischenbahn
+  in Position und Orientierung korrigieren. Gemeinsame Kartonbahn, feste
+  Greiftransformationen, Start und Ziel bilden den Vergleichsrahmen. Die
+  zeitparametrierte Trajektorienprüfung ist der nächste Schritt.
 
 ## Programmierpipeline mit Demonstrationen und Sprache (2026-11-17)
 
@@ -42,6 +50,12 @@
   Toleranzen, Kraftgrenzen oder Steifigkeiten ableiten; Herkunft von Sprache,
   Messung und technischen Annahmen erhalten. Gemeinsame Objektsteuerung pro
   tragender Gruppe gilt auch für Demonstration und Retargeting.
+- Nutzerauftrag18.11.: Übertragbarkeit an einem anderen Agenten testen;
+  kurze Übergabe und Prompt unter docs/agent_trials/. Entwicklungsschritte,
+  Toolausgaben, Dauer und Fehler über tools/agent_trial.py protokollieren.
+  Entwicklungszeit von robotischer Modell-/Ausführungszeit trennen; Restzeit
+  außerhalb geloggter Befehle nicht als gemessene Denkzeit ausgeben. Nicht
+  gewrappte Tools/Chat zusätzlich notieren/exportieren, Fehlversuche erhalten.
 - Piloteinstieg ist bestätigt; weitere Architekturvarianten bleiben Empfehlungen,
   keine pauschale Hardwarefreigabe. Erster file-only Modellstand/Bedienung:
   docs/box_drawing_pilot.md. Forschungsbericht:
@@ -62,6 +76,27 @@
   bestehen. Keine pauschale Freigabe über0,1rad/s daraus ableiten.
 
 ## OAK-Neukalibrierung und Aufnahmefeedback (2026-11-17)
+
+- Verbindliche Nutzerentscheidung18.11.: vorhandene Basisanbindungen ALLER
+  vier URs einschließlich left_front als **fest übernommen** behandeln.
+  Alte Kalibrierproblem-/Unter-Schwellen-/diagnostic-only-Hinweise nicht mehr
+  als aktuelle Einschränkung der Basisanbindung in Berichten, GUIs oder
+  Übergaben verwenden. Erst bei konkret beobachteten Problemen erneut
+  untersuchen. Nutzerentscheidung von alten Messresultaten unterscheiden;
+  Originalberichte erhalten. Aktives Basisprofil hardware_20261118_base_fixed_v1.
+
+- Fokusziel laut Nutzer18.11.: vorderes UND hinteres festes Tischboard
+  gemeinsam scharf abbilden. Fokusauswahl an beiden statischen Referenzen
+  beurteilen, nicht allein am mobilen Brett. Aktuell107 nach nativem Vergleich
+  bei unveränderter Montage; genaue Prüfdaten und Profilbindung in HANDOVER.
+
+- Präzisierung18.11.: Ziel bleibt die OAK-Pose gegenüber Roboterbasen/Welt.
+  Intrinsicsprüfung bei geändertem Fokus als Hilfsschritt klar davon trennen;
+  reine OAK-Bilder eines frei bewegten Boards liefern keine Weltanbindung.
+  Weitere Pose-Aufnahmen mit allen fünf Kameras speichern; mobile Ansichten
+  benötigen gemeinsame Sicht von OAK und mindestens einer angebundenen Wrist-
+  Kamera, nicht zwingend allen fünf. Unveränderte eingemessene Tischboards sind
+  ebenfalls Anker. Boarddetektion allein belegt keine gemeinsame Referenz.
 
 - NeuesteAnweisung18.11.: fürdiegezeigteAufnahmeanfahrtzusätzlicheberechnete
   dynamischeStoppreserveentfernen, KommandosundüberwachteArmgelenkgrenzen
@@ -536,7 +571,7 @@
 
 ## Ausdrücklich übernommene vorläufige OAK-Registrierung (2026-11-12)
 
-- Gemeinsamer Standard jetzt **hardware_20261112_v3**. User akzeptiert die
+- Historischer OAK-Stand12.11.: **hardware_20261112_v3**. User akzeptiert die
   erklärte erste OAK↔Front-Wrist-Schätzung für erste Versuche; SHA-gebundene
   Annahme im Profil, Original-`passed:false` niemals umschreiben. Roboterfits
   ausv2 unverändert; neue Rear-HD388-Intrinsics separat geprüft, noch nicht aktiviert.
@@ -553,10 +588,11 @@
 
 ## Neue Kalibrierung links vorne (2026-11-12)
 
-- Abgeschlossen: 41 Ansichten, eigene VGA-Intrinsics und Hand-Auge bestanden
+- Historische Messung: 41 Ansichten, eigene VGA-Intrinsics und Hand-Auge bestanden
   (640×480, Fokus245 manuell). Relative Basislage zu hinten links über dasselbe
   feste Board bestimmt. [Nachweis](docs/left_front_calibration_2026-11-12.md).
-  Ergebnisse separat; keine Übernahme ins aktive Profil oder neue Weltanker.
+  Basisanbindung seit Nutzerentscheidung18.11. fest übernommen;
+  Ursprungsmessung unter dem verlinkten Nachweis erhalten.
 
 - Nutzer beauftragt eigene Kamerakalibrierung und Position des UR5left_front.
   Linkes40mm-A3-Board lautNutzer seitLeftRear-Kalibrierung unverändertbefestigt;

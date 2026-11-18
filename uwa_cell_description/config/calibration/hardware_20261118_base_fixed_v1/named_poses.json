@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "unit": "rad",
+  "purpose": "Named joint references only; never live obstacle states or pre-approved trajectories",
+  "poses": {
+    "right_front_park": {
+      "robot_id": "right_front",
+      "joint_names": [
+        "right_front_shoulder_pan_joint",
+        "right_front_shoulder_lift_joint",
+        "right_front_elbow_joint",
+        "right_front_wrist_1_joint",
+        "right_front_wrist_2_joint",
+        "right_front_wrist_3_joint"
+      ],
+      "positions": [
+        -4.9390156904803675,
+        -1.8129974804320277,
+        1.4812305609332483,
+        -1.5650108976154407,
+        -2.008493248616354,
+        -2.3416698614703577
+      ],
+      "source": "setup/calibration/hardware_handeye/right_rear_20261111/completion_state.json",
+      "source_sha256": "efd14ee67f2dc0d2fc7216c7e2032ccfb414e76218cf471b52673ec9ed5d2259",
+      "kind": "recorded_joint_snapshot",
+      "requires_new_path_check": true,
+      "planned_positions": [
+        -4.94013989117127,
+        -1.8190124992313605,
+        1.4854820124858765,
+        -1.56964888901436,
+        -2.005911781228347,
+        -2.3383143583880823
+      ],
+      "planned_source": "setup/calibration/parking/right_front_hardware/plan.json",
+      "recorded_at": "2026-11-11T07:42:49.361249+00:00"
+    },
+    "right_front_first_capture": {
+      "robot_id": "right_front",
+      "joint_names": [
+        "right_front_shoulder_pan_joint",
+        "right_front_shoulder_lift_joint",
+        "right_front_elbow_joint",
+        "right_front_wrist_1_joint",
+        "right_front_wrist_2_joint",
+        "right_front_wrist_3_joint"
+      ],
+      "positions": [
+        -3.553767744694845,
+        -1.923575063745016,
+        1.9378865400897425,
+        -2.538518568078512,
+        -1.2243250052081507,
+        -0.232917610798971
+      ],
+      "source": "setup/calibration/hardware_handeye/right_front_20261111/records/sample_000.json",
+      "source_sha256": "20d11b40008a0e1124f9d70941118bff4c99d77f2f0c0320708c8aa1553d886a",
+      "kind": "recorded_joint_snapshot",
+      "recorded_at": "2026-11-11T09:21:11.827786+00:00",
+      "requires_new_path_check": true
+    },
+    "right_rear_park": {
+      "robot_id": "right_rear",
+      "joint_names": [
+        "right_rear_shoulder_pan_joint",
+        "right_rear_shoulder_lift_joint",
+        "right_rear_elbow_joint",
+        "right_rear_wrist_1_joint",
+        "right_rear_wrist_2_joint",
+        "right_rear_wrist_3_joint"
+      ],
+      "positions": [
+        1.8952324390411377,
+        -1.2114397448352356,
+        -2.0811431407928467,
+        -0.646043137913086,
+        1.6171287298202515,
+        0.301628977060318
+      ],
+      "source": "setup/calibration/hardware_handeye/right_front_20261111/completion_state.json",
+      "source_sha256": "c43849f58907c864c1bfe53873bf3c687e5aeb344f37503e5b605e9059bba1f1",
+      "kind": "recorded_joint_snapshot",
+      "requires_new_path_check": true,
+      "planned_positions": [
+        1.8952249212775967,
+        -1.2114905237887792,
+        -2.0811511593803407,
+        -0.6460365684519244,
+        1.6171232728775542,
+        0.3016507923603058
+      ],
+      "planned_source": "setup/calibration/parking/right_rear_20261111/plan.json",
+      "recorded_at": "2026-11-11T10:03:02.871661+00:00"
+    },
+    "right_rear_first_capture": {
+      "robot_id": "right_rear",
+      "joint_names": [
+        "right_rear_shoulder_pan_joint",
+        "right_rear_shoulder_lift_joint",
+        "right_rear_elbow_joint",
+        "right_rear_wrist_1_joint",
+        "right_rear_wrist_2_joint",
+        "right_rear_wrist_3_joint"
+      ],
+      "positions": [
+        0.3820968270301819,
+        -1.227159933452942,
+        -1.928684949874878,
+        -0.6366633337787171,
+        1.2372605800628662,
+        0.21493278443813324
+      ],
+      "source": "setup/calibration/hardware_handeye/right_rear_20261110/records/sample_000.json",
+      "source_sha256": "efe53b126d87c411671fc4a82973d0d5f210228829561ba267943426c2c51e87",
+      "kind": "recorded_joint_snapshot",
+      "recorded_at": "2026-11-10T12:08:20.826963+00:00",
+      "requires_new_path_check": true
+    }
+  }
+}
