@@ -131,3 +131,26 @@
   in ursprünglicher Inspektionspose, RRamvorigenVorgriff. Wiederkehrende Frische-
   verletzung vor weiterer Hardwareausführung diagnostizieren; keine belegte
   Kartonbewegung aus Schätzdifferenzen ableiten.
+
+## Erneuter ausdrücklicher Fahr-/Greifauftrag
+
+- Nutzer beauftragt erneut Vorpose plus Greifen. Aktuelle0,1rad/s beibehalten,
+  kein Hub geplant. Einmaliger expliziter ROS-Programmstart im Runner jetzt nach
+  abgeschlossener Geometrie unter frischen All4Holds/Stationarität/offenen
+  Greifern/nativeNORMAL; Telemetrie während CLI im Hintergrund weitergespinnt.
+  Keine Safetyquittierung/Fristlockerung/automatische Fehlerschleife. Neuer
+  Flag --start-ros-programs;12 gezielte Eligibility-/Discovery-/Timingtests PASS.
+- `setup/tasks/carton_grasp_20261118_go_real01/result.json`: beide hohen
+  Vorpositionen tatsächlich erreicht, alle Endholds und unabhängigen Ruhefenster
+  PASS. Keine Fingerkommandos/Kontakt/Hub. Jetzt offene Einfahrt vorbereiten.
+
+- Offene Einfahrt mit C2-Cartesian-Line offline geprüft: `open_entry_plan01`,
+  beide Arme ALIGN+ENTRY geometrisch frei, voller Primär-Interarm-/Tischschutz,
+  zusätzliche offene Meshgeometrie und35mm-Kurz-Wandhülle/5mmRandannahme.
+  Keine Touchausnahme bewegterArm/Karton,2×etwa6,4s Einfahrt bei0,1rad/s.
+  Noch NICHT ausgeführt; Annahmen sind keine gemessenen Toleranzgrenzen.
+- Aktuelle Wristfotos an neuen Vorgriffen beidePASS. Boardcheck OAK68Ecken/
+  1,344px, RF20Ecken/3,850px. Konkreter Konflikt: direkte rechte Boardanbindung
+  vs bisheriger globaler OAK-zu-Basis-Kandidat ergibtRF42,9/RR40,1mm Differenz.
+  Basisprofile bleiben übernommen; bisherige Einfahrt NICHT freigeben. Jetzt
+  aktuelle Pose direkt über sichtbares festes rechtes Board erneut bestimmen.

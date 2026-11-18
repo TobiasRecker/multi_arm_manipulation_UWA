@@ -17,8 +17,16 @@ def velocity_limits(names,task):
     arm=task['joint_velocity_rad_s'];finger=task.get('finger_velocity_limit_rad_s',arm)
     # Unselected left obstacles retain their commissioning envelope.
     overrides=task.get('joint_velocity_overrides_rad_s',{})
-    return np.array([(finger if '_robotiq_' in n else overrides.get(n,arm))
-        if n.startswith(('right_front_','right_rear_')) else arm if task.get('drawing_recipe') and n.startswith('left_front_') and '_robotiq_' not in n else .05 for n in names])
+    caps = []
+    for name in names:
+        is_finger = '_robotiq_' in name
+        if name.startswith(('right_front_', 'right_rear_')):
+            caps.append(finger if is_finger else overrides.get(name, arm))
+        elif task.get('drawing_recipe') and name.startswith('left_front_') and not is_finger:
+            caps.append(arm)
+        else:
+            caps.append(.05)
+    return np.array(caps)
 
 
 class TaskSphereModel(SphereModel):

@@ -171,9 +171,14 @@ class TaskGuard(MotionNode):
         except Exception as error:
             self.pairs=[];self.core.external_faults.append(dict(arms=list(ROBOT_IDS),reason='GEOMETRY ERROR: '+str(error)))
         status=self.core.evaluate(self.pairs,now,source)
-        # A fault in either member is immediately expanded, not on the next tick.
-        if (self.group or self.runner_received is not None) and set(status['blocked_arms']).intersection(self.motion_arms):
-            self.core.latched.update(self.motion_arms);status['blocked_arms']=sorted(self.core.latched)
+        # The drawing controller claims all three arms even during pickup.
+        combined_owned = self.scene['cfg'].get('drawing_recipe') and self.runner_received is not None
+        blocked = set(status['blocked_arms'])
+        if combined_owned:
+            blocked.update(self.supervisor.get('blocked_arms', []))
+        if (self.group or combined_owned) and blocked.intersection(self.motion_arms):
+            self.core.latched.update(self.motion_arms)
+            status['blocked_arms'] = sorted(self.core.latched)
         self.sequence+=1
         status.update(instance=self.instance,sequence=self.sequence,pairs=self.pairs,
             timing=dict(evaluation_ms=1000*(time.monotonic()-now),

@@ -2,7 +2,7 @@
 import copy
 import numpy as np
 import pytest
-from uwa_cell_tasks.hardware_carton_approach import slow_trajectory, canonical_base, unloaded_open_status, unloaded_guard_ready, wait_service_spinning
+from uwa_cell_tasks.hardware_carton_approach import slow_trajectory, canonical_base, unloaded_open_status, unloaded_guard_ready, wait_service_spinning, unloaded_program_start_ready
 
 
 def test_time_dilation_preserves_geometry_and_does_not_mutate_original():
@@ -55,6 +55,24 @@ def test_service_discovery_processes_telemetry_instead_of_blocking():
     assert len(ticks)==4
     with pytest.raises(TimeoutError):
         wait_service_spinning(SimpleNamespace(service_is_ready=lambda:False),lambda **kw:ticks.append(kw),timeout=.01,clock=lambda:len(ticks)*.005)
+
+
+def test_explicit_unloaded_program_start_keeps_all_holds_and_native_safety():
+    arms=['left_front','left_rear','right_front','right_rear']
+    guard=dict(stationary_arms=arms,faults=[])
+    sup=dict(held_arms=arms,witness_available=True,ports={r:{k:True for k in
+        ('held','manager_fresh','hardware_mode_verified','hold_config_verified')} for r in arms})
+    records={r:dict(v=[0.]*6,status=dict(robot_mode=7,safety_mode=1,runtime_state=1)) for r in arms}
+    assert unloaded_program_start_ready(guard,sup,records,set())
+    assert not unloaded_program_start_ready(guard,sup,records,{'right_front'})
+    for r in arms:
+        bad=copy.deepcopy(records);bad[r]['status']['safety_mode']=3
+        assert not unloaded_program_start_ready(guard,sup,bad,set())
+        bad=copy.deepcopy(records);bad[r]['v'][0]=.002
+        assert not unloaded_program_start_ready(guard,sup,bad,set())
+        bad=copy.deepcopy(sup);bad['ports'][r]['held']=False
+        assert not unloaded_program_start_ready(guard,bad,records,set())
+    assert not unloaded_program_start_ready(guard,dict(sup,witness_available=False),records,set())
 
 
 def test_supplemental_object_does_not_hide_a_changed_robot_link():

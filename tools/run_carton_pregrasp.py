@@ -17,7 +17,7 @@ from std_srvs.srv import Trigger
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO/'uwa_cell_tasks'))
-from uwa_cell_tasks.hardware_carton_approach import checked_problem, unloaded_open_status, unloaded_guard_ready, wait_service_spinning
+from uwa_cell_tasks.hardware_carton_approach import checked_problem, unloaded_open_status, unloaded_guard_ready, wait_service_spinning, unloaded_program_start_ready
 from uwa_cell_motion.common import ROBOT_IDS, joint_names, dump,arm_velocity_limit
 from uwa_cell_motion.execution import motion_context
 from uwa_cell_motion.hardware_execution import HardwareClient
@@ -55,8 +55,10 @@ def main():
     p.add_argument('--arm', choices=['right_front','right_rear'], help='One unloaded phase only; default both serially')
     p.add_argument('--execute', action='store_true')
     p.add_argument('--reset-unloaded', action='store_true')
+    p.add_argument('--start-ros-programs', action='store_true', help='Explicit one-time unloaded ROS startup after geometry compilation, under all four holds; no native safety acknowledgement')
     args = p.parse_args()
     if args.execute and not args.reset_unloaded: p.error('Explicit --reset-unloaded required for this unloaded commissioning sequence')
+    if args.start_ros_programs and not args.execute:p.error('--start-ros-programs requires --execute')
     root = args.output.resolve(); root.mkdir(parents=True, exist_ok=False)
     problem = checked_problem(root/'model', args.evidence, args.inventory, command_velocity=args.command_velocity)
     evidence = problem.pregrasp_evidence; path = evidence['path']; expected = dict(evidence['saved_start'])
@@ -133,6 +135,28 @@ def main():
                 # arm history afterwards, so those blocking checks cannot punch
                 # a gap in the driver/native alignment window.
                 client=ApproachClient(problem,arm,observer)
+                if args.start_ros_programs and index==0:
+                    # Geometry has already been compiled. Startup is explicit,
+                    # once only, with all four open/unloaded and resource-held.
+                    # Spin telemetry while the existing dashboard CLI runs.
+                    client.connect(guard=False)
+                    for _ in range(20):client.spin_once(timeout_sec=.005)
+                    now=time.monotonic()
+                    if (not client.state_peer.fresh(now,problem.cfg['state_timeout_s']) or
+                        any(max(now-r['received'],now-r['source_stamp'])>problem.cfg['state_timeout_s'] for r in client.records.values()) or
+                        not client.guard_peer.fresh(now,problem.cfg['heartbeat_timeout_s']) or
+                        not client.supervisor_peer.fresh(now,problem.cfg['heartbeat_timeout_s']) or
+                        not unloaded_program_start_ready(client.guard,client.supervisor,client.records,client.owned)):
+                        raise RuntimeError('Explicit program start requires fresh all-four unloaded holds and native quiet/normal state')
+                    segment['program_start_eligible_under_all_holds']=True;save()
+                    import subprocess
+                    from concurrent.futures import ThreadPoolExecutor
+                    with (root/'program-start.json').open('w') as program_log, ThreadPoolExecutor(max_workers=1) as pool:
+                        future=pool.submit(subprocess.run,[sys.executable,str(REPO/'scripts/ur_bringup.py'),'--apply','--json'],stdout=program_log,stderr=subprocess.PIPE,text=True,timeout=30.)
+                        client.wait(future.done,35.)
+                        answer=future.result()
+                    segment['program_start']=dict(returncode=answer.returncode,stderr=answer.stderr,report=str(root/'program-start.json'));save()
+                    if answer.returncode:raise RuntimeError('Explicit ROS program startup failed; no retry/goal')
                 client.connect()
                 client.health()
                 if any(abs(client.positions[j]-segment['request']['start'][j])>.0005 for n in problem.names.values() for j in n):

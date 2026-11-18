@@ -433,11 +433,12 @@ def _run_task(directory,scene_directory,layout_file,namespace,reference):
             lifted=poses['lifted']
             sim.phase='move_object';store.event('RUNNING','move_object')
             if drawing:
-                drawing.compile(contact_problem, group, dict(sim.q), obj, directory)
+                drawing.compile(contact_problem, group, dict(sim.q), obj, directory, health=sim.health)
                 lifted = drawing.lifted
                 poses.update(lifted=lifted, placed=obj,
                     lift_m=object_point_height(lifted,scene['lift_reference_point_object_m'])
                            - object_point_height(obj,scene['lift_reference_point_object_m']))
+                write_json(directory/'object-targets.json',seal(poses))
             recipe=compile_object_recipe(contact_problem,group,dict(sim.q),obj,cfg) if (cfg.get('roll_long_axis') or cfg.get('force_comparison_lift')) else None
             if recipe:write_json(directory/'object-recipe.json',seal(recipe))
             trajectory=drawing.trajectories[0] if drawing else recipe['motions']['lift'] if recipe else object_trajectory(contact_problem,group,dict(sim.q),obj,lifted,cfg)

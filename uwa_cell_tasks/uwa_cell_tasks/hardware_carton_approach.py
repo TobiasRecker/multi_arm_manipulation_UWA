@@ -42,6 +42,26 @@ def unloaded_guard_ready(guard):
             {'left_front','left_rear','right_front','right_rear'} and not guard.get('faults'))
 
 
+def unloaded_program_start_ready(guard, supervisor, records, owned):
+    """Eligibility for an explicit unloaded ROS-program start, never a reset.
+
+    Caller must separately validate packet freshness and all four open grippers.
+    Program startup must not release resource holds or acknowledge native safety.
+    """
+    arms={'left_front','left_rear','right_front','right_rear'}
+    return (not owned and unloaded_guard_ready(guard) and
+            set(supervisor.get('held_arms',[]))==arms and
+            supervisor.get('witness_available') is True and
+            set(records)==arms and
+            all(supervisor.get('ports',{}).get(r,{}).get(k) is True
+                for r in arms for k in ('held','manager_fresh','hardware_mode_verified','hold_config_verified')) and
+            all(v.get('status',{}).get('robot_mode')==7 and
+                v.get('status',{}).get('safety_mode') in (1,2) and
+                v.get('status',{}).get('runtime_state') in (1,2) and
+                len(v.get('v',[]))==6 and np.isfinite(v['v']).all() and
+                max(abs(x) for x in v['v'])<=.001 for v in records.values()))
+
+
 def slow_trajectory(trajectory, monitored_velocity, command_velocity):
     """Uniform time dilation, preserving geometry and monitored stop budgets."""
     if not (np.isfinite([monitored_velocity, command_velocity]).all() and

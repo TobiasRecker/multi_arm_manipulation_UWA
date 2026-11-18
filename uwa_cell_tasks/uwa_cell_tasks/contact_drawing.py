@@ -29,7 +29,7 @@ class ContactDrawing:
         if [p['face'] for p in self.reference['phases'] if p['drawing']] != ['y_max', 'z_min', 'y_min']:
             raise ValueError('Drawing reference must contain the three required circles')
 
-    def compile(self, problem, group, start, observed_asset, output):
+    def compile(self, problem, group, start, observed_asset, output, *, health=None):
         """Bind both holders to fresh offsets, keep the reviewed worker path."""
         dims = np.asarray(self.reference['dimensions_m'])
         center = np.eye(4)
@@ -85,6 +85,8 @@ class ContactDrawing:
         state = dict(start)
         inv = np.linalg.inv(new_offsets[ARMS[0]])
         for phase in phases:
+            if health is not None:
+                health()
             phase_id = phase['id']
             print('Retarget drawing phase',phase_id,flush=True)
             ref_names = phase.get('joint_names', self.reference['names'])
@@ -105,7 +107,12 @@ class ContactDrawing:
                 elif phase_id == 'reverse_worker_to_drawing_start':
                     target = np.array([self.branch[j] for j in worker])
                     ref.update(zip(worker,(1-u)*target+u*park))
-                updated = solver.solve(pose,state)
+                seeded = dict(state)
+                for arm in ARMS:
+                    seeded.update({j:ref[j] for j in joint_names(arm)})
+                updated = solver.solve(pose,seeded)
+                if max(abs(updated[j]-state[j]) for j in names if j not in worker)>.5:
+                    raise ValueError(f'{phase_id}: live holder branch is discontinuous')
                 updated.update({j:ref[j] for j in worker})
                 if not rows and max(abs(updated[j]-state[j]) for j in names)>1e-7:
                     raise ValueError(f'{phase_id}: pose does not join previous phase')
@@ -150,9 +157,17 @@ class ContactDrawing:
             checks = np.linspace(0,duration,2*len(times)-1)
             error = 0.
             for index,q in enumerate(spline(checks)):
+                if health is not None and index % 64 == 0:
+                    health()
                 checked = dict(start,**dict(zip(names,q)))
                 pose = chain.forward(checked) @ inv
-                checker.check(pose,checked)
+                try:
+                    checker.check(pose,checked)
+                except ValueError as error:
+                    write_json(Path(output)/'drawing-rejection.json', dict(
+                        phase=phase_id, sample=index, time_s=float(checks[index]), reason=str(error),
+                        state=checked, pose=pose.tolist()))
+                    raise ValueError(f'{phase_id}, sample {index}: {error}') from error
                 if phase.get('drawing'):
                     tool = problem.chains[WORKER].forward(checked)
                     tip = tool[:3,3]+PEN_LENGTH*tool[:3,2]
