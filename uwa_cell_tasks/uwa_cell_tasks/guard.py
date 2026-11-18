@@ -32,6 +32,7 @@ class TaskGuard(MotionNode):
         self.directory=Path(scene_directory);self.scene=verify_scene(self.directory);self.scene_record=self.scene
         self.description=(self.directory/'robot.urdf').read_text();self.layout=load_layout(layout_file)
         self.cfg=motion_configuration(self.scene['cfg']);self.names=actual_names(self.description,self.layout)
+        self.motion_arms = (*ARMS, 'left_front') if self.scene['cfg'].get('drawing_recipe') else ARMS
         self.temp=tempfile.TemporaryDirectory(prefix='uwa-task-guard-')
         self.model=TaskSphereModel(self.description,self.names,self.scene['cfg'],self.cfg['sphere_spacing_m'])
         self.collision=CollisionModel(self.description,self.temp.name)
@@ -171,8 +172,8 @@ class TaskGuard(MotionNode):
             self.pairs=[];self.core.external_faults.append(dict(arms=list(ROBOT_IDS),reason='GEOMETRY ERROR: '+str(error)))
         status=self.core.evaluate(self.pairs,now,source)
         # A fault in either member is immediately expanded, not on the next tick.
-        if self.group and set(status['blocked_arms']).intersection(ARMS):
-            self.core.latched.update(ARMS);status['blocked_arms']=sorted(self.core.latched)
+        if (self.group or self.runner_received is not None) and set(status['blocked_arms']).intersection(self.motion_arms):
+            self.core.latched.update(self.motion_arms);status['blocked_arms']=sorted(self.core.latched)
         self.sequence+=1
         status.update(instance=self.instance,sequence=self.sequence,pairs=self.pairs,
             timing=dict(evaluation_ms=1000*(time.monotonic()-now),

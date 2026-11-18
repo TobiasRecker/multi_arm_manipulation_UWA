@@ -30,6 +30,7 @@ from .scene import verify_scene
 
 
 class Simulation(MotionNode):
+    motion_arms = ARMS
     def __init__(self,namespace,scene_directory):
         simulation_only()
         if not namespace.startswith('/uwa_grasp_'):raise ValueError('An isolated /uwa_grasp_* simulation namespace is required')
@@ -38,6 +39,7 @@ class Simulation(MotionNode):
         self.set_parameters([rclpy.parameter.Parameter('use_sim_time',value=True)])
         self.ns=namespace;self.directory=Path(scene_directory);self.q={};self.v={};self.joint_received=0.
         self.cfg=json.loads((self.directory/'scene.json').read_text())['cfg']
+        self.motion_arms = (*ARMS, 'left_front') if self.cfg.get('drawing_recipe') else ARMS
         self.finger_names=[j.get('name') for j in ET.fromstring((self.directory/'robot.urdf').read_text()).findall('joint')
             if j.get('type')=='revolute' and j.get('name').startswith(ARMS) and '_robotiq_85_' in j.get('name')]
         if len(self.finger_names)!=12:raise ValueError('Twelve measured right finger joints required')
@@ -57,7 +59,7 @@ class Simulation(MotionNode):
             ('reset',Trigger,'collision_supervisor/reset'),('switch',SwitchController,'controller_manager/switch_controller'),
             ('list',ListControllers,'controller_manager/list_controllers'),('latch',SetBool,'tasks/grip_latch'),
             ('capture',Trigger,'tasks/camera_capture')]}
-        for arm in ARMS:self.service_clients['stop_'+arm]=self.create_client(Trigger,namespace+'/collision_supervisor/'+arm+'/stop')
+        for arm in self.motion_arms:self.service_clients['stop_'+arm]=self.create_client(Trigger,namespace+'/collision_supervisor/'+arm+'/stop')
         self.actions={name:ActionClient(self,FollowJointTrajectory,namespace+'/'+name+'/follow_joint_trajectory')
             for name in ['rigid_object_controller']+[a+'_gripper_controller' for a in ARMS]}
         # A fixed single executor prevents ready /clock callbacks from piling
@@ -77,7 +79,7 @@ class Simulation(MotionNode):
         if self.owned:
             if (getattr(self,'stop_directory',self.directory)/'STOP').exists() and not getattr(self,'stop_sent',False):
                 self.stop_sent=True
-                for arm in ARMS:self.service_clients['stop_'+arm].call_async(Trigger.Request())
+                for arm in self.motion_arms:self.service_clients['stop_'+arm].call_async(Trigger.Request())
             self.heartbeat_pub.publish(String(data=json.dumps(dict(phase=self.phase))))
     def now(self):return self.get_clock().now().nanoseconds/1e9
 
@@ -116,7 +118,9 @@ class Simulation(MotionNode):
                     output.write(f'{channel} stale at monotonic {now}; age {age}\n');output.flush()
                     faulthandler.dump_traceback(file=output,all_threads=True)
                 raise RuntimeError(f'{channel} reception stale: {age:.6f}s exceeds {limit:.3f}s')
-        if self.owned and set(ARMS).intersection(self.supervisor.get('blocked_arms',[])):
+        if getattr(self, 'drawing_in_air', False) and self.contact.get('supported'):
+            raise RuntimeError('Unexpected support contact during the drawing sequence')
+        if self.owned and set(self.motion_arms).intersection(self.supervisor.get('blocked_arms',[])):
             raise RuntimeError('Grasp group/owned arm STOP LATCHED')
         if self.owned and any(abs(self.q.get(j,float('inf'))-q)>.001 or abs(self.v.get(j,float('inf')))>.003
             for j,q in getattr(self,'obstacles',{}).items()):
@@ -157,7 +161,7 @@ class Simulation(MotionNode):
                     np.max(np.ptp([q for _,q in history],axis=0))<=.0009)
         self.wait(settled,30.)
         answer=self.call('reset',Trigger.Request())
-        try:self.wait(lambda:not set(ARMS).intersection(self.supervisor.get('blocked_arms',[])),5.)
+        try:self.wait(lambda:not set(self.motion_arms).intersection(self.supervisor.get('blocked_arms',[])),5.)
         except TimeoutError as error:
             raise RuntimeError('Owned arms remain interlocked after reset: '+answer.message) from error
         self.owned=True
@@ -165,7 +169,7 @@ class Simulation(MotionNode):
     def activate_group(self):
         states=self.call('list',ListControllers.Request()).controller
         if any(c.name=='rigid_object_controller' and c.state=='active' for c in states):return
-        deactivate=[c.name for c in states if c.state=='active' and c.name in [a+'_trajectory_controller' for a in ARMS]]
+        deactivate=[c.name for c in states if c.state=='active' and c.name in [a+'_trajectory_controller' for a in self.motion_arms]]
         req=SwitchController.Request();req.activate_controllers=['rigid_object_controller'];req.deactivate_controllers=deactivate
         req.strictness=2;req.timeout.sec=5
         response=self.call('switch',req)
@@ -174,11 +178,25 @@ class Simulation(MotionNode):
     def follow(self,trajectory,controller='rigid_object_controller',timeout=None):
         self.health();action=self.actions[controller]
         if not action.wait_for_server(timeout_sec=5.):raise RuntimeError('Missing action '+controller)
+        if self.cfg.get('drawing_recipe') and controller == 'rigid_object_controller':
+            missing = [j for arm in self.motion_arms for j in joint_names(arm)
+                       if j not in trajectory['joint_names']]
+            if missing:
+                held = [self.q[j] for j in missing]
+                trajectory = dict(trajectory, joint_names=trajectory['joint_names']+missing,
+                    points=[dict(point, positions=list(point['positions'])+held,
+                        **{key:list(point[key])+[0.]*len(missing)
+                           for key in ('velocities','accelerations') if key in point})
+                        for point in trajectory['points']])
         goal=FollowJointTrajectory.Goal();goal.trajectory.joint_names=trajectory['joint_names']
         # Detect an unresponsive actuator during the path, not only at its
         # final endpoint. Rigid-group telemetry adds the tighter TCP corridor.
         goal.path_tolerance=[JointTolerance(name=j,position=.005) for j in trajectory['joint_names']]
         goal.goal_tolerance=[JointTolerance(name=j,position=.001) for j in trajectory['joint_names']]
+        if self.cfg.get('drawing_recipe') and controller == 'rigid_object_controller':
+            if any(abs(self.q[j] - q) > .001 for j,q in zip(
+                    trajectory['joint_names'], trajectory['points'][0]['positions'])):
+                raise RuntimeError('Measured state differs from checked drawing-phase start')
         for entry in trajectory['points']:
             point=JointTrajectoryPoint();point.positions=list(entry['positions'])
             # Supplied derivatives preserve the shared object time law.
@@ -265,23 +283,23 @@ class Simulation(MotionNode):
             if h in self.handles:self.handles.remove(h)
 
     def stop(self):
-        report=dict(arms=list(ARMS),grip_release_commanded=False,confirmed=False)
+        report=dict(arms=list(self.motion_arms),grip_release_commanded=False,confirmed=False)
         pending=[];errors=[]
         for h in list(self.handles):
             try:h.cancel_goal_async()
             except Exception as error:errors.append('cancel: '+str(error))
         # Send to every member before waiting; one missing reply must never
         # prevent requesting the other member's independent hold.
-        for arm in ARMS:
+        for arm in self.motion_arms:
             try:pending.append(self.service_clients['stop_'+arm].call_async(Trigger.Request()))
             except Exception as error:errors.append(arm+': '+str(error))
         if errors:report['request_errors']=errors
         try:
-            self.wait(lambda:set(ARMS)<=set(self.supervisor.get('held_arms',[])) and
+            self.wait(lambda:set(self.motion_arms)<=set(self.supervisor.get('held_arms',[])) and
                 time.monotonic()-self.supervisor_received<.4 and time.monotonic()-self.joint_received<.2 and
-                all(abs(self.v.get(j,1))<.003 for a in ARMS for j in joint_names(a)),5.)
+                all(abs(self.v.get(j,1))<.003 for a in self.motion_arms for j in joint_names(a)),5.)
             states=self.call('list',ListControllers.Request()).controller
-            report['confirmed']=all(any(c.name==a+'_collision_hold_controller' and c.state=='active' for c in states) for a in ARMS)
+            report['confirmed']=all(any(c.name==a+'_collision_hold_controller' and c.state=='active' for c in states) for a in self.motion_arms)
         except Exception as error:report['error']=str(error)
         return report
 
@@ -315,6 +333,10 @@ def _run_task(directory,scene_directory,layout_file,namespace,reference):
     scene_directory=Path(scene_directory);scene=verify_scene(scene_directory)
     cfg=scene['cfg'];layout=load_layout(layout_file);description=(scene_directory/'robot.urdf').read_text()
     sim=Simulation(namespace,scene_directory);sim.stop_directory=directory;sim.layout=layout;group=None
+    drawing = None
+    if cfg.get('drawing_recipe'):
+        from .contact_drawing import ContactDrawing
+        drawing = ContactDrawing(cfg['drawing_recipe'])
     try:
         sim.connect()
         sim.reset();sim.activate_group()
@@ -340,7 +362,7 @@ def _run_task(directory,scene_directory,layout_file,namespace,reference):
             for candidate in candidates:
                 try:
                     store.event('RUNNING','plan_approach',candidate_id=candidate['id'])
-                    plan=plan_approach(problem,start,candidate)
+                    plan=plan_approach(problem,start,candidate, branch_seed=drawing.branch if drawing else None)
                     witness=TaskProblem(directory/f'witness-{candidate["id"]}',description,layout,scene,obj,static=False)
                     pre_state=dict(start,**dict(zip(plan['request']['joint_names'],plan['request']['target'])))
                     entry,grasp_state=grasp_entry(witness,pre_state,candidate,cfg)
@@ -410,11 +432,17 @@ def _run_task(directory,scene_directory,layout_file,namespace,reference):
             write_json(directory/'object-targets.json',seal(poses))
             lifted=poses['lifted']
             sim.phase='move_object';store.event('RUNNING','move_object')
+            if drawing:
+                drawing.compile(contact_problem, group, dict(sim.q), obj, directory)
+                lifted = drawing.lifted
+                poses.update(lifted=lifted, placed=obj,
+                    lift_m=object_point_height(lifted,scene['lift_reference_point_object_m'])
+                           - object_point_height(obj,scene['lift_reference_point_object_m']))
             recipe=compile_object_recipe(contact_problem,group,dict(sim.q),obj,cfg) if (cfg.get('roll_long_axis') or cfg.get('force_comparison_lift')) else None
             if recipe:write_json(directory/'object-recipe.json',seal(recipe))
-            trajectory=recipe['motions']['lift'] if recipe else object_trajectory(contact_problem,group,dict(sim.q),obj,lifted,cfg)
+            trajectory=drawing.trajectories[0] if drawing else recipe['motions']['lift'] if recipe else object_trajectory(contact_problem,group,dict(sim.q),obj,lifted,cfg)
             truth_before=np.array(sim.object['T_world_object'])
-            write_json(directory/'object-lift.json',trajectory);sim.follow(trajectory)
+            write_json(directory/'object-lift.json',trajectory);sim.follow(trajectory, timeout=trajectory['duration_s']*12+20 if drawing else None)
             truth=np.array(sim.object['T_world_object'])
             truth_start=truth_before
             reference=scene['lift_reference_point_object_m']
@@ -427,6 +455,13 @@ def _run_task(directory,scene_directory,layout_file,namespace,reference):
                 if time.monotonic()>wall_deadline:raise TimeoutError('Simulation dwell did not complete')
                 if sim.contact['supported']:raise RuntimeError('Support contact during free hold')
                 time.sleep(.02)
+            if drawing:
+                sim.drawing_in_air = True
+                sim.obstacles = {j:q for j,q in sim.obstacles.items()
+                                 if not j.startswith('left_front_') or '_robotiq_' in j}
+                for path in drawing.trajectories[1:-1]:
+                    store.event('RUNNING','move_object',step=path['phase'])
+                    sim.follow(path, timeout=path['duration_s']*12+20)
             carried=lifted
             if 'turned' in poses:
                 # Keep the existing move_object guard phase throughout rotation.
@@ -437,9 +472,10 @@ def _run_task(directory,scene_directory,layout_file,namespace,reference):
                 measured=np.asarray(sim.object['T_world_object'])
                 if pose_error(measured,carried)[1]>.0174533 or sim.contact['supported']:
                     raise RuntimeError('Unsupported quarter-turn orientation was not established')
+            sim.drawing_in_air = False
             sim.phase='set_down';store.event('RUNNING','set_down')
-            back=recipe['motions']['set_down'] if recipe else object_trajectory(contact_problem,group,dict(sim.q),carried,poses['placed'],cfg)
-            write_json(directory/'object-set-down.json',back);sim.follow(back)
+            back=drawing.trajectories[-1] if drawing else recipe['motions']['set_down'] if recipe else object_trajectory(contact_problem,group,dict(sim.q),carried,poses['placed'],cfg)
+            write_json(directory/'object-set-down.json',back);sim.follow(back, timeout=back['duration_s']*12+20 if drawing else None)
             sim.wait(lambda:sim.contact['supported'],5.,health=True)
             if cfg.get('roll_long_axis') and pose_error(sim.object['T_world_object'],poses['placed'])[1]>.0174533:
                 raise RuntimeError('Supported sideways orientation differs from target')

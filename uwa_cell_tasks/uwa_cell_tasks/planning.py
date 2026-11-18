@@ -174,7 +174,7 @@ def grasp_candidates(description, scene, cfg, object_pose):
     return sorted(candidates,key=lambda c:(c['score'],c['id']))
 
 
-def plan_approach(problem, start, candidate, *, seed=0):
+def plan_approach(problem, start, candidate, *, seed=0, branch_seed=None):
     goals={}
     for arm in ARMS:
         target=candidate['pregrasp'][arm]
@@ -182,7 +182,8 @@ def plan_approach(problem, start, candidate, *, seed=0):
         goal=dict(frame_id='world',target_link=arm+'_tool0',pose=dict(
             position=np.asarray(target)[:3,3].tolist(),
             orientation_xyzw=Rotation.from_matrix(np.asarray(target)[:3,:3]).as_quat().tolist()))
-        goals[arm]=goal
+        goals[arm] = (problem.solve_tcp(arm, branch_seed, target).tolist()
+                      if branch_seed is not None else goal)
     request=problem.normalize(dict(start=start,goals=goals))
     initial=[start[n] for n in request['joint_names']]
     if not problem.check(request,initial):raise ValueError('Approach start collides or lacks guard clearance')

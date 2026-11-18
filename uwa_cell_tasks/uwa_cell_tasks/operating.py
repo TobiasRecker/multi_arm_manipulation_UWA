@@ -18,7 +18,7 @@ def velocity_limits(names,task):
     # Unselected left obstacles retain their commissioning envelope.
     overrides=task.get('joint_velocity_overrides_rad_s',{})
     return np.array([(finger if '_robotiq_' in n else overrides.get(n,arm))
-        if n.startswith(('right_front_','right_rear_')) else .05 for n in names])
+        if n.startswith(('right_front_','right_rear_')) else arm if task.get('drawing_recipe') and n.startswith('left_front_') and '_robotiq_' not in n else .05 for n in names])
 
 
 class TaskSphereModel(SphereModel):

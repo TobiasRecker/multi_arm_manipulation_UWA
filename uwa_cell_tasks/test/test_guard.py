@@ -90,7 +90,7 @@ def test_stop_requests_both_members_even_if_one_transport_call_raises():
         requested.append(arm)
         if arm==ARMS[0]:raise RuntimeError('transport unavailable')
         return object()
-    sim=SimpleNamespace(handles=[],service_clients={
+    sim=SimpleNamespace(motion_arms=ARMS,handles=[],service_clients={
         'stop_'+a:SimpleNamespace(call_async=lambda req,a=a:request(a)) for a in ARMS},
         supervisor={'held_arms':list(ARMS)},supervisor_received=time.monotonic(),joint_received=time.monotonic(),
         v={j:0. for a in ARMS for j in joint_names(a)},

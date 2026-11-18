@@ -217,7 +217,7 @@ def fingertip_contact_primitives(root):
 
 def contact_description(description, controllers_path, finger_damping=.04,coarse=.02,fine=.004,fine_start=.65,geometry_metadata=None,
                         gear_stiffness=10.,motor_stiffness=10.,transmission='native_gear',
-                        arm_velocity=.05,arm_acceleration=.5,finger_velocity_limit=.05,motor_torque_limit=.35):
+                        arm_velocity=.05,arm_acceleration=.5,finger_velocity_limit=.05,motor_torque_limit=.35, motion_arms=ARMS):
     """Opt-in profile; default cell description/controllers stay unchanged.
 
     Contact fingers are force servos with measured independent joints. URDF
@@ -232,7 +232,7 @@ def contact_description(description, controllers_path, finger_damping=.04,coarse
     for name,value in [('max_velocity',arm_velocity),('max_acceleration',arm_acceleration)]:
         ET.SubElement(arm_backend.find('hardware'),'param',name=name).text=str(value)
     for joint in list(control.findall('joint')):
-        if joint.get('name') not in [name for arm in ARMS for name in joint_names(arm)]:continue
+        if joint.get('name') not in [name for arm in motion_arms for name in joint_names(arm)]:continue
         control.remove(joint);arm_backend.append(joint)
         for command in list(joint.findall('command_interface')):
             if command.get('name') not in ('position','velocity'):joint.remove(command)
@@ -328,10 +328,11 @@ def prepare_scene(layout, cfg, directory):
     # Publish at the measurement cadence, not once per physics substep with
     # repeated cached states. This keeps geometry/watchdog callbacks responsive.
     params.setdefault('/uwa_cell/joint_state_broadcaster',{}).setdefault('ros__parameters',{})['update_rate']=100
+    motion_arms = (*ARMS, 'left_front') if cfg.get('drawing_recipe') else ARMS
     group_name = 'rigid_object_controller'
     params['/uwa_cell/controller_manager']['ros__parameters'][group_name] = {'type':'joint_trajectory_controller/JointTrajectoryController'}
     params['/uwa_cell/'+group_name] = {'ros__parameters': dict(
-        joints=[j for a in ARMS for j in joint_names(a)], command_interfaces=['position','velocity'],
+        joints=[j for a in motion_arms for j in joint_names(a)], command_interfaces=['position','velocity'],
         state_interfaces=['position','velocity'], allow_partial_joints_goal=False,
         action_monitor_rate=50., state_publish_rate=100.,
         constraints=dict(stopped_velocity_tolerance=.003, goal_time=2.0), use_sim_time=True)}
@@ -341,7 +342,7 @@ def prepare_scene(layout, cfg, directory):
         cfg['gripper_coarse_velocity_rad_s'],cfg['gripper_fine_velocity_rad_s'],cfg['gripper_fine_start_rad'],finger_geometry,
         cfg['gripper_gear_stiffness_nm_rad'],cfg['gripper_motor_stiffness_nm_rad'],cfg['gripper_transmission'],
         max([cfg['joint_velocity_rad_s']]+list(cfg.get('joint_velocity_overrides_rad_s',{}).values())),cfg.get('braking_acceleration_rad_s2',.5),cfg.get('finger_velocity_limit_rad_s',.05),
-        cfg.get('gripper_motor_torque_limit_nm',.35))
+        cfg.get('gripper_motor_torque_limit_nm',.35), motion_arms=motion_arms)
     (directory/'robot.urdf').write_text(description)
     sdf = dynamic_sdf(instance, shapes, cfg); (directory/'carton.sdf').write_text(sdf)
     world = ET.Element('sdf', version='1.9'); w = ET.SubElement(world, 'world', name='uwa_grasp_lab')
@@ -382,6 +383,8 @@ def prepare_scene(layout, cfg, directory):
     sources=set(Path(__file__).resolve().parent.glob('*.py'))
     sources.add(Path(rigid_object.__file__).resolve())
     sources.add(Path(motion_node.__file__).resolve())
+    if cfg.get('drawing_recipe'):
+        sources.add(Path(cfg['drawing_recipe']).resolve())
     # These local planning/watchdog dependencies can change independently in
     # the shared workspace. Bind them as well as the task adapter itself.
     import uwa_cell_control,uwa_cell_calibration,uwa_cell_gazebo,uwa_cell_description

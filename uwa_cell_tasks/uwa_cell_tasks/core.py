@@ -82,8 +82,16 @@ def configuration(path=None):
     if not isinstance(cfg['exploration_mode'],bool):raise ValueError('exploration_mode must be boolean')
     if cfg.get('schema_version') != 1 or tuple(cfg.get('arms', [])) != ARMS:
         raise ValueError('v1 requires schema1 and the two right arms in stable order')
+    drawing = cfg.get('drawing_recipe')
+    if drawing is not None:
+        if not isinstance(drawing, str) or not Path(drawing).is_absolute():
+            raise ValueError('Drawing recipe must be an absolute file path')
+        if not (cfg['exploration_mode'] and cfg['simulation_stop_reserve_mode']=='observe'):
+            raise ValueError('Drawing contact experiment requires force-observed simulation')
+        if cfg['joint_velocity_rad_s'] != .1 or cfg.get('roll_long_axis'):
+            raise ValueError('Drawing requires the 0.1 rad/s profile and one recipe')
     for key, value in cfg.items():
-        if key in ('schema_version', 'arms', 'object_id', 'simulation_assumptions','gripper_transmission','physics_engine','force_observation','exploration_mode','roll_long_axis','placement_table','force_comparison_lift','joint_velocity_overrides_rad_s','simulation_stop_reserve_mode'): continue
+        if key in ('schema_version', 'arms', 'object_id', 'simulation_assumptions','gripper_transmission','physics_engine','force_observation','exploration_mode','roll_long_axis','placement_table','force_comparison_lift','joint_velocity_overrides_rad_s','simulation_stop_reserve_mode','drawing_recipe'): continue
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
             raise ValueError('Expected positive finite ' + key)
     if cfg['simulation_stop_reserve_mode'] not in ('enforce','observe'):
