@@ -2,7 +2,7 @@
 import copy
 import numpy as np
 import pytest
-from uwa_cell_tasks.hardware_carton_approach import slow_trajectory, canonical_base
+from uwa_cell_tasks.hardware_carton_approach import slow_trajectory, canonical_base, unloaded_open_status
 
 
 def test_time_dilation_preserves_geometry_and_does_not_mutate_original():
@@ -18,9 +18,24 @@ def test_time_dilation_preserves_geometry_and_does_not_mutate_original():
         np.testing.assert_allclose(p['accelerations'], np.array(q['accelerations'])/4)
 
 
-@pytest.mark.parametrize('command', [0., -.1, .003, .004, float('nan')])
+@pytest.mark.parametrize('command', [0., -.1, .004, float('nan')])
 def test_command_profile_cannot_increase_the_guard_bound(command):
     with pytest.raises(ValueError):slow_trajectory({}, .003, command)
+
+
+def test_equal_command_and_monitor_keeps_the_original_timing():
+    trajectory=dict(duration_s=10.,points=[dict(time=10.,positions=[1.],velocities=[.1],accelerations=[.2])])
+    assert slow_trajectory(trajectory,.1,.1)==trajectory
+
+
+def test_inactive_open_gripper_does_not_require_an_activation_stroke():
+    status=dict(observed=True,busy=False,registers=dict(ACT=0,STA=0,OBJ=0,FLT=0,PRE=0,POS=3))
+    assert unloaded_open_status(status)
+    for key,value in [('OBJ',2),('POS',128),('PRE',255),('FLT',1),('STA',1)]:
+        changed=copy.deepcopy(status);changed['registers'][key]=value
+        assert not unloaded_open_status(changed)
+    status['busy']=True
+    assert not unloaded_open_status(status)
 
 
 def test_supplemental_object_does_not_hide_a_changed_robot_link():

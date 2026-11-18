@@ -10,10 +10,10 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 
 from preview_rear_pair_collision import build_teacher, load_reference, render_frames, write_viewer
-from uwa_cell_motion.two_arm_teacher import pose_at
+from uwa_cell_motion.two_arm_teacher import pose_at, specification
 
 
-def check_geometry(teacher, task, controls):
+def check_geometry(teacher, task, controls, reference_endpoints=None):
     count = 1201  # Includes the original 61 evenly spaced reference samples.
     check = teacher.inspect(task, controls, count=count)
     if not check['complete']:
@@ -42,8 +42,11 @@ def check_geometry(teacher, task, controls):
     endpoints = [rows[0], rows[-1]]
     endpoint_error = max(float(np.max(np.abs(np.array(row['pose']) -
                          pose_at(teacher.initial, task, row['s'], np.zeros((6, 6)))))) for row in endpoints)
-    endpoint_joint_error = max(float(np.max(np.abs(np.array(row['q']) -
-                               [teacher.start[name] for name in teacher.names]))) for row in endpoints)
+    if reference_endpoints is None:
+        reference_rows = teacher.path_rows(task, count=61)
+        reference_endpoints = [reference_rows[0], reference_rows[-1]]
+    endpoint_joint_error = max(float(np.max(np.abs(np.array(row['q']) - expected['q'])))
+                               for row, expected in zip(endpoints, reference_endpoints))
     check.update(max_position_deviation_m=peak_translation, max_orientation_deviation_deg=peak_orientation,
                  max_world_z_yaw_deg=maximum_yaw, max_grasp_position_error_m=closure_position,
                  max_grasp_angle_error_rad=closure_angle, joint_bounds_ok=bool(bounds_ok),
@@ -57,17 +60,32 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('screening', type=Path)
     parser.add_argument('--output-dir', type=Path, required=True)
+    parser.add_argument('--task', type=Path, help='JSON task on the archived rear-pair start and grasps')
     parser.add_argument('--candidate', type=Path, help='Recheck controls from an earlier optimizer JSON')
     args = parser.parse_args()
     screening, saved, reference, yaw, source, screening_hash = load_reference(args.screening)
     out = args.output_dir.resolve()
     out.mkdir(parents=True, exist_ok=False)
     task = yaw['task']
+    if args.task:
+        requested = json.loads(args.task.read_text())
+        task = specification(requested['name'], requested['excursion_m'], requested['rotation_vector_deg'],
+                             requested['goal_m'], requested['goal_rotation_vector_deg'])
     with tempfile.TemporaryDirectory(prefix='uwa-rear-teacher-') as directory:
         teacher = build_teacher(directory, screening, reference, source)
+        count = yaw['inspection']['samples']
+        reference_check = teacher.inspect(task, count=count) if args.task else yaw['inspection']
+        if (not reference_check['complete'] or not reference_check['fcl_collision_samples']
+                or any(failure['s'] in (0., 1.) for failure in reference_check['failures'])):
+            raise ValueError('Expected a colliding reference with a valid start and goal')
+        reference_rows = teacher.path_rows(task, count=count)
         if args.candidate:
             raw = args.candidate.read_bytes()
             optimization = json.loads(raw)
+            if 'optimization' in optimization:
+                if optimization['task'] != task:
+                    raise ValueError('Candidate task does not match the supplied task')
+                optimization = optimization['optimization']
             candidate_sha256 = hashlib.sha256(raw).hexdigest()
         else:
             optimization = teacher.optimize(task, count=121, maxiter=35)
@@ -77,32 +95,34 @@ def main():
                 or np.max(np.abs(controls[:, :3])) > .12 + 1e-10
                 or np.max(np.abs(controls[:, 3:])) > np.deg2rad(35) + 1e-10):
             raise ValueError('Candidate controls exceed the original teacher bounds')
-        check = check_geometry(teacher, task, controls)
+        check = check_geometry(teacher, task, controls, [reference_rows[0], reference_rows[-1]])
         report = dict(executable=False, stage='geometric_path', model_signature=teacher.problem.signature,
                       arms=list(teacher.arms), source_sha256=teacher.source_sha256, screening_sha256=screening_hash,
                       candidate_sha256=candidate_sha256, task=task, initial_pose=teacher.initial.tolist(),
                       initial_state=teacher.start, grasp_offsets=screening['rear_grasp_offsets'],
-                      optimization=optimization, reference=yaw['inspection'], corrected=check)
+                      goal_pose=reference_rows[-1]['pose'], goal_joint_positions_rad=reference_rows[-1]['q'],
+                      joint_names=teacher.names, optimization=optimization, reference=reference_check, corrected=check)
         (out / 'result.json').write_text(json.dumps(report, indent=2, allow_nan=False) + '\n')
         if not check['passed']:
             raise RuntimeError('Candidate failed geometric checks; see result.json')
 
-        count = yaw['inspection']['samples']
-        reference_rows = teacher.path_rows(task, count=count)
         corrected_rows = teacher.path_rows(task, controls, count=count)
         contacts = out / 'contacts'
         contacts.mkdir()
         before, native = render_frames(teacher, reference_rows, contacts)
         after, corrected_contacts = render_frames(teacher, corrected_rows, contacts, reference_rows)
-        expected = [row['s'] for row in yaw['inspection']['failures'] if not row['fcl_clear']]
+        expected = [row['s'] for row in reference_check['failures'] if not row['fcl_clear']]
         midpoint = count // 2
         if ([sample['s'] for sample in native] != expected or corrected_contacts
-                or before[midpoint]['contact_pairs'] != saved['witness']['contact_pairs']):
+                or (not args.task and before[midpoint]['contact_pairs'] != saved['witness']['contact_pairs'])):
             raise ValueError('Viewer samples do not reproduce the checked paths')
+        contact = min(native, key=lambda sample: abs(sample['s'] - .5))
+        distinct_goal = not np.allclose(reference_rows[0]['pose'], reference_rows[-1]['pose'], atol=1e-9, rtol=0)
         write_viewer(out, teacher, [
             dict(label='Original reference', frames=before),
             dict(label='Teacher correction', frames=after, corrected=True, geometry=check),
-        ], initial_frame=midpoint, initial_set=1)
+        ], initial_frame=0 if args.task else midpoint, initial_set=1, contact_frame=contact['index'],
+                     distinct_goal=distinct_goal)
         print(json.dumps({k: v for k, v in check.items() if k != 'failures'}, indent=2))
 
 

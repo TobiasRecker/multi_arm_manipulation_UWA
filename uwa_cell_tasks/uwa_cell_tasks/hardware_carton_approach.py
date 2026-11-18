@@ -13,11 +13,25 @@ from types import SimpleNamespace
 import numpy as np
 
 
+def unloaded_open_status(status):
+    """Open/no-contact register state, including inactive grippers after boot.
+
+    No activation cycle is needed for an unloaded arm approach. Full opening
+    sweeps remain in collision checking; this does not qualify a loaded grip.
+    """
+    r=status.get('registers',{})
+    if status.get('observed') is not True or status.get('busy') is not False:
+        return False
+    if r.get('FLT')!=0 or r.get('PRE')!=0 or not 0<=r.get('POS',256)<=8:
+        return False
+    return ((r.get('ACT'),r.get('STA'),r.get('OBJ')) in ((0,0,0),(1,3,3)))
+
+
 def slow_trajectory(trajectory, monitored_velocity, command_velocity):
     """Uniform time dilation, preserving geometry and monitored stop budgets."""
     if not (np.isfinite([monitored_velocity, command_velocity]).all() and
-            0 < command_velocity < monitored_velocity):
-        raise ValueError('Command velocity must be positive and below monitored bound')
+            0 < command_velocity <= monitored_velocity):
+        raise ValueError('Command velocity must be positive and at most monitored bound')
     result = copy.deepcopy(trajectory); factor = monitored_velocity/command_velocity
     result['duration_s'] *= factor
     for point in result['points']:
@@ -30,8 +44,9 @@ def slow_trajectory(trajectory, monitored_velocity, command_velocity):
 def canonical_base(description):
     root = ET.fromstring(description)
     for tag, name in [('link','pregrasp_carton_static'),('joint','pregrasp_carton_anchor')]:
-        node = root.find(f"{tag}[@name='{name}']")
-        if node is not None: root.remove(node)
+        for node in list(root.findall(tag)):
+            if node.get('name')==name or node.get('name','').startswith(name+'_'):
+                root.remove(node)
     # Generated visual-only ChArUco files live under each output directory.
     # They do not participate in this kinematic/collision-model comparison.
     for link in root.findall('link'):
@@ -39,7 +54,7 @@ def canonical_base(description):
     return ET.canonicalize(ET.tostring(root, encoding='unicode'), strip_text=True)
 
 
-def checked_problem(directory, evidence_directory, inventory, *, command_velocity=.0015):
+def checked_problem(directory, evidence_directory, inventory, *, command_velocity=.1):
     from uwa_cell_calibration.model import CollisionModel
     from uwa_cell_control.parallel_scan import collision_signature
     from uwa_cell_motion.geometry import SphereModel

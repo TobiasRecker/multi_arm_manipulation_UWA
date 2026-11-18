@@ -40,6 +40,8 @@ def audit(run):
     total = 0.
     samples = 0
     phase_names = []
+    drawn = []
+    face_geometry = {'y_max': (1, 1), 'z_min': (2, -1), 'y_min': (1, -1)}
     for phase in report['phases']:
         phase_names.append(phase['id'])
         segment = phase['segment']
@@ -49,6 +51,7 @@ def audit(run):
             peaks[order-1] = max(peaks[order-1], float(np.max(abs(sample_segment(segment, ts, order)))))
         positions = sample_segment(segment, np.linspace(0, duration, 151))
         jump = max(jump, float(np.max(abs(last-positions[0]))))
+        angles = []
         for q in positions:
             state = dict(initial, **dict(zip(names, q)))
             poses = {a: chains[a].forward(state)@tcp[a]@np.linalg.inv(offsets[a]) for a in holders}
@@ -61,14 +64,27 @@ def audit(run):
                 tool = chains[worker].forward(state)
                 tip = tool[:3, 3]+.30*tool[:3, 2]
                 local = base[:3, :3].T@(tip-base[:3, 3])
-                axis, sign = (1, 1) if phase['face']=='y_max' else (2, -1)
+                axis, sign = face_geometry[phase['face']]
+                angles.append(np.arctan2(-local[2] * sign if axis == 1 else local[1] * sign,
+                                         local[0]))
                 tip_error = max(tip_error, abs(local[axis]-sign*report['dimensions_m'][axis]/2),
                                 abs(np.linalg.norm(np.delete(local, axis))-.025))
             samples += 1
+        if angles:
+            sweep = np.unwrap(angles)
+            assert abs(sweep[-1] - sweep[0] - 2*np.pi) < .001
+            assert np.all(np.diff(sweep) > 0)
+            drawn.append(phase['face'])
         last = positions[-1]
         total += duration
     assert closure<1e-6 and angle<1e-5 and jump<1e-7 and tip_error<.00025
-    assert np.all(peaks <= np.array([.35, .4, 2.])+1e-6)
+    assert drawn == report['program']['surfaces']
+    assert len(drawn) == len(set(drawn))
+    assert np.max(abs(last - [initial[j] for j in names])) < 1e-7
+    velocity = report['program'].get('velocity_rad_s', .35)
+    if 'y_min' in drawn:
+        assert velocity == .1
+    assert np.all(peaks <= np.array([velocity, .4, 2.])+1e-6)
     rows = episode.records()
     starts = [r for r in rows if r['kind']=='phase_start']
     ends = [r for r in rows if r['kind']=='phase_end']
@@ -84,7 +100,7 @@ def audit(run):
     assert not summary['force_channels'] and summary['detected_events']['object_lost'] is None
     return dict(passed=True, result_sha256=hashlib.sha256((run/'result.json').read_bytes()).hexdigest(),
                 scope='independent FK/time/episode audit; not independent collision or physical validation',
-                phase_count=len(phase_names), kinematic_samples=samples, derivative_samples_per_phase=2001,
+                drawn_faces=drawn, phase_count=len(phase_names), kinematic_samples=samples, derivative_samples_per_phase=2001,
                 derivative_peaks=peaks.tolist(), duration_model_s=total, max_phase_jump_rad=jump,
                 max_holder_position_disagreement_m=closure, max_holder_orientation_disagreement_rad=angle,
                 max_tool_reference_error_m=float(tip_error), feedback_count=len(summary['feedback']))

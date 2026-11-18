@@ -45,3 +45,9 @@
   Optimierergebnisse erneut. Resultat und Vergleichsviewer unter
   `teacher-step2/checked/`. Elf Browserprüfungen bestanden. Gemeinsames
   Zeitgesetz sowie Prüfung der zeitparametrierten Bahn folgen in Schritt 3.
+
+## Fortsetzung zu einer eigenen Zielpose, 2026-11-18
+
+- In Arbeit. Nutzer fragt nach dem Ziel nach der Ausweichbewegung. Archivierter
+  Viewer und Pose bei 100 % geprüft. Ausgangsfall kehrt zur Startpose zurück.
+  Gezielte Offlineprobe mit eigenem Ziel und freiem Wegstück nach dem Konflikt.

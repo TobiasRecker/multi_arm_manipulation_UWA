@@ -27,6 +27,9 @@ PEN_RADIUS = .003
 STANDOFF = .06
 SURFACES = {'y_max': (1, 1), 'z_min': (2, -1), 'y_min': (1, -1)}
 VELOCITY = .1
+AWAY_OFFSET = (.07, -.05, .18)
+AWAY_ANGLE = 160.
+AWAY_YAW = 55.
 VARIANTS = ('baseline', 'overlap', 'closer_coordinated', 'away_face')
 
 
@@ -58,7 +61,8 @@ def policy(variant='baseline'):
         result['steps'][1].update(mode='joint', angle_deg=80., face='z_min')
         result['steps'][3:3] = [
             dict(id='present_away', operation='reorient_together', mode='joint',
-                 angle_deg=180., face='y_min'),
+                 angle_deg=AWAY_ANGLE, face='y_min', world_yaw_deg=AWAY_YAW,
+                 world_offset_m=list(AWAY_OFFSET), translation_leads_turn=True),
             dict(id='draw_y_min', operation='draw_face', face='y_min'),
         ]
     return result
@@ -149,7 +153,7 @@ class DrawingModel:
             angle = np.linalg.norm(Rotation.from_matrix(actual[:3, :3] @ desired[:3, :3].T).as_rotvec())
             self.max_closure_error = max(self.max_closure_error, float(error))
             if error > 1e-6 or angle > 1e-5:
-                raise ValueError('Fixed holder transforms not satisfied')
+                raise ValueError(f'{a}: fixed holder error {error:.3g} m, {angle:.3g} rad')
         # Separate virtual marker geometry. The last 6 mm is a tapered point.
         tool = self.p.chains[WORKER].forward(state)
         lengths = np.linspace(.18, PEN_LENGTH, 61)
@@ -319,14 +323,28 @@ class DrawingModel:
             seed = self.worker_ik(self.tip_target(pose,face,float(theta)),seed)
             self.check(pose,seed)
 
-    def reorient_together(self, mode, name='present_bottom', angle_deg=80., face='z_min'):
+    def reorient_together(self, mode, name='present_bottom', angle_deg=80., face='z_min',
+                          world_yaw_deg=0., world_offset_m=(0., 0., 0.),
+                          translation_leads_turn=False):
         """Two holders keep one object law; the free worker shares the phase."""
         if mode not in ('joint','cartesian'):
             raise ValueError('Unknown free-worker motion mode')
         initial = self.pose.copy()
-        target = self.presentation_base.copy()
-        target[:3,:3] = target[:3,:3]@Rotation.from_euler('x',angle_deg,degrees=True).as_matrix()
-        object_turn = Rotation.from_matrix(initial[:3, :3].T @ target[:3, :3]).as_rotvec()
+        local_target = self.presentation_base[:3, :3] @ Rotation.from_euler(
+            'x', angle_deg, degrees=True).as_matrix()
+        object_turn = Rotation.from_matrix(initial[:3, :3].T @ local_target).as_rotvec()
+
+        def pose_at(u):
+            turn = u**2 if translation_leads_turn else u
+            yaw = Rotation.from_euler('z', world_yaw_deg * turn, degrees=True)
+            roll = Rotation.from_rotvec(turn * object_turn)
+            pose = initial.copy()
+            pose[:3, :3] = yaw.as_matrix() @ initial[:3, :3] @ roll.as_matrix()
+            pose[:3, 3] += u * np.asarray(world_offset_m)
+            return pose
+
+        target = pose_at(1.)
+        self.current_phase = name
         worker_names = joint_names(WORKER)
         first_tip = self.actual_tip(self.state)
         last_tip = self.tip_target(target,face,0.,standoff=STANDOFF)
@@ -335,7 +353,7 @@ class DrawingModel:
         if mode=='joint':
             seed = dict(self.state)
             for u in np.linspace(0,1,81)[1:]:
-                pose = initial.copy();pose[:3,:3] = initial[:3,:3]@Rotation.from_rotvec(u * object_turn).as_matrix()
+                pose = pose_at(u)
                 seed = self.holding.solve(pose,seed)
             q0 = np.array([self.state[j] for j in worker_names])
             candidates = []
@@ -345,13 +363,16 @@ class DrawingModel:
                     if not any(np.linalg.norm(q-v)<1e-5 for v in candidates):candidates.append(q)
                 except ValueError:continue
             candidates.sort(key=lambda q:np.linalg.norm(q-q0))
+        knot_count = 641 if world_yaw_deg else 161
         for q in candidates:
             states, poses = [dict(self.state)], [initial]
             try:
-                for u in np.linspace(0,1,161)[1:]:
-                    pose = initial.copy();pose[:3,:3] = initial[:3,:3]@Rotation.from_rotvec(u * object_turn).as_matrix()
+                for u in np.linspace(0, 1, knot_count)[1:]:
+                    pose = pose_at(u)
                     seed = self.holding.solve(pose,states[-1])
-                    if mode=='joint':seed.update(zip(worker_names,(1-u)*q0+u*q))
+                    if mode == 'joint':
+                        turn = u**2 if translation_leads_turn else u
+                        seed.update(zip(worker_names, (1-turn)*q0 + turn*q))
                     else:
                         tip = first_tip.copy();tip[:3,:3] = Rotation.from_rotvec(u*rv).as_matrix()@first_tip[:3,:3]
                         tip[:3,3] = (1-u)*first_tip[:3,3]+u*last_tip[:3,3]
@@ -406,7 +427,8 @@ def compile_pilot(source, output, *, variant='baseline', feedback_from=None):
         code = 'def task(api):\n'+prefix+'    api.draw_face("y_max")\n    api.reorient_together("'+mode+'")\n    api.draw_face("z_min")\n    api.return_together()\n'+suffix
     if variant == 'away_face':
         code = code.replace('    api.return_together()',
-                            '    api.reorient_together("joint", "present_away", 180.0, "y_min")\n'
+                            f'    api.reorient_together("joint", "present_away", {AWAY_ANGLE}, "y_min",\n'
+                            f'                          {AWAY_YAW}, {AWAY_OFFSET}, translation_leads_turn=True)\n'
                             '    api.draw_face("y_min")\n'
                             '    api.return_together()')
     (output / 'policy.py').write_text(code)

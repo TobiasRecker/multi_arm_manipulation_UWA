@@ -17,7 +17,7 @@ from std_srvs.srv import Trigger
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO/'uwa_cell_tasks'))
-from uwa_cell_tasks.hardware_carton_approach import checked_problem
+from uwa_cell_tasks.hardware_carton_approach import checked_problem, unloaded_open_status
 from uwa_cell_motion.common import ROBOT_IDS, joint_names, dump,arm_velocity_limit
 from uwa_cell_motion.execution import motion_context
 from uwa_cell_motion.hardware_execution import HardwareClient
@@ -44,7 +44,7 @@ def main():
     p.add_argument('--evidence', type=Path, required=True)
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--inventory', type=Path, default=REPO/'config/hardware_inventory.yaml')
-    p.add_argument('--command-velocity', type=float, default=.0015)
+    p.add_argument('--command-velocity', type=float, default=.1)
     p.add_argument('--arm', choices=['right_front','right_rear'], help='One unloaded phase only; default both serially')
     p.add_argument('--execute', action='store_true')
     p.add_argument('--reset-unloaded', action='store_true')
@@ -55,15 +55,20 @@ def main():
     evidence = problem.pregrasp_evidence; path = evidence['path']; expected = dict(evidence['saved_start'])
     binding=json.loads(Path(evidence['inputs']['object_pose']['path']).read_text())
     anchor=Chain(problem.original_description,'world','right_front_base_link').forward({})
-    if ('T_world_anchor_current' not in binding or
+    if binding.get('binding_kind')=='per_arm_camera':
+        from uwa_cell_tasks.hardware_registration import validate_per_arm_binding
+        validate_per_arm_binding(problem.original_description,binding)
+        if not np.allclose(binding['T_world_object_candidate'],evidence['world_object_candidate'],atol=1e-9,rtol=0):
+            raise ValueError('Carton obstacle and per-arm camera binding differ')
+    elif ('T_world_anchor_current' not in binding or
         not np.allclose(binding['T_world_anchor_current'],anchor,atol=1e-9,rtol=0) or
         not np.allclose(binding['T_world_object_candidate'],evidence['world_object_candidate'],atol=1e-9,rtol=0)):
         raise ValueError('Object pose must explicitly use the current right-front model anchor; old frozen world pose is not an execution target')
     if path['kind'] not in ('serial_direct','simultaneous_direct'):
         raise ValueError('Expected direct pregrasp endpoint evidence')
     selected=[args.arm] if args.arm else ['right_front','right_rear']
-    if any(not 0<args.command_velocity<arm_velocity_limit(problem.cfg,r) for r in selected):
-        raise ValueError('Command speed must be strictly below each selected monitored arm cap')
+    if any(not 0<args.command_velocity<=arm_velocity_limit(problem.cfg,r) for r in selected):
+        raise ValueError('Command speed must not exceed a selected monitored arm cap')
     required_names=[j for r in selected for j in joint_names(r)]
     if path['joint_names']!=required_names or len(path['waypoints'][-1])!=len(required_names) or not np.isfinite(path['waypoints'][-1]).all():
         raise ValueError('Exactly the selected unloaded six-joint endpoints required')
@@ -111,14 +116,17 @@ def main():
                 while not observer.snapshot():
                     if observer.error or time.monotonic()>end:raise RuntimeError('Independent native observer unavailable')
                     time.sleep(.01)
-                client=ApproachClient(problem,arm,observer)
-                report['phase'] = 'UNLOADED_CHECK_'+arm; save(); client.connect()
+                report['phase'] = 'UNLOADED_CHECK_'+arm; save()
                 for r in ROBOT_IDS:
                     with GripperClient(r) as gripper: status = gripper.status()
                     segment.setdefault('grippers_before', {})[r] = status
-                    regs = status['registers']
-                    if status.get('busy') is not False or not (regs['ACT']==1 and regs['STA']==3 and regs['FLT']==0 and regs['OBJ']==3 and regs['PRE']==0 and regs['POS']<=8):
+                    if not unloaded_open_status(status):
                         raise ValueError(r+': not confirmed open/unloaded; no reset or goal sent')
+                # Gripper discovery/services have their own executor. Build the
+                # arm history afterwards, so those blocking checks cannot punch
+                # a gap in the driver/native alignment window.
+                client=ApproachClient(problem,arm,observer)
+                client.connect()
                 client.health()
                 if any(abs(client.positions[j]-segment['request']['start'][j])>.0005 for n in problem.names.values() for j in n):
                     raise ValueError('Actual start changed; replan, no automatic reposition')
@@ -140,6 +148,9 @@ def main():
                 # Revalidate the measured tiny start correction at unchanged
                 # monitored reserves; timing uses the smaller command bound.
                 trajectory = problem.time_parameterize(request, [[baseline[j] for j in joint_names(arm)], request['target']])
+                # Geometry work is blocking. Before owning a motion controller,
+                # consume fresh native/guard samples without changing limits.
+                client.refresh_after_validation()
                 plan = dict(request=request, trajectory=trajectory)
                 execution = dict(stage='UNLOADED_PREGRASP_'+arm, record_path=str(root/(arm+'-execution.json')),
                                  phase_count=0, guard_stops=0)

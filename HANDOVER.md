@@ -221,6 +221,21 @@
   EigenesExecuwa-capture-motion-20261118-01; nachAbschlussweiterLR→RR→RF,
   keineerneuteidentischeallgemeineFreigabeabfrage.
 
+## Gegenwand im Code-as-Policy-Pilot, 2026-11-18
+
+- `--variant away_face` ergänzt den 25-mm-Kreis auf `y_min` nach `y_max`
+  und `z_min`. Rechte Grifftransforms fest, left_front zeichnet, left_rear
+  parkt. Versetzte/angehobene Haltepose mit 160° Roll und 55° Welt-Yaw.
+  Beide Präsentationswege nach dem Zeichnen rückwärts geprüft.
+- Run06 bestanden: 13 Phasen, 397,286 s Modellzeit bei 0,1 rad/s Grenze,
+  19.882 Modellprüfzustände (≤20 ms), kleinste Armhüllenlücke 50,201 mm.
+  Unabhängiger FK-/Zeitaudit und 20 fokussierte Tests bestanden.
+  Kinematikmodell mit angenommener In-air-Fixture, Kontaktmessgrößen unbekannt.
+- Trial, Bericht, Viewer und Negativbefunde unter
+  `setup/agent_trials/box_away_face_20261118/trial01/`, Vorschau unter
+  `artifacts/run06/viewer.html` relativ zum Trial. Bedienung:
+  `docs/box_drawing_pilot.md`.
+
 ## Erster Feedbackzyklus: Boxzeichnung koordinieren, 2026-11-17
 
 - Nutzer hinterfragt Umkonfiguration des Arbeitsarms vor Unterseitenkreis;

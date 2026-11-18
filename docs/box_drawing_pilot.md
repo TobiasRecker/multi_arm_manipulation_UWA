@@ -6,6 +6,26 @@ Dauer, beobachtete Kraftmaxima, Fehlgriffe, Neuansätze, Objektverlust und
 Agenteneingriffe erfassen. Automatische Strichbild-/Produktqualitätsbewertung
 ist eine spätere Option, keine Voraussetzung für den Einstieg.
 
+## Gegenüberliegende Längswand
+
+Mit `--variant away_face` zeichnet `left_front` je einen Kreis mit 25 mm
+Radius auf `y_max`, `z_min` und `y_min`. Beide rechten Arme halten den
+Karton mit den festen Objekt-TCP-Transforms. Bis zum Rückzug von der
+Unterseite läuft dieselbe Geometrie wie in `overlap`. Danach führt die
+Haltegruppe eine weitere Längsrollbewegung auf insgesamt 160° aus,
+kombiniert mit 55° Welt-Yaw und einer Translation um (+70, −50, +180) mm
+in Weltkoordinaten. Die Translation läuft der Drehung voraus. Der freie
+Arbeitsarm bewegt sich im selben Abschnitt zur Vorpose von `y_min`.
+Nach dem dritten Rückzug werden beide gemeinsamen Übergänge in umgekehrter
+Reihenfolge durchlaufen.
+
+Neue Modellläufe verwenden 0,1 rad/s als Gelenkgeschwindigkeitsgrenze.
+Die archivierten Zeitvergleiche unten stammen aus dem früheren Profil.
+Im erzeugten `viewer.html` lassen sich alle Zeichen- und Rückkehrphasen
+direkt anwählen. Entwicklungsprotokoll und Endprüfung liegen im Workspace
+unter `setup/agent_trials/box_away_face_20261118/trial01/`.
+
+
 ## Erster Nutzerfeedbackzyklus: weniger Umkonfiguration oder weniger Wartezeit
 
 Der Nutzer hinterfragt den Wechsel vor dem Unterseitenkreis und schlägt

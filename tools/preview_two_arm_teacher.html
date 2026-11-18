@@ -3,7 +3,7 @@
 <main><h1 id="heading">Two arms — One object-space teacher</h1><p id="intro"><strong>Right front + right rear</strong> hold the opposite short carton sides. The other arms stay parked. Compare the requested reference with a corrected object path; all carrying joints share one clock.</p>
 <p class="note" id="scope"><strong>OFFLINE MODEL ONLY.</strong> A red reference is an intentionally retained failed example. Hypothetical rigid grasps; no physical grip, load, assembly or robot execution. No BC network has been trained.</p>
 <table id="comparison"></table><p id="rejected"></p>
-<label id="solution-label">Example / variant <select id="solution"></select></label><label id="speed-label">Playback <select id="speed"><option value="1">1× model time</option><option value="5">5× model time</option></select></label><button id="play">Play preview</button> <button id="reset">Reset view</button> <button id="jump-contact" hidden>Jump to contact</button><label><input id="trace" type="checkbox" checked> Centre paths</label><label id="ghost-label"><input id="ghost" type="checkbox" checked> Reference outline</label><label><input id="parked" type="checkbox" checked> Parked arms</label>
+<label id="solution-label">Example / variant <select id="solution"></select></label><label id="speed-label">Playback <select id="speed"><option value="1">1× model time</option><option value="5">5× model time</option></select></label><button id="play">Play preview</button> <button id="reset">Reset view</button> <button id="jump-contact" hidden>Jump to contact</button> <button id="jump-goal" hidden>Show goal</button><label><input id="trace" type="checkbox" checked> Centre paths</label><label id="ghost-label"><input id="ghost" type="checkbox" checked> Reference outline</label><label><input id="parked" type="checkbox" checked> Parked arms</label>
 <div id="status" role="status"></div><input id="progress" type="range" min="0" max="240" value="0" aria-label="Trajectory time"><div id="collision-track" hidden></div><div id="clock"></div>
 <div id="layout"><section><canvas id="view" aria-label="Rotatable two-arm carton transport animation"></canvas><div id="legend"></div><p id="view-help">Drag to rotate; scroll to zoom. Cyan/orange: carrying-arm envelopes. Grey: parked arms. Solid brown: carton. White: reference centre path. Gold: selected centre path. Dashed outline: reference carton at the same path progress.</p></section><aside><h2>Current state</h2><p id="state"></p><p id="contact-pairs" hidden></p><table id="gaps"></table><h2 id="check-heading">Entire trajectory</h2><p id="checks"></p><p id="bounds"></p><p id="deviation"></p><p class="note" id="check-scope">Discrete geometry checks, not a continuous or hardware safety certificate. Stopping reserves and loads are not qualified.</p></aside></div>
 <h2>Clearances along the selected path</h2><canvas id="plot" aria-label="Arm and object clearances over path progress"></canvas><p>Blue: minimum arm-pair gap (20 mm required). Gold: carton/environment box separation (3 mm required). White: carton/arm-body envelope gap (3 mm required). These are distinct geometric quantities; box overlap is not mesh penetration depth.</p>
@@ -58,7 +58,8 @@ if (referenceOnly) {
     $('status').textContent = label + (s.corrected ? ' — TEACHER CORRECTION' : ' — OFFLINE REFERENCE');
     $('status').style.borderColor = collision ? '#ff8c83' : '#ffd17b';
     $('clock').textContent = Math.round(f.s * 100) + '% path progress · sample ' +
-        (Number($('progress').value) + 1) + ' / ' + s.frames.length;
+        (Number($('progress').value) + 1) + ' / ' + s.frames.length +
+        (f.s === 1 ? ' · GOAL' : f.s === 0 ? ' · START' : '');
     $('contact-pairs').hidden = !collision;
     $('contact-pairs').textContent = (f.contact_pairs || []).map(pair => pair.join(' ↔ ')).join(' · ');
     if (s.corrected) {
@@ -106,6 +107,11 @@ if (referenceOnly) {
         $('heading').textContent = 'Rear-arm reference and teacher correction';
         $('intro').textContent = 'Switch paths at the same progress to compare the carton and both arms. The original reaches +60° about world Z.';
         $('scope').textContent = 'OFFLINE GEOMETRY · Both paths use progress for playback';
+        if (data.distinct_goal) {
+            $('intro').textContent = 'The arms continue to a fixed goal after passing the collision region. Switch paths at the same progress to compare.';
+            $('jump-goal').hidden = false;
+            $('jump-goal').onclick = () => seek(maxFrame());
+        }
     }
     $('view-help').textContent = 'Drag to rotate and scroll to zoom. Red highlights the links named by the collision check. The white cross marks the approximate region using the arm envelopes.';
     $('check-heading').textContent = 'Collision check';
@@ -136,7 +142,7 @@ if (referenceOnly) {
     $('jump-contact').onclick = () => {
         $('solution').value = 0;
         updateTrack();
-        seek(data.initial_frame);
+        seek(data.contact_frame ?? data.initial_frame);
     };
     seek(data.initial_frame);
 } else {

@@ -91,19 +91,28 @@ def prepare(args):
     # no arm/carton touch exemptions, and unknown fingers retain full sweeps.
     previous_srdf = ET.fromstring((out/'model/moveit/robot.srdf').read_text())
     root = ET.fromstring(problem.description)
-    link = ET.SubElement(root, 'link', name='pregrasp_carton_static')
-    for shape in scene['shapes']:
-        uri = shape['uri']
-        from urllib.parse import urlparse, unquote
-        path = Path(unquote(urlparse(uri).path))
-        if fingerprint(path)['sha256'] != shape['sha256']:
-            raise ValueError('Contact mesh hash mismatch: '+str(path))
-        mesh = ET.SubElement(ET.SubElement(ET.SubElement(link, 'collision'), 'geometry'), 'mesh')
-        mesh.set('filename', uri)
-    joint = ET.SubElement(root, 'joint', name='pregrasp_carton_anchor', type='fixed')
-    ET.SubElement(joint, 'parent', link='world'); ET.SubElement(joint, 'child', link=link.get('name'))
-    ET.SubElement(joint, 'origin', xyz=' '.join(map(str, T[:3, 3])),
-                  rpy=' '.join(map(str, Rotation.from_matrix(T[:3, :3]).as_euler('xyz'))))
+    object_frames={'right_front':T,'right_rear':T}
+    if diagnostic.get('binding_kind')=='per_arm_camera':
+        from uwa_cell_tasks.hardware_registration import validate_per_arm_binding
+        object_frames={a:rigid(t) for a,t in validate_per_arm_binding(problem.original_description,diagnostic).items()}
+    # Check the union of the per-base representations in the nominal display
+    # model. This preserves every carton obstacle instead of shifting the
+    # model or dropping the second arm's measured camera/base binding.
+    for index, object_frame in enumerate(object_frames.values()):
+        suffix='' if index==0 else '_'+str(index)
+        link = ET.SubElement(root, 'link', name='pregrasp_carton_static'+suffix)
+        for shape in scene['shapes']:
+            uri = shape['uri']
+            from urllib.parse import urlparse, unquote
+            path = Path(unquote(urlparse(uri).path))
+            if fingerprint(path)['sha256'] != shape['sha256']:
+                raise ValueError('Contact mesh hash mismatch: '+str(path))
+            mesh = ET.SubElement(ET.SubElement(ET.SubElement(link, 'collision'), 'geometry'), 'mesh')
+            mesh.set('filename', uri)
+        joint = ET.SubElement(root, 'joint', name='pregrasp_carton_anchor'+suffix, type='fixed')
+        ET.SubElement(joint, 'parent', link='world'); ET.SubElement(joint, 'child', link=link.get('name'))
+        ET.SubElement(joint, 'origin', xyz=' '.join(map(str, object_frame[:3, 3])),
+                      rpy=' '.join(map(str, Rotation.from_matrix(object_frame[:3, :3]).as_euler('xyz'))))
     problem.description = ET.tostring(root, encoding='unicode')
     problem.base_collision = problem.collision
     problem.collision = CollisionModel(problem.description, out/'carton-moveit')
@@ -133,7 +142,8 @@ def prepare(args):
         q = np.asarray(sample['actual_q'], float)
         if q.shape != (6,) or not np.isfinite(q).all(): raise ValueError('Invalid saved joints')
         start.update(zip(names[:6], q)); start.update({j: 0. for j in names[6:]})
-    goal_frames = targets(problem.original_description, source_plan['candidate']['contacts'], T, args.pregrasp_m)
+    goal_frames = {a:targets(problem.original_description,source_plan['candidate']['contacts'],t,args.pregrasp_m)[a]
+                   for a,t in object_frames.items()}
     selected=tuple(args.arm) if args.arm else MEMBERS
     goals = {}
     for arm in selected:
@@ -200,7 +210,7 @@ def prepare(args):
         thresholds=problem.thresholds(), configuration=cfg,
         inputs={k:fingerprint(getattr(args,k)) for k in ('observations','object_pose','contact_design','contact_scene','config','inventory')},
         source=fingerprint(__file__),
-        limits=['Single-image pose and preliminary world/base registration are unqualified',
+        limits=['Single-image object pose and current OAK fit; no absolute accuracy qualification',
                 'Historical stationary state, refresh and replan before any real motion',
                 'Simulation contact design only; physical jaw/tool geometry requires alignment',
                 'Only pregrasp geometry; no descent, gripping, lift, timing or stop qualification',

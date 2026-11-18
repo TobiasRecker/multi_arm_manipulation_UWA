@@ -56,6 +56,11 @@
   Entwicklungszeit von robotischer Modell-/Ausführungszeit trennen; Restzeit
   außerhalb geloggter Befehle nicht als gemessene Denkzeit ausgeben. Nicht
   gewrappte Tools/Chat zusätzlich notieren/exportieren, Fehlversuche erhalten.
+- Gegenwand-Trial (Nutzerauftrag 18.11.): vorhandene Kreise auf y_max und
+  z_min erhalten und y_min mit 25 mm Radius ergänzen. Rechte Haltegruppe
+  starr halten, left_front zeichnet, gesamter Hin- und Rückweg im
+  file-only Modell mit 0,1 rad/s und denselben Prüfschwellen auswerten.
+  Entwicklung getrennt nach TRACE_PROTOCOL.md protokollieren.
 - Piloteinstieg ist bestätigt; weitere Architekturvarianten bleiben Empfehlungen,
   keine pauschale Hardwarefreigabe. Erster file-only Modellstand/Bedienung:
   docs/box_drawing_pilot.md. Forschungsbericht:

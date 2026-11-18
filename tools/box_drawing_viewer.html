@@ -4,8 +4,8 @@
 <style>
 *{box-sizing:border-box}body{margin:0;background:#101a2b;color:#fff;font:16px system-ui,sans-serif}main{max-width:1500px;margin:auto;padding:24px}h1,h2{color:#ffe2a1}h1{margin:0}p{line-height:1.5}button,select,textarea{font:inherit;padding:10px;background:#f5f8ff;color:#101a2b;border:2px solid white;border-radius:5px}button{cursor:pointer}label{display:inline-block;margin:6px}#status,#feedbackStatus{border:3px solid #ffd17b;padding:14px;font-weight:bold;margin:12px 0}#layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(310px,1fr);gap:20px}canvas{width:100%;height:570px;background:#26364c;touch-action:none;border:1px solid #c5d2e5}aside{padding:16px;background:#1e2d44}#progress{width:100%;height:28px}table{border-collapse:collapse;width:100%}td,th{padding:9px;border-bottom:1px solid #94a9c5;text-align:left}textarea{width:100%;height:95px}pre{white-space:pre-wrap;background:#1e2d44;padding:16px}.note{color:#ffe2a1}.roles{display:flex;gap:20px;flex-wrap:wrap}.roles span{border:2px solid;padding:8px}@media(max-width:950px){#layout{grid-template-columns:1fr}canvas{height:430px}}
 </style>
-<main><h1>Hold the box · Draw two circles</h1>
-<p>First Code-as-Policy prototype: two holding URs, one working UR, two named surfaces. Starts in a hypothetical in-air fixture with open grippers and a virtual marker. <strong>KINEMATIC MODEL — no contact physics, force sensing or grasp/drop detection.</strong></p>
+<main><h1 id="title">Hold the box · Draw circles</h1>
+<p>First Code-as-Policy prototype: two holding URs, one working UR. Starts in a hypothetical in-air fixture with open grippers and a virtual marker. <strong>KINEMATIC MODEL — no contact physics, force sensing or grasp/drop detection.</strong></p>
 <div class="roles"><span style="border-color:#ffca7a">Holding: right_front + right_rear</span><span style="border-color:#7dd3fc">Drawing: left_front</span><span style="border-color:#b6edb7">Parked: left_rear</span></div>
 <div id="status">READY — model preview</div>
 <button id="play">Play model</button><button id="reset">Reset view</button>
@@ -17,13 +17,15 @@
 <textarea id="feedback" aria-label="Your feedback" placeholder="What should the agent do differently?"></textarea><button id="saveFeedback">Export feedback JSON</button>
 <div id="feedbackStatus">WAITING FOR YOUR FEEDBACK — nothing submitted</div><p>Export downloads a JSON file. Import it with the documented feedback command to add it to the local episode history.</p>
 <details><summary>Executed Code-as-Policy program</summary><pre id="policy"></pre></details>
-<details><summary>Scope and remaining work</summary><p>Two surfaces only: y_max and z_min. No pickup, physical support, contact-force regulation, teleoperation takeover or real drawing outcome is qualified by this preview. All four arms and the moving carton are included in sampled model checks. The virtual marker has separate sampled body checks. This file never sends robot commands.</p></details>
+<details><summary>Scope and remaining work</summary><p><span id="surfaces"></span> No pickup, physical support, contact-force regulation, teleoperation takeover or real drawing outcome is qualified by this preview. All four arms and the moving carton are included in sampled model checks. The virtual marker has separate sampled body checks. This file never sends robot commands.</p></details>
 </main>
 <script>
 const data=__DATA__,$=id=>document.getElementById(id),canvas=$('view'),ctx=canvas.getContext('2d');
+$('title').textContent = 'Hold the box · Draw ' + data.program.surfaces.length + ' circles';
+$('surfaces').textContent = 'Drawing surfaces: ' + data.program.surfaces.join(', ') + '.';
 let yaw=-.8,pitch=.5,zoom=1.25,scale=1,drag=null,playing=false,last=null,modelTime=0;
 const colours={left_front:'#7dd3fc',left_rear:'#b6edb7',right_front:'#ffca7a',right_rear:'#e8afff'};
-function phaseName(id){let face=id.includes('y_max')?'long wall':id.includes('z_min')?'bottom':'';if(id.startsWith('approach_'))return'Approach '+face;if(id.startsWith('draw_'))return'Draw on '+face;if(id.startsWith('retract_'))return'Retract from '+face;if(id.startsWith('transfer_'))return'Move to '+face;return({present_bottom:'Present bottom',park_worker:'Clear working arm',return_box:'Return box',overall:'Overall task'})[id]||id}
+function phaseName(id){let face=id.includes('y_max')?'long wall (y_max)':id.includes('z_min')?'bottom (z_min)':id.includes('y_min')?'opposite long wall (y_min)':'';if(id.startsWith('approach_'))return'Approach '+face;if(id.startsWith('draw_'))return'Draw on '+face;if(id.startsWith('retract_'))return'Retract from '+face;if(id.startsWith('transfer_'))return'Move to '+face;return({present_bottom:'Present bottom',present_away:'Present opposite wall',return_from_away:'Return from opposite wall',park_worker:'Clear working arm',return_box:'Return box',overall:'Overall task'})[id]||id}
 function current(){let lo=0,hi=data.frames.length;while(lo<hi){let mid=(lo+hi)>>1;if(data.frames[mid].time_s<=modelTime+1e-9)lo=mid+1;else hi=mid}return data.frames[Math.max(0,lo-1)]}
 function project(p){let[x,y,z]=p;z-=1.15;let h=x*Math.cos(yaw)-y*Math.sin(yaw),d=x*Math.sin(yaw)+y*Math.cos(yaw);return[canvas.width/2+scale*h,canvas.height/2-scale*(z*Math.cos(pitch)-d*Math.sin(pitch)),z*Math.sin(pitch)+d*Math.cos(pitch)]}
 function line(a,b,c,w=1){a=project(a);b=project(b);ctx.strokeStyle=c;ctx.lineWidth=w*(devicePixelRatio||1);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}

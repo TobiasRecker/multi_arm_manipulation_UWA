@@ -2,7 +2,7 @@
 import copy
 import numpy as np
 import pytest
-from uwa_cell_tasks.hardware_registration import bind_camera_pose, board_camera_candidate, board_relative_bases
+from uwa_cell_tasks.hardware_registration import bind_camera_pose, board_camera_candidate, board_relative_bases, per_arm_camera_binding, validate_per_arm_binding
 
 
 def fixture():
@@ -49,3 +49,20 @@ def test_board_chain_recovers_camera_and_relative_bases_with_rotations():
 def test_board_registration_rejects_nonrigid_input():
     bad=np.eye(4);bad[0,0]=2
     with pytest.raises(ValueError):board_camera_candidate(np.eye(4),bad,np.eye(4))
+
+
+def test_per_arm_camera_reference_is_preserved_and_tampering_rejected():
+    xml='<robot name="a"><link name="world"/>'
+    transforms={}
+    for arm,x in [('right_front',.5),('right_rear',-.5)]:
+        xml+=f'<link name="{arm}_base_link"/><joint name="{arm}" type="fixed"><parent link="world"/><child link="{arm}_base_link"/><origin xyz="{x} 0 0"/></joint>'
+        t=np.eye(4);t[:3,3]=[1-x,.02 if x<0 else 0,1.5]
+        transforms[arm]=dict(parent_frame=arm+'_base_link',child_frame='oak4_rgb_optical_frame',T_parent_child=t.tolist())
+    xml+='</robot>';o=np.eye(4);o[2,3]=.2
+    binding=per_arm_camera_binding(xml,dict(transforms=transforms),o)
+    objects=validate_per_arm_binding(xml,binding)
+    np.testing.assert_allclose(np.array(objects['right_front'])[:3,3],[1,0,1.7])
+    np.testing.assert_allclose(np.array(objects['right_rear'])[:3,3],[1,.02,1.7])
+    changed=copy.deepcopy(binding);changed['world_object_by_arm']['right_rear'][1][3]=0
+    with pytest.raises(ValueError,match='binding changed'):validate_per_arm_binding(xml,changed)
+    with pytest.raises(ValueError,match='binding changed'):validate_per_arm_binding(xml.replace('xyz="0.5 0 0"','xyz="0.6 0 0"'),binding)

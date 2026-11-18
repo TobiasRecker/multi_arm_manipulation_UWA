@@ -25,6 +25,44 @@ def board_relative_bases(base_a_board, base_b_board):
     return rigid(base_a_board) @ np.linalg.inv(rigid(base_b_board))
 
 
+def per_arm_camera_binding(description, registration, camera_object):
+    """Use the SAME observed object in each fixed, user-adopted UR base frame.
+
+    The display world's nominal table mounts must not replace the measured
+    per-base camera transforms. Keep both world representations for extra
+    collision checks; they are not two physical cartons or a base recalibration.
+    """
+    camera_object=rigid(camera_object)
+    bases={};cameras={};objects={}
+    for arm in ('right_front','right_rear'):
+        value=registration['transforms'][arm]
+        if value['parent_frame']!=arm+'_base_link' or value['child_frame']!='oak4_rgb_optical_frame':
+            raise ValueError('Unexpected per-arm camera frame convention')
+        bases[arm]=rigid(Chain(description,'world',arm+'_base_link').forward({}))
+        cameras[arm]=rigid(value['T_parent_child'])
+        objects[arm]=bases[arm]@cameras[arm]@camera_object
+    return dict(binding_kind='per_arm_camera',T_camera_object=camera_object.tolist(),
+        T_world_base_by_arm={a:t.tolist() for a,t in bases.items()},
+        T_base_camera_by_arm={a:t.tolist() for a,t in cameras.items()},
+        world_object_by_arm={a:t.tolist() for a,t in objects.items()},
+        T_world_object_candidate=objects['right_front'].tolist(),
+        executable=False,absolute_accuracy_validated=False,global_camera_profile_modified=False)
+
+
+def validate_per_arm_binding(description, binding):
+    registration={'transforms':{a:dict(parent_frame=a+'_base_link',child_frame='oak4_rgb_optical_frame',
+                  T_parent_child=t) for a,t in binding['T_base_camera_by_arm'].items()}}
+    expected=per_arm_camera_binding(description,registration,binding['T_camera_object'])
+    for group in ('T_world_base_by_arm','world_object_by_arm'):
+        if set(binding[group])!=set(expected[group]):raise ValueError('Incomplete per-arm camera binding')
+        for arm,value in expected[group].items():
+            if not np.allclose(binding[group][arm],value,rtol=0,atol=1e-9):
+                raise ValueError('Per-arm camera binding changed: '+group+'/'+arm)
+    if not np.allclose(binding['T_world_object_candidate'],expected['T_world_object_candidate'],rtol=0,atol=1e-9):
+        raise ValueError('Supplemental carton pose differs from camera binding')
+    return expected['world_object_by_arm']
+
+
 def bind_camera_pose(description, registration, camera_object):
     camera_object=rigid(camera_object)
     old_anchor=rigid(registration['T_world_anchor_at_registration'])
