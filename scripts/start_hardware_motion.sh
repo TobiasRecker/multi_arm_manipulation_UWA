@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 set -eo pipefail
+# Keep BLAS workers from competing with native-state and watchdog callbacks.
+# This affects only this hardware service, never other simulations/agents.
+export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
 hardware_motion_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$hardware_motion_dir/control_env.bash"
 hardware_motion_action="${1:-monitor}"

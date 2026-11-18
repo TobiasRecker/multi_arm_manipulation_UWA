@@ -154,3 +154,38 @@
   vs bisheriger globaler OAK-zu-Basis-Kandidat ergibtRF42,9/RR40,1mm Differenz.
   Basisprofile bleiben übernommen; bisherige Einfahrt NICHT freigeben. Jetzt
   aktuelle Pose direkt über sichtbares festes rechtes Board erneut bestimmen.
+
+- Aktuelle OAK-Aufnahme17:32:31, drei unverändert gültige Texturhypothesen
+  28/30/26Inlier,2,752/2,819/2,290px. Board68Ecken/1,394px. Unterstützte
+  aufrechte Pose zusätzlich aus sichtbarer Tischauflage geschätzt: RMS3,331/
+  3,385/2,950px innerhalb unveränderter jeweiliger Registrierungsschwellen;
+  Positionsstreuung0,370mm. Das ist eine explizite Support-Estimatorprior, keine
+  Lockerung des2°-Targets-Gates. FreierFit hatte2,122° Frame-Neigung.
+  `scene04/per-arm-board-supported-binding.json`: gemeinsamer Objektframe
+  direkt über rechtesfestesBoard; übernommeneBasisanbindungen unverändert.
+
+- Weitere Board-Korrekturanfahrten vor FJT-Ziel abgebrochen: real01
+  Driveralignment-Lücke während Controlleraktivierung, All4Holds restauriert;
+  real02 danach LRnativeDatenSTALE noch vor Reset. Kein korrigierter Board-
+  Vorgriff erreicht. Beide tatsächlichen hohen Vorgriffe ausgo_real01 bleiben
+  aktueller Stand, keine Einfahrt/Finger-/Hubaktion.
+- ROS-Serviceclients imApproachClient persistent vor Driverhistory aufbauen;
+  RMW-Create/Destroy nicht mehr bei jeder Aktivierungsabfrage. Laufzeiten werden
+  protokolliert, Diagnosehypothese für Callbacklücken, keine bewiesene Alleinursache.
+- Hostmessung:22GiBRAM,8GiBSwapfastvoll; eigener Hardwaredienst111MBresident/
+  614MBausgelagert, hoherIO-Durchsatz. Eigenen Hardwaredienst mit identischen
+  Grenzen neu geladen, BLAS/OMP/MKL/Numexpr1Thread; runtimeMemoryLow1GiB,
+  SwapMax0,CPUWeight1000. Danach637MBresident/Swap0. KeinefremdeSimulation
+  geändert. Vortrace unvollständig(Guardtopicfehlte), Assertion stoppte wegen
+  fehlendemShellset-e den genehmigten Neustart nicht; ExecStopPostnativeSTOP
+  aller4 aktiv. KorrigierteFolgekommandossetzen-e. NochkeineFahrt daraus.
+- Voller20s-Nachtrace:alle4gehalten/stationär,GuardModelMatch/keineFaults,
+  Witness beimStart gelatcht. EinmaligerWitnessresetunterLivequorum vorgelagert
+  scheitert bereits an reinemGreifer-Read-RPC3s, keinReset/Play/Fingerziel dabei.
+  PrüfeaktuellDevicesdirektlesend undverbinde eigenenMonitor-Greiferdienst neu.
+
+- Geräte-Direktlesetest nachSpeicherschutz:alle4Arme beobachtet/stationär,
+  beideRechtsgreiferACT0/STA0/OBJ0/POS3/PRE0/FLT0, weiterhinkeineFingerbefehle.
+  EigenerMonitor-Greiferdienstwar199MBresident/149MBausgelagert; ebenfalls
+  runtimeMemoryLow256MiB/SwapMax0/CPUWeight500gesetztundMONITOR ONLYneu
+  verbunden. Anschließend erneuter einmaligerWitnessresetnurbeiLivequorum.

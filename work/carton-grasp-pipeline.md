@@ -868,3 +868,13 @@ bestätigt, Box blieb unterstützt. Direkte Gegenwand-Übertragung mit
 geschlossenen Kontaktgriffen kollidiert in FCL am rechten Vorderarm.
 Armgrenze 0,1 rad/s, Kraftmessmodus mit beobachteter dynamischer Reserve.
 Details unter setup/tasks/box_drawing_gazebo_20261118_01/report.md.
+
+## Gekoppelter Dreiarm-Zeichenkontaktlauf, 2026-11-18
+
+Run04: neu geprüfte linke Parkpose und alternativer RF-IK-Zweig. Vier
+Pad-Kontakte bestätigt, frisch gebundener Plan mit 17 Phasen bestanden.
+Bis 132,38 mm Hub am Kartonursprung; passiver RF-Fingerüberschuss bis
+0,500 rad/s bei Grenze 0,2 löste den Halt aller drei Armcontroller aus.
+Vier Pad-Kontakte erhalten, Box frei von der Auflage. Keine Zeichenphase
+gefahren, kein Lösen/Reset. Bericht im Workspace
+setup/tasks/box_drawing_gazebo_live_20261118_01/report.md.

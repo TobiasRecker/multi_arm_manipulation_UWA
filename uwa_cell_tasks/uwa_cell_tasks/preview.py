@@ -12,6 +12,9 @@ def preview(directory):
     if state.get('error'):parts.append('<p><strong>FAILED: '+escape(state['error'])+'</strong></p>')
     if 'stop' in state:
         parts.append('<p><strong>HOLDS '+('CONFIRMED' if state['stop'].get('confirmed') else 'NOT CONFIRMED')+'</strong></p>')
+    if (directory/'lift-replay.html').is_file():
+        parts.append('<p><a style="color:#ffe76b" href="lift-replay.html">'
+                     'Play recorded Gazebo lift</a> · recorded joints and carton pose</p>')
     review=directory/'review.json'
     if review.exists():
         packet=json.loads(review.read_text());evidence=packet['evidence']

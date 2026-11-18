@@ -14,6 +14,7 @@ import time
 import numpy as np
 from scipy.spatial.transform import Rotation
 from std_srvs.srv import Trigger
+from controller_manager_msgs.srv import ListControllers,SwitchController,ListHardwareComponents
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO/'uwa_cell_tasks'))
@@ -32,18 +33,52 @@ class ApproachClient(HardwareClient):
     def __init__(self,problem,arm,observer):
         self.observer=observer
         super().__init__(problem,'hardware',[arm])
+        # RMW entity creation/destruction can block independently of service
+        # discovery. Provision persistent RPCs before collecting driver history,
+        # and destroy them only with the node after its final resource hold.
+        self.rpc_clients={};self.service_timings=[]
+        for kind,name in [(Trigger,'/uwa_cell/collision_supervisor/reset')]+[
+            (kind,problem.profiles[arm]['namespace']+'/controller_manager/'+endpoint)
+            for kind,endpoint in [(ListHardwareComponents,'list_hardware_components'),
+                                  (ListControllers,'list_controllers'),(SwitchController,'switch_controller')]]:
+            self.rpc_clients[(kind,name)]=self.create_client(kind,name)
     def spin_once(self,timeout_sec=.01):
         super().spin_once(timeout_sec=timeout_sec)
         rows=self.observer.snapshot()
         if self.observer.error or not rows or time.monotonic()-rows[-1]['received']>.2:
             raise RuntimeError('Independent native approach trace stale/failed: '+str(self.observer.error))
     def service(self,kind,name,request):
-        client=self.create_client(kind,name)
-        try:
-            wait_service_spinning(client,self.spin_once)
-            future=client.call_async(request);self.wait(future.done,5.)
-            return future.result()
-        finally:self.destroy_client(client)
+        started=time.monotonic();key=(kind,name)
+        if key not in self.rpc_clients:self.rpc_clients[key]=self.create_client(kind,name)
+        client=self.rpc_clients[key]
+        wait_service_spinning(client,self.spin_once)
+        future=client.call_async(request);self.wait(future.done,5.)
+        self.service_timings.append(dict(service=name,duration_s=time.monotonic()-started))
+        return future.result()
+
+
+def start_ros_programs_held(client, root, problem, segment, save):
+    # Geometry has already been compiled. Startup is explicit,
+    # once only, with all four open/unloaded and resource-held.
+    # Spin telemetry while the existing dashboard CLI runs.
+    client.connect(guard=False)
+    for _ in range(20):client.spin_once(timeout_sec=.005)
+    now=time.monotonic()
+    if (not client.state_peer.fresh(now,problem.cfg['state_timeout_s']) or
+        any(max(now-r['received'],now-r['source_stamp'])>problem.cfg['state_timeout_s'] for r in client.records.values()) or
+        not client.guard_peer.fresh(now,problem.cfg['heartbeat_timeout_s']) or
+        not client.supervisor_peer.fresh(now,problem.cfg['heartbeat_timeout_s']) or
+        not unloaded_program_start_ready(client.guard,client.supervisor,client.records,client.owned)):
+        raise RuntimeError('Explicit program start requires fresh all-four unloaded holds and native quiet/normal state')
+    segment['program_start_eligible_under_all_holds']=True;save()
+    import subprocess
+    from concurrent.futures import ThreadPoolExecutor
+    with (root/'program-start.json').open('w') as program_log, ThreadPoolExecutor(max_workers=1) as pool:
+        future=pool.submit(subprocess.run,[sys.executable,str(REPO/'scripts/ur_bringup.py'),'--apply','--json'],stdout=program_log,stderr=subprocess.PIPE,text=True,timeout=30.)
+        client.wait(future.done,35.)
+        answer=future.result()
+    segment['program_start']=dict(returncode=answer.returncode,stderr=answer.stderr,report=str(root/'program-start.json'));save()
+    if answer.returncode:raise RuntimeError('Explicit ROS program startup failed; no retry/goal')
 
 
 def main():
@@ -136,27 +171,7 @@ def main():
                 # a gap in the driver/native alignment window.
                 client=ApproachClient(problem,arm,observer)
                 if args.start_ros_programs and index==0:
-                    # Geometry has already been compiled. Startup is explicit,
-                    # once only, with all four open/unloaded and resource-held.
-                    # Spin telemetry while the existing dashboard CLI runs.
-                    client.connect(guard=False)
-                    for _ in range(20):client.spin_once(timeout_sec=.005)
-                    now=time.monotonic()
-                    if (not client.state_peer.fresh(now,problem.cfg['state_timeout_s']) or
-                        any(max(now-r['received'],now-r['source_stamp'])>problem.cfg['state_timeout_s'] for r in client.records.values()) or
-                        not client.guard_peer.fresh(now,problem.cfg['heartbeat_timeout_s']) or
-                        not client.supervisor_peer.fresh(now,problem.cfg['heartbeat_timeout_s']) or
-                        not unloaded_program_start_ready(client.guard,client.supervisor,client.records,client.owned)):
-                        raise RuntimeError('Explicit program start requires fresh all-four unloaded holds and native quiet/normal state')
-                    segment['program_start_eligible_under_all_holds']=True;save()
-                    import subprocess
-                    from concurrent.futures import ThreadPoolExecutor
-                    with (root/'program-start.json').open('w') as program_log, ThreadPoolExecutor(max_workers=1) as pool:
-                        future=pool.submit(subprocess.run,[sys.executable,str(REPO/'scripts/ur_bringup.py'),'--apply','--json'],stdout=program_log,stderr=subprocess.PIPE,text=True,timeout=30.)
-                        client.wait(future.done,35.)
-                        answer=future.result()
-                    segment['program_start']=dict(returncode=answer.returncode,stderr=answer.stderr,report=str(root/'program-start.json'));save()
-                    if answer.returncode:raise RuntimeError('Explicit ROS program startup failed; no retry/goal')
+                    start_ros_programs_held(client,root,problem,segment,save)
                 client.connect()
                 client.health()
                 if any(abs(client.positions[j]-segment['request']['start'][j])>.0005 for n in problem.names.values() for j in n):
@@ -219,7 +234,8 @@ def main():
                     observer.close();native=root/(arm+'-native.json')
                     dump(native,dict(records=observer.snapshot(),error=observer.error))
                     segment['native_trace']=str(native);save()
-                if client is not None:client.destroy_node()
+                if client is not None:
+                    segment["service_timings"]=client.service_timings;save();client.destroy_node()
         report.update(success=True, phase='AT_HIGH_PREGRASP_HELD_NO_CONTACT'); save()
     return 0
 

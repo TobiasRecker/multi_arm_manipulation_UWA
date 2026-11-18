@@ -369,6 +369,25 @@
   EigenesExecuwa-capture-motion-20261118-01; nachAbschlussweiterLR→RR→RF,
   keineerneuteidentischeallgemeineFreigabeabfrage.
 
+## Gazebo-Dreiarm-Kontaktlauf, 2026-11-18
+
+- Nutzer hat Ausführung des neu geplanten Ablaufs in Gazebo bestätigt.
+  Opt-in `drawing_recipe` koppelt RF/RR/LF über einen gemeinsamen
+  18-Gelenk-Controller und Stopp. Frisch bestätigter Kontaktgriff bindet
+  beide festen Offsets. RF im alternativen IK-Zweig und LR in geprüfter Parkpose.
+- Run04: vier Kontakte bestätigt, 17 Phasen aus dem frischen Griff vor
+  dem Hub geprüft. Gazebo hob den Karton bis zu 132,38 mm an. Der Stopp
+  erfolgte vor Zeichnung wegen passiver RF-Finger bis 0,500 rad/s bei
+  0,2 rad/s Grenze. Drei Arm-Holds bestätigt, vier Kontakte erhalten,
+  Box ohne Tischauflage. Kein Lösen oder automatischer Reset. Eigene Welt
+  bleibt im Halt, Hauptwelt läuft. 40 fokussierte Quelltests bestanden.
+- Hubwiedergabe aus 432 aufgezeichneten Gazebo-Gelenk-/Kartonzuständen
+  in `run04/lift-replay.html`, auch in `run04/review.html` verlinkt.
+  Zeitachse in Simulationssekunden, 132,38 mm Spitze und bestätigter Halt
+  sichtbar. Wiedergabe der Telemetrie als 3D-Ansicht ohne Kameravideo.
+- Protokolle und Review im Workspace unter
+  `setup/tasks/box_drawing_gazebo_live_20261118_01/`.
+
 ## Neuplanung des Gazebo-Drei-Kreis-Ablaufs, 2026-11-18
 
 - Folgeauftrag: alternative Trajektorie für die Gazebo-Kontaktgeometrie

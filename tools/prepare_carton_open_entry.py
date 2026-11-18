@@ -6,7 +6,7 @@ A second exact-open tool model checks a conservative hollow carton per moving
 arm's fixed camera/base binding. Other arms are stationary, checked separately
 against their own carton binding; primary interarm checks always include all.
 """
-import argparse,json,sys,xml.etree.ElementTree as ET
+import argparse,json,sys,hashlib,xml.etree.ElementTree as ET
 from pathlib import Path
 from types import SimpleNamespace
 import numpy as np
@@ -49,7 +49,7 @@ def open_model(problem,binding,scene,arm,directory):
 
 
 def prepare(args):
-    out=args.output.resolve();out.mkdir(parents=True,exist_ok=False);e=json.loads((args.evidence/'evidence.json').read_text());run=json.loads(args.approach.read_text());binding=json.loads(Path(e['inputs']['object_pose']['path']).read_text());scene=json.loads(Path(e['inputs']['contact_scene']['path']).read_text());p=HardwareProblem(out/'base',e['configuration'],args.inventory);p.chains={r:Chain(p.original_description,'world',r+'_tool0') for r in p.names};start=dict(run['segments'][-1]['final_positions']);report=dict(success=False,executable=False,finger_commands=[],arm_commands=[],loaded_motion=False,base_signature=p.signature,shell_boxes=shell_boxes(scene),segments=[],limits=['35mm short-wall normal envelope and5mm rim expansion are conservative DESIGN assumptions, not measured bounds.','Actual open jaw state and independent visual agreement required before any execution.','Primary full-opening/interarm/table model and40mm neighbor margin retained.','No contact exemptions for moving arm/carton in exact-open model.'])
+    out=args.output.resolve();out.mkdir(parents=True,exist_ok=False);e=json.loads((args.evidence/'evidence.json').read_text());run=json.loads(args.approach.read_text());binding=json.loads(Path(e['inputs']['object_pose']['path']).read_text());scene=json.loads(Path(e['inputs']['contact_scene']['path']).read_text());p=HardwareProblem(out/'base',e['configuration'],args.inventory);p.chains={r:Chain(p.original_description,'world',r+'_tool0') for r in p.names};start=dict(run['segments'][-1]['final_positions']);report=dict(inputs={str(path.resolve()):hashlib.sha256(path.read_bytes()).hexdigest() for path in [args.evidence/'evidence.json',args.approach,Path(e['inputs']['object_pose']['path']),Path(e['inputs']['contact_scene']['path']),Path(__file__)]},success=False,executable=False,finger_commands=[],arm_commands=[],loaded_motion=False,base_signature=p.signature,shell_boxes=shell_boxes(scene),segments=[],limits=['35mm short-wall normal envelope and5mm rim expansion are conservative DESIGN assumptions, not measured bounds.','Actual open jaw state and independent visual agreement required before any execution.','Primary full-opening/interarm/table model and40mm neighbor margin retained.','No contact exemptions for moving arm/carton in exact-open model.'])
     dump(out/'result.json',report)
     try:
         for arm in ['right_front','right_rear']:
@@ -67,7 +67,8 @@ def prepare(args):
                         actual=p.chains[arm].forward(state);wanted=target.copy();wanted[2,3]+=.15*(1-(10*phase**3-15*phase**4+6*phase**5));pe=np.linalg.norm(actual[:3,3]-wanted[:3,3]);re=Rotation.from_matrix(actual[:3,:3]@wanted[:3,:3].T).magnitude();max_pe=max(max_pe,pe);max_re=max(max_re,re)
                         if pe>1e-4 or re>1e-3:raise ValueError('Smoothed Cartesian line error')
                 dense=np.linspace(0,1,8193);v=float(abs(evaluate(segment,dense,1)).max());a=float(abs(evaluate(segment,dense,2)).max());duration=max(v/.1,np.sqrt(a/.2));ts=np.linspace(0,duration,max(2,int(np.ceil(duration/.02))+1));phase=ts/duration;points=[dict(time=float(t),positions=q.tolist(),velocities=v.tolist(),accelerations=a.tolist()) for t,q,v,a in zip(ts,evaluate(segment,phase),evaluate(segment,phase,1)/duration,evaluate(segment,phase,2)/duration**2)]
-                report['segments'].append(dict(arm=arm,name=name,primitive=segment,request=request,trajectory=dict(duration_s=duration,joint_names=joint_names(arm),points=points),max_line_error_m=float(max_pe),max_angle_error_rad=float(max_re),geometry_samples=len(u)));dump(out/'result.json',report)
+                segment_start=dict(start,**dict(zip(joint_names(arm),segment['positions'][0])));segment_request=p.normalize(dict(start=segment_start,goals={arm:segment['positions'][-1]}))
+                report['segments'].append(dict(arm=arm,name=name,primitive=segment,request=segment_request,trajectory=dict(duration_s=duration,joint_names=joint_names(arm),points=points),max_line_error_m=float(max_pe),max_angle_error_rad=float(max_re),geometry_samples=len(u)));dump(out/'result.json',report)
             start.update(zip(joint_names(arm),qend))
         report.update(success=True,phase='OFFLINE_OPEN_ENTRY_GEOMETRY_VALID',final_positions=start)
     except Exception as error:report.update(error=str(error),phase='OFFLINE_OPEN_ENTRY_REJECTED')
