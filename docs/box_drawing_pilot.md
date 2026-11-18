@@ -6,6 +6,73 @@ Dauer, beobachtete Kraftmaxima, Fehlgriffe, Neuansätze, Objektverlust und
 Agenteneingriffe erfassen. Automatische Strichbild-/Produktqualitätsbewertung
 ist eine spätere Option, keine Voraussetzung für den Einstieg.
 
+## Flächenfolge mit automatischer Präsentation
+
+Für neue Varianten genügt eine geordnete Liste der Flächen im Kartonframe.
+Der Planer probiert Halteposen für die beiden rechten Arme und freie
+Bewegungen für `left_front`. `left_rear` bleibt geparkt.
+
+```bash
+source src/multi_arm_manipulation_UWA/scripts/env.bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python3 \
+  src/multi_arm_manipulation_UWA/tools/box_drawing_pilot.py run \
+  --source setup/research/offline-carton-sides-20261117/standard/smoothed/result.json \
+  --output setup/tasks/present_surface_new/run01 \
+  --faces y_max z_min y_min
+```
+
+Der Aufruf läuft aus dem Workspace in einen neuen Ausgabeordner. Zulässig
+sind `y_max`, `z_min`, `y_min` in beliebiger Reihenfolge, jeweils einmal.
+`--radius-mm` setzt den Radius (Standard 25 mm). Mit
+`--presentation-budget` begrenzt man die Anzahl der Halteposen pro Fläche
+(Standard 8). `--max-transfer-s` begrenzt die Modellzeit eines Hinwegs.
+Eine Überschreitung führt zur Ablehnung des Kandidaten. Die Suchreihenfolge
+ist deterministisch. Die erste vollständig geprüfte Präsentation gewinnt.
+
+Das erzeugte Python-Programm ruft pro Fläche `present_surface(face)` und
+`draw_face(face)` auf. Beispielsweise erzeugt die Unterseite als einziges
+Ziel dieses Programm:
+
+```python
+def task(api):
+    api.present_surface('z_min')
+    api.draw_face('z_min')
+    api.return_together()
+```
+
+Eingabe des Bausteins ist der aktuelle Modellzustand
+mit festen Grifftransformationen und der virtuellen Stiftgeometrie.
+Wenn Stift und Box schon richtig stehen, beginnt die Zeichnung direkt.
+Sonst sortiert der Baustein freie IK-Zweige nach Gelenkdistanz zum Start.
+Er prüft die Fortsetzung beider Haltearme, den gemeinsamen Transfer und
+den gesamten Zeichenablauf einschließlich Rückzug. Der für die Gegenwand
+früher gefundene Umweg ist ein Suchkandidat, dessen Bahn neu berechnet
+und geprüft wird. Zum Schluss prüft das Programm die Rückwege.
+
+`presentation-search.json` zeigt während des Laufs den jeweiligen Kandidaten
+und danach Prüfstatus, Haltepose, Transferdauer oder Ablehnungsgründe mit
+betroffener Stufe. Sobald die Wegpunkte geprüft sind, meldet der CLI-Aufruf
+eine abspielbare `preview-*.html`. Sie zeigt den Transfer vor der dichten
+Prüfung und kennzeichnet den Stand mit **CANDIDATE PREVIEW · CHECKS PENDING**.
+Das spätere Ergebnis des Kandidaten steht im Suchprotokoll.
+Erfolgreiche Bahnen stehen in `result.json`. Dazu gehören
+`policy.py`, `program.json`, der vollständige `viewer.html` und die Episode.
+Bei ausgeschöpfter Suche bleiben Protokoll und `failure.json` erhalten.
+Das Suchbudget begrenzt Versuche und liefert keine Aussage über globale
+Erreichbarkeit oder optimale Dauer. Kontaktgrößen sind im Dateimodell unbekannt.
+
+Den vollständigen Lauf prüft der separate FK-/Zeitaudit mit
+`python3 src/multi_arm_manipulation_UWA/tools/verify_box_drawing_pilot.py RUN --output RUN/independent-audit.json`.
+
+Am 18.11. bestand der Lauf mit drei Flächen und 25 mm Radius. Die Suche
+verwarf den direkten Rollweg und prüfte den früher gefundenen Umweg neu.
+Die Vorschau der Gegenwand wurde rund 33 s nach dem Schreiben des Programms
+erzeugt. Der vollständige Lauf brauchte rund 116 s Rechenzeit und hat
+397,286 s Modellzeit. Eine zweite Aufgabe mit `z_min y_max` und 20 mm Radius
+bestand ebenfalls. Die Ergebnisse stehen im Workspace unter
+`setup/tasks/present_surface_20261118/`. Der Nachweis betrifft diesen
+Kinematikpiloten mit seinem festen Greifzustand und virtuellem Marker.
+
 ## Gegenüberliegende Längswand
 
 Mit `--variant away_face` zeichnet `left_front` je einen Kreis mit 25 mm

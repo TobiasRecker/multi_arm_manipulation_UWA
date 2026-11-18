@@ -1,5 +1,11 @@
 # Kurzübernahme: kooperatives Boxzeichnen
 
+**Für neue Varianten nach dem Gegenwand-Trial** reicht die Flächenfolge
+für den [Aufruf mit `--faces`](../box_drawing_pilot.md#flächenfolge-mit-automatischer-präsentation).
+`present_surface` sucht die Haltepose selbst und legt Vorschau und
+Ablehnungsgründe ab. Der folgende Ablauf dokumentiert den ursprünglichen
+Versuch zur Erweiterung des Modellcodes.
+
 Stand18.11.2026. Workspace `/home/rosmatch/UWA_ws`, Repo
 `src/multi_arm_manipulation_UWA`. Regeln in Workspace-/Repo-AGENTS.md gelten;
 lokale Änderungen erhalten. Nur **file-only Kinematikmodell**, ohne Geräte,

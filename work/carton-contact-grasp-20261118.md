@@ -14,3 +14,23 @@
   Kontakt-/Haltbefundeprüfen. KeinautomatischesÖffnen/ZurückfahrenbeimFehler.
 - AndereAgentenbetreibenparalleleSimulationskampagne; derenProzesse/CPUprofile/
   Paketeerhalten, keinegemeinsamenSimulationsneustarts.
+
+## Erste Wristprüfung
+
+- Beide native2592×1944-Fotos imgehaltenenStand, FokusRF435/RR388 passendzur
+  vorhandenenOptik. UnabhängigeRTDEbeideqd0, GelenkspannenRF0,000174/RR0,000136rad;
+  Kamera-DienstrestoresPASS. setup/tasks/carton_grasp_20261118_wrist01/.
+- InbeidenBildernkurzeWand sichtbar; vorgesehenerRF-KontaktpunktunterBildrand,
+  aktuellerPinchframeebenfallsaußerhalbFOV. Bildmitteistwegen31°Optikschräge
+  undKameraoffsetkeinGreifzentrum. OAK-FK-VorpositionistkeineWrist-Zentrierprüfung.
+- RFsichtbaresfestesBoard36Markerpunkte/1,799px-PnP, bietetkameralokalenBezug.
+  DiagnoseausgelberWandkante: RFextrapolierteKorrektur−34,9mmbei27pxRestfehler
+  undZielaußerhalbBild; ausdrücklichNICHTalsFahrkorrekturfreigegeben. RR9,5mm
+  groberNormalabstand, ebenfallskeineabschließendeMittigkeitsprüfung.
+- GeprüfteRF-Blickposition:80mmTangentversatzam150mm-Hochpunkt, nurunbeladene
+  Kamerasicht, keinendgültigerGreifpunkt. Offlinevollmodellgültig,2,27snominal
+  beiunverändert0,1rad/s. RealstartvorjedemFahrzielabgewiesen,weilinzwischen
+  alle4ProgrammeSTOPPED; AnfangdiesesAuftragswarenalle4PLAYING/NORMAL.
+  Armcommands[]/Fingercommands[], ursprünglicheVor-Greifstellungenunverändert.
+  NativeStoppursachewirdanhandJournalgeprüft, keineSafetyquittierung/keinblindes
+  Play/keinGreifbefehl. inspect_real01/result.json bleibtalsnegativerNachweis.

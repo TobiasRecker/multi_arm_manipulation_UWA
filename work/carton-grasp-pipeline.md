@@ -857,3 +857,14 @@ implementiert; Defaultenforce. DynamischeReserveweitergerechnet/protokolliert,
 Planer/GuarderzwingennurGeometrie/20mmPuffer; Kontakt/Schlupf/Frische/Gruppen-
 stoppsunverändert.103Tests/BuildPASS,600DrehzuständeofflinePolicyvergleich.
 KeinneuerDrehphysiklauf; Detailsdocs/simulation_stop_reserve_mode.md.
+
+
+## Drei-Kreis-Übertragung, 2026-11-18
+
+Die getrennte Gazebo-Kontaktwelt hat im Lauf pickup04 beide Stirnwandgriffe
+mit vier stabilen Pad-Kontakten bestätigt. Ein 156-ms-Frischestopp beim
+Kameracheck verhinderte die Gruppenbildung vor dem Hub. Beide Arme hielten
+bestätigt, Box blieb unterstützt. Direkte Gegenwand-Übertragung mit
+geschlossenen Kontaktgriffen kollidiert in FCL am rechten Vorderarm.
+Armgrenze 0,1 rad/s, Kraftmessmodus mit beobachteter dynamischer Reserve.
+Details unter setup/tasks/box_drawing_gazebo_20261118_01/report.md.

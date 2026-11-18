@@ -1,5 +1,33 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Schritt 4: variierte Lehrerbahnen für die hinteren Arme, 2026-11-18
+
+- Fünf modellgeprüfte Starts auf zwei archivierten Startankern, 40 Referenzen.
+  12 freie Kontrollen und sieben FCL-Kollisionsfälle mit gültigen Enden im
+  Screening. Rest: sieben IK-Abbrüche, zehn ungültige Enden und vier reine
+  Prüfgrenzenverletzungen im Mittelteil ohne FCL-Kollision.
+- Sieben ausgewählte Fälle durch den Lehrer und die Modellprüfung geführt.
+  Sechs bestehen: drei korrigierte Referenzen (Unterarm/Unterarm, Karton gegen
+  je einen linken und rechten Oberarm) und drei freie Kontrollen. Bei den
+  korrigierten Fällen verbleiben 4,0–5,2 cm Nettozielversatz hinter dem letzten
+  Referenzkontakt. Vier verschiedene Starts und sechs unterschiedliche Ziele.
+- 47.648 Zustände im zeitlichen Raster bis 5 ms geprüft, 0,1 rad/s Obergrenze.
+  Maximal 0,09838 rad/s bei dichter Auswertung, mindestens 20,89 mm Armhüllabstand
+  und 27,63 mm bewegte Armhülle/Tisch. Zeitspanne 8,53–68,76 s im Modell.
+  Die bekannte statische Frontarm/Tisch-Hüllenüberschneidung ist in jedem
+  Bericht gesondert erhalten. Vollständige FCL-Prüfung aller vier Arme.
+- Ein Selbstkollisionsfall zwischen rechtem hinterem Handgelenk und eigenem
+  Unterarm wird vom Ersatzmodell des Optimierers verfehlt und von der finalen
+  FCL-Prüfung verworfen. Ergebnis und Kontaktzeugen erhalten, kein Export.
+- Sechs NPZ-Dateien, 600 Übergänge im bestehenden 52/6-Schema. Exportaudit
+  prüft Verkettung, Endzustand und Rekonstruktion der Aktionen. Splitstatus
+  unassigned und Gruppierung nach Startanker. Kleiner Pilot mit festem
+  Modell, zwei Ankern und gezielter Auswahl, keine Generalisierungsstatistik.
+- Artefakte `setup/research/rear-pair-screen-20261117/step4-pilot/`, Galerie
+  `run01/viewer.html`, Prüfberichte `run01/export-audit.json` und Einzelberichte.
+  28 gezielte Tests und sechs Browserprüfungen bestanden. Reproduktion
+  `tools/generate_rear_pair_pilot.py` mit `screening.json` und `selection.json`.
+
 ## Gemeinsame Zeitplanung der hinteren Arme geprüft, 2026-11-18
 
 - Schritt 3 abgeschlossen für die Seitenvariante mit festem Endziel. Die
@@ -287,6 +315,55 @@
   LFfährttatsächlichmitWächterCLEAR/keinenFaults; andere3stationär.
   EigenesExecuwa-capture-motion-20261118-01; nachAbschlussweiterLR→RR→RF,
   keineerneuteidentischeallgemeineFreigabeabfrage.
+
+## Gazebo-Übertragung des Drei-Kreis-Piloten, 2026-11-18
+
+- Folgeauftrag: drei Kreise nach kontaktbasiertem Greifen und Anheben in
+  Gazebo ausführen. Basen, Tischanker und nominelle Kartonlage stimmen mit
+  dem Modell überein. Hauptwelt lief weiter; Versuche in eigener Kontaktwelt.
+- Kollisionswächter akzeptiert im skalaren Kontaktprofil jetzt auch sechs
+  Armgelenke plus sechs einzeln gemessene Fingerkanäle. 54 gezielte Tests bestanden.
+  0,1 rad/s Armgrenze. Erzwungene dynamische Reserve blockierte schon den
+  Reset. Fortsetzung im vorhandenen Kraftmessmodus mit beobachteter Reserve,
+  weiter aktivem Geometrie-, Kontakt- und Geschwindigkeitswächter.
+- Aus normalem Start Vor-Greifpose erreicht. Frischer Wiederholungslauf
+  ab dieser Pose bestätigt vier Pad-Kontakte über 0,310 s Simulationszeit.
+  Zustandslücke von 156 ms beim Kameracheck löste vor dem Hub einen
+  bestätigten Halt beider Arme aus. Box gestützt, kein Lösen kommandiert.
+- Direkte Übertragung mit Kontaktgriffen kollidiert in FCL beim Präsentieren
+  von y_min an RF-Wrist3/Unterarm. Getestete Translations- und Yaw-Umwege
+  ohne freien Nachweis. Drei Kreise in Gazebo bleiben offen.
+  Rohdaten, Bericht und Vorschau im Workspace
+  `setup/tasks/box_drawing_gazebo_20261118_01/`.
+
+## Flächenpräsentation im Code-as-Policy-Piloten, 2026-11-18
+
+- Nutzer bestätigt den Ausbau von `present_surface` nach der Trial-Auswertung.
+  `box_drawing_pilot.py run --faces y_max z_min y_min` erzeugt das
+  Aufgabenprogramm aus der Flächenfolge. Kreisradius, Anzahl der
+  Halteposenversuche und Obergrenze für die Transferdauer sind optional.
+  Bedienung in docs/box_drawing_pilot.md.
+- Der Baustein sucht deterministisch mit bestehenden IK-, FCL-, Hüllen-,
+  Werkzeug- und Griffprüfungen. Er prüft den interpolierten Transfer sowie
+  Annäherung, Kreis und Rückzug, bevor er einen Kandidaten übernimmt.
+  Erster vollständig geprüfter Treffer pro Fläche. Rückwege werden am
+  Ende separat geprüft. Vorschauen tragen den Status **CHECKS PENDING**.
+  Suchprotokoll enthält Kandidaten, Zeiten und Ablehnungsursachen.
+- Lauf reference02 mit 25 mm Radius reproduziert 397,286 s Modellzeit,
+  19.882 Prüfpunkte, 50,201 mm minimale Hüllenlücke und 0,096576 rad/s
+  Auditspitze bei 0,1 rad/s Grenze. Direkte 180°-Variante an RF-IK-Sprung
+  bei 10 % Wegfortschritt abgelehnt. Vorhandener 160°/55°-Umweg als
+  Kandidat neu berechnet und angenommen. Transfer-Vorschauen nach 8,85 s
+  und 33,38 s ab Schreibzeit von program.json. Gesamtberechnung 115,84 s.
+- Alternativfolge `z_min y_max` mit 20 mm, Einzelfläche in passender
+  Startpose und neuer Overlap-Regressionslauf bestehen eigene Audits.
+  Versuchslimit 1 und Transferlimit 1 s erzeugen erwarteten Fehler
+  mit Diagnose. 23 Softwaretests und 18 Chrome-Prüfungen bestanden.
+- Artefakte und Hashnachweise unter
+  `setup/tasks/present_surface_20261118/verification.json`.
+  Modellfixture und Rollen sind pilotenbezogen. Kontaktphysik, neue
+  Griffstrategien und eigenständiger LLM-Zeitvergleich bleiben offen.
+  Die separate Gazebo-Kontaktuntersuchung steht im Abschnitt darüber.
 
 ## Gegenwand im Code-as-Policy-Pilot, 2026-11-18
 

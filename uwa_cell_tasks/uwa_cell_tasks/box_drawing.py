@@ -217,7 +217,7 @@ class DrawingModel:
         self.current_phase = name
         self.commit_phase(self.prepare_phase(name, states, poses, face=face, draw=draw))
 
-    def prepare_phase(self, name, states, poses, *, face=None, draw=False, max_duration_s=None):
+    def prepare_phase(self, name, states, poses, *, face=None, draw=False, max_duration_s=None, preview=None):
         positions = np.array([[s[j] for j in self.names] for s in states])
         # Object motion is reconstructed from the first holder at every sample.
         # Both holders share the same spline and time law.
@@ -228,6 +228,8 @@ class DrawingModel:
         duration = segment['time_law']['duration_s']
         if max_duration_s is not None and duration > max_duration_s:
             raise ValueError(f'Transfer requires {duration:.3f} s; limit is {max_duration_s:.3f} s')
+        if preview is not None:
+            self.preview_transfer(name, face, segment, states[0], preview)
         count = max(3, int(np.ceil(duration / .02)) + 1)
         times = np.linspace(0, duration, count)
         samples = []
@@ -471,7 +473,8 @@ class DrawingModel:
                 poses, holder_states = dense_path
                 states = self.worker_route(poses, holder_states, start, goal, candidate)
                 stage = 'timed_transfer'
-                transfer = self.prepare_phase(name, states, poses, face=face, max_duration_s=self.max_transfer_s)
+                transfer = self.prepare_phase(name, states, poses, face=face,
+                                              max_duration_s=self.max_transfer_s, preview=record)
                 stage = 'drawing'
                 drawing = self.prepare_drawing(target, states[-1], face)
                 return transfer, drawing, (states, poses)
@@ -482,6 +485,49 @@ class DrawingModel:
         if not options:
             record['rejections'].append(dict(stage='worker_ik', reason='No worker branch for the standoff'))
         raise ValueError('No model-checked worker route or drawing for this pose')
+
+    def preview_transfer(self, name, face, segment, start, record):
+        duration = segment['time_law']['duration_s']
+        times = np.linspace(0., duration, 101)
+        holder = HOLDERS[0]
+        object_from_tool = self.holding.tcp_offsets[holder] @ np.linalg.inv(self.holding.offsets[holder])
+        frames = []
+        for t, q in zip(times, sample_segment(segment, times)):
+            state = dict(start, **dict(zip(self.names, q)))
+            pose = self.p.chains[holder].forward(state) @ object_from_tool
+            tip = self.actual_tip(state)
+            frames.append(dict(time_s=float(t), phase=name, drawing=False, face=face,
+                               pose=pose.tolist(), tip=tip[:3, 3].tolist(),
+                               marker_base=(tip[:3, 3] - .12*tip[:3, 2]).tolist(),
+                               world=self.viewer_world(state)))
+        path = self.search_path.with_name(f'preview-{face}-{len(self.presentations):02d}-{len(record["rejections"])+1:02d}.html')
+        summary = dict(status='CANDIDATE PREVIEW', processing_wall_s=0.,
+                       phases=[dict(kind='phase_start', phase=name, model_time_s=0.)],
+                       detected_events=dict(agent_intervention=None), feedback=[])
+        self.write_viewer(path, frames=frames, duration_s=duration, summary=summary,
+                          program=dict(surfaces=[face], scope='Candidate transfer. See presentation-search.json for its outcome.'),
+                          policy='', candidate_preview=True)
+        record.setdefault('previews', []).append(dict(file=path.name, transfer_s=duration))
+        record['status'] = 'CHECKING_INTERPOLANT'
+        write(self.search_path, self.presentations)
+        print('PREVIEW', path, flush=True)
+
+    def viewer_world(self, state):
+        return {arm: points.round(5).tolist() for arm, points in self.p.spheres.world(state).items()}
+
+    def write_viewer(self, path, **payload):
+        boxes = []
+        for _, transform, half in self.holding.environment_boxes:
+            corners = np.array(list(itertools.product(*[[-x, x] for x in half])))
+            boxes.append((corners @ transform[:3, :3].T + transform[:3, 3]).tolist())
+        payload.update(arms=list(ROBOT_IDS), holders=list(HOLDERS), worker=WORKER,
+                       radii={arm: values.tolist() for arm, values in self.p.spheres.radii.items()},
+                       triangles=(self.holding.triangles-self.holding.dimensions/2).tolist(), boxes=boxes)
+        template = Path(__file__).resolve().parents[2] / 'tools/box_drawing_viewer.html'
+        html = template.read_text().replace('__DATA__', json.dumps(payload, separators=(',', ':')).replace('</', '<\\/'))
+        tmp = path.with_suffix('.html.tmp')
+        tmp.write_text(html)
+        tmp.replace(path)
 
     def holder_path(self, pose_at, count):
         poses, states = [pose_at(0.)], [dict(self.state)]
@@ -497,10 +543,11 @@ class DrawingModel:
 
     def worker_route(self, poses, holder_states, start, goal, candidate):
         states = []
+        worker_names = joint_names(WORKER)
         for progress, pose, state in zip(np.linspace(0, 1, len(poses)), poses, holder_states):
             turn = progress**2 if candidate.translation_leads_turn else progress
             worker = (1-turn)*start + turn*goal
-            combined = dict(state, **dict(zip(joint_names(WORKER), worker)))
+            combined = dict(state, **dict(zip(worker_names, worker)))
             try:
                 self.check(pose, combined)
             except ValueError as error:
@@ -684,7 +731,7 @@ def compile_pilot(source, output, *, variant='baseline', feedback_from=None, fac
                 frames.append(dict(time_s=elapsed+s['local_time_s'], phase=phase['id'],
                                    drawing=phase['drawing'], face=phase['face'],
                                    pose=s['pose'], tip=s['tip'], marker_base=s['marker_base'],
-                                   world={a: v.round(5).tolist() for a, v in model.p.spheres.world(state).items()}))
+                                   world=model.viewer_world(state)))
             elapsed += phase['duration_s']
         report = dict(schema_version=1, artifact_type='cooperative_box_drawing_model_pilot', executable=False,
                       backend='kinematic_model', status='MODEL_SEQUENCE_COMPLETE', program=program,
@@ -712,18 +759,8 @@ def compile_pilot(source, output, *, variant='baseline', feedback_from=None, fac
         episode.append('run_end', phase='end', source='model', model_time_s=elapsed,
                        details=dict(status=report['status'], processing_wall_s=time.monotonic()-begun))
         summary = episode.summary()
-        boxes = []
-        for _, T, half in model.holding.environment_boxes:
-            corners = np.array(list(itertools.product(*[[-x, x] for x in half])))
-            boxes.append((corners @ T[:3, :3].T + T[:3, 3]).tolist())
-        payload = dict(frames=frames, arms=list(ROBOT_IDS), holders=list(HOLDERS), worker=WORKER,
-                       radii={a: v.tolist() for a, v in model.p.spheres.radii.items()},
-                       triangles=(model.holding.triangles-model.holding.dimensions/2).tolist(),
-                       boxes=boxes, duration_s=elapsed, summary=summary, report_sha256=digest(report),
-                       program=program, policy=code)
-        template = Path(__file__).resolve().parents[2] / 'tools/box_drawing_viewer.html'
-        html = template.read_text().replace('__DATA__', json.dumps(payload, separators=(',', ':')).replace('</', '<\\/'))
-        (output / 'viewer.html').write_text(html)
+        model.write_viewer(output / 'viewer.html', frames=frames, duration_s=elapsed, summary=summary,
+                           report_sha256=digest(report), program=program, policy=code)
         return report
     except BaseException as error:
         if not any(r['kind'] == 'run_end' for r in episode.records()):

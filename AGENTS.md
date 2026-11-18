@@ -24,6 +24,10 @@
 - Schritt 3 am 18.11. für die Seitenvariante bestätigt. Gefrorene Geometrie
   gemeinsam für beide Arme zeitparametrieren, mit der aktuellen 0,1-rad/s-
   Grenze, Griffschluss-, Endpunkt- und vollständiger Modellkollisionsprüfung.
+- Schritt 4 am 18.11. bestätigt. Kleine Pilotserie mit freien Kontrollen und
+  Modellkollisionen bei gültigen, getrennten Start- und Zielposen. Nur nach
+  bestandener Zeit- und Exportprüfung als BC-Beispiele exportieren. Verwandte
+  Starts desselben Archivankers bei späteren Datensplits zusammenhalten.
 
 ## Programmierpipeline mit Demonstrationen und Sprache (2026-11-17)
 
@@ -75,6 +79,11 @@
   starr halten, left_front zeichnet, gesamter Hin- und Rückweg im
   file-only Modell mit 0,1 rad/s und denselben Prüfschwellen auswerten.
   Entwicklung getrennt nach TRACE_PROTOCOL.md protokollieren.
+- Nutzer bestätigt18.11. den Ausbau des Offline-Bausteins `present_surface`.
+  Für neue Boxzeichnungsvarianten die Flächenfolge vorgeben und die
+  Halteposensuche im Toolkit nutzen. Vorläufige Transferansicht und vollständig
+  geprüften Modelllauf unterscheidbar anzeigen. Ablehnungsstufe und lokale
+  Ursache erhalten. Bedienung in docs/box_drawing_pilot.md.
 - Piloteinstieg ist bestätigt; weitere Architekturvarianten bleiben Empfehlungen,
   keine pauschale Hardwarefreigabe. Erster file-only Modellstand/Bedienung:
   docs/box_drawing_pilot.md. Forschungsbericht:

@@ -75,6 +75,28 @@ def endpoint_checks(teacher, trajectory, geometric):
     return errors
 
 
+def validate_model(teacher, trajectory, geometric):
+    duration = trajectory['duration_s']
+    validation = teacher.validate(trajectory, dt=CHECK_STEP_S, **LIMITS)
+    times = np.linspace(0, duration, validation['samples'])
+    moving_table, parked_table = arm_table_clearances(teacher, trajectory, times)
+    table_gap = min(entry['gap_m'] for entry in moving_table.values())
+    endpoints = endpoint_checks(teacher, trajectory, geometric)
+    dense_times = np.linspace(0, duration, 20001)
+    dense_peaks = [float(np.max(np.abs(sample_segment(trajectory['segment'], dense_times, order))))
+                   for order in (1, 2, 3)]
+    derivatives_ok = all(peak <= limit + 1e-7 for peak, limit in zip(dense_peaks, LIMITS.values()))
+    model_geometry_passed = validation['passed']
+    # Same scope as the episode teacher. Fixed arms still participate in the
+    # full FCL and all-pair tests at every sample in TwoArmTeacher.validate.
+    validation.update(min_moving_arm_table_gap_m=table_gap, moving_arm_table=moving_table,
+                      parked_arm_table_baseline=parked_table, endpoint_checks=endpoints,
+                      dense_derivative_samples=len(dense_times), dense_derivative_peaks=dense_peaks,
+                      passed=bool(model_geometry_passed and table_gap >= .003 - 1e-8
+                                  and endpoints['passed'] and derivatives_ok))
+    return validation
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('screening', type=Path)
@@ -102,23 +124,7 @@ def main():
         trajectory = teacher.trajectory(geometric['task'], controls, **LIMITS)
         duration = trajectory['duration_s']
         print(f'Model duration {duration:.3f} s. Checking full interpolated motion.', flush=True)
-        validation = teacher.validate(trajectory, dt=CHECK_STEP_S, **LIMITS)
-        times = np.linspace(0, duration, validation['samples'])
-        moving_table, parked_table = arm_table_clearances(teacher, trajectory, times)
-        table_gap = min(entry['gap_m'] for entry in moving_table.values())
-        endpoints = endpoint_checks(teacher, trajectory, geometric)
-        dense_times = np.linspace(0, duration, 20001)
-        dense_peaks = [float(np.max(np.abs(sample_segment(trajectory['segment'], dense_times, order))))
-                       for order in (1, 2, 3)]
-        derivatives_ok = all(peak <= limit + 1e-7 for peak, limit in zip(dense_peaks, LIMITS.values()))
-        model_geometry_passed = validation['passed']
-        # Same scope as the episode teacher. Fixed arms still participate in the
-        # full FCL and all-pair tests at every sample in TwoArmTeacher.validate.
-        validation.update(min_moving_arm_table_gap_m=table_gap, moving_arm_table=moving_table,
-                          parked_arm_table_baseline=parked_table, endpoint_checks=endpoints,
-                          dense_derivative_samples=len(dense_times), dense_derivative_peaks=dense_peaks,
-                          passed=bool(model_geometry_passed and table_gap >= .003 - 1e-8
-                                      and endpoints['passed'] and derivatives_ok))
+        validation = validate_model(teacher, trajectory, geometric)
         report = dict(stage='time_parameterized_model', executable=False, arms=list(teacher.arms),
                       parked_arms=[arm for arm in ROBOT_IDS if arm not in teacher.arms],
                       model_signature=teacher.problem.signature, source_sha256=teacher.source_sha256,

@@ -12,20 +12,25 @@
 <label>Playback <select id="speed"><option value="1">1× model time</option><option value="3">3× preview</option><option value="10">10× preview</option></select></label>
 <input id="progress" type="range" min="0" max="1000" value="0" aria-label="Model time"><p id="clock"></p>
 <div id="layout"><section><canvas id="view" aria-label="Rotatable three-arm drawing model"></canvas><p>Drag to rotate · Scroll to zoom. White marker, gold model trace attached to the box. The trace visualizes the tool reference; it is not a measured pen mark.</p></section><aside><h2>Episode observations</h2><table id="metrics"></table><h2>Program phases</h2><select id="phaseJump" aria-label="Jump to phase"></select><p id="scope" class="note"></p><p>Missing measurements are shown as UNKNOWN. Model time and processing time are separate.</p></aside></div>
-<h2>Your feedback</h2><p>Comment on the sequence or a specific phase. For example, describe an awkward final rotation. Feedback remains your original text and does not automatically change the program.</p>
+<section id="feedbackSection"><h2>Your feedback</h2><p>Comment on the sequence or a specific phase. For example, describe an awkward final rotation. Feedback remains your original text and does not automatically change the program.</p>
 <label>Phase <select id="feedbackPhase"><option value="overall">Overall task</option></select></label>
 <textarea id="feedback" aria-label="Your feedback" placeholder="What should the agent do differently?"></textarea><button id="saveFeedback">Export feedback JSON</button>
 <div id="feedbackStatus">WAITING FOR YOUR FEEDBACK — nothing submitted</div><p>Export downloads a JSON file. Import it with the documented feedback command to add it to the local episode history.</p>
 <details><summary>Executed Code-as-Policy program</summary><pre id="policy"></pre></details>
-<details><summary>Scope and remaining work</summary><p><span id="surfaces"></span> No pickup, physical support, contact-force regulation, teleoperation takeover or real drawing outcome is qualified by this preview. All four arms and the moving carton are included in sampled model checks. The virtual marker has separate sampled body checks. This file never sends robot commands.</p></details>
+</section>
+<details id="finishedScope"><summary>Scope and remaining work</summary><p><span id="surfaces"></span> No pickup, physical support, contact-force regulation, teleoperation takeover or real drawing outcome is qualified by this preview. All four arms and the moving carton are included in sampled model checks. The virtual marker has separate sampled body checks. This file never sends robot commands.</p></details>
 </main>
 <script>
 const data=__DATA__,$=id=>document.getElementById(id),canvas=$('view'),ctx=canvas.getContext('2d');
-$('title').textContent = 'Hold the box · Draw ' + data.program.surfaces.length + ' circles';
+const isCandidate = data.candidate_preview === true;
+$('title').textContent = isCandidate ? 'Present ' + data.program.surfaces[0] + ' · Candidate preview' :
+    'Hold the box · Draw ' + data.program.surfaces.length + ' circles';
+$('feedbackSection').hidden = isCandidate;
+$('finishedScope').hidden = isCandidate;
 $('surfaces').textContent = 'Drawing surfaces: ' + data.program.surfaces.join(', ') + '.';
 let yaw=-.8,pitch=.5,zoom=1.25,scale=1,drag=null,playing=false,last=null,modelTime=0;
 const colours={left_front:'#7dd3fc',left_rear:'#b6edb7',right_front:'#ffca7a',right_rear:'#e8afff'};
-function phaseName(id){let face=id.includes('y_max')?'long wall (y_max)':id.includes('z_min')?'bottom (z_min)':id.includes('y_min')?'opposite long wall (y_min)':'';if(id.startsWith('approach_'))return'Approach '+face;if(id.startsWith('draw_'))return'Draw on '+face;if(id.startsWith('retract_'))return'Retract from '+face;if(id.startsWith('transfer_'))return'Move to '+face;return({present_bottom:'Present bottom',present_away:'Present opposite wall',return_from_away:'Return from opposite wall',park_worker:'Clear working arm',return_box:'Return box',overall:'Overall task'})[id]||id}
+function phaseName(id){let face=id.includes('y_max')?'long wall (y_max)':id.includes('z_min')?'bottom (z_min)':id.includes('y_min')?'opposite long wall (y_min)':'';if(id.startsWith('present_')&&face)return'Present '+face;if(id.startsWith('return_from_')&&face)return'Return from '+face;if(id.startsWith('approach_'))return'Approach '+face;if(id.startsWith('draw_'))return'Draw on '+face;if(id.startsWith('retract_'))return'Retract from '+face;if(id.startsWith('transfer_'))return'Move to '+face;return({present_bottom:'Present bottom',present_away:'Present opposite wall',return_from_away:'Return from opposite wall',park_worker:'Clear working arm',return_box:'Return box',overall:'Overall task'})[id]||id}
 function current(){let lo=0,hi=data.frames.length;while(lo<hi){let mid=(lo+hi)>>1;if(data.frames[mid].time_s<=modelTime+1e-9)lo=mid+1;else hi=mid}return data.frames[Math.max(0,lo-1)]}
 function project(p){let[x,y,z]=p;z-=1.15;let h=x*Math.cos(yaw)-y*Math.sin(yaw),d=x*Math.sin(yaw)+y*Math.cos(yaw);return[canvas.width/2+scale*h,canvas.height/2-scale*(z*Math.cos(pitch)-d*Math.sin(pitch)),z*Math.sin(pitch)+d*Math.cos(pitch)]}
 function line(a,b,c,w=1){a=project(a);b=project(b);ctx.strokeStyle=c;ctx.lineWidth=w*(devicePixelRatio||1);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}
@@ -39,13 +44,13 @@ for(let s of shapes){ctx.beginPath();if(s.kind==='sphere'){ctx.arc(s.p[0],s.p[1]
 let prior=null;for(let row of data.frames){if(row.time_s>modelTime)break;if(row.drawing){let p=transform(local(row.tip,row.pose),f.pose);if(prior&&prior.face===row.face)line(prior.p,p,'#ffeb3b',4);prior={p,face:row.face}}else prior=null}
 line(f.marker_base,f.tip,'white',4);let marker=project(f.tip);ctx.fillStyle='white';ctx.beginPath();ctx.arc(marker[0],marker[1],5*r,0,2*Math.PI);ctx.fill();
 }
-function refresh(){$('progress').value=modelTime/data.duration_s*1000;let f=current();$('status').textContent=(playing?'PLAYING':'PAUSED')+' — '+phaseName(f.phase)+' — KINEMATIC MODEL ONLY';$('clock').textContent=modelTime.toFixed(2)+' / '+data.duration_s.toFixed(2)+' s model time';draw()}
+function refresh(){$('progress').value=modelTime/data.duration_s*1000;let f=current();$('status').textContent=(playing?'PLAYING':'PAUSED')+' — '+phaseName(f.phase)+(isCandidate?' — CANDIDATE PREVIEW · CHECKS PENDING':' — KINEMATIC MODEL ONLY');$('clock').textContent=modelTime.toFixed(2)+' / '+data.duration_s.toFixed(2)+' s model time';draw()}
 function stop(){playing=false;last=null;$('play').textContent='Play model'}
 $('play').onclick=()=>{if(playing)stop();else{if(modelTime>=data.duration_s)modelTime=0;playing=true;last=null;$('play').textContent='Pause model'}refresh()};
 $('progress').oninput=()=>{stop();modelTime=Number($('progress').value)/1000*data.duration_s;refresh()};
 let phases=data.summary.phases.filter(x=>x.kind==='phase_start');for(let p of phases){for(let id of['phaseJump','feedbackPhase']){let o=document.createElement('option');o.value=p.phase;o.textContent=phaseName(p.phase);$(id).append(o)}}
 $('phaseJump').onchange=()=>{stop();modelTime=phases.find(p=>p.phase===$('phaseJump').value).model_time_s;$('feedbackPhase').value=$('phaseJump').value;refresh()};
-let m=data.summary,metrics=[['Model sequence',m.status],['Model duration',data.duration_s.toFixed(2)+' s'],['Processing time',m.processing_wall_s.toFixed(2)+' s'],['Physical execution time','UNKNOWN'],['Maximum force','UNKNOWN — no force sensor'],['Missed grasps','UNKNOWN — no detector'],['Regrasps / object loss','UNKNOWN — no detector'],['Agent interventions',String(m.detected_events.agent_intervention)],['User feedback',String(m.feedback.length)]];
+let m=data.summary,metrics=[['Model sequence',m.status],['Model duration',data.duration_s.toFixed(2)+' s'],['Processing time',isCandidate?'In progress at export':m.processing_wall_s.toFixed(2)+' s'],['Physical execution time','UNKNOWN'],['Maximum force','UNKNOWN — no force sensor'],['Missed grasps','UNKNOWN — no detector'],['Regrasps / object loss','UNKNOWN — no detector'],['Agent interventions',m.detected_events.agent_intervention ?? 'UNKNOWN'],['User feedback',String(m.feedback.length)]];
 for(let[k,v]of metrics){let row=$('metrics').insertRow();row.insertCell().textContent=k;row.insertCell().textContent=v}
 $('scope').textContent=data.program.scope;$('policy').textContent=data.policy;
 $('saveFeedback').onclick=()=>{let text=$('feedback').value.trim();if(!text){$('feedbackStatus').textContent='NOT EXPORTED — enter feedback first';return}let value={schema_version:1,episode_sha256:m.episode_sha256,phase:$('feedbackPhase').value,text};let a=document.createElement('a'),url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)+'\n'],{type:'application/json'}));a.href=url;a.download='box-drawing-feedback.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);$('feedbackStatus').textContent='EXPORTED TO DOWNLOADS — import JSON to record it in the local episode'};

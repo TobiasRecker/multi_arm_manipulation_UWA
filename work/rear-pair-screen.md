@@ -78,3 +78,20 @@
   Beide Arme erreichen das festgelegte Ziel exakt im Modell. Grenzwert
   0,1 rad/s, Spitze 0,09091 rad/s und analytische Schranke 0,09364 rad/s.
   22 gezielte Regressionstests. Viewer mit Modellsekunden und Zielsprung.
+
+## Variierte Lehrerbeispiele, 2026-11-18
+
+- Abgeschlossen. Schritt 4 baut einen kleinen Offline-Pilotdatensatz für die
+  hinteren Arme aus verschiedenen Starts, Zielen und Referenzbewegungen.
+  Gültige Enden und Weiterfahrt hinter der Konfliktregion sind Pflicht.
+  Freie Kontrollen sowie IK-, Abstands- und Kollisionsfehler protokollieren.
+- `step4-pilot/screening.json`: 40 Vorschläge, fünf gültige Starts, zwölf
+  freie Kontrollen und sieben Kollisionsfälle mit gültigen Enden. Vier echte
+  Kollisionsfälle und drei Kontrollen für die Zeitprüfung ausgewählt.
+- `step4-pilot/run01/`: sechs von sieben Bahnen und 600 Übergänge bestanden.
+  Drei korrigierte Varianten erreichen das Ziel, drei freie bleiben frei.
+  Ein Selbstkollisionsfall scheitert in FCL, Diagnose und Original erhalten.
+  47.648 Zeitprüfpunkte, maximal 0,09838 rad/s, minimal 20,89 mm Armhüllabstand.
+- Galerie, Endpunkt-/Verkettungsaudit und sechs Browserprüfungen im Laufordner.
+  28 gezielte Regressionstests. Referenzkontaktzeugen unter
+  `step4-pilot/reference-witnesses/`. Split unassigned, Gruppen nach Startanker.

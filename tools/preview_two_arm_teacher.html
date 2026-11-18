@@ -148,10 +148,11 @@ if (referenceOnly) {
 } else {
 if (data.timed_rear) {
     document.title = 'UWA — Timed rear-arm trajectory';
-    $('heading').textContent = 'Rear arms on a shared clock';
+    $('heading').textContent = data.gallery_title || 'Rear arms on a shared clock';
     $('intro').textContent = 'The rear arms carry the carton to the fixed goal. The dashed outline shows the original reference at the same progress.';
     $('scope').textContent = 'OFFLINE MODEL · 0.1 rad/s joint speed limit';
-    $('solution-label').hidden = $('teacher-details').hidden = true;
+    $('solution-label').hidden = data.sets.length === 1;
+    $('teacher-details').hidden = true;
     $('jump-goal').hidden = false;
     $('jump-goal').onclick = () => seek(maxFrame());
 }
