@@ -1,6 +1,7 @@
 # Reale Zweiarm-Vor-Greifpose,18.11.2026
 
-- Status: aktiv, Hauptagent Kartontest. Nutzer bittet ausdrücklich Karton zu
+- Status: **abgeschlossen: beide rechten URs real in Vor-Greifpose**,18.11.2026.
+  Hauptagent Kartontest. Nutzer bittet ausdrücklich Karton zu
   erkennen und beide rechten URs in Vor-Greifpose zu fahren. Kein Griff/Hub.
 - Aktuelle Basisanbindungen hardware_20261118_base_fixed_v1 fest übernehmen;
   OAK-Fokus107/aktuellen neuen Posekandidat getrennt und explizit verwenden.
@@ -46,3 +47,40 @@
 - AktuellerRealversuch03: RFfährt, unabhängig native0,09347rad/s/RUNNING/NORMAL
   bestätigt; andere3gehalten, keinerleiFingerbefehle. ErgebnisnochNICHTals
   vollständigmelden. setup/tasks/carton_pregrasp_20261118_real03/.
+
+- RF tatsächlich am Vor-Greifziel: Native1223Samples, maximale Geschwindigkeit
+ 0,103282rad/s (bestehende5%-Monitortoleranz), geometrischer Bahnrestfehler
+ 0,000103989rad; keineWächterstopps, eigeneHold-/Latch-/Guard-/unabhängige
+  strengeRuhefensterbestätigungPASS. OAK15:17:49bestätigtseitlicheAusrichtung
+  mitoffenenBacken; KartonbleibtamPlatz.
+- Übergang03zuRRvorerstabgebrochenOHNERR-Ziel: RunnerwerteteGuardfeld
+  standstill_confirmedfalschaus. DiesesistnurbeigelatchtemGuardstopptrue;
+  imCLEARtrotzaller4bestätigterstationärerArmefalse. KeinephysischeUnruhe:
+  neueGuardmessungalle4stationary_arms/qd0/keineFaults, Supalle4Holds.
+  RunnernutztjetztfrischeperArm-RuhebelegefürunbeladenenReset, weiteralle4
+  nötigundkeineFaults; Regression10TestsPASS. KeineSchwelle/Fristegeändert.
+- RRausfrischerRF-Endstellungneu geplant (rr_plan01) undseparatgestartet
+  (rr_real01). RoboternativerFortschrittRUNNING/NORMAL bestätigt. RFbleibt
+  gehalten, keinerleiFingerbefehle. Nominal104s, result.jsonnochlaufend.
+- DoppelteZeit-/Geometriekompilierungunmittelbarvorfollowentfernt: follow
+  selbstprüft/timeddenfrischenIststartpfadundbautdanachfrischeTelemetrievor
+  Controlleraktivierungauf. KeinezeitlicheStreckung/keineGrenzlockerung.
+
+## Abschluss
+
+- BeideZiele tatsächlich erreicht: RF in real03/SegmentRF, RR in rr_real01.
+  Beidejeweils0Guardstopps, Hold/Latch sowieGuard- und unabhängigesstrenges
+  Stillstandsfensterbestätigt. Gesamtabschlussindex
+  `setup/tasks/carton_pregrasp_20261118_completed/result.json` bindetgetrennte
+  echteErgebnisse; real03 bleibtmitÜbergangsfehlerarchiviert,nichtumgeschrieben.
+- MaxnativerGeschwindigkeitswertRF0,103282/RR0,103748rad/sinnerhalbvorhandener
+ 5%-Monitortoleranz; Kommando0,1unverändert. GeometrischerBahnrestfehler
+  RF0,000103989/RR0,000093491rad. KeinnativerSTOP-FallbackbeidenEndholds.
+- Abschließendalle4nativeArmeRUNNING/NORMAL/runtime2/stationär; Supervisoralle4
+  resourceholds/Softwarelatches, GuardCLEAR/keineFaults/alle4stationary_arms,
+  unabhängigerWatchdognichtgetrippt. RechtsgreiferACT0/POS3/PRE0weiteroffen,
+  gemeinsameAPIMONITOR ONLY, **keinerleiGreiferbefehle**. Kameraanschließendfrei.
+- FrischesAbschlussfotoimIndex, sichtbarebeidseitigeVorpositiongeprüft.
+  Kartonerkannt, modellgeprüfte150mmDistanzzumgeplantenKontakt,keinAbsenken,
+  GreifenoderHub. KeinAbsolutgenauigkeits-/beladenerGruppenausführungsnachweis.
+  GeladenergekoppelterHardware-ObjektmasterbleibtseparateoffeneArbeit.

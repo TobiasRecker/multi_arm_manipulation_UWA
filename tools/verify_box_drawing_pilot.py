@@ -41,6 +41,7 @@ def audit(run):
     samples = 0
     phase_names = []
     drawn = []
+    radius = report['program'].get('circle_radius_m', .025)
     face_geometry = {'y_max': (1, 1), 'z_min': (2, -1), 'y_min': (1, -1)}
     for phase in report['phases']:
         phase_names.append(phase['id'])
@@ -68,7 +69,7 @@ def audit(run):
                 angles.append(np.arctan2(-local[2] * sign if axis == 1 else local[1] * sign,
                                          local[0]))
                 tip_error = max(tip_error, abs(local[axis]-sign*report['dimensions_m'][axis]/2),
-                                abs(np.linalg.norm(np.delete(local, axis))-.025))
+                                abs(np.linalg.norm(np.delete(local, axis))-radius))
             samples += 1
         if angles:
             sweep = np.unwrap(angles)
@@ -82,7 +83,7 @@ def audit(run):
     assert len(drawn) == len(set(drawn))
     assert np.max(abs(last - [initial[j] for j in names])) < 1e-7
     velocity = report['program'].get('velocity_rad_s', .35)
-    if 'y_min' in drawn:
+    if 'y_min' in drawn or report['program']['variant'] == 'surface_search':
         assert velocity == .1
     assert np.all(peaks <= np.array([velocity, .4, 2.])+1e-6)
     rows = episode.records()

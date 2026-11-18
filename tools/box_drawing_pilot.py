@@ -17,7 +17,12 @@ def main():
     p = sub.add_parser('run')
     p.add_argument('--source', type=Path, required=True)
     p.add_argument('--output', type=Path, required=True)
-    p.add_argument('--variant',choices=('baseline','overlap','closer_coordinated','away_face'),default='baseline')
+    recipe = p.add_mutually_exclusive_group()
+    recipe.add_argument('--variant',choices=('baseline','overlap','closer_coordinated','away_face'),default='baseline')
+    recipe.add_argument('--faces', nargs='+', help='Search presentations for the given ordered box faces')
+    p.add_argument('--radius-mm', type=float, help='Circle radius for --faces (default 25)')
+    p.add_argument('--presentation-budget', type=int, help='Maximum pose candidates per face (default 8)')
+    p.add_argument('--max-transfer-s', type=float, help='Reject any presentation over this model time')
     p.add_argument('--feedback-from',type=Path)
     p = sub.add_parser('summary')
     p.add_argument('run', type=Path)
@@ -32,7 +37,13 @@ def main():
     args = parser.parse_args()
     if args.command == 'run':
         from uwa_cell_tasks.box_drawing import compile_pilot
-        result = compile_pilot(args.source, args.output,variant=args.variant,feedback_from=args.feedback_from)
+        try:
+            result = compile_pilot(
+                args.source, args.output, variant=args.variant, feedback_from=args.feedback_from,
+                faces=args.faces, radius_m=None if args.radius_mm is None else args.radius_mm/1000,
+                presentation_budget=args.presentation_budget, max_transfer_s=args.max_transfer_s)
+        except (ValueError, OSError) as error:
+            parser.exit(1, f'box_drawing_pilot: {error}\n')
         print(json.dumps(dict(status=result['status'], output=str(args.output.resolve()),
                               validation=result['validation']), indent=2))
     elif args.command == 'history':

@@ -5,6 +5,7 @@ Standard library only. This records development work, not robot telemetry or
 private reasoning. Commands run as argv with no implicit shell.
 """
 import argparse
+from contextlib import nullcontext
 from datetime import datetime
 import fcntl
 import hashlib
@@ -125,26 +126,42 @@ class Trial:
             paths.append(str(p))
         return self.change('note',dict(stage=self.state()['stage'],note_kind=kind,text=text,artifacts=paths),lambda _:None)
 
-    def run(self,command,label,timeout=900.,cwd=None,tail_chars=2000):
+    def run(self,command,label,timeout=900.,cwd=None,tail_chars=2000,stdin_file=None):
         if not command:raise ValueError('Command argv required after --')
         if not 0<timeout<86400:raise ValueError('Timeout must be in (0,86400) seconds')
         slug(label)
+        input_data=None
+        input_source=None
+        if stdin_file is not None:
+            input_source=str(stdin_file)
+            if input_source=='-':
+                input_data=sys.stdin.buffer.read()
+            else:
+                input_source=str(Path(stdin_file).resolve())
+                input_data=Path(input_source).read_bytes()
         identifier=label+'-'+uuid.uuid4().hex[:10]
         folder=self.directory/'commands'/identifier
         folder.mkdir()
+        input_metadata=dict(mode='inherited_unrecorded')
+        if input_data is not None:
+            input_path=folder/'stdin.bin'
+            input_path.write_bytes(input_data)
+            input_metadata=dict(mode='captured',source=input_source,artifact=str(input_path),
+                                sha256=hashlib.sha256(input_data).hexdigest(),size_bytes=len(input_data))
         stage=self.state()['stage']
         cwd=str(Path(cwd).resolve()) if cwd else json.loads((self.directory/'trial.json').read_text())['repo']
         def begin(state):
             if stage is None or stage!=state['stage']:raise ValueError('Start a stage before running commands')
             state['active_commands'].append(identifier)
-        start=self.change('command_start',dict(stage=stage,command_id=identifier,argv=command,cwd=cwd,
+        start=self.change('command_start',dict(stage=stage,command_id=identifier,argv=command,cwd=cwd,stdin=input_metadata,
                           stdout=str(folder/'stdout.txt'),stderr=str(folder/'stderr.txt')),begin)
         write(folder/'command.json',start)
         print('RUNNING '+identifier+' — '+stage,flush=True)
         proc=None;status='exited';code=127
-        with (folder/'stdout.txt').open('wb') as stdout,(folder/'stderr.txt').open('wb') as stderr:
+        with (folder/'stdout.txt').open('wb') as stdout,(folder/'stderr.txt').open('wb') as stderr, \
+                ((folder/'stdin.bin').open('rb') if input_data is not None else nullcontext()) as stdin:
             try:
-                proc=subprocess.Popen(command,cwd=cwd,stdout=stdout,stderr=stderr,start_new_session=True)
+                proc=subprocess.Popen(command,cwd=cwd,stdin=stdin,stdout=stdout,stderr=stderr,start_new_session=True)
                 code=proc.wait(timeout=timeout)
             except (subprocess.TimeoutExpired,KeyboardInterrupt) as error:
                 status='timeout' if isinstance(error,subprocess.TimeoutExpired) else 'interrupted'
@@ -240,7 +257,9 @@ def main():
     p=sub.add_parser('init');p.add_argument('--repo',type=Path,required=True);p.add_argument('--task',required=True);p.add_argument('--agent')
     p=sub.add_parser('start');p.add_argument('stage')
     p=sub.add_parser('end');p.add_argument('--outcome',choices=('done','failed','blocked'),default='done');p.add_argument('--note',default='')
-    p=sub.add_parser('run');p.add_argument('--label',required=True);p.add_argument('--cwd',type=Path);p.add_argument('--timeout',type=float,default=900.);p.add_argument('--tail-chars',type=int,default=2000);p.add_argument('command',nargs=argparse.REMAINDER)
+    p=sub.add_parser('run');p.add_argument('--label',required=True);p.add_argument('--cwd',type=Path);p.add_argument('--timeout',type=float,default=900.);p.add_argument('--tail-chars',type=int,default=2000)
+    p.add_argument('--stdin-file',type=Path,help='Capture a file or - (logger stdin) and feed its exact bytes to the command')
+    p.add_argument('command',nargs=argparse.REMAINDER)
     p=sub.add_parser('note');p.add_argument('--kind',choices=('decision','edit','error','artifact','wait','external_tool','usage'),required=True);p.add_argument('--text',required=True);p.add_argument('--artifact',type=Path,action='append',default=[])
     p=sub.add_parser('finish');p.add_argument('--status',choices=('complete','failed','blocked'),required=True);p.add_argument('--summary',required=True)
     sub.add_parser('summary')
@@ -257,7 +276,7 @@ def main():
             def terminate(signum,frame):
                 raise KeyboardInterrupt('Logger termination requested')
             signal.signal(signal.SIGTERM,terminate)
-            return trial.run(command,args.label,args.timeout,args.cwd,max(0,args.tail_chars))
+            return trial.run(command,args.label,args.timeout,args.cwd,max(0,args.tail_chars),args.stdin_file)
         print(json.dumps(value,ensure_ascii=False,indent=2));return 0
     except (ValueError,OSError) as error:
         parser.exit(2,'agent_trial: '+str(error)+'\n')

@@ -73,6 +73,10 @@ def arm_velocity_limit(cfg,rid):
 
 def joint_velocity_limits(cfg,rid,count=6):
     """Positive monitored caps; a measured stationary arm never implies zero."""
+    if count == 12 and 'joint_velocity_limits_rad_s' not in cfg:
+        # The contact simulation measures all six articulated finger joints.
+        # Its TaskGuard also enforces stricter name-bound arm/finger caps.
+        return np.full(count, arm_velocity_limit(cfg, rid))
     if count not in (6,7):raise ValueError('Expected six physical joints and optional gripper coordinate')
     if 'joint_velocity_limits_rad_s' not in cfg:return np.full(count,arm_velocity_limit(cfg,rid))
     values=list(cfg['joint_velocity_limits_rad_s'][rid])

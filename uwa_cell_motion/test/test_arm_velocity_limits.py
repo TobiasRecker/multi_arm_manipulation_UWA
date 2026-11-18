@@ -58,6 +58,20 @@ def test_complete_stopping_budget_uses_same_cap_and_actual_overspeed(cfg):
     assert overspeed>budget
 
 
+def test_uniform_guard_speed_check_accepts_all_measured_finger_joints(cfg):
+    state = GuardState(cfg)
+    for arm in ROBOT_IDS:
+        count = 12 if arm in ('right_front', 'right_rear') else 7
+        state.receive(arm, [0.] * count, [0.] * count, 0., 0.)
+    assert not state.evaluate([], 0., 0.)['faults']
+
+    state.receive('right_front', [0.] * 12, [0.] * 11 + [.04], .1, .1)
+    assert any(
+        fault['reason'] == 'SPEED LIMIT' and fault['joint_index'] == 11
+        for fault in state.evaluate([], .1, .1)['faults']
+    )
+
+
 def test_explicit_uniform_mapping_keeps_old_budgets_identical(cfg):
     default={k:v for k,v in cfg.items() if k!='arm_velocity_limits_rad_s'}
     cfg['arm_velocity_limits_rad_s']={r:default['velocity_limit_rad_s'] for r in ROBOT_IDS}

@@ -118,10 +118,18 @@ executes no manipulation.17November: shared ROS grippers completed real empty
 partial travel raw0→128→0 at SPE16/FOR0 on both right arms; service returned to
 MONITOR ONLY. Use the shared API (docs/gripper_ros_api.md), not a duplicate socket
 writer/adapter. This does not calibrate force/aperture or qualify loaded stops.
-A first unloaded right-front150mm pregrasp approach completed on17November,
-but its fresh-image alignment check failed. All arms remain held, grippers
-open. OAK re-registration using fixed/mobile boards is in progress; keep useful
-camera settings when explicitly requested, recording matching intrinsics.
-The old80mm offline path and initial joint snapshots cannot be replayed. Camera/world alignment,
-real coupled command delivery and loaded operation remain open. The new common
-object reference core is transport-free, never an executable hardware plan.
+On18November both right URs reached unloaded150mm pregrasp poses using a
+fresh ROI texture registration and the current focus107 OAK fit with fixed
+user-adopted base bindings. Both final holds, guard quiet and independent quiet
+windows passed. See work/carton-pregrasp-20261118.md and the source-bound
+setup/tasks/carton_pregrasp_20261118_completed/result.json. All arms remain held,
+grippers open/inactive; no finger commands or contact/lift were attempted.
+Keep the current0.1rad/s command limit, without an extra time dilation. Use the
+fresh per-base camera transforms rather than substituting nominal world mounts;
+check the conservative union of carton representations in the model. Do not
+replay old initial joint snapshots. Inactive open grippers do not require an
+activation stroke for this approach. CLEAR guard's standstill_confirmed is not
+a physical-quiet flag; require fresh stationary_arms for all four before reset.
+Keep useful camera settings when requested, retaining the matching intrinsics.
+The common object reference core remains transport-free. A loaded coupled
+command-delivery/stop/grip backend and real loaded operation are still open.

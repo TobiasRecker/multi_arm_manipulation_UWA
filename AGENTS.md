@@ -21,6 +21,9 @@
   kollidierende Referenz und der Ausweichweg haben dasselbe feste Ziel. Nach
   der Konfliktregion muss noch ein Wegstück bis dorthin folgen. Viewer bei
   solchen Beispielen am Start öffnen und die Zielpose direkt anwählbar machen.
+- Schritt 3 am 18.11. für die Seitenvariante bestätigt. Gefrorene Geometrie
+  gemeinsam für beide Arme zeitparametrieren, mit der aktuellen 0,1-rad/s-
+  Grenze, Griffschluss-, Endpunkt- und vollständiger Modellkollisionsprüfung.
 
 ## Programmierpipeline mit Demonstrationen und Sprache (2026-11-17)
 
@@ -61,6 +64,12 @@
   Entwicklungszeit von robotischer Modell-/Ausführungszeit trennen; Restzeit
   außerhalb geloggter Befehle nicht als gemessene Denkzeit ausgeben. Nicht
   gewrappte Tools/Chat zusätzlich notieren/exportieren, Fehlversuche erhalten.
+- Auswertung18.11.: bei `python3 -`/Patch-/Shell-Standardeingaben den Inhalt
+  mit `agent_trial.py run --stdin-file DATEI|-` archivieren; argv allein
+  dokumentiert diese Bearbeitungen nicht. Roh-Exitcodes von fachlichen
+  Ablehnungen, erwarteten Suchergebnissen und Aufruffehlern unterscheiden.
+  Ein erfolgreicher Agententest belegt die konkrete Übertragung, noch keine
+  allgemeine Eignung eines schnellen einfachen LLM oder langfristiges Lernen.
 - Gegenwand-Trial (Nutzerauftrag 18.11.): vorhandene Kreise auf y_max und
   z_min erhalten und y_min mit 25 mm Radius ergänzen. Rechte Haltegruppe
   starr halten, left_front zeichnet, gesamter Hin- und Rückweg im

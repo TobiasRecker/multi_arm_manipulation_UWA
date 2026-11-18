@@ -7,8 +7,14 @@
   Bericht docs/hardware_commissioning_2026-11-17.md. VierArmeabschließend
   verriegelt/stationär, kein automatischerKartonhub ausdiesemNachweis.
 
-- Status: **erste reale RF-Anfahrt abgeschlossen; visueller Positionsabgleich
-  fehlgeschlagen, Kalibrierdiagnose aktiv; Realgriff weiterhin offen**,2026-11-17(Australia/Perth).
+- Status18.11.: **beide rechtenURs real in Vor-Greifpose erreicht**, neue
+  Kartonerkennung/OAK107/aktuellerFit und festeBasisanbindungen verwendet.
+  Kommando0,1rad/sbeibehalten; alle4Armeabschließendgehalten/stationär, Greifer
+  weiteroffen/inaktiv. KeinGriff/Hub. AktuellerIndex
+  `setup/tasks/carton_pregrasp_20261118_completed/`; Details
+  [aktueller Arbeitsstand](carton-pregrasp-20261118.md). Nachfolgende17.11.-Notizen
+  sindHistorie, einschließlich damaligemfehlgeschlagenenBildabgleich.
+
 - Nutzerauftrag: bestehenden Zweiarm-Kartonablauf zuerst deutlich langsamer
   real testen. Jetzt alles vorbereiten; Nutzer startet URs erst auf Bereitschaft.
   Bis16.11.ausschließlichlesend; nachÜbergabe17.11.vierexpliziteROS-

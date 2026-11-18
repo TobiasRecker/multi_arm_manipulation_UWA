@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -99,6 +100,39 @@ def test_argv_is_literal_and_cwd_may_have_spaces(tmp_path):
 def test_interval_union_handles_nested_and_touching_commands():
     assert module().union_seconds([(2.,5.),(0.,4.),(8.,10.),(1.,3.),(10.,11.)])==8.
     with pytest.raises(ValueError,match='backwards'):module().union_seconds([(2.,1.)])
+
+
+@pytest.mark.parametrize('payload',[b'',b'line one\r\nline two\n\x00\xff'])
+def test_stdin_file_archives_exact_bytes_and_feeds_child(tmp_path,payload):
+    t=trial(tmp_path);t.start('adapt')
+    source=tmp_path/'input with spaces.bin';source.write_bytes(payload)
+    assert t.run([sys.executable,'-c','import sys;sys.stdout.buffer.write(sys.stdin.buffer.read())'],
+                 'stdin',stdin_file=source,tail_chars=0)==0
+    folder=next((t.directory/'commands').iterdir())
+    assert (folder/'stdout.txt').read_bytes()==(folder/'stdin.bin').read_bytes()==payload
+    record=json.loads((folder/'command.json').read_text())['stdin']
+    assert record['sha256']==hashlib.sha256(payload).hexdigest()
+    assert record['size_bytes']==len(payload) and record['source']==str(source)
+    assert Path(record['artifact'])==folder/'stdin.bin'
+    t.end('done');t.finish('complete','Byte-preserving stdin fixture')
+
+
+def test_cli_heredoc_is_captured_and_invalid_input_does_not_start_command(tmp_path):
+    t=trial(tmp_path);t.start('adapt')
+    with pytest.raises(FileNotFoundError):
+        t.run([sys.executable,'-'],'missing-input',stdin_file=tmp_path/'missing',tail_chars=0)
+    assert not t.state()['active_commands'] and not list((t.directory/'commands').iterdir())
+    logger=Path(__file__).resolve().parents[2]/'tools/agent_trial.py'
+    script=b'print("captured script")\n'
+    result=subprocess.run([sys.executable,str(logger),'--trial',str(t.directory),'run',
+                           '--label','heredoc','--stdin-file','-','--tail-chars','0',
+                           '--',sys.executable,'-'],input=script,capture_output=True)
+    assert result.returncode==0,result.stderr
+    folder=next((t.directory/'commands').iterdir())
+    assert (folder/'stdin.bin').read_bytes()==script
+    assert (folder/'stdout.txt').read_text()=='captured script\n'
+    assert json.loads((folder/'command.json').read_text())['stdin']['source']=='-'
+    t.end('done');t.finish('complete','CLI stdin fixture')
 
 
 def test_cli_termination_records_interruption_and_cleans_owned_command(tmp_path):

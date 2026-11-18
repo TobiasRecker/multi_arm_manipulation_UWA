@@ -11,7 +11,7 @@
 <script>const data=__DATA__,$=id=>document.getElementById(id),canvas=$('view'),ctx=canvas.getContext('2d');let yaw=-.8,pitch=.55,zoom=1.15,scale=1,drag=null,playing=false,last=null,phase=0;
 const referenceOnly = data.reference_only === true;
 const viewCentre = data.view_centre || [0, 0, 1.18];
-const viewDefaults = referenceOnly ? {yaw: -.32, pitch: .68, zoom: 1.75} : {yaw: -.8, pitch: .55, zoom: 1.15};
+const viewDefaults = (referenceOnly || data.timed_rear) ? {yaw: -.32, pitch: .68, zoom: 1.75} : {yaw: -.8, pitch: .55, zoom: 1.15};
 ({yaw, pitch, zoom} = viewDefaults);
 const colour = arm => arm === data.active_arms[0] ? '#7dd3fc' : arm === data.active_arms[1] ? '#ffc17e' : '#8e9eb2';
 data.sets.forEach((s,i)=>{let o=document.createElement('option');o.value=i;o.textContent=s.label;$('solution').append(o)});data.arms.forEach(a=>{let e=document.createElement('span');e.textContent=a+(data.active_arms.includes(a)?' — CARRYING':' — PARKED');e.style.color=colour(a);$('legend').append(e)});
@@ -75,7 +75,7 @@ if (referenceOnly) {
         $('deviation').textContent = '';
     }
 } else {
-$('status').textContent=(clear?'SAMPLE CLEAR':'SAMPLE FAILED')+' — '+(v.passed?'ENTIRE TRAJECTORY PASSED':'ENTIRE TRAJECTORY FAILED')+' — OFFLINE MODEL';$('status').style.borderColor=clear?'#ffd17b':'#ff8c83';$('clock').textContent=f.time_s.toFixed(2)+' / '+s.duration_s.toFixed(2)+' s — '+Math.round(f.s*100)+'% path progress';
+$('status').textContent=(clear?'SAMPLE CLEAR':'SAMPLE FAILED')+' — '+(v.passed?'ENTIRE TRAJECTORY PASSED':'ENTIRE TRAJECTORY FAILED')+' — OFFLINE MODEL';$('status').style.borderColor=clear?'#ffd17b':'#ff8c83';$('clock').textContent=f.time_s.toFixed(2)+' / '+s.duration_s.toFixed(2)+' s — '+Math.round(f.s*100)+'% path progress' + (data.timed_rear && f.s === 1 ? ' · GOAL' : '');
 }
 $('state').textContent='Centre [m]: '+f.centre.map(x=>x.toFixed(3)).join(', ')+'. World-axis rotation vector [deg]: '+f.rotation_vector_deg.map(x=>x.toFixed(1)).join(', ')+'. Fixed short-side grasps.';
 $('gaps').innerHTML='<tr><th>Arm pair</th><th>Gap [mm]</th></tr>';for(let p of f.gaps){let row=$('gaps').insertRow();row.insertCell().textContent=p.arms.map(a=>a.split('_').map(v=>v[0]).join('').toUpperCase()).join(' / ');row.insertCell().textContent=p.gap_mm.toFixed(1)}
@@ -146,6 +146,15 @@ if (referenceOnly) {
     };
     seek(data.initial_frame);
 } else {
+if (data.timed_rear) {
+    document.title = 'UWA — Timed rear-arm trajectory';
+    $('heading').textContent = 'Rear arms on a shared clock';
+    $('intro').textContent = 'The rear arms carry the carton to the fixed goal. The dashed outline shows the original reference at the same progress.';
+    $('scope').textContent = 'OFFLINE MODEL · 0.1 rad/s joint speed limit';
+    $('solution-label').hidden = $('teacher-details').hidden = true;
+    $('jump-goal').hidden = false;
+    $('jump-goal').onclick = () => seek(maxFrame());
+}
 $('comparison').innerHTML='<tr><th>Example / variant</th><th>Check</th><th>Duration</th><th>Min arm gap</th><th>Position correction</th><th>Rotation correction</th></tr>';data.sets.forEach(s=>{let v=s.validation,row=$('comparison').insertRow();for(let x of [s.label,v.passed?'PASS':'FAIL',s.duration_s.toFixed(2)+' s',(v.min_pair_gap_m*1000).toFixed(1)+' mm',(v.max_position_deviation_m*1000).toFixed(1)+' mm',v.max_orientation_deviation_deg.toFixed(1)+'°'])row.insertCell().textContent=x});$('rejected').textContent=data.summary.filter(c=>!c.accepted).map(c=>'REJECTED: '+c.name+' — '+(c.reason||c.status)).join(' | ');let preferred=data.sets.findIndex(s=>s.variant==='Teacher'&&s.validation.passed);if(preferred>=0)$('solution').value=preferred;refresh();
 }
 </script></html>

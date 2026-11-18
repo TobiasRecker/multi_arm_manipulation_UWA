@@ -274,10 +274,11 @@ class TwoArmTeacher(ObjectTransport):
                     minimum_constraint=float(c.min()),optimization_samples=count,seed_checks=seed_checks,
                     initial_cost=initial_cost,final_cost=cost(x))
 
-    def trajectory(self,task,controls,*,knots=201):
+    def trajectory(self,task,controls,*,knots=201,velocity=.45,acceleration=.4,jerk=2.):
         rows=self.path_rows(task,controls,count=knots)
         segment=plan_segment(dict(kind='OBJECT_DERIVED',knots=[r['s'] for r in rows],
-                                  positions=[r['q'] for r in rows],check={}))
+                                  positions=[r['q'] for r in rows],check={}),
+                             velocity=velocity,acceleration=acceleration,jerk=jerk)
         return dict(task=deepcopy(task),controls=np.asarray(controls).tolist(),segment=segment,
                     duration_s=segment['time_law']['duration_s'],joint_names=self.names,executable=False)
 
@@ -287,7 +288,8 @@ class TwoArmTeacher(ObjectTransport):
         q=sample_segment(segment,t);state=dict(self.start,**dict(zip(self.names,q)))
         return pose,state,s
 
-    def validate(self,trajectory,*,dt=.005,margin=.02,object_margin=.003,sigma_floor=.05):
+    def validate(self,trajectory,*,dt=.005,margin=.02,object_margin=.003,sigma_floor=.05,
+                 velocity=.45,acceleration=.4,jerk=2.):
         if not np.isfinite(dt) or not 0<dt<=.01:raise ValueError('Validation dt must be in (0,.01]')
         failures=[];closure=angle=0.;gap=objectgap=objectarmgap=sigma=float('inf');max_step=0.;previous=None
         times=np.linspace(0,trajectory['duration_s'],int(np.ceil(trajectory['duration_s']/dt))+1)
@@ -316,7 +318,8 @@ class TwoArmTeacher(ObjectTransport):
             d=yaw_basis(s)@np.array(trajectory['controls']);deviation=np.maximum(deviation,[np.linalg.norm(d[:3]),np.linalg.norm(d[3:])])
         for derivative in range(1,4):
             peak[derivative-1]=float(np.max(abs(sample_segment(trajectory['segment'],times,derivative))))
-        bounds=trajectory['segment']['smooth_bounds'];caps=np.array([.45,.4,2.])
+        bounds=trajectory['segment']['smooth_bounds'];caps=np.array([velocity,acceleration,jerk])
+        if not np.isfinite(caps).all() or (caps<=0).any():raise ValueError('Positive finite joint limits required')
         if np.any(peak>caps+1e-7) or np.any(np.array(list(bounds.values()))>caps+1e-7):
             failures.append(dict(reason='joint derivative limit exceeded'))
         return dict(passed=not failures,samples=len(times),max_time_step_s=float(np.max(np.diff(times))),

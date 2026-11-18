@@ -1,5 +1,14 @@
 # Preparing the first real carton test
 
+**18 November:** both right URs reached real unloaded150mm pregrasp poses
+using a fresh carton observation, the current focus107 OAK fit and fixed
+user-adopted base bindings. Command speed remained0.1rad/s. Both final holds
+and independent stationary windows passed; final image reviewed. Grippers
+remain open/inactive, with no finger commands or contact/lift attempt. Evidence:
+`setup/tasks/carton_pregrasp_20261118_completed/`. This supersedes the17November
+alignment failure below. Loaded cooperative hardware execution remains separate.
+
+
 **17 November update:** the first unloaded right-front approach completed at
 0.015rad/s command speed, followed by a confirmed hold. The fresh OAK image
 failed the carton-alignment review. All arms remain held, grippers open in

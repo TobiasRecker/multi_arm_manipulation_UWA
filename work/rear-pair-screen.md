@@ -58,3 +58,23 @@
 - `checked/viewer.html` startet bei 0 % und bietet Ziel- und Kontaktsprung.
   Neun Browserprüfungen bestanden. Reproduktion über `--task task.json
   --candidate optimize.json` mit dem vorhandenen Lehrerwerkzeug.
+
+## Gemeinsame Zeitplanung, 2026-11-18
+
+- Abgeschlossen. Nutzer bestätigt Schritt 3 für die Seitenvariante mit eigener
+  Zielpose. Vorhandenes C3-Zeitgesetz für alle zwölf Gelenke, mit maximal
+  0,1 rad/s, und Prüfung der tatsächlichen Interpolation. Archivmodell und
+  geprüfte 6D-Korrektur aus Schritt 2 dienen als Eingabe.
+- Erster Lauf `goal-continuation/timed/` bleibt erhalten. FCL, Griffschluss,
+  Zeitgrenzen und Endpunkte bestanden. Die zusätzliche pauschale Arm/Tisch-
+  Hüllenprüfung meldet −38,84 mm am geparkten linken vorderen Oberarm schon
+  im Startzustand. UR5-Oberarmnetz und Tischplatte sind in FCL vorhanden,
+  FCL meldet dort keinen Kontakt. Distale Hüllen der fahrenden Arme werden
+  nach dem Anwendungsbereich des vorhandenen Episodenlehrers geprüft. Die
+  feste Frontarmhülle bleibt als gesonderter Diagnosewert im Ergebnis.
+- `goal-continuation/timed-02/` ist der bestandene Lauf mit 76,734 s Modellzeit.
+  15.348 Prüfpunkte im 5-ms-Raster, null FCL-Kollisionen. Mindestabstände
+  Arm/Arm 20,92 mm, bewegte Armhülle/Tisch 27,64 mm, Karton/Umgebung 3,53 mm.
+  Beide Arme erreichen das festgelegte Ziel exakt im Modell. Grenzwert
+  0,1 rad/s, Spitze 0,09091 rad/s und analytische Schranke 0,09364 rad/s.
+  22 gezielte Regressionstests. Viewer mit Modellsekunden und Zielsprung.

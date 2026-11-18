@@ -111,13 +111,13 @@ def render_frames(teacher, rows, contacts, reference_rows=None):
     return frames, native_samples
 
 
-def write_viewer(out, teacher, sets, **settings):
+def write_viewer(out, teacher, sets, *, reference_only=True, **settings):
     model = teacher.problem.spheres
     boxes = []
     for _, transform, half in teacher.environment_boxes:
         corners = np.array(list(product(*[[-h, h] for h in half])))
         boxes.append((corners @ transform[:3, :3].T + transform[:3, 3]).tolist())
-    data = dict(reference_only=True, view_centre=[0, .38, 1.24],
+    data = dict(reference_only=reference_only, view_centre=[0, .38, 1.24],
                 arms=list(ROBOT_IDS), active_arms=list(ARMS), boxes=boxes,
                 triangles=teacher.triangles.tolist(), radii={arm: r.tolist() for arm, r in model.radii.items()},
                 sets=sets, summary=[], **settings)

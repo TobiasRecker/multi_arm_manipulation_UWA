@@ -51,6 +51,28 @@ Startfehler127. Bei Timeout werden ausschließlich eigene gestartete Prozesse
 dieses Befehls beendet. Keine Hintergrunddienste/Robotertreiber hier starten.
 Vollständige Rohtexte bleiben erhalten; die Konsole zeigt nur deren Ende.
 
+### Skripte und Patches über Standardeingabe
+
+Bei `python3 -`, `bash -s` oder `apply_patch` genügt argv allein nicht zur
+Reproduktion. Seit der Gegenwand-Auswertung vom18.11. erfasst `run` mit
+`--stdin-file DATEI` die exakten Eingabebytes in `commands/…/stdin.bin`
+und protokolliert Größe und SHA256. Der Kindprozess liest diese archivierte
+Kopie. Dateipfade beziehen sich auf das Aufrufverzeichnis des Loggers.
+`--stdin-file -` nimmt stattdessen die Standardeingabe des Loggers bis EOF:
+
+```bash
+python3 "$TRACE" --trial "$TRIAL" run --label edit-face --stdin-file - -- python3 - <<'PY'
+print('Hier steht das tatsächliche Bearbeitungsskript.')
+PY
+```
+
+Ohne diese Option bleibt die Standardeingabe vererbt und **unerfasst**;
+neue Befehlsmetadaten nennen dies ausdrücklich `inherited_unrecorded`.
+Die Option nur für aufgabenbezogene Skripte/Patches verwenden, keine
+Passwörter oder Zugangsdaten aufnehmen. Bisherige Trials werden nicht
+nachträglich vervollständigt. Externe Editor-/API-Aktionen weiterhin als
+Notiz mit Diff bzw. sichtbarem Export ergänzen.
+
 Bearbeitungen über apply_patch, Browser-/Bildtools und sonstige nicht gewrappte
 Aktionen direkt in der aktiven Stufe vermerken, mit sichtbarer Fehlermeldung,
 Dateipfad oder Toolreferenz. Nur kurze Entscheidungsbegründungen, keine
@@ -92,6 +114,11 @@ Artefakte und Tests unter `artifacts/` ablegen. Zusätzlich ein kurzes
 geänderte Dateien, aufgetretene Fehler und Reparaturen, manuelle Hilfen,
 konkrete Harnesslücken sowie noch unbekannte Messgrößen. Relevanten eigenen
 Diff und finalen Quellstand/Hashes referenzieren; fremde Diffs nicht zuordnen.
+In gemeinsam genutzten Checkouts Git-HEAD am Ende mit dem in `trial.json`
+vergleichen. Bei parallelen Commits den eigenen Diff gegen die ursprüngliche
+Revision **und** die Eingangssnapshots prüfen. Bericht, Diff und Prüfnachweise
+vor `finish` abschließen; spätere notwendige Korrekturen separat datieren
+und deren Zeit nicht der abgeschlossenen Messung zuschlagen.
 
 Die Zeitentabelle enthält Stufenwandzeit und die Vereinigung aktiver
 Befehlsintervalle; parallele Aufrufe werden nicht doppelt gezählt. Die

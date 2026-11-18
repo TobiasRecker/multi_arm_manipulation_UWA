@@ -7,6 +7,8 @@ import hashlib
 import itertools
 import importlib
 import json
+from dataclasses import asdict, dataclass
+from math import isfinite
 from pathlib import Path
 import time
 
@@ -31,6 +33,30 @@ AWAY_OFFSET = (.07, -.05, .18)
 AWAY_ANGLE = 160.
 AWAY_YAW = 55.
 VARIANTS = ('baseline', 'overlap', 'closer_coordinated', 'away_face')
+NOMINAL_ROLL = {'y_max': 0., 'z_min': 80., 'y_min': 180.}
+
+
+@dataclass(frozen=True)
+class Presentation:
+    roll_deg: float
+    yaw_deg: float = 0.
+    offset_m: tuple = (0., 0., 0.)
+    translation_leads_turn: bool = False
+    origin: str = 'search'
+
+
+def presentation_candidates(face):
+    nominal = NOMINAL_ROLL[face]
+    yield Presentation(nominal)
+    if face == 'y_min':
+        # Seed from the archived three-face trial. Re-solve and check it here.
+        yield Presentation(AWAY_ANGLE, AWAY_YAW, AWAY_OFFSET, True, 'away_face_trial')
+    for roll_delta, (yaw, offset) in itertools.product(
+        (0., -20., 20., -40., 40.),
+        ((0., (0., 0., .12)), (25., (-.06, 0., .10)), (-25., (-.06, 0., .10)),
+         (55., (.07, -.05, .18)), (-55., (.07, .05, .18))),
+    ):
+        yield Presentation(nominal + roll_delta, yaw, offset, True)
 
 
 def policy(variant='baseline'):
@@ -69,7 +95,8 @@ def policy(variant='baseline'):
 
 
 class DrawingModel:
-    def __init__(self, directory, source, episode):
+    def __init__(self, directory, source, episode, *, radius_m=.025,
+                 presentation_budget=8, max_transfer_s=None):
         self.holding = TwoArmTeacher(directory, source, elevation=.16)
         self.p = self.holding.problem
         self.pose = self.holding.initial.copy()
@@ -82,6 +109,12 @@ class DrawingModel:
         self.max_tool_error = 0.
         self.max_closure_error = 0.
         self.episode = episode
+        self.radius_m = radius_m
+        self.presentation_budget = presentation_budget
+        self.max_transfer_s = max_transfer_s
+        self.presentations = []
+        self.prepared_drawing = None
+        self.search_path = Path(directory).parent / 'presentation-search.json'
         self.elapsed = 0.
         self.current_phase = 'initial_fixture'
         self.park_target = self.tip_target(self.pose, 'y_max', 0., standoff=STANDOFF)
@@ -112,7 +145,7 @@ class DrawingModel:
         u = np.array([1., 0., 0.])
         v = np.cross(normal, u)
         centre = normal * self.holding.dimensions[axis] / 2
-        local = centre + .025 * (u * np.cos(theta) + v * np.sin(theta)) + normal * standoff
+        local = centre + self.radius_m * (u * np.cos(theta) + v * np.sin(theta)) + normal * standoff
         z = -pose[:3, :3] @ normal
         x = pose[:3, :3] @ u
         tip = np.eye(4)
@@ -139,7 +172,7 @@ class DrawingModel:
             raise ValueError('Worker continuation jump')
         return dict(seed, **dict(zip(names, q)))
 
-    def check(self, pose, state):
+    def check(self, pose, state, *, closure_errors=None):
         h = self.holding
         if not h.full_check(pose, state):
             raise ValueError('Robot/self/environment/carton FCL collision')
@@ -151,7 +184,8 @@ class DrawingModel:
             desired = pose @ h.offsets[a]
             error = np.linalg.norm(actual[:3, 3] - desired[:3, 3])
             angle = np.linalg.norm(Rotation.from_matrix(actual[:3, :3] @ desired[:3, :3].T).as_rotvec())
-            self.max_closure_error = max(self.max_closure_error, float(error))
+            if closure_errors is not None:
+                closure_errors.append(float(error))
             if error > 1e-6 or angle > 1e-5:
                 raise ValueError(f'{a}: fixed holder error {error:.3g} m, {angle:.3g} rad')
         # Separate virtual marker geometry. The last 6 mm is a tapered point.
@@ -181,11 +215,10 @@ class DrawingModel:
 
     def phase(self, name, states, poses, *, face=None, draw=False):
         self.current_phase = name
-        self.episode.append('phase_start', phase=name, source='model', model_time_s=self.elapsed,
-                            details=dict(face=face, drawing=draw))
+        self.commit_phase(self.prepare_phase(name, states, poses, face=face, draw=draw))
+
+    def prepare_phase(self, name, states, poses, *, face=None, draw=False, max_duration_s=None):
         positions = np.array([[s[j] for j in self.names] for s in states])
-        if np.max(np.abs(positions[0] - [self.state[j] for j in self.names])) > 1e-7:
-            raise ValueError('Discontinuous phase start')
         # Object motion is reconstructed from the first holder at every sample.
         # Both holders share the same spline and time law.
         kind = 'JOINT' if len(positions) == 2 else 'CARTESIAN_LINE'
@@ -193,15 +226,24 @@ class DrawingModel:
                        positions=positions.tolist(), check={})
         segment = plan_segment(segment, velocity=VELOCITY, acceleration=.4, jerk=2.)
         duration = segment['time_law']['duration_s']
+        if max_duration_s is not None and duration > max_duration_s:
+            raise ValueError(f'Transfer requires {duration:.3f} s; limit is {max_duration_s:.3f} s')
         count = max(3, int(np.ceil(duration / .02)) + 1)
+        times = np.linspace(0, duration, count)
         samples = []
+        min_gap = float('inf')
+        closure_errors = []
+        max_tool_error = 0.
         previous = None
-        for t in np.linspace(0, duration, count):
-            q = sample_segment(segment, float(t))
-            state = dict(self.state, **dict(zip(self.names, q)))
-            a = HOLDERS[0]
-            pose = self.p.chains[a].forward(state) @ self.holding.tcp_offsets[a] @ np.linalg.inv(self.holding.offsets[a])
-            self.min_gap = min(self.min_gap, self.check(pose, state))
+        holder = HOLDERS[0]
+        object_from_tool = self.holding.tcp_offsets[holder] @ np.linalg.inv(self.holding.offsets[holder])
+        for t, q in zip(times, sample_segment(segment, times)):
+            state = dict(states[0], **dict(zip(self.names, q)))
+            pose = self.p.chains[holder].forward(state) @ object_from_tool
+            try:
+                min_gap = min(min_gap, self.check(pose, state, closure_errors=closure_errors))
+            except ValueError as error:
+                raise ValueError(f'{name} at {t:.3f} s: {error}') from error
             if previous is not None and np.max(abs(q - previous)) > .01:
                 raise ValueError('Model sampling step too large')
             previous = q
@@ -212,30 +254,57 @@ class DrawingModel:
                 expected = sign * self.holding.dimensions[axis] / 2
                 if draw:
                     plane_error = abs(local[axis] - expected)
-                    circle_error = abs(np.linalg.norm(np.delete(local, axis)) - .025)
-                    self.max_tool_error = max(self.max_tool_error, float(max(plane_error, circle_error)))
+                    circle_error = abs(np.linalg.norm(np.delete(local, axis)) - self.radius_m)
+                    max_tool_error = max(max_tool_error, float(max(plane_error, circle_error)))
                     if max(plane_error, circle_error) > .00025:
                         raise ValueError('Marker model reference deviation > .25 mm')
             samples.append(dict(local_time_s=float(t), pose=pose.tolist(), q=q.tolist(), tip=tip[:3, 3].tolist(),
                                 marker_base=(tip[:3, 3]-.12*tip[:3, 2]).tolist()))
-        self.phases.append(dict(id=name, face=face, drawing=draw, duration_s=duration,
-                                segment=segment, samples=samples))
+        phase = dict(id=name, face=face, drawing=draw, duration_s=duration, segment=segment, samples=samples)
+        return phase, states[-1], poses[-1], (min_gap, max(closure_errors), max_tool_error)
+
+    def commit_phase(self, prepared):
+        phase, state, pose, (gap, closure_error, tool_error) = prepared
+        name, duration = phase['id'], phase['duration_s']
+        start = np.array(phase['segment']['positions'][0])
+        if np.max(np.abs(start - [self.state[j] for j in self.names])) > 1e-7:
+            raise ValueError('Discontinuous phase start')
+        self.current_phase = name
+        self.episode.append('phase_start', phase=name, source='model', model_time_s=self.elapsed,
+                            details=dict(face=phase['face'], drawing=phase['drawing']))
+        self.min_gap = min(self.min_gap, gap)
+        self.max_closure_error = max(self.max_closure_error, closure_error)
+        self.max_tool_error = max(self.max_tool_error, tool_error)
+        self.phases.append(phase)
         self.elapsed += duration
         self.episode.append('phase_end', phase=name, source='model', model_time_s=self.elapsed,
                             details=dict(status='MODEL_PHASE_COMPLETE', duration_s=duration))
-        self.state = dict(states[-1])
-        self.pose = np.array(poses[-1])
-        print('PHASE', name, 'samples', count, 'model seconds', round(duration, 3), flush=True)
+        self.state = dict(state)
+        self.pose = np.array(pose)
+        print('PHASE', name, 'samples', len(phase['samples']), 'model seconds', round(duration, 3), flush=True)
 
     def line(self, name, start_tip, end_tip, *, face=None):
-        states = [dict(self.state)]
+        states = self.line_states(self.state, start_tip, end_tip)
+        self.phase(name, states, [self.pose]*len(states), face=face)
+
+    def line_states(self, start, start_tip, end_tip):
+        states = [dict(start)]
         for u in np.linspace(0, 1, 33)[1:]:
             tip = start_tip.copy()
             tip[:3, 3] = (1-u)*start_tip[:3, 3] + u*end_tip[:3, 3]
             states.append(self.worker_ik(tip, states[-1]))
-        self.phase(name, states, [self.pose]*len(states), face=face)
+        return states
 
     def draw_face(self, face):
+        if self.prepared_drawing is not None:
+            prepared_face, phases = self.prepared_drawing
+            if prepared_face != face:
+                raise ValueError(f'Expected draw_face({prepared_face!r}) after present_surface')
+            for phase in phases:
+                self.commit_phase(phase)
+            self.prepared_drawing = None
+            self.drawn.append(face)
+            return
         pre = self.tip_target(self.pose, face, 0., standoff=STANDOFF)
         current = self.actual_tip(self.state)
         if np.max(abs(current - pre)) > 1e-6:
@@ -323,6 +392,152 @@ class DrawingModel:
             seed = self.worker_ik(self.tip_target(pose,face,float(theta)),seed)
             self.check(pose,seed)
 
+    def prepare_drawing(self, pose, start, face):
+        pre = self.tip_target(pose, face, 0., standoff=STANDOFF)
+        contact = self.tip_target(pose, face, 0.)
+        approach = self.line_states(start, pre, contact)
+        circle = [approach[-1]]
+        for theta in np.linspace(0, 2*np.pi, 129)[1:]:
+            circle.append(self.worker_ik(self.tip_target(pose, face, theta), circle[-1]))
+        retract = self.line_states(circle[-1], contact, pre)
+        if max(abs(retract[-1][j] - start[j]) for j in self.names) > 1e-7:
+            raise ValueError('Drawing changes the IK branch needed for the return path')
+        return [
+            self.prepare_phase(f'{name}_{face}', states, [pose]*len(states), face=face, draw=name == 'draw')
+            for name, states in [('approach', approach), ('draw', circle), ('retract', retract)]
+        ]
+
+    def present_surface(self, face):
+        """Find and check one pose and route for the next drawing operation."""
+        if face not in SURFACES:
+            raise ValueError(f'Unknown drawing face: {face}')
+        if self.prepared_drawing is not None:
+            raise ValueError('Call draw_face before presenting another surface')
+        name = f'present_{face}'
+        self.current_phase = name
+        for candidate in itertools.islice(presentation_candidates(face), self.presentation_budget):
+            begun = time.monotonic()
+            record = dict(face=face, candidate=asdict(candidate), status='SEARCHING', rejections=[])
+            self.presentations.append(record)
+            write(self.search_path, self.presentations)
+            try:
+                transfer, drawing, route = self.try_presentation(face, candidate, record)
+            except ValueError as error:
+                record.update(status='REJECTED', reason=str(error), wall_s=time.monotonic()-begun)
+                write(self.search_path, self.presentations)
+                print('REJECTED', name, record['reason'], flush=True)
+                continue
+            if transfer is not None:
+                self.commit_phase(transfer)
+                self.coordinated_outbound.append((*route, face))
+            self.prepared_drawing = (face, drawing)
+            record.update(status='MODEL_CHECKED', wall_s=time.monotonic()-begun,
+                          transfer_s=transfer[0]['duration_s'] if transfer is not None else 0.,
+                          phase=transfer[0]['id'] if transfer is not None else None,
+                          drawing_phase_ids=[phase[0]['id'] for phase in drawing],
+                          hold_pose=(route[1][-1] if route is not None else self.pose).tolist())
+            write(self.search_path, self.presentations)
+            return record
+        raise ValueError(f'No checked presentation of {face} within the candidate budget')
+
+    def try_presentation(self, face, candidate, record):
+        name = f'present_{face}'
+        pose_at = self.presentation_path(candidate.roll_deg, candidate.yaw_deg,
+                                         candidate.offset_m, candidate.translation_leads_turn)
+        target = pose_at(1.)
+        current_tip = self.actual_tip(self.state)
+        target_tip = self.tip_target(target, face, 0., standoff=STANDOFF)
+        if np.allclose(self.pose, target, atol=1e-9, rtol=0) and np.allclose(
+            current_tip, target_tip, atol=1e-8, rtol=0
+        ):
+            return None, self.prepare_drawing(self.pose, self.state, face), None
+        worker_names = joint_names(WORKER)
+        start = np.array([self.state[j] for j in worker_names])
+        try:
+            coarse_poses, coarse_states = self.holder_path(pose_at, 81)
+        except ValueError as error:
+            record['rejections'].append(dict(stage='holder_screen', reason=str(error)))
+            raise
+        options = self.worker_branches(target_tip, coarse_states[-1], start)
+        dense_path = None
+        for index, goal in enumerate(options, 1):
+            stage = 'worker_screen'
+            try:
+                self._check_face_branch(target, dict(coarse_states[-1], **dict(zip(worker_names, goal))), face)
+                self.worker_route(coarse_poses, coarse_states, start, goal, candidate)
+                stage = 'dense_knots'
+                if dense_path is None:
+                    dense_path = self.holder_path(pose_at, 641 if candidate.yaw_deg else 161)
+                poses, holder_states = dense_path
+                states = self.worker_route(poses, holder_states, start, goal, candidate)
+                stage = 'timed_transfer'
+                transfer = self.prepare_phase(name, states, poses, face=face, max_duration_s=self.max_transfer_s)
+                stage = 'drawing'
+                drawing = self.prepare_drawing(target, states[-1], face)
+                return transfer, drawing, (states, poses)
+            except ValueError as error:
+                record['rejections'].append(dict(stage=stage, worker_branch=index, reason=str(error)))
+                if stage == 'dense_knots' and dense_path is None:
+                    raise
+        if not options:
+            record['rejections'].append(dict(stage='worker_ik', reason='No worker branch for the standoff'))
+        raise ValueError('No model-checked worker route or drawing for this pose')
+
+    def holder_path(self, pose_at, count):
+        poses, states = [pose_at(0.)], [dict(self.state)]
+        for progress in np.linspace(0, 1, count)[1:]:
+            pose = pose_at(progress)
+            try:
+                state = self.holding.solve(pose, states[-1])
+            except ValueError as error:
+                raise ValueError(f'Holder continuation at progress {progress:.3f}: {error}') from error
+            poses.append(pose)
+            states.append(state)
+        return poses, states
+
+    def worker_route(self, poses, holder_states, start, goal, candidate):
+        states = []
+        for progress, pose, state in zip(np.linspace(0, 1, len(poses)), poses, holder_states):
+            turn = progress**2 if candidate.translation_leads_turn else progress
+            worker = (1-turn)*start + turn*goal
+            combined = dict(state, **dict(zip(joint_names(WORKER), worker)))
+            try:
+                self.check(pose, combined)
+            except ValueError as error:
+                raise ValueError(f'Combined route at progress {progress:.3f}: {error}') from error
+            states.append(combined)
+        return states
+
+    def worker_branches(self, tip, state, start):
+        options = []
+        tool0 = self.tool0_target(tip)
+        for guess in [start, *np.random.default_rng(19).uniform(-3., 3., (20, 6))]:
+            try:
+                joints = solve_near(self.p, WORKER, state, tool0, guess)
+            except ValueError:
+                continue
+            if not any(np.linalg.norm(joints - old) < 1e-5 for old in options):
+                options.append(joints)
+        return sorted(options, key=lambda joints: np.linalg.norm(joints - start))
+
+    def presentation_path(self, angle_deg, world_yaw_deg, world_offset_m, translation_leads_turn):
+        initial = self.pose.copy()
+        local_target = self.presentation_base[:3, :3] @ Rotation.from_euler(
+            'x', angle_deg, degrees=True).as_matrix()
+        object_turn = Rotation.from_matrix(initial[:3, :3].T @ local_target).as_rotvec()
+        offset = np.asarray(world_offset_m)
+
+        def pose_at(progress):
+            turn = progress**2 if translation_leads_turn else progress
+            yaw = Rotation.from_euler('z', world_yaw_deg * turn, degrees=True).as_matrix()
+            roll = Rotation.from_rotvec(turn * object_turn).as_matrix()
+            pose = initial.copy()
+            pose[:3, :3] = yaw @ initial[:3, :3] @ roll
+            pose[:3, 3] += progress * offset
+            return pose
+
+        return pose_at
+
     def reorient_together(self, mode, name='present_bottom', angle_deg=80., face='z_min',
                           world_yaw_deg=0., world_offset_m=(0., 0., 0.),
                           translation_leads_turn=False):
@@ -330,19 +545,7 @@ class DrawingModel:
         if mode not in ('joint','cartesian'):
             raise ValueError('Unknown free-worker motion mode')
         initial = self.pose.copy()
-        local_target = self.presentation_base[:3, :3] @ Rotation.from_euler(
-            'x', angle_deg, degrees=True).as_matrix()
-        object_turn = Rotation.from_matrix(initial[:3, :3].T @ local_target).as_rotvec()
-
-        def pose_at(u):
-            turn = u**2 if translation_leads_turn else u
-            yaw = Rotation.from_euler('z', world_yaw_deg * turn, degrees=True)
-            roll = Rotation.from_rotvec(turn * object_turn)
-            pose = initial.copy()
-            pose[:3, :3] = yaw.as_matrix() @ initial[:3, :3] @ roll.as_matrix()
-            pose[:3, 3] += u * np.asarray(world_offset_m)
-            return pose
-
+        pose_at = self.presentation_path(angle_deg, world_yaw_deg, world_offset_m, translation_leads_turn)
         target = pose_at(1.)
         self.current_phase = name
         worker_names = joint_names(WORKER)
@@ -351,18 +554,9 @@ class DrawingModel:
         rv = Rotation.from_matrix(last_tip[:3,:3]@first_tip[:3,:3].T).as_rotvec()
         candidates = [None]
         if mode=='joint':
-            seed = dict(self.state)
-            for u in np.linspace(0,1,81)[1:]:
-                pose = pose_at(u)
-                seed = self.holding.solve(pose,seed)
+            _, states = self.holder_path(pose_at, 81)
             q0 = np.array([self.state[j] for j in worker_names])
-            candidates = []
-            for guess in [q0]+list(np.random.default_rng(19).uniform(-3.,3.,(20,6))):
-                try:
-                    q = solve_near(self.p,WORKER,seed,self.tool0_target(last_tip),guess)
-                    if not any(np.linalg.norm(q-v)<1e-5 for v in candidates):candidates.append(q)
-                except ValueError:continue
-            candidates.sort(key=lambda q:np.linalg.norm(q-q0))
+            candidates = self.worker_branches(last_tip, states[-1], q0)
         knot_count = 641 if world_yaw_deg else 161
         for q in candidates:
             states, poses = [dict(self.state)], [initial]
@@ -384,15 +578,16 @@ class DrawingModel:
                 self.diagnostics.append(dict(stage='coordinated_candidate',mode=mode,reason=str(error)))
                 continue
             self.phase(name, states, poses)
-            self.coordinated_outbound.append((states, poses))
+            self.coordinated_outbound.append((states, poses, None))
             return
         raise ValueError('No checked simultaneous reorientation')
 
     def return_together(self):
-        if not self.coordinated_outbound:
-            raise ValueError('No checked outbound motion to reverse')
-        for index, (states, poses) in enumerate(reversed(self.coordinated_outbound)):
-            name = 'return_box' if index == len(self.coordinated_outbound) - 1 else 'return_from_away'
+        for index, (states, poses, face) in enumerate(reversed(self.coordinated_outbound)):
+            if index == len(self.coordinated_outbound) - 1:
+                name = 'return_box'
+            else:
+                name = f'return_from_{face}' if face is not None else 'return_from_away'
             self.phase(name, list(reversed(states)), list(reversed(poses)))
         self.coordinated_outbound.clear()
 
@@ -402,7 +597,42 @@ class DrawingModel:
             target[name] = self.worker_park_state[name]
         self.phase('park_worker', [dict(self.state), target], [self.pose, self.pose])
 
-def compile_pilot(source, output, *, variant='baseline', feedback_from=None):
+def surface_program(faces, radius_m, presentation_budget, max_transfer_s):
+    faces = list(faces)
+    if not faces or any(face not in SURFACES for face in faces) or len(set(faces)) != len(faces):
+        raise ValueError('Choose distinct faces from ' + ', '.join(SURFACES))
+    if not isfinite(radius_m) or radius_m <= 0:
+        raise ValueError('Circle radius must be finite and positive')
+    if type(presentation_budget) is not int or not 1 <= presentation_budget <= 27:
+        raise ValueError('Presentation budget must be an integer from 1 to 27')
+    if max_transfer_s is not None and (not isfinite(max_transfer_s) or max_transfer_s <= 0):
+        raise ValueError('Transfer limit must be finite and positive')
+    steps = []
+    code = ['def task(api):']
+    for face in faces:
+        for operation, prefix in [('present_surface', 'present'), ('draw_face', 'draw')]:
+            steps.append(dict(id=f'{prefix}_{face}', operation=operation, face=face))
+            code.append(f'    api.{operation}({face!r})')
+    steps.append(dict(id='return_box', operation='return_together'))
+    code.append('    api.return_together()')
+    program = dict(schema_version=1, name='hold_box_draw_requested_surfaces', variant='surface_search',
+                   holding_arms=list(HOLDERS), working_arm=WORKER, surfaces=faces,
+                   velocity_rad_s=VELOCITY, circle_radius_m=radius_m,
+                   presentation_budget=presentation_budget, max_transfer_s=max_transfer_s,
+                   scope='Requested box surfaces with searched holding poses and common return path', steps=steps)
+    return program, '\n'.join(code) + '\n'
+
+
+def compile_pilot(source, output, *, variant='baseline', feedback_from=None, faces=None,
+                  radius_m=None, presentation_budget=None, max_transfer_s=None):
+    if faces is not None:
+        program, code = surface_program(faces, .025 if radius_m is None else radius_m,
+                                        8 if presentation_budget is None else presentation_budget, max_transfer_s)
+    else:
+        if any(value is not None for value in (radius_m, presentation_budget, max_transfer_s)):
+            raise ValueError('Search options require a face sequence')
+        program = policy(variant)
+        code = legacy_code(variant)
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=False)
     begun = time.monotonic()
@@ -417,20 +647,7 @@ def compile_pilot(source, output, *, variant='baseline', feedback_from=None):
              repo/'tools/box_drawing_pilot.py', repo/'tools/box_drawing_viewer.html']
     files += [Path(importlib.import_module(name).__file__) for name in modules]
     code_binding = {str(p.resolve()): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
-    program = policy(variant)
     write(output / 'program.json', program)
-    code = 'def task(api):\n    api.draw_face("y_max")\n    api.rotate("present_bottom", 80.0)\n    api.draw_face("z_min")\n    api.park_worker()\n    api.rotate("return_box", 0.0)\n'
-    if variant!='baseline':
-        mode = 'joint' if variant in ('overlap', 'away_face') else 'cartesian'
-        prefix = '    api.shift_box("move_closer", [-0.08, 0.0, 0.0])\n' if variant=='closer_coordinated' else ''
-        suffix = '    api.shift_box("restore_position", [0.08, 0.0, 0.0])\n' if variant=='closer_coordinated' else ''
-        code = 'def task(api):\n'+prefix+'    api.draw_face("y_max")\n    api.reorient_together("'+mode+'")\n    api.draw_face("z_min")\n    api.return_together()\n'+suffix
-    if variant == 'away_face':
-        code = code.replace('    api.return_together()',
-                            f'    api.reorient_together("joint", "present_away", {AWAY_ANGLE}, "y_min",\n'
-                            f'                          {AWAY_YAW}, {AWAY_OFFSET}, translation_leads_turn=True)\n'
-                            '    api.draw_face("y_min")\n'
-                            '    api.return_together()')
     (output / 'policy.py').write_text(code)
     code_sha = hashlib.sha256(code.encode()).hexdigest()
     feedback_binding = None
@@ -445,7 +662,13 @@ def compile_pilot(source, output, *, variant='baseline', feedback_from=None):
                              metadata=dict(task_scope=program['scope'], source=str(Path(source).resolve()),
                                            feedback_source=feedback_binding))
     try:
-        model = DrawingModel(output / 'model', source, episode)
+        model = DrawingModel(output / 'model', source, episode,
+                             radius_m=program['circle_radius_m'],
+                             presentation_budget=program.get('presentation_budget', 8),
+                             max_transfer_s=program.get('max_transfer_s'))
+        if any(program['circle_radius_m'] >= min(np.delete(model.holding.dimensions, SURFACES[face][0]))/2
+               for face in program['surfaces']):
+            raise ValueError('Circle radius must fit within each requested face')
         # Execute exactly the saved program against the file-only model API.
         namespace = {}
         exec(compile(code, str(output / 'policy.py'), 'exec'), {'__builtins__': {}}, namespace)
@@ -473,7 +696,7 @@ def compile_pilot(source, output, *, variant='baseline', feedback_from=None):
                       mesh_sha256=model.p.spheres.geometry.assets,
                       dimensions_m=model.holding.dimensions.tolist(),
                       holder_tcp_offsets={a: model.holding.tcp_offsets[a].tolist() for a in HOLDERS},
-                      planning_diagnostics=model.diagnostics,
+                      planning_diagnostics=model.diagnostics, presentation_search=model.presentations,
                       initial_state=model.initial_state, grasp_offsets={a: v.tolist() for a, v in model.holding.offsets.items()},
                       validation=dict(samples=sum(len(p['samples']) for p in model.phases), max_dt_s=.02,
                                       min_arm_gap_m=model.min_gap, max_grasp_closure_position_m=model.max_closure_error,
@@ -511,6 +734,23 @@ def compile_pilot(source, output, *, variant='baseline', feedback_from=None):
         failure = dict(status='FAILED', reason=str(error))
         if 'model' in locals():
             failure.update(phase=model.current_phase, diagnostics=model.diagnostics,
+                           presentation_search=model.presentations,
                            last_state=model.state, last_pose=model.pose.tolist())
         write(output / 'failure.json', failure)
         raise
+
+
+def legacy_code(variant):
+    code = 'def task(api):\n    api.draw_face("y_max")\n    api.rotate("present_bottom", 80.0)\n    api.draw_face("z_min")\n    api.park_worker()\n    api.rotate("return_box", 0.0)\n'
+    if variant != 'baseline':
+        mode = 'joint' if variant in ('overlap', 'away_face') else 'cartesian'
+        prefix = '    api.shift_box("move_closer", [-0.08, 0.0, 0.0])\n' if variant == 'closer_coordinated' else ''
+        suffix = '    api.shift_box("restore_position", [0.08, 0.0, 0.0])\n' if variant == 'closer_coordinated' else ''
+        code = 'def task(api):\n'+prefix+'    api.draw_face("y_max")\n    api.reorient_together("'+mode+'")\n    api.draw_face("z_min")\n    api.return_together()\n'+suffix
+    if variant == 'away_face':
+        code = code.replace('    api.return_together()',
+                            f'    api.reorient_together("joint", "present_away", {AWAY_ANGLE}, "y_min",\n'
+                            f'                          {AWAY_YAW}, {AWAY_OFFSET}, translation_leads_turn=True)\n'
+                            '    api.draw_face("y_min")\n'
+                            '    api.return_together()')
+    return code

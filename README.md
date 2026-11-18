@@ -10,6 +10,11 @@ single-arm software halt and actual four-arm overlap. The four-arm target
 was interrupted by reported speed excess; all arms remain held. See the
 [results, timing curves and remaining tracking work](docs/hardware_commissioning_2026-11-17.md).
 
+On18November both right URs reached the carton pregrasp positions on real
+hardware at the retained0.1rad/s command limit, with open grippers and confirmed
+final holds. No grasp or lift was attempted. See the
+[current evidence and photo](work/carton-pregrasp-20261118.md).
+
 Open **UWA Robot Power** from the application menu for all four arms.
 **Standby** stops ROS on the robots and switches off the drives; **Start + ROS**
 prepares them again. The control boxes stay online. See the
@@ -531,6 +536,9 @@ For an independent agent trial, use the [short handoff](docs/agent_trials/BOX_DR
 [away-face prompt](docs/agent_trials/PROMPT_AWAY_FACE.md) and
 [development trace protocol](docs/agent_trials/TRACE_PROTOCOL.md). The standalone
 `tools/agent_trial.py` records stage times, commands, raw outputs and retained failures.
+The first [completed trial review](docs/agent_trials/REVIEW_AWAY_FACE_2026-11-18.md)
+confirms three model circles, identifies the search and logging bottlenecks,
+and adds explicit stdin capture for reproducible editing commands.
 The latest [500g force and speed tests](docs/carton_dynamic_validation_2026-11-16.md)
 include two complete10mm/s Home cycles and three loaded stop cases with retained
 grip using exactly the same version-bound profile. The report preserves earlier

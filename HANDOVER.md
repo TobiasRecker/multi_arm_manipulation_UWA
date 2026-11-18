@@ -1,5 +1,52 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Gemeinsame Zeitplanung der hinteren Arme geprüft, 2026-11-18
+
+- Schritt 3 abgeschlossen für die Seitenvariante mit festem Endziel. Die
+  Archivkorrektur aus Schritt 2 wurde mit 201 IK-Stützstellen als gemeinsame
+  12-Gelenk-Trajektorie mit C3-Zeitgesetz und 0,1 rad/s geplante Obergrenze
+  zeitparametriert. Modellzeit 76,734 s. Analytische Schranke 0,093639 rad/s,
+  dicht gesampelte Spitze 0,090910 rad/s. Beschleunigungs-/Ruckgrenzen
+  0,4 rad/s² und 2 rad/s³ geprüft, alle Ableitungen an den Endpunkten null.
+- 15.348 Modellzustände am zeitparametrierten Interpolanten in Abständen
+  von höchstens 5 ms geprüft. Null FCL-Kollisionen, alle sechs Armpaare,
+  geparkte Arme, Gelenkgrenzen und feste Greiftransformationen. Minimum
+  20,92 mm zwischen Armhüllen, 27,64 mm zwischen bewegter Armhülle und Tisch,
+  3,53 mm Karton/Umgebung im Boxmodell. Endpose stimmt mit Schritt 2 überein,
+  maximale numerische Griffabweichung rund 0,021 µm und 0,127 µrad.
+- `goal-continuation/timed/` bewahrt den ersten Hüllenbefund. Der geparkte
+  vordere linke Oberarm überschneidet sich im Kugelhüllenmodell bereits am
+  Start um 38,84 mm mit der Tischplatte. Originale Kollisionsnetze vorhanden,
+  komplette FCL-Szene meldet keinen Kontakt. Zusatzschranke für Arm/Tisch
+  analog Episodenlehrer für beide fahrenden Arme. Frontarmwert dauerhaft
+  als statischer Befund im Bericht. FCL und Arm/Arm-Prüfung für alle vier.
+- Ergebnis und zeitgesteuerter Viewer unter `setup/research/`
+  `rear-pair-screen-20261117/goal-continuation/timed-02/`. Reproduktion
+  `tools/time_rear_pair_teacher.py SCREENING_ORDNER GEOMETRY_RESULT_JSON
+  --output-dir NEUER_ORDNER`. 22 gezielte Tests bestanden. Modellnachweis
+  mit zeitlichem Prüfraster, ohne Kontaktphysik oder gemessene Stoppgrenzen.
+
+## Reale Karton-Vor-Greifpose mit beiden rechten URs erreicht,2026-11-18
+
+- Neuer expliziter Auftrag: Karton erkennen und RF/RR in Vor-Greifpose fahren.
+  Aktuelles OAK-Foto/Fokus107, neuer Kamerafit und fest übernommene Basis-
+  anbindungen genutzt. Texturregistrierung im agentgewählten Kartonausschnitt
+ 25Inlier/2,729px; Gesamtbildversuche ohne belastbare Pose bleiben erhalten.
+- Beide realen Ziele mit offenen, inaktiven Greifern erreicht,150mm über dem
+  geplanten Kontakt; kein Absenken/Greifen/Hub. Unverändertes Profil0,1rad/s,
+  amax0,2/geometric_only. NominalRF33,0/RR103,9s. Native Spitzen0,103282/
+ 0,103748rad/s innerhalb bestehender5%-Monitortoleranz. Bahnrestfehler höchstens
+ 0,000104rad. BeideEndholds/Latches/Guardruhe und unabhängigeRuhefensterPASS,
+  keineWächterstopps während der ausgeführtenArmwege, keinNativeSTOP-Fallback.
+- Endcheckalle4RUNNING/NORMAL/runtime2/stationär,alle4Ressourcenholds/Software-
+  latches, GuardCLEAR/keineFaults, Watchdognichtgetrippt. GreiferAPIMONITOR ONLY;
+  keineAktivierung/Greiferziele, Backenweiteroffen. Abschlussfoto visuell geprüft.
+- IndexmitQuellen/Foto `setup/tasks/carton_pregrasp_20261118_completed/`.
+  RF-Teil aus real03 und separater RR-Lauf zusammengeführt; ursprüngliche
+  Vorprüf-/Übergangsfehlerberichte erhalten. TechnischeDetails undKorrekturen
+  work/carton-pregrasp-20261118.md. AktuellePose ist neuerStart, altePläne nicht
+  blindwiederholen. TragendergekoppelterHardwareexecutor bleibtseparatoffen.
+
 ## Hinteres Armpaar mit Ziel hinter der Konfliktregion, 2026-11-18
 
 - Nutzer fragt nach der scheinbar anderen Endpose. Archivierter Viewer öffnete
@@ -18,7 +65,7 @@
   Resultat, Vergleichsviewer, Zielbild und neun erfolgreiche Browserprüfungen.
   Öffnet bei 0 %, `Show goal` zeigt 100 %, `Jump to contact` den Referenzkonflikt.
   `tools/plan_rear_pair_teacher.py --task` lädt Ziele im bestehenden Aufgabenformat.
-  Zeitparametrierte Prüfung ist weiterhin Schritt 3.
+  Die zeitparametrierte Prüfung steht im Abschnitt zu Schritt 3 oben.
 
 ## Hinteres Armpaar mit korrigierter Kartonbahn, 2026-11-18
 
@@ -255,6 +302,33 @@
   `setup/agent_trials/box_away_face_20261118/trial01/`, Vorschau unter
   `artifacts/run06/viewer.html` relativ zum Trial. Bedienung:
   `docs/box_drawing_pilot.md`.
+
+## Gegenwand-Agententest ausgewertet, 2026-11-18
+
+- Nutzer meldet Abschluss des unabhängigen Agenten. Original-Trial01 unter
+  setup/agent_trials/box_away_face_20261118/ ausgewertet; Review mit Ursachen
+  und Prioritäten: docs/agent_trials/REVIEW_AWAY_FACE_2026-11-18.md.
+- Gemessene Entwicklung18:54,88min, 80Befehle, elfNonzero-Exits:
+  drei geometrische Kandidatenablehnungen, drei Suchläufe ohne Treffer,
+  drei Aufruf-/Pfadfehler, eine Sandboxblockade und eine verfrühte
+  Statusabfrage. Rund85,2%Wandzeit in Planungsstufen inklusive Bearbeitung.
+  Befehlsintervalle9:41,64min; übrigeWandzeit keine gemessene Denkzeit.
+  Vorlauf, vollständigerClientexport, Modellname/Token/Kosten unbekannt.
+- Run06-FK-/Zeit-/Episodenaudit erneutPASS mit identischem Ergebnishash;
+  397,286sModellzeit, dreiKreise, vollständigerRückweg, Peak0,096576rad/s.
+  Original-FCL-Prüfung nicht unabhängig neu implementiert/wiederholt.
+  EchterChrome-Test mit zwölfPrüfungen und ScreenshotPASS; Feedbackpayload
+  nur abgefangen, keine Rückmeldung in dieEpisode importiert.
+- Logginglücke an acht `python3 -`-Bearbeitungsbefehlen nachgewiesen.
+  Logger jetzt mit optionalem `--stdin-file DATEI|-`: exakteInputkopie,
+  Größe/Hash und Weitergabe dieserKopie; ohneOption explizit unerfasst.
+  Zehn gezielteLoggertestsPASS. Protokoll/Git-Diff-Abschlussregeln ergänzt.
+- Empfohlener nächsterAusbau: wiederverwendbarer `present_surface`-Skill
+  mit Halteposen-/Routensuche und strukturiertenDiagnosen, dann einheitlicher
+  Aufgabenvertrag und früheVorschau. Ein erfolgreicherKinematiktrial belegt
+  noch keine Fast-LLM-Benchmark, Teleop-/Demolernen oder Langzeitverbesserung.
+  Evidenz und Browserdaten: setup/agent_trials/box_away_face_review_20261118/.
+  KeineHardware-/Kamera-/Dienstaktion. FremdeÄnderungen erhalten.
 
 ## Erster Feedbackzyklus: Boxzeichnung koordinieren, 2026-11-17
 
