@@ -145,6 +145,16 @@ def test_missing_local_driver_does_not_play():
     assert not r.commands
 
 
+def test_revoked_review_prevents_a_ready_play_command():
+    robot = Robot(5, mode='RUNNING', program=TARGET)
+    def revoked(step):
+        assert step == 'play'
+        raise ValueError('Motion review revoked')
+    with dashboard(robot) as arm, pytest.raises(ValueError, match='revoked'):
+        bringup.run_arm(arm, True, get_transport=robot.transport, before_write=revoked)
+    assert robot.commands == []
+
+
 def test_play_without_reverse_connection_is_not_ready_and_never_restarts():
     r = Robot(5, mode='RUNNING', program=TARGET, disable_link=True)
     report = run(r)

@@ -10,6 +10,7 @@ from pathlib import Path
 import sys
 
 from PySide6 import QtCore, QtGui, QtWidgets
+from motion_review_panel import ReviewPanel, use_host_desktop_libraries
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -67,9 +68,13 @@ def present(row):
 
 
 class Window(QtWidgets.QWidget):
-    def __init__(self, backend=None, *, n100=False):
+    def __init__(self, backend=None, *, n100=False, review_mock=None):
         super().__init__()
         self.n100 = n100
+        self.mock = review_mock is not None
+        self.exiting = False
+        self.tray = None
+        self.review = None
         if backend is not None:
             self.backend = backend
         elif n100:
@@ -118,10 +123,12 @@ class Window(QtWidgets.QWidget):
         words.setSpacing(0)
         header.addLayout(words, 1)
         self.refresh = QtWidgets.QPushButton('Refresh')
-        self.refresh.clicked.connect(lambda: self.launch('status'))
+        self.refresh.clicked.connect(self.refresh_all)
         header.addWidget(self.refresh)
         page.addLayout(header)
 
+        power = QtWidgets.QWidget()
+        power_page = QtWidgets.QVBoxLayout(power)
         frame = QtWidgets.QFrame(objectName='list')
         rows = QtWidgets.QVBoxLayout(frame)
         rows.setContentsMargins(13, 8, 13, 8)
@@ -141,10 +148,10 @@ class Window(QtWidgets.QWidget):
             group.addWidget(body, 1, 0, 1, 2)
             rows.addLayout(group)
             self.rows[rid] = (badge, body)
-        page.addWidget(frame)
+        power_page.addWidget(frame)
         self.feedback = QtWidgets.QLabel('Checking robot status…', objectName='feedback')
         self.feedback.setWordWrap(True)
-        page.addWidget(self.feedback)
+        power_page.addWidget(self.feedback)
 
         buttons = QtWidgets.QHBoxLayout()
         self.standby = QtWidgets.QPushButton('Standby', objectName='standby')
@@ -155,12 +162,33 @@ class Window(QtWidgets.QWidget):
         self.start.clicked.connect(lambda: self.launch('start'))
         buttons.addWidget(self.standby, 1)
         buttons.addWidget(self.start, 1)
-        page.addLayout(buttons)
+        power_page.addLayout(buttons)
         caption = QtWidgets.QLabel(
             'Finish the experiment before Standby. Keep the work area clear for Start.',
             objectName='armDetail')
         caption.setWordWrap(True)
-        page.addWidget(caption)
+        power_page.addWidget(caption)
+        if n100 or self.mock:
+            self.tabs = QtWidgets.QTabWidget()
+            if not self.mock:
+                self.tabs.addTab(power, 'Robot power')
+                review_backend = self.backend[:-1]
+            else:
+                power.setParent(self)
+                power.hide()
+                review_backend = [sys.executable, str(ROOT/'tools/motion_review.py'),
+                                  '--store', str(review_mock.resolve())]
+                intro.setText('MOCK · Local review store')
+                self.setWindowTitle('UWA Robot Power · Mock review')
+            self.review = ReviewPanel(review_backend, remote=n100, parent=self)
+            self.review.attention.connect(self.show_review)
+            self.review.safeToQuit.connect(self.finish_quit)
+            self.tabs.addTab(self.review, 'Motion review')
+            page.addWidget(self.tabs)
+            self.install_tray()
+            self.resize(760, 740)
+        else:
+            page.addWidget(power)
 
         self.mode = None
         self.have_result = False
@@ -174,8 +202,9 @@ class Window(QtWidgets.QWidget):
         self.process.errorOccurred.connect(self.process_error)
         self.refresh_timer = QtCore.QTimer(self, interval=5000)
         self.refresh_timer.timeout.connect(lambda: self.launch('status'))
-        self.refresh_timer.start()
-        QtCore.QTimer.singleShot(0, lambda: self.launch('status'))
+        if not self.mock:
+            self.refresh_timer.start()
+            QtCore.QTimer.singleShot(0, lambda: self.launch('status'))
         self.refresh.setFocus()
 
     def controls(self):
@@ -193,7 +222,7 @@ class Window(QtWidgets.QWidget):
         body.setText(detail)
 
     def launch(self, mode):
-        if self.mode is not None:
+        if self.mock or self.mode is not None:
             return
         self.mode, self.completed = mode, False
         self.changed.clear()
@@ -276,11 +305,59 @@ class Window(QtWidgets.QWidget):
         self.raise_()
         self.activateWindow()
 
+    def refresh_all(self):
+        if not self.mock:
+            self.launch('status')
+        if self.review:
+            self.review.failed_export = None
+            self.review.refresh()
+
+    def show_review(self, message=None):
+        self.tabs.setCurrentWidget(self.review)
+        self.raise_window()
+        if message:
+            QtWidgets.QApplication.alert(self)
+        if message and self.tray and self.tray.supportsMessages():
+            self.tray.showMessage('UWA · Decision required', message,
+                                  QtWidgets.QSystemTrayIcon.MessageIcon.Information)
+
+    def install_tray(self):
+        if not QtWidgets.QSystemTrayIcon.isSystemTrayAvailable():
+            return
+        self.tray = QtWidgets.QSystemTrayIcon(self.windowIcon(), self)
+        self.tray.setToolTip(self.windowTitle())
+        menu = QtWidgets.QMenu(self)
+        menu.addAction('Open motion review', self.show_review)
+        menu.addAction('Quit', self.review.request_quit)
+        self.tray.setContextMenu(menu)
+        self.tray.messageClicked.connect(self.show_review)
+        self.tray.activated.connect(lambda reason: self.show_review() if
+            reason in (QtWidgets.QSystemTrayIcon.ActivationReason.Trigger,
+                       QtWidgets.QSystemTrayIcon.ActivationReason.DoubleClick) else None)
+        self.tray.show()
+
+    def finish_quit(self):
+        self.exiting = True
+        # A closeEvent may be awaiting this signal already.
+        QtCore.QTimer.singleShot(0, self.close)
+
     def closeEvent(self, event):
         if self.mode not in (None, 'status'):
+            self.exiting = False
             self.feedback.setText('Please wait for the current power action to finish.')
             event.ignore()
             return
+        if self.review and not self.exiting:
+            event.ignore()
+            if self.tray:
+                self.hide()
+            else:
+                self.review.request_quit()
+            return
+        if self.review:
+            self.review.shutdown()
+        if self.tray:
+            self.tray.hide()
         if self.process.state() != QtCore.QProcess.ProcessState.NotRunning:
             self.process.kill()
             self.process.waitForFinished(350)
@@ -289,14 +366,20 @@ class Window(QtWidgets.QWidget):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--n100', action='store_true', help='Use the N100 driver host over Ethernet SSH')
+    host = parser.add_mutually_exclusive_group()
+    host.add_argument('--n100', action='store_true', help='Use the N100 driver host over Ethernet SSH')
+    host.add_argument('--review-mock', type=Path, metavar='DIRECTORY',
+                      help='Review a local mock store. No power or robot connection.')
     args, qt_args = parser.parse_known_args()
-    if os.environ.get('GTK_PATH', '').startswith('/snap/'):
-        os.environ.pop('GTK_PATH')
+    use_host_desktop_libraries()
     app = QtWidgets.QApplication([sys.argv[0], *qt_args])
     app.setDesktopFileName('uwa-robot-power')
     app.setApplicationName('uwa-robot-power')
     app.setApplicationDisplayName('UWA Robot Power')
+    if args.review_mock is not None:
+        window = Window(review_mock=args.review_mock)
+        window.show()
+        return app.exec()
     # An abstract Unix socket is released by the kernel when the app exits.
     address = f'\0uwa-robot-power-{os.getuid()}'
     requested_host = b'n100' if args.n100 else b'local'

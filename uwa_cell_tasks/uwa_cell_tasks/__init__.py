@@ -1,1 +1,1 @@
-"""Composable, evidence-bound manipulation tasks. Hardware execution is absent."""
+"""Manipulation tasks, simulation skills and the reviewed hardware carton pilot."""

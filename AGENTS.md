@@ -1,5 +1,25 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Aufgabenbezogene Freigabe im Kartonpiloten, 19.11.2026
+
+- Der Planungsagent bewertet den konkreten Auftrag anhand der beteiligten
+  Arme, Abstände, Kontaktabsicht und verbleibenden Unsicherheiten. Die englische
+  GUI auf ROSmini verwaltet das vom Nutzer gesetzte Vertrauen pro Aufgabe.
+  Menschliche Entscheidungen und automatische Agentenentscheidungen getrennt
+  protokollieren. Unbekannte Aufgaben beginnen bei „unsicher“.
+- Arbeitsbereich vor Ort einmal je Sitzung freigeben. Beim Betreten oder Umbau
+  widerrufen. Hohe Anfahrt und ganze offene Einfahrt vorab zusammen planen.
+  Parallelität anhand tatsächlich möglicher Fortschrittsunterschiede prüfen.
+  Zeigen und fahren dieselbe Version. Vor Greifschluss das tatsächliche
+  Einfahrbild dieser Ausführung auswerten. Kontakt oder möglicher Teilkontakt
+  bedeutet weiterhin HOLD.
+- Neues gemeinsames Tempolimit für diesen Piloten: 100 % entsprechen 250 mm/s
+  Translation am TCP und 0,3 rad/s je Armgelenk. Bei 33⅓ % beginnen. Ein Agent
+  darf innerhalb einer vom Nutzer benannten Testreihe und Untergrenze absenken.
+  Jede Erhöhung ausdrücklich vom Nutzer bestätigen lassen. Diese Präzisierung
+  der bisherigen Geschwindigkeitsregel gilt für den Piloten.
+- Einrichtung und lokale Vorschau stehen in [der Bedienanleitung](docs/carton_motion_review.md).
+
 ## Längere Rechenaufträge auf titanpc (2026-11-19)
 
 - GPU-intensive und größere, länger laufende CPU-Aufträge gemäß Nutzerwunsch

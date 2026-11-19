@@ -336,7 +336,7 @@ def wait_for(dash, arm, step, get_transport, report, *, seconds, clock=time.mono
 
 
 def run_arm(arm, apply, *, dashboard=Dashboard, get_transport=transport,
-            transition_timeout=30, start_driver=None):
+            transition_timeout=30, start_driver=None, before_write=None):
     report = {'arm': arm.id, 'ip': arm.ip, 'expected_serial': arm.serial, 'target': arm.program,
               'commands': [], 'state': None, 'ros_script_listener': None, 'ros_reverse_connected': None,
               'driver_start_attempted': False}
@@ -387,6 +387,8 @@ def run_arm(arm, apply, *, dashboard=Dashboard, get_transport=transport,
                     if any(record['command'] == command for record in report['commands']):
                         raise Blocked('state_changed', f'Zustand nach {command!r} erneut geändert.',
                                       'Teach Pendant prüfen; kein automatischer Wiederholungsversuch.')
+                    if before_write:
+                        before_write(step)
                     write(dash, arm, step, report['commands'])
                 wait_for(dash, arm, step, get_transport, report, seconds=transition_timeout)
     except Blocked as error:
@@ -424,8 +426,26 @@ def main(argv=None):
     mode.add_argument('--apply', action='store_true', help='Die ausgewählten realen URs vorbereiten und ros.urp starten.')
     parser.add_argument('--arm', action='append', choices=ROBOT_IDS, help='Wiederholbar; Standard: alle vier.')
     parser.add_argument('--json', action='store_true', help='Ergebnis als JSON für Skripte und Agenten.')
+    parser.add_argument('--review-id')
+    parser.add_argument('--review-stage', choices=('motion','contact'))
+    parser.add_argument('--review-component')
     args = parser.parse_args(argv)
     try:
+        review_binding = (args.review_id, args.review_component, args.review_stage)
+        before_write = None
+        if any(review_binding):
+            if not args.apply or not all(review_binding):
+                raise ValueError('Vollständige Auftragsbindung für den regulären Pilot-Programmstart erforderlich.')
+            sys.path.insert(0, str(INVENTORY.parents[1] / 'uwa_cell_tasks'))
+            from uwa_cell_tasks.motion_review import ReviewStore
+            store = ReviewStore()
+            def check_review(step):
+                if step != 'play':
+                    raise Blocked('separate_preparation_required', 'Der Pilot darf nur das vorbereitete ROS-Programm starten.',
+                                  'Antriebe und Programm über UWA Robot Power vorbereiten.')
+                store.check_active(*review_binding)
+                store.check_startup(args.review_id, args.review_stage)
+            before_write = check_review
         arms = load_arms(INVENTORY)
         selected = [arms[rid] for rid in ROBOT_IDS if not args.arm or rid in args.arm]
         with operation_lock() if args.apply else nullcontext():
@@ -433,7 +453,10 @@ def main(argv=None):
                 reports = []
                 for arm in selected:
                     print(f'{arm.id}: Vorbereitung läuft …', file=sys.stderr, flush=True)
-                    reports.append(run_arm(arm, True, start_driver=launch_driver))
+                    if before_write:
+                        reports.append(run_arm(arm, True, before_write=before_write))
+                    else:
+                        reports.append(run_arm(arm, True, start_driver=launch_driver))
                     if not args.json:
                         print_report(reports[-1])
                 # Refresh arms that became ready before the last arm was handled.

@@ -67,3 +67,18 @@ def test_camera_model_change_invalidates_tracking():
     other=K.copy();other[0,0]+=10
     result=tracker.update(image,other,D,1.04)
     assert result.status=='LOST' and result.T_camera_object is None
+
+
+def test_planar_wall_consensus_with_distortion_and_outliers():
+    rng=np.random.default_rng(913)
+    points=np.c_[rng.uniform(0,.4,70),np.zeros(70),rng.uniform(0,.16,70)]
+    pose=np.eye(4);pose[:3,:3]=Rotation.from_euler('xyz',[1.1,.2,.1]).as_matrix();pose[:3,3]=[-.2,.08,.9]
+    distortion=np.array([.08,-.03,.001,-.001,0.])
+    pixels=cv2.projectPoints(points,cv2.Rodrigues(pose[:3,:3])[0],pose[:3,3],K,distortion)[0].reshape(-1,2)
+    pixels+=rng.normal(0,.1,pixels.shape);pixels[:15]=rng.uniform([0,0],[640,480],(15,2))
+    result=estimate(points,pixels,K,distortion)
+    assert result.status=='VALID';assert result.inliers>=50
+    delta=np.linalg.inv(pose)@result.T_camera_object
+    assert np.linalg.norm(delta[:3,3])<.002
+    assert Rotation.from_matrix(delta[:3,:3]).magnitude()<np.deg2rad(1.)
+    assert estimate(points[:23],pixels[:23],K,distortion).status!='VALID'

@@ -201,3 +201,59 @@ and no real STOP or motion goal was sent in this task. Next physical qualificati
 measure detection/source/switch/native-stop latency and braking per UR, test
 pair/independent-arm continuation and process/network faults, verify modeled
 tools/anchors, then replace engineering assumptions with measured reserves.
+
+
+## Reviewed carton motion
+
+The N100 guard admits the reviewed pilot through a local Unix socket bound to
+its running guard instance. At admission it requires current states for all four
+arms, independent supervision, verified controller holds, confirmed standstill
+and clear current geometry. It installs the exact reviewed speed limits and TCP
+definitions before it acknowledges ownership. A single executor can own this
+channel. ROS action, controller switch and final-hold waits renew ownership while
+the executor makes progress and the task release is valid. Losing the executor,
+its heartbeat or its guard instance latches the stop. Reconnection requires a
+fresh admission. A completed group hands back four confirmed stationary holds.
+
+On the physical cell, the pendant, direct ROS actions and controller-manager
+clients are additional command sources. Closing the review GUI, a stationary
+snapshot or absence of a pilot ticket cannot prove that these sources are
+inhibited. The physical guard and its independent watchdog therefore stay armed
+between reviewed groups and while an object is held. Guard status reports
+`ARMED_HOLD_OR_EXTERNAL_SOURCE`. If the reviewed channel is unavailable, the
+existing armed guard continues and the reviewed executor refuses admission.
+
+The file-only `IsolatedPilotMock` has a single in-process command sink. It can
+prove that the sink is closed while idle and reuse a fresh, healthy, unloaded
+start after earlier idle samples were unavailable. Owner loss or supervision
+loss during motion stops the mock. Contact keeps it in a protected hold.
+The ROS-connected GenericSystem has additional command sources. A physical idle
+mode would need a command inhibit that remains effective across process loss
+and excludes pendant, dashboard and alternative controller commands until atomic
+takeover. The current physical installation supplies no such evidence.
+
+The reviewed joint trajectories use the controller's linear, cubic or quintic
+interpolation according to the included derivative fields. The planner bounds
+the continuous joint velocity using the derivative control hull, and TCP speed
+using the translational Jacobian and a configuration-independent acceleration
+bound between samples. The carton pilot binds both the flange TCP and the
+modeled grasp center at local `[0, 0, 0.145]` m on each participating Robotiq
+base. This offset comes from the carton model. Its physical accuracy requires
+separate measurement.
+The live guard checks measured joint velocity and the FK-derived translational
+speed of every bound TCP at the active guard rate. The pilot's measured limits
+equal its requested speed limits. The prior general guard and its separate
+measured joint excess threshold also remain active.
+
+Hardware admission checks each axis against its active profile. Above the
+previous joint operating point of 0.1 rad/s or the new initial TCP limit of
+250/3 mm/s, the reviewed pilot requires enforced stopping reserves and a
+measured qualification covering the new operating point. The optional profile
+field `pilot_operating_qualification` has an absolute `path` and the file's
+`sha256`. The qualification report records `kind=measured_pilot_stopping_qualification`,
+`accepted=true`, `model_signature`, `hardware_profiles_sha256`,
+`guard_configuration` (without its qualification-file reference), `tcp_frames`,
+`joint_limit_rad_s` and `tcp_limit_m_s`. The profile hash is SHA-256 over the
+UTF-8 result of `json.dumps(problem.profiles, sort_keys=True)`. Physical
+commissioning supplies this record. The slider changes neither the profile nor
+the qualification. No higher hardware operating point was measured here.

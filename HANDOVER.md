@@ -1,5 +1,97 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Neuer Kartonort: bis Start vorbereitet, Hardwarepause19.11.2026
+
+- Nutzer meldet umgestellten Karton; während Erkennung stoppt er Hardware und
+  erlaubt ausdrücklich nur Vorbereitung bis zum Start. **Keine Programmstarts,
+  Arm-/Greiferziele oder Ausführung bis zu neuer Nutzerrückmeldung.** Letzter
+  bestätigter Armzustand Home/offen; aktuelle native Bereitschaft nach Pause
+  erst vor Ausführung neu prüfen. In dieser Sequenz kein Armziel gesendet.
+- Neues OAK-Standardbild13:24:16/Fokus107: Kartonzentrum gegenüber vorheriger
+  Pose etwa434,5mm versetzt und15,73° gedreht. Rechtes Referenzboard durch Karton
+  teilweise verdeckt. Explizite bisherige vollständige Kameraregistrierung gegen
+  aktuelle16Ecken validiert: RMS1,771px/max2,933px. Keine neue Extrinsic aus
+  wenigen Ecken, keine alte Objektpose verwendet; globale Kameraprofile gleich.
+- `register_carton_from_oak.py --camera-reference-pose ... --planar-texture`
+  mit aktuellem Bildausschnitt erfolgreich (`registration-v4/`). Drei akzeptierte
+  aktuelle Textur-/Tischauflagefits mit25/25/26Inlier, Unterstützung4,27/5,00/
+  4,52px; interne Streuung2,866mm/0,682°. Vorschau visuell geprüft. Keine
+  Behauptung absoluter Genauigkeit oder qualifizierter realer Kontakte.
+- Konkrete Visionkorrektur: planare Modellfeatures über Homographie-Konsens
+  auf entzerrten Pixeln vor IPPE bewerten, statt vorab allein EPNP zu verlangen;
+  bestehende Positivtiefe-/Mehrdeutigkeits-/RMS-/Inliergrenzen erhalten. Opt-in
+  affine Merkmalsansichten und panelweise Zuordnung, Ergebnisse im Originalbild
+  prüfen.8gezielteTracking-/ReferenztestsPASS. Alte Fehlversuchev1–v3 erhalten.
+- Vollständige hohe Anfahrt UND nachfolgende offene Einfahrt geometrisch gültig.
+  Auch tatsächliche serielle RF/RR-Vorpositionsbahnen mit Zeitparametrierung
+  offlinePASS (`high-offline`: OFFLINE_CHECKED_NOT_EXECUTED); Einfahrt-Ausführer
+  offlinePASS (`entry-offline`: OFFLINE_ENTRY_RECHECKED). Beide Ellbogen im
+  Ziel etwa1,486m über Welt0, Tisch0,9m; gewünschte negative Ellbogenzweige.
+  Reine nominale hohe Motorbahnen35,22+32,18s, keine gemessene Ausführungszeit.
+- Auf zuletzt tatsächlich gemessenen Homezustand vor Nutzerstop gebunden;
+  vor echtem Start weiter frische Start-/Halt-/Offenprüfung ohne Grenzlockerung.
+ 0,1rad/s/0,2rad/s²/40mm/Trendruhe unverändert. Aktueller N100-Stand genutzt;
+  paralleler lokaler Motion-Review-Pilot nicht ungeprüft deployt oder aktiviert.
+- Daten `setup/tasks/carton_new_pose_20261119/`, `prepared.json`, `pose-preview.jpg`;
+  N100 gleichnamig unter `~/uwa-ur-runtime/`. `execute-prepared.sh` nur als
+  Datei vorbereitet, NICHT gestartet. Es endet nach offener Einfahrt; tatsächliche
+  neue Einfahrtaufnahme muss vor FOR0/SPE16-Schluss geprüft werden. Danach nur
+  gemeinsame Objektgruppe/HOLD. Keine geladene unabhängige Armfahrt.
+- Dieser Vorbereitungsabschnitt enthält Visionentwicklung und Hardwarepause,
+  ist kein repräsentativer vollständiger Griffzeitlauf. Details im Arbeitsstand
+  `work/carton-new-pose-20261119.md` im Zellrepo.
+
+
+## Aktuell: Karton frei, rechte Arme Home,19.11.2026
+
+- Nutzer bestätigt letzten Griff, verlangt Loslassen und Home, um Karton
+  anschließend anders hinzustellen. Ausgeführt: beide rechten Greifer offen,
+  OBJ3/POS3/PRE0/FOR0/SPE16, keine Kontaktmitglieder. Beide150mm nach oben
+  freigefahren; anschließend beide tatsächlich Home mit Endholds bestätigt.
+  Schlussnachweis `setup/tasks/carton_reposition_20261119/home-replanned/`
+  `result.json`: PASS/BOTH_OPEN_AT_HOME_HELD, beide executed=true.
+- **Jetzt keine neue Greifsequenz. Auf Nutzerumstellung warten.** Danach neues
+  Foto und neue Kartonpose; alte Registrierungen sind historische Referenzen,
+  keine aktuelle Zielpose des versetzten Kartons. Virtuelle Kontaktgruppe
+  hat keine aktiven Mitglieder mehr; frühere Kontakt-HOLD-Aussagen historisch.
+- N100 bleibt alleiniger UR-Steuerhost.0,1rad/s/0,2rad/s²/40mm/Trendruhe und
+  bestehende Frische-/native Stopps unverändert. Linke Arme nicht verfahren.
+- Release hatte kurzen Halte-Transienten trotz bestätigtem Öffnen; kein zweites
+  Fingerziel. Erster Homeversuch durch generische Epochen-/Zeitprüfung gestoppt,
+  alle4 Resourceholds/Latches bestätigt. Neuer Snapshot und komplett neue
+  Homebahn anschließend tatsächlich PASS. Keine Überwachungsgrenze gelockert.
+  Ursache der Zeitdiagnose noch nicht genauer belegt; Fehlerbelege erhalten.
+- Lokale Nachweise unter `setup/tasks/carton_reposition_20261119/n100-evidence/`,
+  N100-Originale unter `~/uwa-ur-runtime/setup/tasks/carton_reposition_20261119/`.
+  Arbeitsstand `work/carton-reposition-20261119.md` im Zellrepo abgeschlossen.
+
+
+## Freigabe-Pilot für Kartonfahrten, 19.11.2026
+
+- **UWA Robot Power → Motion review** auf ROSmini enthält Tray, Bereichsfreigabe,
+  aufgabenspezifisches Vertrauen, Temporegler, Kontaktfoto und RViz für dieselben
+  Sollbahnen wie der Executor. Der N100-Freigabeendpunkt ist installiert und
+  per GUI-Statusprotokoll gelesen. Zustand beim Test: 33⅓ %, Vertrauen 0, kein
+  freigegebener Arbeitsraum und keine Aufträge. Näheres in
+  [der Bedienanleitung](docs/carton_motion_review.md).
+- Eigentlicher Bewegungs-/Wächterstand separat auf dem N100 geprüft und
+  **inaktiv** unter `~/uwa-ur-runtime/review-candidates/pilot.9wp9dKqF`.
+  Hashprüfung, Python-Kompilierung und 10 isolierte Freigabetests auf dem N100
+  bestanden. Der parallele reale Kartonauftrag verwendet seinen bisherigen
+  Stand. Keinen laufenden Guard aus diesem Piloten ersetzt oder neugestartet.
+- Lyrical-Build für beide geänderten ROS-Pakete bestanden. 107 gemeinsame
+  lokale Regressionen bestanden, darunter Teilannahme vor gemeinsamem Start,
+  Verlust der Freigabe während der Fahrt, Greiferkontakt und Wrench-Sprung.
+  GNOME-Tray und ein echter isolierter Domain-74-RViz-Empfänger geprüft.
+  Laufzeiten, Nachweise und fertig befüllte GUI-Mocks unter
+  [setup/tasks/carton_motion_review_20261119](../../setup/tasks/carton_motion_review_20261119/).
+- Archivfall RF/RR bei 33⅓ % fährt modellseitig seriell. Bei 10 % passt
+  die offene Einfahrt im Modell parallel, nominell 23,28 s vs. 46,53 s für
+  dieselben Bahnen nacheinander. N100-Betriebswert unverändert. Kein gemessener
+  Hardware-Zeitgewinn dieses Piloten. Direkte ROS-/Pendantquellen bestehen,
+  deshalb bleibt die reale Zelle auch ohne laufenden Pilotauftrag bewaffnet.
+  Die Umschaltung auf den geprüften Softwarestand und die erste beauftragte Realfahrt stehen aus.
+
 ## Karton für Umstellen freigeben,19.11.2026
 
 - Nutzer bestätigt Griff, möchte repräsentativen neuen Versuch mit umgestelltem

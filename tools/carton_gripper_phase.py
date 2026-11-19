@@ -101,15 +101,31 @@ def freeze_group(state_path,state,monitor,contacts):
 def main():
     ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('phase',choices=['prepare','close','release']);ap.add_argument('--state',type=Path,required=True);ap.add_argument('--output',type=Path,required=True);ap.add_argument('--execute',action='store_true');ap.add_argument('--visual-confirmed',action='store_true',help='Agent inspected entry, or table support for explicit release; no operator approval prompt')
     ap.add_argument('--start-ros-programs',action='store_true',help='Explicit unloaded regular program startup after graph creation, before close; no native safety acknowledgement')
+    ap.add_argument('--review-id', help='N100 contact review for the supported carton pilot')
+    ap.add_argument('--review-image-sha256', help='Digest of the actual post-entry image in that review')
     args=ap.parse_args()
+    if bool(args.review_id) != bool(args.review_image_sha256) or (args.review_id and (args.phase != 'close' or not args.execute)):
+        ap.error('A contact review and its image are used together for executed closing only')
     if args.start_ros_programs and not (args.execute and args.phase=='close' and args.visual_confirmed):ap.error('Program startup only with explicit visually reviewed unloaded close')
-    state=json.loads(args.state.read_text());wanted='AT_HIGH_PREGRASP_HELD_NO_CONTACT' if args.phase=='prepare' else 'BOTH_OPEN_AT_WALL_HELD_NO_CLOSE'
+    state_bytes=args.state.read_bytes()
+    state=json.loads(state_bytes);wanted='AT_HIGH_PREGRASP_HELD_NO_CONTACT' if args.phase=='prepare' else 'BOTH_OPEN_AT_WALL_HELD_NO_CLOSE'
+    if args.phase=='close' and args.execute and state.get('review_id') and not args.review_id:
+        ap.error('A reviewed entry needs the matching contact review')
     if not state.get('success') or state.get('phase')!=wanted:raise ValueError('Confirmed '+wanted+' result required')
     if args.phase in ('close','release') and args.execute and not args.visual_confirmed:ap.error('Inspect actual entry/support before using --visual-confirmed')
-    expected=state['hardware_signature'];limits=state['supervision_limits'];positions=state['segments'][-1]['final_positions'];out=args.output.resolve();out.mkdir(parents=True,exist_ok=False);report=dict(success=False,phase=args.phase.upper(),arm_commands=[],finger_commands=[],loaded_motion=False,force_raw=0,speed_raw=16,nominal_force_note='Minimum raw setting, not measured jaw force',state=str(args.state.resolve()),state_sha256=hashlib.sha256(args.state.read_bytes()).hexdigest(),visual_confirmed=args.visual_confirmed,results={});require_domain('hardware');rclpy.init();clients={};monitor=None;startup_client=None;startup_observer=None;startup_directory=None
+    expected=state['hardware_signature'];limits=state['supervision_limits'];positions=state['segments'][-1]['final_positions'];out=args.output.resolve();out.mkdir(parents=True,exist_ok=False);report=dict(success=False,phase=args.phase.upper(),arm_commands=[],finger_commands=[],loaded_motion=False,force_raw=0,speed_raw=16,nominal_force_note='Minimum raw setting, not measured jaw force',state=str(args.state.resolve()),state_sha256=hashlib.sha256(state_bytes).hexdigest(),visual_confirmed=args.visual_confirmed,results={});require_domain('hardware');rclpy.init();clients={};monitor=None;startup_client=None;startup_observer=None;startup_directory=None
     def save():dump(out/'result.json',report)
     save()
     try:
+        review = None
+        if args.review_id:
+            from uwa_cell_tasks.motion_review import ReviewStore
+            from uwa_cell_tasks.carton_review import contact_component
+            component = contact_component(report['state_sha256'], args.review_image_sha256, args.start_ros_programs)
+            review = ReviewStore()
+            review.begin_component(args.review_id, component, 'contact')
+            report['review_id'] = args.review_id
+            save()
         for arm in (ROBOT_IDS if args.start_ros_programs else ('right_front','right_rear')):
             g=clients[arm]=GripperClient(arm);status=g.status();report.setdefault('before',{})[arm]=status
             ready=(ready_for_open_preparation(status) if args.phase=='prepare' else closing_contact(status) if args.phase=='release' else unloaded_open_status(status))
@@ -135,6 +151,9 @@ def main():
                 time.sleep(.01)
             startup_client=ApproachClient(problem,'right_front',startup_observer)
             report['explicit_unloaded_startup']={};save()
+            if review:
+                review.check_active(args.review_id, component, 'contact')
+                startup_client.startup_review = (args.review_id, component, 'contact')
             start_ros_programs_held(startup_client,out,problem,report['explicit_unloaded_startup'],save)
             # These extra clients are retained until final hold/contact capture.
             # No ROS entity teardown between startup and the finger goals.
@@ -144,6 +163,8 @@ def main():
         if not args.execute:report.update(success=True,phase='READ_ONLY_READY_NO_COMMANDS');save();return 0
         def action(arm):
             g=clients[arm];records=[]
+            if review:
+                review.check_active(args.review_id, component, 'contact')
             if args.phase=='prepare':
                 if report['before'][arm]['registers']['ACT']==0:records.append(dict(operation='activate',result=g.activate()))
                 records.append(dict(operation='open',result=g.open(force_raw=0,speed_raw=16)))
@@ -153,6 +174,10 @@ def main():
         # Do not retry/cancel/open after accepted goals. If health is lost, the
         # existing arm holds/watchdogs remain authoritative; retain grip targets.
         monitor.connect()
+        if args.phase=='close':
+            report['possible_contact_members']=list(clients_to_close)
+            report['allowed_next_action']='HOLD'
+            save()
         with ThreadPoolExecutor(max_workers=2) as pool:
             futures={arm:pool.submit(action,arm)for arm in clients_to_close};report['finger_commands']=[dict(arm=a,operation=args.phase,force_raw=0,speed_raw=16)for a in clients_to_close];save()
             while not all(f.done()for f in futures.values()):

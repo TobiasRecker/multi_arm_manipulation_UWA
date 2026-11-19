@@ -1,6 +1,6 @@
 # Karton loslassen und Home,19.11.2026
 
-- Status: aktiv, Hauptagent dieses Kartonchats; reale rechte Arme exklusiv auf N100.
+- Status: abgeschlossen, Hauptagent dieses Kartonchats; reale rechte Arme exklusiv auf N100.
 - Nutzer bestätigt Griff, bezeichnet bisherigen Zeitlauf als nicht repräsentativ.
   Neuer Auftrag: aufliegenden Karton loslassen, nach oben freifahren, beide
   rechten Arme Home; anschließend wartet das System, Nutzer stellt Karton um.
@@ -40,3 +40,26 @@
   desabgebrochenen Starts. Eigener Task ohneCPUQuota, CPUWeight200; keine
   Änderung derWächter/UR-Dienste oderphysischerGeschwindigkeiten. NeueFahrt
   `home-replanned/` läuft; Ergebnisse erstnachEndhaltbehaupten.
+
+## Aktuell: Karton frei, rechte Arme Home,19.11.2026
+
+- Nutzer bestätigt letzten Griff, verlangt Loslassen und Home, um Karton
+  anschließend anders hinzustellen. Ausgeführt: beide rechten Greifer offen,
+  OBJ3/POS3/PRE0/FOR0/SPE16, keine Kontaktmitglieder. Beide150mm nach oben
+  freigefahren; anschließend beide tatsächlich Home mit Endholds bestätigt.
+  Schlussnachweis `setup/tasks/carton_reposition_20261119/home-replanned/`
+  `result.json`: PASS/BOTH_OPEN_AT_HOME_HELD, beide executed=true.
+- **Jetzt keine neue Greifsequenz. Auf Nutzerumstellung warten.** Danach neues
+  Foto und neue Kartonpose; alte Registrierungen sind historische Referenzen,
+  keine aktuelle Zielpose des versetzten Kartons. Virtuelle Kontaktgruppe
+  hat keine aktiven Mitglieder mehr; frühere Kontakt-HOLD-Aussagen historisch.
+- N100 bleibt alleiniger UR-Steuerhost.0,1rad/s/0,2rad/s²/40mm/Trendruhe und
+  bestehende Frische-/native Stopps unverändert. Linke Arme nicht verfahren.
+- Release hatte kurzen Halte-Transienten trotz bestätigtem Öffnen; kein zweites
+  Fingerziel. Erster Homeversuch durch generische Epochen-/Zeitprüfung gestoppt,
+  alle4 Resourceholds/Latches bestätigt. Neuer Snapshot und komplett neue
+  Homebahn anschließend tatsächlich PASS. Keine Überwachungsgrenze gelockert.
+  Ursache der Zeitdiagnose noch nicht genauer belegt; Fehlerbelege erhalten.
+- Lokale Nachweise unter `setup/tasks/carton_reposition_20261119/n100-evidence/`,
+  N100-Originale unter `~/uwa-ur-runtime/setup/tasks/carton_reposition_20261119/`.
+  Arbeitsstand `work/carton-reposition-20261119.md` im Zellrepo abgeschlossen.

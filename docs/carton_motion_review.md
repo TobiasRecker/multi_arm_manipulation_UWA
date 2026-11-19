@@ -1,0 +1,153 @@
+# Kartonfahrt mit Aufgabenfreigabe
+
+## Am Arbeitsplatz
+
+**UWA Robot Power → Motion review** öffnet die englische Freigabeansicht.
+Das vorhandene Startmenü auf ROSmini verwendet den N100. Bei einer offenen
+Entscheidung meldet sich das Tray-Symbol und öffnet die Anfrage. Das Schließen
+des Fensters lässt die App im Tray. **Quit** beendet sie und widerruft die
+bekannte Bereichsfreigabe.
+
+1. Vor Ort den freien Bereich prüfen und für die Arbeitssitzung freigeben.
+   Beim Betreten oder Umbauen den Bereich widerrufen. Der Widerruf läuft über
+   den N100. Bei unterbrochener Verbindung zeigt die GUI an, ob der N100 den
+   Widerruf angenommen hat. Der Hardware-Not-Halt ist vor Ort wirksam.
+2. Für den tischgestützten Kartongriff Vertrauen und Höchsttempo einstellen.
+   *Unsure* fragt nach jedem Fahrplan, *Familiar* erlaubt automatisch niedriges
+   und *Confident* zusätzlich mittleres Risiko. Der Agent beschreibt Arme,
+   Kontakt, Abstand und verbleibende Unsicherheit. Hohes Risiko geht an die
+   Bedienperson. Vertrauen steigt nur durch deren Eingabe.
+3. Bei einer Anfrage den geplanten Ablauf in RViz abspielen oder mit dem
+   Zeitschieber durchgehen. Die Übersicht nennt gemeinsame und serielle
+   Abschnitte. Aufnahmezeit und vergrößerbares Einfahrbild erscheinen bei der
+   Kontaktentscheidung. **Approve**, **Reject** und **Request new plan** gelten
+   jeweils für die angezeigte Version. Ein erneuter Start nach Verbindungsabbruch
+   liest zuerst den N100-Status.
+4. Die beiden Höchstwerte gelten gleichzeitig. 100 % entsprechen 250 mm/s
+   Translation am Werkzeug und 0,3 rad/s je Gelenk. 33⅓ % entsprechen 83⅓ mm/s
+   und 0,1 rad/s. Eine bewilligte Testreihe legt Namen und kleinsten
+   Prozentwert fest. Der Agent darf innerhalb dieses Bereichs absenken.
+   Die Bedienperson bestätigt jede Erhöhung, auch nach Ende der Testreihe.
+   Änderungen am Tempo verwerfen offene Freigaben und entziehen einer aktiven
+   Ausführung die bisherige Freigabe.
+
+## Ablauf für den planenden Agenten
+
+Der N100 verwaltet Entscheidungen in `~/.local/state/uwa-motion-review`.
+Der Kartonablauf läuft dort in der Zellumgebung. Rezept, native OAK-Aufnahme,
+Metadaten und zugehörige Intrinsics vorab wie im
+[realen Kartonablauf](carton_supported_grasp.md) bereitstellen. Das
+Registrierungsfoto nach der Bereichsfreigabe dieser Sitzung aufnehmen.
+Für versetzte Kartons akzeptiert der Zyklus die bestehenden Registrierungsoptionen
+`--roi`, `--face-roi` und `--camera-reference-pose`. Vor dem
+Hardwarepilot muss der N100 dieselbe geprüfte Runner- und Guard-Version
+betreiben. Andere Fahranforderungen und die Bedienung am Pendant mit dkkken
+anwesenden Personen abstimmen.
+
+```bash
+python3 tools/run_carton_cycle.py --output "$run" --image "$image" --metadata "$metadata" \
+    --intrinsics "$intrinsics" --recipe "$recipe" --risk "$risk" --reason "$assessment" --execute
+```
+
+`risk` ist `low`, `medium` oder `high`. Ohne Einschätzung ist die Bedienperson
+gefragt. Das Werkzeug bereitet beide vollständigen Fahrphasen vor. Während
+einer offenen Entscheidung wartet derselbe Prozess und prüft anschließend
+den aktuellen Start. Regulärer Programmstart unter bestätigten unbeladenen
+Holds wird nur mit dem zusätzlichen Argument `--start-ros-programs` in die
+Bewertung aufgenommen und erfordert die ausdrückliche Bedienentscheidung.
+Er darf das bereits geladene External-Control-Programm mit Play starten.
+Power, Bremsen und Programmvorbereitung bleiben im separaten Betriebsablauf.
+Eine Ablehnung oder Neuplanungsanforderung beendet
+diesen Versuch. Für eine geänderte Bahn ein neues Ausgabeverzeichnis wählen.
+
+Nach bestätigter offener Einfahrt ein **neues OAK4-Standardbild** zusammen
+mit dessen tatsächlicher `metadata.json` vom Arbeitsplatz auf den N100
+übertragen. Originaldateiname und gemeinsames Aufnahmeverzeichnis erhalten.
+Die UTC-Zeit der Aufnahme muss hinter der Einfahrt liegen. Die
+Arbeitsstation und der N100 müssen dafür übereinstimmende Wanduhren haben.
+Mit `--visual-confirmed` bestätigt der Agent, dass er genau dieses Bild
+auf offene Backen, Lage an den Wandseiten und Tischauflage geprüft hat.
+
+```bash
+python3 tools/run_carton_cycle.py --output "$run" --close-after-review --execute \
+    --entry-image "$capture/standard.png" --entry-metadata "$capture/metadata.json" \
+    --visual-confirmed --risk medium --reason "$observed_alignment"
+```
+
+Ohne `--visual-confirmed` geht die Bildentscheidung auch bei hohem Vertrauen
+an die Bedienperson. Die GUI bindet Foto und Entscheidung an denselben
+Auftrag. Nach dem Greifschluss bleibt die Gruppe im überwachten HOLD. Bei
+möglichem Teilkontakt die tatsächlich gemeldeten Kontaktmitglieder im
+Greiferbericht prüfen. Der Pilot endet hier.
+
+Die Agentenschnittstelle für eine bereits vom Bediener bewilligte Testreihe
+lautet `python3 tools/motion_review.py reduce --series-name "$series" --speed-percent "$lower"`.
+`area`, `settings` und `decide` sind Bedienoperationen der GUI. Die Freigabe
+ist eine Regel des Pilotablaufs. Berechtigte direkte Treiber- und
+Pendantzugriffe existieren weiterhin.
+
+## Welche Prüfungen wann laufen
+
+| Zeitpunkt | Befund und Verwendung |
+| --- | --- |
+| Entwicklung oder Profilwechsel | Mock-Fehlerfälle, Stoppvermessung und die Qualifikation eines höheren realen Betriebspunkts. Die strengere Ruheprobe aus der Stoppvermessung gehört hierhin. |
+| Planung | Aktueller Start, Kartonpose und Werkzeuggeometrie, aufgabengerechte IK, vollständige Hochanfahrt und Einfahrt, Gelenk- und TCP-Grenzen der interpolierten Befehle. Versuch einer gemeinsamen Bahn, anschließend Prüfung der getrennt möglichen Armfortschritte und Stopps. Bei Engstellen werden Teilgruppen oder eine serielle Folge direkt im Plan gespeichert. |
+| Freigabe | Ein N100-Entscheid zur ganzen Armfahrt, gegebenenfalls ein weiterer zum tatsächlichen Kontakt. Bahninhalt, Tempo und zulässiger Programmstart gehören zur Revision. Jeder Abschnitt kann genau einmal in der geprüften Reihenfolge gestartet werden. |
+| Vor und während Bewegung | Frischer Iststart und native Zustände, Programm, Modell, Greifer, Ressourcenzuordnung und Betriebsruhe. Guard, Supervisor und Watchdog begleiten die Ausführung. Bahnabweichung, Geschwindigkeitsüberschreitung und unerwarteter Kraftwechsel bei der offenen Einfahrt können stoppen. |
+| Stillstand und Leerlauf | Der Kartonpilot verwendet die bestehende Freigabe über Positionstrend und Positionsspanne. Bei Kontakt, möglicher Fremdbewegung oder unbestätigter Lage bleibt die Schutzpflicht aktiv. Ein freier Leerlauf setzt einen nachgewiesenen exklusiven Sperrmechanismus für sämtliche Fahrquellen voraus. Der reale N100 hat direkte ROS- und Pendantquellen. Dort bleibt der Schutz bewaffnet. |
+
+Die GUI-Prüfsumme bezieht sich auf die vorgelegten Sollbahnen. Eine Abweichung
+eines realen Arms innerhalb seines geprüften Fortschrittskorridors ist möglich.
+Die 40-mm-Modellreserve des aktuellen Kartonprofils ist geometrisch. Die neue
+Parallelprüfung berichtet Mindestschranken und den Einfluss der Stoppannahmen.
+Diese Modellgrößen sind keine gemessenen Bremswege. Näheres im
+[Hardware-Schutzkonzept](four_arm_hardware_motion.md).
+
+## Ergebnisse und lokale Reproduktion
+
+Beide ROS-2-Lyrical-Pakete ließen sich bauen. Die [107 lokalen Tests](../../../setup/tasks/carton_motion_review_20261119/pilot-tests.xml) und zehn isolierte Freigabetests auf dem N100 bestanden. Auf dem N100 ist der GUI-Endpunkt aktiv. Die neue Bewegungssteuerung liegt als inaktiver Kandidat bereit. Die erste reale Vergleichsfahrt steht aus.
+
+Zwei fertig gefüllte Stores aus demselben Karton-Archivfall liegen auf ROSmini.
+Aus `~/UWA_ws` startet die zweite Variante direkt mit einer gleichzeitigen
+offenen Einfahrt der rechten Arme:
+
+```bash
+python3 src/multi_arm_manipulation_UWA/scripts/ur_power_gui.py \
+    --review-mock setup/tasks/carton_motion_review_20261119/gui-mock-parallel
+```
+
+Für die Vorschau beim tatsächlichen Startwert das letzte Argument durch
+`setup/tasks/carton_motion_review_20261119/gui-mock` ersetzen. Der Vergleich
+zeigt die Wahl des Zeitplans anhand der konfigurierten Stoppannahmen:
+
+| Archivfall | Modellbefund |
+| --- | --- |
+| Rechte Arme, 33⅓ % | Untere geometrische Abstandsschranke bei der Hochanfahrt 146 mm, bei der offenen Einfahrt 168 mm. Mit unabhängigem Stopp beider bewegter Arme ergibt sich für das geprüfte Paar jeweils eine untere Schranke von −145 mm bei geforderten 40 mm. Beide Phasen werden seriell vorgeschlagen. |
+| Dieselben rechten Arme, Offlinebeispiel bei 10 % | Die Hochanfahrt bleibt seriell. Die Einfahrt passt gemeinsam, einschließlich Stoppannahmen mit mindestens 56 mm Modellabstand. Nominal 23,28 s gemeinsam gegenüber 46,53 s seriell **bei denselben 10 %**. |
+| Archivierte Diagonalfahrt, links vorne und rechts hinten | Beide historischen Bahnen passen in eine gemeinsame Gruppe. 18,75 s nominelle Gruppenzeit, 37,50 s nacheinander. |
+
+Die Modellwerte beschreiben die archivierten Startzustände. Eine negative
+untere Schranke bedeutet, dass der Nachweis für diese Variante scheitert.
+Die Referenzdateien liegen im [lokalen Ergebnisordner](../../../setup/tasks/carton_motion_review_20261119/).
+
+`workflow.json` enthält Wanddauer je Phase, Wartezeit auf Entscheidungen,
+deren Herkunft und Zeit seit Workflowstart bis zur ersten beobachteten
+Bewegung. Die Phasen `high` und `entry` verwenden getrennte native
+Gelenkmessungen für Dauer und Überlappung. Es zählen aufeinanderfolgende
+Samples mit mindestens einem Gelenk über 0,003 rad/s und höchstens 0,15 s
+Abstand. Fehlende Daten werden ausgewiesen. Den Zeitvergleich mit denselben
+Start- und Endzuständen und demselben Tempowert durchführen.
+
+Vom Arbeitsplatz aus lässt sich ein vorhandenes Paar geprüfter
+`--prepare-reviewed`-Bündel im isolierten Mock-Store anzeigen:
+
+```bash
+python3 tools/motion_review.py --store "$mock_dir" replay \
+    --high-bundle "$high_bundle" --entry-bundle "$entry_bundle"
+python3 scripts/ur_power_gui.py --review-mock "$mock_dir"
+```
+
+Im Mock hat das Power-Fenster keine Verbindung zu Robotersteuerungen. RViz
+nutzt eine eigene lokale Vorschaudomain 74. Für die Bedienung des N100 stehen
+die [Installationsvarianten](../../../setup/n100/ur-runtime/README.md)
+zur Verfügung.

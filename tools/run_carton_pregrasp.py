@@ -21,6 +21,8 @@ from controller_manager_msgs.srv import ListControllers,SwitchController,ListHar
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO/'uwa_cell_tasks'))
 from uwa_cell_tasks.hardware_carton_approach import checked_problem, unloaded_open_status, unloaded_guard_ready, wait_service_spinning, unloaded_program_start_ready, retained_holds
+from uwa_cell_tasks.reviewed_carton import (add_review_arguments, check_review_arguments, carton_representation,check_boundaries,
+    compile_groups, file_hash, preview_model, read_bundle, retime, speed_envelope, write_bundle)
 from uwa_cell_motion.common import ROBOT_IDS, joint_names, dump,arm_velocity_limit
 from uwa_cell_motion.execution import motion_context
 from uwa_cell_motion.hardware_execution import HardwareClient
@@ -28,32 +30,39 @@ from uwa_cell_motion.single_execution import follow
 from uwa_cell_motion.hardware_state import require_domain,signature,Peer
 from uwa_cell_gripper_control.api import endpoint
 from uwa_cell_gazebo.charuco_views import Chain
-from hardware_stop_probe import Observer,quiet_window
+from hardware_stop_probe import Observer
 
 
 class ApproachClient(HardwareClient):
     def __init__(self,problem,arm,observer):
         self.observer=observer
-        super().__init__(problem,'hardware',[arm])
+        arms=[arm] if isinstance(arm,str) else list(arm)
+        self.observers={arms[0]:observer} if isinstance(arm,str) else observer
+        super().__init__(problem,'hardware',arms)
         self.witness_peer=Peer();self.witness=None
         self.create_subscription(String,'/uwa_cell/hardware_watchdog/status',self.witness_message,1)
         # RMW entity creation/destruction can block independently of service
         # discovery. Provision persistent RPCs before collecting driver history,
         # and destroy them only with the node after its final resource hold.
         self.rpc_clients={};self.service_timings=[]
-        for kind,name in [(Trigger,'/uwa_cell/collision_supervisor/'+arm+'/reset'),(Trigger,'/uwa_cell/hardware_watchdog/reset')]+[
-            (kind,problem.profiles[arm]['namespace']+'/controller_manager/'+endpoint)
-            for kind,endpoint in [(ListHardwareComponents,'list_hardware_components'),
-                                  (ListControllers,'list_controllers'),(SwitchController,'switch_controller')]]:
+        services=[(Trigger,'/uwa_cell/hardware_watchdog/reset')]
+        for selected in arms:
+            services.append((Trigger,'/uwa_cell/collision_supervisor/'+selected+'/reset'))
+            services.extend((kind,problem.profiles[selected]['namespace']+'/controller_manager/'+name)
+                            for kind,name in [(ListHardwareComponents,'list_hardware_components'),
+                                              (ListControllers,'list_controllers'),(SwitchController,'switch_controller')])
+        for kind,name in services:
             self.rpc_clients[(kind,name)]=self.create_client(kind,name)
     def witness_message(self,msg):
         value=self.accept(self.witness_peer,msg)
         if value is not None:self.witness=value
     def spin_once(self,timeout_sec=.01):
         super().spin_once(timeout_sec=timeout_sec)
-        rows=self.observer.snapshot()
-        if self.observer.error or not rows or time.monotonic()-rows[-1]['received']>.2:
-            raise RuntimeError('Independent native approach trace stale/failed: '+str(self.observer.error))
+        for arm,observer in self.observers.items():
+            with observer.lock:
+                last=observer.rows[-1]['received'] if observer.rows else -float('inf')
+            if observer.error or time.monotonic()-last>.2:
+                raise RuntimeError(arm+': independent native trace stale/failed: '+str(observer.error))
     def service(self,kind,name,request):
         started=time.monotonic();key=(kind,name)
         if key not in self.rpc_clients:self.rpc_clients[key]=self.create_client(kind,name)
@@ -90,6 +99,39 @@ def read_gripper_status(client, arm):
     return json.loads(response.message)
 
 
+def reviewed_command(args, phase, problem, source, start, end, selected, make_parts, output, report,
+                     binding, scene, end_phase, observer_type, extra_collision=None):
+    from prepare_carton_open_entry import shell_boxes
+    if args.prepare_reviewed:
+        started=time.monotonic()
+        envelope=speed_envelope(problem,selected,args.command_velocity,args.tcp_speed_m_s)
+        from uwa_cell_motion.pilot_interlock import validate_operating_point
+        validate_operating_point(problem,'hardware',envelope)
+        parts={arm:[retime(part,arm,envelope) for part in trajectories]
+               for arm,trajectories in make_parts().items()}
+        groups,attempts=compile_groups(problem,start,parts,args.command_velocity,extra_collision)
+        for group in groups:
+            for arm,trajectory in group['trajectories'].items():
+                envelope.check_trajectory(arm,trajectory['points'])
+        check_boundaries(dict(start=start,groups=groups),start,end,selected)
+        preview=preview_model(problem,output)
+        carton=carton_representation(binding,scene,shell_boxes)
+        write_bundle(args.prepare_reviewed,phase,problem,start,groups,attempts,source,preview,
+                     carton,args.command_velocity,args.tcp_speed_m_s,REPO/'tools')
+        report.update(success=True,phase='PREPARED_FOR_REVIEW',reviewed_bundle=str(args.prepare_reviewed),
+                      reviewed_sha256=file_hash(args.prepare_reviewed),preparation_s=time.monotonic()-started,
+                      duration_s=sum(g['duration_s'] for g in groups),coordination=[g['arms'] for g in groups],
+                      coordination_attempts=attempts)
+        dump(output/'result.json',report)
+        return 0
+    from uwa_cell_tasks.reviewed_carton_execution import run_bundle
+    bundle=read_bundle(args.reviewed,args.reviewed_sha256,phase,problem,source,REPO/'tools')
+    check_boundaries(bundle,start,end,selected)
+    return run_bundle(problem,bundle,args,output,report,client_type=ApproachClient,observer_type=observer_type,
+                      read_gripper=read_gripper_status,start_programs=start_ros_programs_held,
+                      end_phase=end_phase,extra_collision=extra_collision)
+
+
 def start_ros_programs_held(client, root, problem, segment, save):
     # Geometry has already been compiled. Startup is explicit,
     # once only, with all four open/unloaded and resource-held.
@@ -106,6 +148,14 @@ def start_ros_programs_held(client, root, problem, segment, save):
         not unloaded_program_start_ready(client.guard,client.supervisor,client.records,client.owned)):
         raise RuntimeError('Explicit program start requires fresh all-four unloaded holds and native quiet/normal state')
     segment['program_start_eligible_under_all_holds']=True;save()
+    startup=getattr(client,'startup_review',None)
+    if startup:
+        from uwa_cell_tasks.motion_review import ReviewStore
+        store=ReviewStore()
+        def authorize():
+            store.check_active(*startup)
+            store.check_startup(startup[0],startup[2])
+        authorize()
     # The existing independent witness can latch during service startup.
     # Reset only that software witness under the proven unloaded holds; wait
     # for its already-issued native STOP calls to finish BEFORE pressing Play.
@@ -116,8 +166,12 @@ def start_ros_programs_held(client, root, problem, segment, save):
                 not client.witness.get('tripped',True) and client.witness.get('native_stop_pending')==[],timeout=3.)
     import subprocess
     from concurrent.futures import ThreadPoolExecutor
+    command=[sys.executable,str(REPO/'scripts/ur_bringup.py'),'--apply','--json']
+    if startup:
+        authorize()
+        command.extend(['--review-id',startup[0],'--review-component',startup[1],'--review-stage',startup[2]])
     with (root/'program-start.json').open('w') as program_log, ThreadPoolExecutor(max_workers=1) as pool:
-        future=pool.submit(subprocess.run,[sys.executable,str(REPO/'scripts/ur_bringup.py'),'--apply','--json'],stdout=program_log,stderr=subprocess.PIPE,text=True,timeout=30.)
+        future=pool.submit(subprocess.run,command,stdout=program_log,stderr=subprocess.PIPE,text=True,timeout=30.)
         client.wait(future.done,35.)
         answer=future.result()
     segment['program_start']=dict(returncode=answer.returncode,stderr=answer.stderr,report=str(root/'program-start.json'));save()
@@ -134,11 +188,17 @@ def main():
     p.add_argument('--execute', action='store_true')
     p.add_argument('--reset-unloaded', action='store_true')
     p.add_argument('--start-ros-programs', action='store_true', help='Explicit one-time unloaded ROS startup after geometry compilation, under all four holds; no native safety acknowledgement')
+    add_review_arguments(p)
     args = p.parse_args()
+    check_review_arguments(p,args)
+    if not (args.prepare_reviewed or args.reviewed) and args.tcp_speed_m_s is not None:
+        p.error('Configurable TCP speed requires the reviewed approach')
     if args.execute and not args.reset_unloaded: p.error('Explicit --reset-unloaded required for this unloaded commissioning sequence')
     if args.start_ros_programs and not args.execute:p.error('--start-ros-programs requires --execute')
     root = args.output.resolve(); root.mkdir(parents=True, exist_ok=False)
+    model_started = time.monotonic()
     problem = checked_problem(root/'model', args.evidence, args.inventory, command_velocity=args.command_velocity)
+    model_scene_build_s = time.monotonic()-model_started
     evidence = problem.pregrasp_evidence; path = evidence['path']; expected = dict(evidence['saved_start'])
     binding=json.loads(Path(evidence['inputs']['object_pose']['path']).read_text())
     anchor=Chain(problem.original_description,'world','right_front_base_link').forward({})
@@ -152,9 +212,10 @@ def main():
         not np.allclose(binding['T_world_object_candidate'],evidence['world_object_candidate'],atol=1e-9,rtol=0)):
         raise ValueError('Object pose must explicitly use the current right-front model anchor; old frozen world pose is not an execution target')
     selected=[args.arm] if args.arm else ['right_front','right_rear']
-    if path['kind'] not in ('serial_direct','simultaneous_direct') and not (path['kind']in ('single_arm_via_upright','rrt_detour')and len(selected)==1):
+    reviewed=bool(args.prepare_reviewed or args.reviewed)
+    if path['kind'] not in ('serial_direct','simultaneous_direct') and not (path['kind']in ('single_arm_via_upright','rrt_detour')and (len(selected)==1 or reviewed)):
         raise ValueError('Expected direct or explicitly checked single-arm upright pregrasp path')
-    if any(not 0<args.command_velocity<=arm_velocity_limit(problem.cfg,r) for r in selected):
+    if not args.reviewed and any(not 0<args.command_velocity<=arm_velocity_limit(problem.cfg,r) for r in selected):
         raise ValueError('Command speed must not exceed a selected monitored arm cap')
     required_names=[j for r in selected for j in joint_names(r)]
     if path['joint_names']!=required_names or len(path['waypoints'][-1])!=len(required_names) or not np.isfinite(path['waypoints'][-1]).all():
@@ -173,11 +234,33 @@ def main():
             raise ValueError('Saved joint endpoint does not match the high pregrasp frame')
     report = dict(hardware_signature=signature(problem,'hardware'),supervision_limits={k:problem.cfg[k] for k in ('state_timeout_s','heartbeat_timeout_s','standstill_velocity_rad_s')},success=False, phase='OFFLINE_CHECK', arm_commands=[], finger_commands=[],
                   loaded_motion=False, command_velocity_rad_s=args.command_velocity,
+                  model_scene_build_s=model_scene_build_s,
                   monitored_velocity_rad_s={r:arm_velocity_limit(problem.cfg,r) for r in selected}, segments=[],
                   base_guard_signature=problem.signature, supplemental_object_signature=problem.supplemental_signature)
     record = root/'result.json'
     def save():dump(record, report)
     save()
+    if reviewed:
+        from run_carton_open_entry import timed_primitive
+        from uwa_cell_motion.carton_paths import joint_segment
+        def parts():
+            result={}
+            for arm in selected:
+                indexes=[path['joint_names'].index(j) for j in joint_names(arm)]
+                vertices=np.asarray(path['waypoints'])[:,indexes]
+                moves=[(a,b) for a,b in zip(vertices,vertices[1:]) if np.max(abs(a-b))>1e-12]
+                if moves:
+                    result[arm]=[timed_primitive(joint_segment(a,b),a,args.command_velocity,
+                                                 problem.cfg['acceleration_limit_rad_s2']) for a,b in moves]
+                else:
+                    # A timed constant command retains the participating arm in the group.
+                    point=dict(positions=vertices[0].tolist(),velocities=[0.]*6,accelerations=[0.]*6)
+                    result[arm]=[dict(duration_s=.1,waypoints=vertices[[0,-1]].tolist(),
+                                      points=[dict(point,time=0.),dict(point,time=.1)])]
+            return result
+        scene=json.loads(Path(evidence['inputs']['contact_scene']['path']).read_text())
+        return reviewed_command(args,'high',problem,args.evidence/'evidence.json',expected,dict(expected,**end),selected,parts,root,
+                                report,binding,scene,'AT_HIGH_PREGRASP_HELD_NO_CONTACT',Observer)
     for index, arm in enumerate(selected):
         # Derive and fully recheck serial motion even when the offline source
         # offered a simultaneous direct path. Both arms are still unloaded.
@@ -249,7 +332,8 @@ def main():
                                  phase_count=0, guard_stops=0)
                 report['phase'] = 'APPROACH_'+arm; save()
                 report['arm_commands'].append(dict(arm=arm, goal=request['goals'][arm], requested_monotonic_s=time.monotonic())); save()
-                follow(problem, client, plan, execution)
+                if not follow(problem, client, plan, execution):
+                    raise RuntimeError(arm+': approach was not dispatched or did not complete')
                 segment['execution'] = execution
                 if execution.get('stopped_arms'): raise RuntimeError(arm+': interlock stopped approach')
                 segment['hold_after'] = client.stop([arm])
@@ -257,9 +341,6 @@ def main():
                     raise RuntimeError(arm+': final hold unconfirmed')
                 client.wait(lambda:arm in client.guard.get('stationary_arms',[]), timeout=3., health=True)
                 segment['standstill_confirmed_by_guard'] = True
-                client.wait(lambda:quiet_window([r for r in observer.snapshot() if r['received']>=time.monotonic()-.55]),
-                            timeout=5.,health=True)
-                segment['independent_quiet_window_confirmed']=True
                 segment['final_positions'] = dict(client.positions)
                 segment['executed'] = True; dump(root/(arm+'-execution.json'), execution); save()
             except BaseException as error:

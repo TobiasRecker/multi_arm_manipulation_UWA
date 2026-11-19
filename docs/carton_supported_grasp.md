@@ -1,13 +1,15 @@
 # Karton greifen: kurzer realer Ablauf
 
-Aktuell19.11.2026,13:01: Beide rechten Greifer halten den aufliegenden Karton
-nach Wiederholung über den N100. Abschlussprüfung PASS, beide OBJ2 und frischer
-statischer Endhalt bestätigt. Gemeinsamer virtueller Objektframe eingefroren;
-jetzt nur HOLD, keine unabhängige Armfahrt und keine automatische Erholung.
-Das positionsbasierte Ruheprofil ist aktiv und auch für künftige Kartonabläufe
-vom Nutzer freigegeben. Seit letztem Home rund19min05s inklusive Softwarefehler
-und Korrekturen, kein störungsfreier Zeitbenchmark. Nachweise/aktueller Zustand
-im HANDOVER und `work/carton-cycle-n100-20261119.md`.
+Der [neue Kartonpilot mit Aufgabenfreigabe und RViz](carton_motion_review.md)
+hat einen eigenen Ablauf. Die folgenden Bedienhinweise beschreiben den
+bisherigen auf der realen Zelle gefahrenen Stand.
+
+Aktuell19.11.2026: Der Karton wurde umgestellt und seine neue Pose aus einem
+aktuellen OAK-Bild erkannt. Anfahrt und komplette offene Einfahrt sind offline
+vorbereitet und geprüft (`carton_new_pose_20261119/prepared.json`). Der Nutzer
+hat die Hardware vorübergehend gestoppt: **bis zu seiner Fortsetzung keine
+Programmstarts oder Arm-/Greiferziele**. Letzter bestätigter Ausgangszustand
+Home/offen; frische Startbindung und Bereitschaft vor Ausführung prüfen.
 
 UR-Treiber/Guard/Greifer/Executor jetzt auf N100 `~/uwa-ur-runtime`, Domain66/
 LOCALHOST; GUI auf ROSmini mit`--n100`. Keine parallelen ROSmini-Hardwaredienste.
@@ -134,3 +136,21 @@ offen und alle Arme frisch stationär/gehalten/normal bestätigen, dann vorhande
 unbeladenen Startpfad verwenden. Keine Freigabe nach Kontakt, keine Quittierung
 nativer Sicherheitsmeldungen. Der Standard sendet weiterhin kein Play.
 Greiferstatus liest persistent über dieselben RPC-Endpunkte jeweils neu vom Gerät.
+
+
+## Verdecktes Board und verkürzte Druckflächen
+
+`register_carton_from_oak.py` kann mit `--camera-reference-pose` eine vorherige
+vollständige gleich fokussierte Boardregistrierung nutzen. Die aktuelle Aufnahme
+muss mindestens vier verteilte Marker bestätigen (RMS<2px/max<4px). Diese
+Option übernimmt nur den Kamerabezug; der Karton wird neu geschätzt. Eine neue
+freie Kameraregistrierung verlangt weiterhin mindestens48Ecken. Ketten aus
+bereits nur teilweise bestätigten Referenzen werden abgelehnt.
+
+Bei starker Verkürzung ist `--planar-texture` verfügbar: affine Merkmalsansichten,
+panelweise Zuordnung und planare Homographie-Konsensbildung vor IPPE. Mindestens
+24Inlier, Positivtiefe, Mehrdeutigkeitsprüfung und die vorhandenen Reprojektions-
+und Mehrhypothesenprüfungen bleiben bestehen. `--roi`/`--face-roi` müssen zur
+aktuellen nativen Aufnahme passen. Bericht benennt Verfahren und Referenzpfad.
+Dies ist bildbasierte Registrierung mit Tischauflageannahme, keine absolute
+Genauigkeits-/Greifkraftqualifikation.

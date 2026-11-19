@@ -33,6 +33,13 @@ def config(path=None):
         path = Path(get_package_share_directory('uwa_cell_motion'))/'config/motion.yaml'
     data = yaml.safe_load(Path(path).read_text())
     for name, value in data.items():
+        if name == 'pilot_operating_qualification':
+            if (not isinstance(value, dict) or set(value) != {'path','sha256'}
+                    or not isinstance(value['path'],str) or not Path(value['path']).is_absolute()
+                    or not isinstance(value['sha256'],str) or len(value['sha256']) != 64
+                    or any(c not in '0123456789abcdef' for c in value['sha256'])):
+                raise ValueError('Absolute path and SHA-256 of the measured operating-point qualification required')
+            continue
         if name=='standstill_velocity_measure':
             if value not in ('peak','position_trend'):raise ValueError('Unknown standstill velocity measure')
             continue

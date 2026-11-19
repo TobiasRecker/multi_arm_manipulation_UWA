@@ -40,16 +40,29 @@ def estimate(points,pixels,K,D, *, threshold=4.,min_inliers=24):
     if np.linalg.matrix_rank(points-points.mean(axis=0))<2:
         return PoseResult('LOST',reason='Degenerate model features')
     cv2.setRNGSeed(1749)
-    ok,rv,tv,index=cv2.solvePnPRansac(points,pixels,K,D,iterationsCount=1500,
-        reprojectionError=threshold,confidence=.999,flags=cv2.SOLVEPNP_EPNP)
-    if not ok or index is None or len(index)<min_inliers:return PoseResult('LOST',reason='PnP consensus insufficient')
+    centered=points-points.mean(axis=0);_,singular_input,axes=np.linalg.svd(centered,full_matrices=False)
+    if singular_input[2]<1e-5:
+        # Select planar consensus in its own two coordinates. An EPNP minimal
+        # sample can be ill-conditioned on a wall (including y=0), rejecting
+        # correct matches before the existing IPPE ambiguity check is reached.
+        plane_points=centered@axes[:2].T
+        undistorted=cv2.undistortPoints(pixels[:,None,:],K,D,P=K).reshape(-1,2)
+        _,mask=cv2.findHomography(plane_points,undistorted,cv2.RANSAC,threshold,
+                                  maxIters=1500,confidence=.999)
+        index=None if mask is None else np.flatnonzero(mask.ravel())
+        if index is None or len(index)<min_inliers:return PoseResult('LOST',reason='Planar consensus insufficient')
+        rv=tv=None
+    else:
+        ok,rv,tv,index=cv2.solvePnPRansac(points,pixels,K,D,iterationsCount=1500,
+            reprojectionError=threshold,confidence=.999,flags=cv2.SOLVEPNP_EPNP)
+        if not ok or index is None or len(index)<min_inliers:return PoseResult('LOST',reason='PnP consensus insufficient')
     index=index.ravel();obj=points[index];pix=pixels[index]
     # Planar patches can produce two solutions: score both positive-depth IPPE
     # candidates, and reject unresolved ambiguities rather than choosing a prior.
     singular=np.linalg.svd(obj-obj.mean(axis=0),compute_uv=False)
     if singular[1]<.005:return PoseResult('LOST',reason='Insufficient spatial feature spread')
     planar=singular[2]<1e-5
-    candidates=[(rv,tv)]
+    candidates=[] if rv is None else [(rv,tv)]
     if planar:
         plane=cv2.solvePnPGeneric(obj,pix,K,D,flags=cv2.SOLVEPNP_IPPE)
         if plane[0]:candidates=list(zip(plane[1],plane[2]))

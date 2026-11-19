@@ -1,5 +1,10 @@
 # UWA four-arm laboratory cell
 
+**UWA Robot Power → Motion review** shows the carton pilot’s planned arm
+groups, risk assessment, speed limits, RViz playback and contact photograph.
+The operator can try the archived task in a local mock session. See the
+[carton review and execution guide](docs/carton_motion_review.md).
+
 All four grippers now have shared ROS actions, status services and Python/CLI
 helpers for opening, closing with an explicit raw-force setting and relative
 opening. The persistent service defaults to monitor mode. See the
@@ -15,13 +20,12 @@ hardware at the retained0.1rad/s command limit, with open grippers and confirmed
 final holds. No grasp or lift was attempted. See the
 [current evidence and photo](work/carton-pregrasp-20261118.md).
 
-On19November both right arms completed the corrected approach and open entry
-using the N100 runtime. Both grippers closed on the table-supported carton and
-passed final static hold/contact checks. The common virtual object frame is
-frozen: HOLD only, no independent loaded arm motion or automatic recovery.
-The position-trend standstill profile is approved for future carton runs. The
-repeat included software interruptions and is not a clean cycle-time benchmark.
-See the [workflow and evidence](docs/carton_supported_grasp.md).
+On19November both right arms completed the corrected supported grasp using
+the N100 runtime. On the user's next request the carton was released and
+both right arms returned to Home with open grippers and confirmed holds.
+Wait for the user to reposition the carton; register its new pose before
+another grasp. The position-trend standstill profile is approved for future
+carton runs. See the [workflow and evidence](docs/carton_supported_grasp.md).
 
 Open **UWA Robot Power** from the application menu for all four arms.
 **Standby** stops ROS on the robots and switches off the drives; **Start + ROS**

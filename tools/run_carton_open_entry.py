@@ -15,8 +15,9 @@ from uwa_cell_motion.carton_paths import evaluate
 from uwa_cell_motion.execution import motion_context
 from uwa_cell_motion.single_execution import follow
 from uwa_cell_gripper_control.client import GripperClient
-from hardware_stop_probe import Observer,quiet_window
-from run_carton_pregrasp import ApproachClient,start_ros_programs_held,approach_resources,read_gripper_status
+from hardware_stop_probe import Observer
+from run_carton_pregrasp import ApproachClient,start_ros_programs_held,approach_resources,read_gripper_status,reviewed_command
+from uwa_cell_tasks.reviewed_carton import add_review_arguments,check_review_arguments
 from prepare_carton_open_entry import open_model
 
 
@@ -107,14 +108,43 @@ class EntryClient(ApproachClient):
 
 
 def main():
-    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--plan',type=Path,required=True);ap.add_argument('--output',type=Path,required=True);ap.add_argument('--inventory',type=Path,default=REPO/'config/hardware_inventory.yaml');ap.add_argument('--execute',action='store_true');ap.add_argument('--reset-unloaded',action='store_true');ap.add_argument('--start-ros-programs',action='store_true');args=ap.parse_args()
+    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--plan',type=Path,required=True);ap.add_argument('--output',type=Path,required=True);ap.add_argument('--inventory',type=Path,default=REPO/'config/hardware_inventory.yaml');ap.add_argument('--execute',action='store_true');ap.add_argument('--reset-unloaded',action='store_true');ap.add_argument('--start-ros-programs',action='store_true')
+    ap.add_argument('--command-velocity',type=float,default=.1)
+    add_review_arguments(ap);args=ap.parse_args();check_review_arguments(ap,args)
+    if not (args.prepare_reviewed or args.reviewed) and (args.command_velocity!=.1 or args.tcp_speed_m_s is not None):
+        ap.error('Configurable speed envelopes require the reviewed entry')
     if args.execute and not args.reset_unloaded:ap.error('Explicit --reset-unloaded required')
-    plan=json.loads(args.plan.read_text());assert plan['success'] and plan['executable'] is False
+    plan=json.loads(args.plan.read_text())
+    if plan.get('success') is not True or plan.get('executable') is not False:
+        raise ValueError('Successful offline entry plan required')
     for path,digest in plan['inputs'].items():
         if hashlib.sha256(Path(path).read_bytes()).hexdigest()!=digest:raise ValueError('Entry source changed: '+path)
-    evidence_path=next(Path(p)for p in plan['inputs']if p.endswith('/evidence.json'));e=json.loads(evidence_path.read_text());binding=json.loads(Path(e['inputs']['object_pose']['path']).read_text());scene=json.loads(Path(e['inputs']['contact_scene']['path']).read_text());out=args.output.resolve();out.mkdir(parents=True,exist_ok=False);p=EntryProblem(out/'model',e['configuration'],args.inventory);assert p.signature==plan['base_signature'];models={a:open_model(p,binding,scene,a,out/('open-'+a))for a in ['right_front','right_rear']}
+    evidence_path=next(Path(p)for p in plan['inputs']if p.endswith('/evidence.json'));e=json.loads(evidence_path.read_text());binding=json.loads(Path(e['inputs']['object_pose']['path']).read_text());scene=json.loads(Path(e['inputs']['contact_scene']['path']).read_text());out=args.output.resolve();out.mkdir(parents=True,exist_ok=False)
+    model_started=time.monotonic()
+    p=EntryProblem(out/'model',e['configuration'],args.inventory)
+    if p.signature!=plan['base_signature']:raise ValueError('Entry model signature changed')
+    # Both tools see the same registered carton; open_model verifies that binding.
+    model=open_model(p,binding,scene,'right_front',out/'open-right_front')
+    models={a:model for a in ('right_front','right_rear')}
     report=dict(hardware_signature=signature(p,'hardware'),model_signature=p.signature,supervision_limits={k:p.cfg[k] for k in ('state_timeout_s','heartbeat_timeout_s','standstill_velocity_rad_s')},success=False,phase='OFFLINE',arm_commands=[],finger_commands=[],loaded_motion=False,command_velocity_rad_s=.1,segments=[],plan=str(args.plan.resolve()),plan_sha256=hashlib.sha256(args.plan.read_bytes()).hexdigest(),wrench_scope='Native wrench DELTA10N/1.5Nm abort; not jaw-force metrology')
+    report['model_scene_build_s']=time.monotonic()-model_started
     def save():dump(out/'result.json',report)
+    if args.prepare_reviewed or args.reviewed:
+        if plan.get('motion_kind') is not None:
+            raise ValueError('Reviewed entry supports the open approach to the stationary carton')
+        arms=['right_front','right_rear']
+        def parts():
+            result={}
+            for arm in arms:
+                segments=[s for s in plan['segments'] if s['arm']==arm]
+                if [s['name'] for s in segments]!=['ALIGN','ENTRY']:
+                    raise ValueError('Reviewed entry requires ALIGN and ENTRY for each arm')
+                result[arm]=[timed_primitive(s['primitive'],s['primitive']['positions'][0],
+                                             args.command_velocity,p.cfg['acceleration_limit_rad_s2'])
+                             for s in segments]
+            return result
+        return reviewed_command(args,'entry',p,args.plan,plan['segments'][0]['request']['start'],plan['final_positions'],arms,
+                                parts,out,report,binding,scene,'BOTH_OPEN_AT_WALL_HELD_NO_CLOSE',ForceObserver,model)
     # Recheck every complete segment before explicit program startup/activation.
     for s in plan['segments']:
         p.current_arm=s['arm'];p.current_open=models[s['arm']];p.current_primitive=s['primitive'];p.time_parameterize(s['request'],[])
@@ -125,8 +155,8 @@ def main():
             ob,client=resources[arm];record=dict(arm=arm);report['segments'].append(record)
             try:
                 deadline=time.monotonic()+3
-                while not quiet_window(ob.snapshot()[-12:]):
-                    if ob.error or time.monotonic()>deadline:raise RuntimeError('No independent quiet prewindow')
+                while len(ob.snapshot())<10:
+                    if ob.error or time.monotonic()>deadline:raise RuntimeError('Independent native force baseline unavailable')
                     time.sleep(.02)
                 for r in ROBOT_IDS:
                     status=read_gripper_status(client,r)
@@ -160,7 +190,7 @@ def main():
                 if execution.get('stopped_arms'):raise RuntimeError('Entry interlock stopped arm')
                 record['hold_after']=client.stop([arm]);save()
                 if not all(record['hold_after'][k]for k in ['resource_holds_confirmed','latches_confirmed']):raise RuntimeError('Entry hold unconfirmed')
-                client.wait(lambda:arm in client.guard['stationary_arms'] and quiet_window(ob.snapshot()[-12:]),5.,health=True);record.update(executed=True,final_positions=dict(client.positions));save()
+                client.wait(lambda:arm in client.guard['stationary_arms'],5.,health=True);record.update(executed=True,final_positions=dict(client.positions));save()
             except BaseException as error:
                 report.update(error=str(error),phase='HELD_ENTRY_ABORTED');import traceback;report['traceback']=traceback.format_exc()
                 if client is not None:

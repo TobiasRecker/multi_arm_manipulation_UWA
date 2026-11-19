@@ -27,6 +27,7 @@ from .hardware_model import HardwareProblem,matching_arm
 from .hardware_state import require_domain,signature,packet,Peer,DeviceStates,RtdeStates
 from .hardware_ports import StopPort,standstill_deadline_expired
 from .status_markers import interlock_markers
+from .pilot_interlock import PilotGuardChannel
 
 
 def decode(message):
@@ -45,6 +46,13 @@ class HardwareGuard(MotionNode):
         self.names=self.problem.names;self.model=self.problem.spheres;self.cfg=cfg;self.core=GuardState(cfg)
         self.signature=self.problem.signature;self.hardware_signature=signature(self.problem,mode)
         self.mode,self.armed=mode,armed;self.instance=str(uuid.uuid4());self.sequence=0
+        self.pilot_channel = None
+        self.pilot_error = None
+        if armed:
+            try:self.pilot_channel = PilotGuardChannel(self.problem,mode,self.hardware_signature,self.instance)
+            except (OSError,ValueError,TypeError,KeyError) as error:
+                self.pilot_error = str(error)
+                self.get_logger().error('Reviewed execution unavailable: '+str(error))
         self.last_tick_start=None;self.last_tick_duration_s=None;self.tick_overruns=0
         self.positions={};self.pairs=[];self.records={};self.playing={};self.supervisor_status={};self.supervisor=Peer();self.model_match={r:False for r in ROBOT_IDS}
         self.source=source or (RtdeStates(self.problem.profiles,cfg['state_timeout_s']) if mode=='hardware' else DeviceStates())
@@ -106,7 +114,16 @@ class HardwareGuard(MotionNode):
         now=time.monotonic()
         interval=None if self.last_tick_start is None else now-self.last_tick_start
         self.last_tick_start=now
-        try:world,available=self.update(now);status=self.core.evaluate(self.pairs,now,now)
+        pilot_status = dict(state='PILOT_UNAVAILABLE' if self.armed else 'MONITOR_ONLY',
+                            exclusive_commands_proved=False, error=self.pilot_error)
+        try:
+            world,available=self.update(now);status=self.core.evaluate(self.pairs,now,now)
+            if self.pilot_channel is not None:
+                status['stationary_arms'] = [r for r in ROBOT_IDS if self.core.fresh(r,now,now) and self.core.stationary(r,now)]
+                extra,pilot_status = self.pilot_channel.tick(now,self.records,status,self.supervisor_status,available)
+                if extra:
+                    self.core.external_faults.extend(extra)
+                    status = self.core.evaluate(self.pairs,now,now)
         except Exception as error:
             self.core.latched.update(ROBOT_IDS);world={};available=False
             status=dict(state='STATE STALE',blocked_arms=list(ROBOT_IDS),faults=[dict(arms=list(ROBOT_IDS),reason=str(error))],latched_causes=[],reset_sequence=self.core.reset_sequence,reset_arms=[])
@@ -116,6 +133,7 @@ class HardwareGuard(MotionNode):
         self.previous_blocked=blocked
         self.sequence+=1
         status.update(packet(self.hardware_signature,self.armed,self.instance,self.sequence),evaluated_monotonic_s=now,pairs=self.pairs,
+            pilot=pilot_status,
             timing=dict(evaluation_ms=1000*(time.monotonic()-now),interval_ms=None if interval is None else interval*1000,
                 previous_callback_ms=None if self.last_tick_duration_s is None else self.last_tick_duration_s*1000,
                 budget_ms=1000/self.cfg['rate_hz'],callback_overruns=self.tick_overruns),
@@ -150,6 +168,7 @@ class HardwareGuard(MotionNode):
         except Exception as error:response.success=False;response.message=str(error)
         return response
     def destroy_node(self):
+        if self.pilot_channel is not None:self.pilot_channel.close()
         if hasattr(self.source,'close'):self.source.close()
         self.directory.cleanup();return super().destroy_node()
 
