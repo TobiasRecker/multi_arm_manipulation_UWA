@@ -1,5 +1,31 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Parallelfahrt: konkreter Planungsblocker, 19.11.2026
+
+- Nutzer fragt ausdrücklich nach weiterhin fehlender Gleichzeitigkeit und
+  bekräftigt deren frühere Freigabe/Anforderung. Aktueller Plan attempt11
+  wartet unverändert auf Motion review und enthält weiterhin serielle Gruppen.
+  Diese Analyse verändert keine Freigabe, Betriebsgrenze oder Hardwareaktion.
+- `reviewed_carton.py:prove_group` erzwingt bei zwei bewegten Armen über
+  `stopping_reserve_policy='enforce'` zusätzliche unabhängige Brems-/Latenz-
+  hüllen, obwohl das aktive Profil `geometric_only` verwendet. Auch die
+  gerichteten Stoppboxen werden für bewegte Paare zusätzlich berechnet.
+  Das ist eine Inkonsistenz zwischen Betriebsprofil und neuem Parallelprüfer.
+- Konkrete attempt11-Untergrenzen im Modell für RF/RR: hohe Anfahrt rein
+  geometrisch 41,36 mm, mit zusätzlicher Stopphülle −144,79 mm; Einfahrt
+  geometrisch 160,21 mm, mit Stopphülle −122,58 mm. Gefordert 40 mm.
+  Negative Nachweisschranke ist kein beobachteter Kontakt. Gemeinsame Gruppen
+  scheitern hier an dieser Zusatzprüfung; `compile_groups` wählt daraufhin
+  RF und RR nacheinander. Keine fehlende Nutzerfreigabe für Gleichzeitigkeit.
+- Der Prüfer kombiniert Armfortschritte unabhängig, statt die durch einen
+  gemeinsamen Zeitplan tatsächlich erreichbaren Abweichungen zu begrenzen.
+  Das verstärkt die Konservativität; ein gemeinsamer Start wird vom Executor
+  bereits unterstützt. Tatsächliche zeitgleiche Hardwareausführung ist durch
+  diese Analyse nicht nachgewiesen. Clock-/Istwertabbrüche separat behandeln.
+- Erkenntnis dokumentiert, noch keine Schutzberechnung geändert. Vor einem
+  Parallelplan Profilkonsistenz und gemeinsamen Zeitablauf konkret prüfen;
+  keinen bloßen Grenzabbau als bestandenen Modellnachweis ausgeben.
+
 ## Aktuell19.11.2026: Uhrmessung korrigiert, neue Reviewvorbereitung
 
 - Operatorfreigegebeneattempt10 brach vor jedem Arm-/Greiferziel am Clockflag
@@ -18,14 +44,15 @@
   Discoverydaten bis380mswurden nichtalsgültigerFahrstartverwendet; normale
   Connect-/Frischebedingungen bleiben erforderlich. Softwarebug belegt,
   vollständigeErklärung beiderRealabbrüche weiterunbewiesen.
-- attempt11 neuekompletteReviewversion ausfrischemIststart inVorbereitung,
-  gleicheSHA-geprüfteaktuelleZwei-Bild-Registrierung. KeinePower-/Play-/Reset-/
+- attempt11 vollständig vorbereitet, WAITING_FOR_MOTION_REVIEW,
+  Ticket3240fa2e55a34fcbb8916764a00c7b53, neueOperatorentscheidung angefragt.
+  GleicheSHA-geprüfteaktuelleZwei-Bild-Registrierung. KeinePower-/Play-/Reset-/
   Arm-/Greiferaktion bisneuer tatsächlicherGUI-Entscheidung. Kontext/Restunsicherheit
   imReviewgrundtext; keinealteFreigabewiederverwenden.
 - Daten setup/tasks/carton_motion_review_20261119/; Arbeitsstand imZellrepo
   work/carton-motion-review-real-20261119.md.
 
-## Aktuell19.11.2026: zweites Review vor Fahrziel abgebrochen
+## Historisch19.11.2026: zweites Review vor Fahrziel abgebrochen
 
 - OperatorApprove für neueMotionrevision8f5bf4ac92c04c9995302bcb6452857a
   tatsächlich aufN100 angekommen. attempt10 startete reguläreROS-Programme
@@ -44,7 +71,7 @@
   und alignment-with-model-clock-events.log aufN100; Arbeitsstand imZellrepo
   work/carton-motion-review-real-20261119.md.
 
-## Aktuell19.11.2026: freigegebene Hochanfahrt gestoppt, kein Griff
+## Historisch19.11.2026: freigegebene Hochanfahrt gestoppt, kein Griff
 
 - Operator hat Motionrevisionf252b03840344e83a5dea047c5f1cade tatsächlich in
   echter GUI bewilligt; Herkunftoperator, inzwischen Vertrauen50/Familiar,
@@ -78,7 +105,7 @@
   work/carton-motion-review-real-20261119.md. Vor weiterer Bewegung neuen
   tatsächlichen Start prüfen und neue genaue Reviewrevision vorlegen.
 
-## Aktuell19.11.2026: Motion-review-Planung wieder aufgenommen
+## Historisch19.11.2026: Motion-review-Planung wieder aufgenommen
 
 - Nutzer erlaubt nach der POWER_OFF-Rückfrage ausdrücklich weiterzumachen.
   Vorhandener echter GUI-Start lief bereits; eigener Drives-only-Versuch wurde
@@ -203,6 +230,14 @@
   N100-Originale unter `~/uwa-ur-runtime/setup/tasks/carton_reposition_20261119/`.
   Arbeitsstand `work/carton-reposition-20261119.md` im Zellrepo abgeschlossen.
 
+
+## Sicherheitsprotokoll in UWA Robot Power, 19.11.2026
+
+- Noch offen: Beim nächsten regulären Betriebswechsel des N100-Wächters übernimmt der betreuende Agent die zusätzlichen Journalmeldungen und dokumentiert hier den geprüften Laufstand. Ein Termin ist bisher nicht vereinbart. [Übernahme und Nachweis](../../setup/n100/ur-runtime/README.md#guard-protokoll-beim-nächsten-betriebswechsel)
+
+- Über **Safety log → Save logs** oder die gleichnamige Desktop-Aktion kann die Bedienperson den N100-Bericht auch während einer offenen Freigabesitzung lesen und auf ROSmini sichern. Alte abgeschlossene Fehler lösen beim Öffnen des aktualisierten Power-Fensters keine erneute Entscheidungsaufforderung aus. [Bedienung](docs/ur_power_gui.md#investigating-a-stop)
+- Erster geprüfter Export um 16:36 Uhr Perth. Von den letzten 600 nativen STOP-Anforderungen entfielen 578 innerhalb desselben rund 38-sekündigen Fensters auf den fehlenden oder ausgelösten Supervisor-Heartbeat, je eine Wiederholungsfolge pro Arm. Die Ausgabe kennzeichnet die Begrenzung der Journalquelle. Versuch 09 endete nach 3,75 s gemessener Bewegung von rechts vorne. Versuch 10 scheiterte vor dem ersten Armziel der Hochanfahrt. [Lesbarer Bericht](../../setup/logs/uwa-control/sessions/20261119_163625_617287_e599ab6a/safety-report.txt)
+- Protokolländerung am Wächter lokal getestet. Künftige Einträge enthalten neue Ursachen im bestehenden Halt sowie bei DISTANCE den verfügbaren Abstand und Grenzwert. Der N100-Bericht funktioniert auch mit dem bisherigen Journalformat. 81 gemeinsame Regressionen für GUI, Export und Schutzlogik bestanden. In diesem Diagnoseauftrag keine Hardwareaktion und kein Neustart eines Schutzdienstes.
 
 ## Freigabe-Pilot für Kartonfahrten, 19.11.2026
 
@@ -1150,6 +1185,58 @@
   sechs axiale Zustellungen, zwei Kreise und unveränderten Stiftarm beim
   Gegenwandkreis. `run01` kommt ohne geplanten früheren Rückweg auf 519,87 s.
   [Testanleitung](docs/agent_trials/HOUSE_DRILL_TRIAL_04.md).
+
+- Nutzer beauftragt einen Vergleich mit dem schnellen eigenständigen
+  Modell. `agy models` bestätigt `gemini-4-hydrogen-high` für das Konto.
+  Vergleich `session-4eu3n4pm`, `--case house-drill --mode=auto --model
+  gemini-4-hydrogen-high`, gleiche Aufgaben-JSON und unveränderte relevante
+  Planer-/Prüferquellen gegenüber dem Neon-Wiederholungslauf bei neuerem
+  Startcommit (`0d45594`). Hydrogen-`High` und Modus `auto` im Log
+  bestätigt. Beide Läufe ohne manuelle Befehlsfreigabe.
+- Hydrogen bis erste vollständige Modellbahn 13:12,4 min und bis `trial_end`
+  22:13,5 min. Neon-Vergleich 16:28,0 min und 28:21,1 min. Einzelbeobachtung
+  mit einem Modellplanlauf bei Hydrogen (101,79 s) und zwei bei Neon
+  (93,72 s und 92,83 s). Hauptrepo-Audit besteht für Hydrogen `run01`,
+  503,81 s Modellzeit bei 46 Phasen und 0,098483 rad/s Peak. Ergebnis liegt
+  unter `setup/agent_trials/house_drill_gemini_20261119/session-4eu3n4pm`.
+- Hydrogen exportierte per `git diff` nur den ungestagten Test. Vollständiger
+  Patch nach dem Lauf unter `review/changes-full.patch` ergänzt, sechs
+  Dateien gegen den festgehaltenen Startcommit in frischer Kopie eingespielt
+  und bytegleich verglichen. Originalabgabe und ihre Zeitmessung erhalten.
+  Vollständiger Export gegen Startcommit im Trace-Protokoll dokumentiert.
+
+## Gazebo-Vorprüfung der Haus- und Bohrdemo, 2026-11-19
+
+- Nutzer möchte die jüngste Demo zuerst in Gazebo sehen, bevor er
+  der Übertragung auf die reale Zelle vertraut. Maßgeblich ist
+  `house_drill_gemini_20261119/session-x6z3i06d/trial/artifacts/run02`.
+  Hauptrepo-Audit erneut bestanden: acht Hauskanten, sechs axiale
+  3-mm-Zustellzyklen auf Ø150 mm, zwei 22-mm-Kreise einschließlich
+  Gegenwandkreis mit festem Stift und Rückkehr. 498,13 s Modellzeit
+  und 0,097973 rad/s gemessener Modellspitzenwert.
+- Kurzer Offline-Transfercheck mit geschlossenen Gazebo-Greifern,
+  FCL und allen sechs Armpaaren. Griff aus dem bisherigen Kontaktlauf
+  als Offline-Annahme übernommen, originale Arbeitsarmbahn beibehalten.
+  Alle drei getesteten Zweige bestehen 39 Phasen bis durch Haus, sechs
+  Zustellungen und Rückzug zur freien Vorpose. Der ursprüngliche
+  Greifzweig kollidiert beim Weiterdrehen von `right_front`
+  (Wrist3/Unterarm). In beiden Alternativfällen besteht der Übergang
+  mit 641 Stützstellen. Die IK-Fortsetzung von `right_rear` bricht
+  beim Gegenwandkreis mit festem Stift bei Bahnparameter 0,04297 ab
+  (257 Stützstellen). Das ist ein lokaler Suchbefund.
+- Der aktuelle Gazebo-Adapter akzeptiert drei Kreise mit 25 mm fest
+  hinterlegtem Radius. Für diese Demo braucht er pro Phase die
+  jeweilige Bahnreferenz: 22-mm-Kreis, Liniensegment, axialer
+  Zustell-/Rückzugskorridor und festes Werkzeug bei Kartonbewegung.
+  Nächster geeigneter Kontaktlauf: Hub und Unterseite mit virtuellem
+  Werkzeug. Greifstabilität, Bahnfehler, sechs Zustellungen und
+  Rückweg aus Gazebo-Telemetrie auswerten. Kraft, Drehmoment und
+  Materialeingriff beim Bohren sind zusätzliche Prozessgrößen.
+- Daten und Fehlerzustände:
+  `setup/tasks/house_drill_gazebo_preflight_20261119_01/`.
+  Der Transfercheck lief ausschließlich offline. Der frühere
+  Gazebo-Hubstopp wegen passiver Fingergeschwindigkeit bleibt ein
+  offener Kontaktphysikbefund für die neue Sequenz.
 
 ## Neuplanung des Gazebo-Drei-Kreis-Ablaufs, 2026-11-18
 

@@ -60,8 +60,7 @@ class ReviewPanel(QtWidgets.QWidget):
         self.revoking = False
         self.ignore_reply = False
         self.unseen = set()
-        self.history_loaded = False
-        self.latest_history_id = None
+        self.history_ids = None
         self.speed_draft = None
         self.photo = QtGui.QPixmap()
         self.photo_dialog = None
@@ -336,18 +335,22 @@ class ReviewPanel(QtWidgets.QWidget):
         self.select()
         if fresh:
             self.attention.emit(fresh[0]['summary'])
-        recent = next(iter(data.get('history') or []), None)
+        history = data.get('history') or []
+        recent = next(iter(history), None)
         if recent and not items:
             self.details.setText('Last request · ' + recent['status'].upper()
                                  + (' · ' + recent['reason'] if recent.get('reason') else ''))
             if recent['status'] in ('blocked', 'failed', 'interrupted'):
                 self.summary.setText('CARTON PILOT · ' + recent['status'].upper())
-        if recent:
-            if (self.history_loaded and recent['id'] != self.latest_history_id
-                    and recent['status'] in ('blocked', 'failed', 'interrupted')):
-                self.faultNotice.emit(recent.get('reason') or 'Carton execution interrupted')
-            self.latest_history_id = recent['id']
-        self.history_loaded = True
+        if self.history_ids is not None:
+            faults = [row for row in history if row['id'] not in self.history_ids
+                      and row['status'] in ('blocked', 'failed', 'interrupted')]
+            if faults:
+                message = faults[0].get('reason') or 'Carton execution interrupted'
+                if len(faults) > 1:
+                    message = f'{len(faults)} interrupted requests · Latest: {message}'
+                self.faultNotice.emit(message)
+        self.history_ids = {row['id'] for row in history}
         if reconnect or self.feedback.text().startswith('Decision recorded.'):
             self.feedback.setText('Motion review connected.' if reconnect else 'Decision recorded.')
         self.controls()

@@ -178,13 +178,15 @@ def read_guard(since, end, events):
     for pattern in ('STOP LATCHED|MONITOR WOULD STOP|HELD CONDITION', 'NATIVE STOP REQUESTED'):
         try:
             rows, clipped = journal_rows(since, end, pattern)
-            events.extend(guard_events(rows, notes))
+            window_rows = [row for row in rows if since <= int(row['__REALTIME_TIMESTAMP'])/1e6 <= end]
+            events.extend(guard_events(window_rows, notes))
             if clipped:
                 notes.append(f'{pattern} limited to newest {LOG_ROWS} records')
         except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired) as exc:
             notes.append(compact(exc))
     if notes:
-        return source('Guard journal', 'partial', f'{UNIT}: '+'. '.join(dict.fromkeys(notes)))
+        return source('Guard journal', 'partial' if events else 'unavailable',
+                      f'{UNIT}: '+'. '.join(dict.fromkeys(notes)))
     if not events:
         try:
             rows, _ = journal_rows(since, end)
@@ -370,8 +372,16 @@ def build_report(workspace, mock_store=None, hours=24, now=None):
         lines += ['', 'Recorded causes']
         lines += [f"{g['episodes']} × {g['kind']} · {g['reason']}"+
                   (f" ({g['records']} requests)" if g['records']>g['episodes'] else '') for g in grouped[:12]]
-        lines += ['', 'Latest records']
-        for item in events[:8]:
+        recent_workflows = [item for item in events if item['source']=='Carton workflow'][:3]
+        if recent_workflows:
+            lines += ['', 'Recent carton workflow blocks and aborts']
+        for item in recent_workflows:
+            lines.append(f"{item['at']} · {item['kind']} · {item['phase']} · {item['reason']}")
+            if item.get('measurements'):
+                lines.append('  '+compact(json.dumps(item['measurements'],ensure_ascii=False),700))
+            lines.append('  '+item['reference'])
+        lines += ['', 'Latest journal and review records']
+        for item in [entry for entry in events if entry['source']!='Carton workflow'][:8]:
             text = f"{item['at']}  {item['kind']} · {item['reason']}"
             if item['arms']:
                 text += ' · '+', '.join(item['arms'])

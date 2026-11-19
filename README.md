@@ -28,10 +28,14 @@ Motion review run. All four drives are ready again, with their unloaded hold tar
 to current positions under stopped programs. After operator approval, right front started the reviewed high approach
 and was stopped by the driver/native-state comparison. All arms are stationary,
 programs stopped and right grippers open; no entry or grasp occurred.
-The timing mismatch is under investigation before any further movement. The position-trend standstill profile is approved for future
+A bounded host-clock sampling correction passed software and passive N100
+checks; a new reviewed plan awaits operator approval. The previous aborts
+are not yet fully explained. The position-trend standstill profile is approved for future
 carton runs. See the [workflow and evidence](docs/carton_supported_grasp.md).
 
 Open **UWA Robot Power** from the application menu for all four arms.
+**Safety log → Save logs** shows and exports recorded N100 guard events,
+motion interruptions and review outcomes with source coverage.
 **Standby** stops ROS on the robots and switches off the drives; **Start + ROS**
 prepares them again. The control boxes stay online. See the
 [operator guide](docs/ur_power_gui.md).

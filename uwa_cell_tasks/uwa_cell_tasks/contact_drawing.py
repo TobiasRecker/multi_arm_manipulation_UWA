@@ -17,6 +17,7 @@ from .box_drawing import DrawingModel, PEN_LENGTH, SURFACES, WORKER
 from .core import ARMS, verify, write_json
 from .planning import support_exemptions
 from .scene import apply_object
+from .workpiece_paths import point_segment_distance
 
 
 class ContactDrawing:
@@ -26,8 +27,28 @@ class ContactDrawing:
         self.connectors = recipe['connectors']
         self.branch = self.reference['initial_state']
         self.trajectories = []
-        if [p['face'] for p in self.reference['phases'] if p['drawing']] != ['y_max', 'z_min', 'y_min']:
-            raise ValueError('Drawing reference must contain the three required circles')
+        self.validate_phases()
+
+    def validate_phases(self):
+        phases = self.reference['phases']
+        if not phases:
+            raise ValueError('At least one workpiece operation is required')
+        for phase in phases:
+            process = phase.get('operation')
+            if phase.get('drawing') or process:
+                if phase.get('face') not in SURFACES:
+                    raise ValueError('Unknown tool face')
+            if process:
+                if process not in ('axial_approach','axial_feed','axial_retract'):
+                    raise ValueError(f'Unexpected virtual-tool operation {process}')
+                axial = phase['axial']
+                uv = np.asarray(axial['uv_m'], dtype=float)
+                if uv.shape != (2,) or not np.isfinite(uv).all():
+                    raise ValueError('Invalid axial site')
+                if not 0. < float(axial['reference_depth_m']) <= .003:
+                    raise ValueError('Virtual axial depth must be at most 3 mm')
+                if not .003 <= float(axial['clearance_m']) <= .06:
+                    raise ValueError('Virtual axial approach outside checked range')
 
     def compile(self, problem, group, start, observed_asset, output, *, health=None):
         """Bind both holders to fresh offsets, keep the reviewed worker path."""
@@ -156,29 +177,66 @@ class ContactDrawing:
                 spline = BPoly.from_derivatives(times, values)
             checks = np.linspace(0,duration,2*len(times)-1)
             error = 0.
+            operation = phase.get('operation')
+            face = phase.get('face')
+            axial = phase.get('axial', {})
+            stroke = phase.get('stroke')
+            endpoints_local = ([np.asarray(stroke[key],dtype=float) for key in
+                               ('start_local_m','end_local_m')] if stroke else None)
+            allowance = None
+            if operation in ('axial_feed','axial_retract'):
+                allowance = dict(operation=operation,face=face,uv_m=axial['uv_m'],
+                                 max_depth_m=axial['reference_depth_m'])
+            if operation:
+                frame = checker.surface_frame(face)
+                normal = np.asarray(frame.outward)
+                tangent = np.asarray(frame.u_axis)
+                transverse = np.cross(normal,tangent)
+                heights = []
             for index,q in enumerate(spline(checks)):
                 if health is not None and index % 64 == 0:
                     health()
                 checked = dict(start,**dict(zip(names,q)))
                 pose = chain.forward(checked) @ inv
                 try:
-                    checker.check(pose,checked)
+                    checker.check(pose,checked,axial_allowance=allowance)
                 except ValueError as error:
                     write_json(Path(output)/'drawing-rejection.json', dict(
                         phase=phase_id, sample=index, time_s=float(checks[index]), reason=str(error),
                         state=checked, pose=pose.tolist()))
                     raise ValueError(f'{phase_id}, sample {index}: {error}') from error
-                if phase.get('drawing'):
+                if phase.get('drawing') or operation:
                     tool = problem.chains[WORKER].forward(checked)
                     tip = tool[:3,3]+PEN_LENGTH*tool[:3,2]
                     local = pose[:3,:3].T@(tip-pose[:3,3])
-                    axis, sign = SURFACES[phase['face']]
-                    error = max(error,abs(local[axis]-sign*dims[axis]/2),
-                                abs(np.linalg.norm(np.delete(local,axis))-.025))
+                    if operation:
+                        rel = local - frame.origin_m
+                        lateral = np.linalg.norm(np.array([rel @ tangent,rel @ transverse])-axial['uv_m'])
+                        height = float(rel @ normal)
+                        lo = -axial['reference_depth_m'] if allowance else 0.
+                        axis_error = np.arccos(np.clip((pose[:3,:3].T @ tool[:3,2]) @ (-normal), -1., 1.))
+                        if height < lo-.0002 or height > axial['clearance_m']+.00025 or axis_error > .001:
+                            raise ValueError(f'{phase_id}: virtual tip leaves the defined axial corridor')
+                        heights.append(height)
+                        error = max(error,float(lateral))
+                    elif endpoints_local is not None:
+                        error = max(error,point_segment_distance(local,*endpoints_local))
+                    else:
+                        axis,sign = SURFACES[face]
+                        radius = phase.get('circle_radius_m',.025)
+                        error = max(error,abs(local[axis]-sign*dims[axis]/2),
+                                    abs(np.linalg.norm(np.delete(local,axis))-radius))
                     if error>.00025:
                         raise ValueError(f'{phase_id}: marker deviation exceeds 0.25 mm')
                 if phase_id=='lift' and index==len(checks)-1:
                     self.lifted = pose @ center_to_asset
+            if operation:
+                depth = axial['reference_depth_m']
+                clearance = axial['clearance_m']
+                endpoints = {'axial_approach':(clearance,0.), 'axial_feed':(0.,-depth),
+                             'axial_retract':(-depth,clearance)}[operation]
+                if max(abs(heights[0]-endpoints[0]),abs(heights[-1]-endpoints[1]))>.00025:
+                    raise ValueError(f'{phase_id}: axial endpoints differ from reference')
             commands = [dict(time=float(t),positions=q.tolist(),velocities=v.tolist(),accelerations=a.tolist())
                         for t,(q,v,a) in zip(times,values)]
             motion = dict(phase=phase_id,joint_names=names,points=commands,duration_s=duration,

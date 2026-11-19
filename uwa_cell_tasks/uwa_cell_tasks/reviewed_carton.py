@@ -272,12 +272,16 @@ def prove_group(problem, start, trajectories, joint_limit, extra_collision=None)
     """Independent swept volumes include unequal progress and independent stops."""
     geometry = problem.spheres
     arms = list(trajectories)
+    policy=problem.cfg.get('stopping_reserve_policy','enforce')
+    if policy not in ('enforce','geometric_only'):
+        raise ValueError('Unknown stopping reserve policy')
+    independent_stop=len(arms)>1 and policy=='enforce'
     for arm, trajectory in trajectories.items():
         nominal = [start[j] for j in joint_names(arm)]
         if not np.allclose(nominal, trajectory['points'][0]['positions'], atol=1e-9, rtol=0):
             raise ValueError('Frozen trajectory does not start at the scheduled state')
     boxes,stopped = {},{}
-    pads, stopping_pads = {}, {}
+    pads = {}
     for arm in problem.names:
         cap = np.zeros(geometry.motion_radii[arm].shape[1])
         if arm in arms:
@@ -286,7 +290,7 @@ def prove_group(problem, start, trajectories, joint_limit, extra_collision=None)
         cfg=problem.cfg
         dq=bound*(cfg['state_timeout_s']+1/cfg['rate_hz']+cfg['stop_latency_s'])+bound**2/(2*cfg['braking_acceleration_rad_s2'])
         result=swept_arm(problem,start,arm,trajectories.get(arm),extra_collision,
-                         dq if len(arms)>1 else np.zeros(6))
+                         dq if independent_stop else np.zeros(6))
         if result is None:
             return None, arm+' self, static, object, or frozen-neighbor collision'
         boxes[arm],stopped[arm]=result
@@ -295,35 +299,32 @@ def prove_group(problem, start, trajectories, joint_limit, extra_collision=None)
                                   profile['state_timeout_s'], profile)['total_m']
             return geometry.radii[arm]+budget
         pads[arm]=padded_radii(problem.cfg)
-        # The extra independent stop proof is for two *moving* neighbors.
-        # The active profile retains its usual clearance to a held obstacle.
-        stopping_pads[arm]=padded_radii(dict(problem.cfg,stopping_reserve_policy='enforce'))
     smallest = np.inf
     pairs=[]
     for a, b in itertools.combinations(problem.names, 2):
         if a not in arms and b not in arms:
             continue
-        radii=stopping_pads if a in arms and b in arms else pads
+        radii=pads
         margin=problem.cfg['model_margin_m']
         geometric_radii=geometry.radii[a][:,None]+geometry.radii[b]
         geom=independent_clearance(boxes[a],boxes[b],geometric_radii,margin)
         scalar=independent_clearance(boxes[a],boxes[b],radii[a][:,None]+radii[b],margin)
         free=scalar
-        if a in arms and b in arms:
+        if independent_stop and a in arms and b in arms:
             directed=independent_clearance(stopped[a],stopped[b],geometric_radii,margin)
             free=max(directed,scalar)
         pairs.append(dict(arms=[a,b],geometric_clearance_lower_bound_m=geom,
                           clearance_with_stop_lower_bound_m=free,model_margin_m=margin,
                           scalar_stop_lower_bound_m=scalar,
-                          reserve_policy='independently_braking_pair' if a in arms and b in arms else
-                              problem.cfg.get('stopping_reserve_policy','enforce'),
+                          reserve_policy='independently_braking_pair' if independent_stop and a in arms and b in arms else policy,
                           stop_allowance_in_clearance_bound_m=max(0.,geom-free)))
         smallest = min(smallest, free)
         if free <= margin+1e-12:
             return dict(pairs=pairs), f'{a}/{b}: independent swept clearance {free:.4f} m'
     return dict(min_clearance_m=smallest, model_margin_m=problem.cfg['model_margin_m'],
                 tracking_corridor_rad=TRACKING_TOLERANCE,pairs=pairs,
-                stop_policy='independent_stop_envelopes' if len(arms)>1 else problem.cfg.get('stopping_reserve_policy','enforce')), None
+                stop_policy='independent_stop_envelopes' if independent_stop else policy,
+                progress_policy='all_independent_positions'), None
 
 
 def compile_groups(problem, start, parts_by_arm, joint_limit, extra_collision=None):
@@ -396,6 +397,8 @@ def checker_identity(tools_directory=None):
              'uwa_cell_tasks.hardware_carton_approach','uwa_cell_motion.carton_paths',
              'uwa_cell_motion.planning','uwa_cell_motion.common','uwa_cell_motion.geometry',
              'uwa_cell_motion.hardware_model','uwa_cell_motion.stopping_reserve',
+             'uwa_cell_motion.hardware_execution','uwa_cell_motion.state_alignment',
+             'uwa_cell_motion.driver_history',
              'uwa_cell_motion.motion_envelope','uwa_cell_motion.pilot_interlock',
              'uwa_cell_motion.single_execution','uwa_cell_calibration.model',
              'uwa_cell_control.scan_separation','uwa_cell_control.view_geometry')

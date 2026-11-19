@@ -281,6 +281,7 @@ def test_review_to_two_controller_results_without_ros(monkeypatch,tmp_path,mode)
     monkeypatch.setattr(hardware_execution.MotionNode,'__init__',lambda self,*args,**opts:None)
     monkeypatch.setattr(hardware_execution,'ActionClient',lambda node,typ,path:fixture.action(path))
     monkeypatch.setattr(hardware_execution,'SingleThreadedExecutor',lambda:Box(add_node=lambda n:None))
+    monkeypatch.setattr(hardware_execution.HardwareClient,'start_driver_receiver',lambda self:None)
     monkeypatch.setattr(MotionClient,'spin_once',lambda self,timeout_sec=.01:fixture.spin(self,timeout_sec))
     monkeypatch.setattr(hardware_execution,'stop_profiles',lambda *args:pytest.fail('Unexpected native STOP fallback'))
     class Client(ApproachClient):

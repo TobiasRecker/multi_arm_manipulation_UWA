@@ -2,6 +2,12 @@
 
 ## Aufgabenbezogene Freigabe im Kartonpiloten, 19.11.2026
 
+- Nutzer bekräftigt am 19.11.2026 für den Kartonablauf: Die beteiligten Arme
+  sollen zeitgleich fahren, soweit der konkrete Modellnachweis gelingt.
+  Einen seriellen Rückfall nicht als Erfüllung dieses Wunsches behandeln;
+  den tatsächlichen Blocker erklären. Dies erhöht keine Geschwindigkeiten
+  und hebt keine Kollisions-, Frische- oder nativen Stopps auf.
+
 - Der Planungsagent bewertet den konkreten Auftrag anhand der beteiligten
   Arme, Abstände, Kontaktabsicht und verbleibenden Unsicherheiten. Die englische
   GUI auf ROSmini verwaltet das vom Nutzer gesetzte Vertrauen pro Aufgabe.
@@ -162,6 +168,15 @@
   automatische Shellfreigaben an die isolierte Sitzung und wörtliche
   Befehle binden. Freigabewartezeit aus CLI-Ereignissen getrennt von
   Entwicklungswandzeit, Rechenzeit und Roboter-Modellzeit auswerten.
+- Nutzerauftrag19.11.: für den schnellen Modellvergleich ein eigenes,
+  auf zügige Codeausführung ausgelegtes Modell testen. Für den ersten
+  direkten Vergleich dieselbe Aufgabe mit Hydrogen und Neon jeweils auf
+  `High` verwenden. Zeitpunkt der ersten gültigen Modellbahn und der
+  fertigen Abgabe getrennt erfassen.
+- Nutzerpräzisierung19.11. für Haus-/Bohrdemo: Ablauf zuerst mit
+  Gazebo-Nachweis beurteilen, bevor der Nutzer der Übertragung auf die
+  reale Zelle vertraut. Offline-FK/Ansicht, Kontaktphysik mit getragenem
+  Werkstück und tatsächlichen Bohrprozess getrennt belegen.
 - Nutzerpräzisierung19.11.: Zeichnen als reversibler Test für allgemeine
   werkstückbezogene Bahnen. Zielanwendungen sind unter anderem Kleben,
   Farbauftrag, Sägen/spanende Bearbeitung und Schaumauftrag am gehaltenen
@@ -177,6 +192,8 @@
   Präzisierter Entwurf: docs/interactive_code_policy_learning.md.
 
 ## Reale Bedienabläufe ohne Diagnosekaskaden (2026-11-18)
+
+- Bei einem konkreten Abbruch zuerst den aktuellen N100-Bericht aus **Safety log** oder dem passenden lokalen Export lesen und den betroffenen Versuch über dessen Workflowpfad zuordnen. Bei der nächsten regulären Aktualisierung des N100-Wächters den [offenen Übernahmepunkt](../../setup/n100/ur-runtime/README.md#guard-protokoll-beim-nächsten-betriebswechsel) bearbeiten und den Laufstand im Zell-HANDOVER festhalten.
 
 - Nutzerwunsch vom 19.11.2026: Die Ursache wiederkehrender Sperren in **UWA Robot Power** sichtbar machen. Bei der Auswertung Zeitpunkt, betroffene Arme, Auswirkung und vorhandene Messwerte zur Schwelle heranziehen. Mehrere Meldungen desselben Vorfalls und eigenständige Auslösungen unterscheiden.
 

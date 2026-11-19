@@ -336,11 +336,9 @@ def run_bundle(problem, bundle, args, output, report, *, client_type, observer_t
             # holds; recording must never delay the protective action.
             report['state_alignment']=dict(getattr(client,'alignment_diagnostics',{}))
             report['alignment_evidence']=dict(
-                clock_fault_events=list(getattr(client,'clock_fault_events',[])),
                 native_epoch_baseline=dict(getattr(client,'epochs',{})),
                 native_records=dict(getattr(client,'records',{})),
-                driver_latest=dict(getattr(client,'driver',{})),
-                driver_history={arm:list(rows)for arm,rows in getattr(client,'driver_history',{}).items()})
+                **client.driver_evidence())
             return 1
         finally:
             for arm, observer in observers.items():

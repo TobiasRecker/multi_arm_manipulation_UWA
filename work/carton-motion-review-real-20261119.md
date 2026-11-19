@@ -25,7 +25,7 @@
 - Daten setup/tasks/carton_motion_review_20261119/; Arbeitsstand imZellrepo
   work/carton-motion-review-real-20261119.md.
 
-## Aktuell19.11.2026: zweites Review vor Fahrziel abgebrochen
+## Historisch19.11.2026: zweites Review vor Fahrziel abgebrochen
 
 - OperatorApprove für neueMotionrevision8f5bf4ac92c04c9995302bcb6452857a
   tatsächlich aufN100 angekommen. attempt10 startete reguläreROS-Programme
@@ -44,7 +44,7 @@
   und alignment-with-model-clock-events.log aufN100; Arbeitsstand imZellrepo
   work/carton-motion-review-real-20261119.md.
 
-## Aktuell19.11.2026: freigegebene Hochanfahrt gestoppt, kein Griff
+## Historisch19.11.2026: freigegebene Hochanfahrt gestoppt, kein Griff
 
 - Operator hat Motionrevisionf252b03840344e83a5dea047c5f1cade tatsächlich in
   echter GUI bewilligt; Herkunftoperator, inzwischen Vertrauen50/Familiar,
@@ -69,7 +69,7 @@
   work/carton-motion-review-real-20261119.md. Vor weiterer Bewegung neuen
   tatsächlichen Start prüfen und neue genaue Reviewrevision vorlegen.
 
-## Aktuell19.11.2026: Motion-review-Planung wieder aufgenommen
+## Historisch19.11.2026: Motion-review-Planung wieder aufgenommen
 
 - Nutzer erlaubt nach der POWER_OFF-Rückfrage ausdrücklich weiterzumachen.
   Vorhandener echter GUI-Start lief bereits; eigener Drives-only-Versuch wurde
@@ -260,3 +260,59 @@
   gezielter Eskalationslauf30PASS. Source aufN100, keineDienstneustarts.
   Nachweis des konkreten altenMessfehlers ist noch keinNachweis, dass beide
   realenAbbrüche dadurch erklärt sind. PassiverN100Abgleich mitFix inArbeit.
+
+- attempt11 WAITING_FOR_MOTION_REVIEW, Ticket3240fa2e55a34fcbb8916764a00c7b53,
+  neuOperatorentscheidung inechterGUI angefragt. Vorbereitung164,935s,
+  keinweiteresArm-/Fingerziel. NeueClockmessung gebunden; alteReviewversionen
+  bleibenfailed undwerdennichtwiederverwendet.
+
+## Parallelfahrt: konkreter Planungsblocker, 19.11.2026
+
+- Nutzer fragt ausdrücklich nach weiterhin fehlender Gleichzeitigkeit und
+  bekräftigt deren frühere Freigabe/Anforderung. Aktueller Plan attempt11
+  wartet unverändert auf Motion review und enthält weiterhin serielle Gruppen.
+  Diese Analyse verändert keine Freigabe, Betriebsgrenze oder Hardwareaktion.
+- `reviewed_carton.py:prove_group` erzwingt bei zwei bewegten Armen über
+  `stopping_reserve_policy='enforce'` zusätzliche unabhängige Brems-/Latenz-
+  hüllen, obwohl das aktive Profil `geometric_only` verwendet. Auch die
+  gerichteten Stoppboxen werden für bewegte Paare zusätzlich berechnet.
+  Das ist eine Inkonsistenz zwischen Betriebsprofil und neuem Parallelprüfer.
+- Konkrete attempt11-Untergrenzen im Modell für RF/RR: hohe Anfahrt rein
+  geometrisch 41,36 mm, mit zusätzlicher Stopphülle −144,79 mm; Einfahrt
+  geometrisch 160,21 mm, mit Stopphülle −122,58 mm. Gefordert 40 mm.
+  Negative Nachweisschranke ist kein beobachteter Kontakt. Gemeinsame Gruppen
+  scheitern hier an dieser Zusatzprüfung; `compile_groups` wählt daraufhin
+  RF und RR nacheinander. Keine fehlende Nutzerfreigabe für Gleichzeitigkeit.
+- Der Prüfer kombiniert Armfortschritte unabhängig, statt die durch einen
+  gemeinsamen Zeitplan tatsächlich erreichbaren Abweichungen zu begrenzen.
+  Das verstärkt die Konservativität; ein gemeinsamer Start wird vom Executor
+  bereits unterstützt. Tatsächliche zeitgleiche Hardwareausführung ist durch
+  diese Analyse nicht nachgewiesen. Clock-/Istwertabbrüche separat behandeln.
+- Erkenntnis dokumentiert, noch keine Schutzberechnung geändert. Vor einem
+  Parallelplan Profilkonsistenz und gemeinsamen Zeitablauf konkret prüfen;
+  keinen bloßen Grenzabbau als bestandenen Modellnachweis ausgeben.
+
+
+## Fortsetzung nach Nutzer-„approved“: Parallelprofil und Empfang,19.11.2026
+
+- Read-only-Abgleich zeigt Operator hat nochattempt11 freigegeben; dieser
+  hat nurRF weiterangefahren und ist amruhendenRR-Zeitvergleich abgebrochen.
+  KonkreterNachweis: RR-Rohabweichung≤0,0000474rad, interpolierteUnsicherheit
+ 0,006293rad bei124,007msDriverhistorienlücke. Grenze0,005rad unverändert.
+  Das belegt fehlende Empfangshistorie als Ursache dieses Abbruchs, keine
+  realeRR-Positionsabweichung in dieserGröße. RF-Abbruchvergleich raw≤0,000231rad.
+- NativeSTOP aller4 bestätigt; neuerSnapshotafter-attempt11 bestätigtalle4
+  RUNNING/Normal/STOPPED/runtime1 undTrendruhe. RechtsOBJ3/POS3offen. RFq nun
+  ≈[0,13697,-1,53424,-0,81926,-1,48625,0,68666,-0,65050]rad. NochkeinKontakt.
+- Parallelprüfer respektiert nungeometric_only auchfürbewegtePaare; enforce
+  behältunabhängigeBrems-/Latenzhüllen. Geometrie,40mm, volleunabhängige
+  Fortschrittskombinationen undBahnkorridore bleiben. NochkeineRealparallelfahrt.
+- DriverHistoryReceiver erhält eigenenROSNode/Executor/Thread und128er
+  Burstpuffer. Quellzeit-,Epochen-,200msFrische-,5mradVergleichs- und
+  Lückenprüfungen unverändert; Snapshots unterLock, Workerfehler stopptHealth.
+  Hauptthread mussSamplesnichtmehrwährendFCL/RPC nebenbeientgegennehmen.
+  Ausführung/Driver-/Clock-Module ausdrücklich inReview-Quellidentitätgebunden.
+- LokalerBuild zunächst an bereitsvorhandenenAgent-Trial-Repo-Kopien im
+  Workspace-Scan gescheitert. EngerBuildnurdesMotionpakets läuft; kein
+  Original-/Fremdrepo verändert. ErsteTests dadurchneuesModulnochuninstalliert;
+  zusätzlich synthetischeStopbox-Testform korrigiert. Keine Grenzlockerung.

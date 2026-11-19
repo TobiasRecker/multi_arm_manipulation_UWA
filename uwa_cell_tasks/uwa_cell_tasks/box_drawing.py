@@ -187,7 +187,7 @@ class DrawingModel:
             raise ValueError('Worker continuation jump')
         return dict(seed, **dict(zip(names, q)))
 
-    def check(self, pose, state, *, closure_errors=None):
+    def check(self, pose, state, *, closure_errors=None, axial_allowance=None):
         h = self.holding
         if not h.full_check(pose, state):
             raise ValueError('Robot/self/environment/carton FCL collision')
@@ -210,8 +210,36 @@ class DrawingModel:
         radii = PEN_RADIUS * np.minimum(1., (PEN_LENGTH - lengths) / .006)
         local = (points - pose[:3, 3]) @ pose[:3, :3]
         distances, _ = point_box_distance(local, h.dimensions / 2)
-        if np.min(distances - radii) < -2e-4:
-            raise ValueError('Virtual marker body enters carton envelope')
+        if axial_allowance is None:
+            if np.min(distances - radii) < -2e-4:
+                raise ValueError('Virtual marker body enters carton envelope')
+        else:
+            if axial_allowance.get('operation') not in ('axial_feed', 'axial_retract'):
+                raise ValueError('Scoped tip penetration allowance is only valid for axial_feed/axial_retract')
+            frame = self.surface_frame(axial_allowance['face'])
+            normal = np.asarray(frame.outward)
+            tangent = np.asarray(frame.u_axis)
+            transverse = np.cross(normal, tangent)
+            origin = np.asarray(frame.origin_m)
+            rel = local[-1] - origin
+            lateral = float(np.hypot(rel @ tangent - axial_allowance['uv_m'][0],
+                                     rel @ transverse - axial_allowance['uv_m'][1]))
+            if lateral > 2.5e-4:
+                raise ValueError(f'Axial tip lateral deviation {lateral:.6f} m > .25 mm')
+            axis_local = pose[:3, :3].T @ tool[:3, 2]
+            axis_error = float(np.arccos(np.clip(axis_local @ (-normal), -1., 1.)))
+            if axis_error > 1e-3:
+                raise ValueError(f'Axial tool axis deviation {axis_error:.6f} rad > 1 mrad')
+            depth_limit = float(axial_allowance['max_depth_m'])
+            height = float(rel @ normal)
+            if -height > depth_limit + 2e-4:
+                raise ValueError(f'Axial tip depth {-height:.6f} m exceeds {depth_limit:.6f} m')
+            # Marker shaft above the 6 mm tapered tip keeps the exact unrelaxed carton check.
+            shaft = (PEN_LENGTH - lengths) >= .006 - 1e-9
+            if np.min(distances[shaft] - radii[shaft]) < -2e-4:
+                raise ValueError('Virtual marker shaft enters carton envelope during axial step')
+            if np.min(distances[~shaft]) < -(depth_limit + 2e-4):
+                raise ValueError('Virtual marker tip exceeds specified axial depth')
         world = self.p.spheres.world(state)
         for a in ROBOT_IDS:
             keep = np.ones(len(world[a]), dtype=bool)

@@ -97,6 +97,11 @@ Pendantzugriffe existieren weiterhin.
 
 ## Welche Prüfungen wann laufen
 
+Bei einer Sperre zeigt **UWA Robot Power → Safety log** die aufgezeichnete
+Ursache und vorhandene Messwerte. **Save logs** sichert einen aktuellen
+Bericht lokal. Über den Rechtsklick auf den Starter lässt er sich auch während
+einer offenen Freigabesitzung separat öffnen. [Bedienung und Export](ur_power_gui.md#investigating-a-stop)
+
 | Zeitpunkt | Befund und Verwendung |
 | --- | --- |
 | Entwicklung oder Profilwechsel | Mock-Fehlerfälle, Stoppvermessung und die Qualifikation eines höheren realen Betriebspunkts. Die strengere Ruheprobe aus der Stoppvermessung gehört hierhin. |

@@ -143,3 +143,44 @@ def test_force_baseline_rejects_old_samples_and_gripper_changes():
     client.jaws['right_front']=(now,closed)
     with pytest.raises(RuntimeError,match='open-jaw'):
         execution._check_jaws(client,now)
+
+
+@pytest.mark.parametrize('policy,accepted',[('geometric_only',True),('enforce',False)])
+def test_parallel_proof_honors_active_reserve_policy(monkeypatch,policy,accepted):
+    arms=['right_front','right_rear'];seen=[]
+    cfg=dict(stopping_reserve_policy=policy,state_timeout_s=.2,rate_hz=20.,stop_latency_s=1.,
+             braking_acceleration_rad_s2=.2,model_margin_m=.04,velocity_limit_rad_s=.1)
+    geometry=SimpleNamespace(motion_radii={a:np.ones((1,6))for a in arms},
+                             radii={a:np.array([.05])for a in arms})
+    p=SimpleNamespace(names={a:joint_names(a)for a in arms},spheres=geometry,cfg=cfg)
+    start={j:0. for a in arms for j in joint_names(a)}
+    def sweep(problem,state,arm,path,extra,dq):
+        seen.append(dq.copy());center=np.array([[0.,0.,0.]])if arm==arms[0]else np.array([[.6,0.,0.]])
+        nominal=np.array([[center,center]])
+        stopped=nominal.copy()
+        if np.any(dq):stopped[:,0]-=.8;stopped[:,1]+=.8
+        return nominal,stopped
+    monkeypatch.setattr(reviewed,'swept_arm',sweep)
+    before=copy.deepcopy(cfg)
+    proof,error=reviewed.prove_group(p,start,{a:trajectory(a,0.,.1)for a in arms},.1)
+    assert (error is None)==accepted
+    assert cfg==before
+    assert all(np.any(q) for q in seen) if policy=='enforce' else all(not np.any(q)for q in seen)
+    if accepted:
+        assert proof['min_clearance_m']==pytest.approx(.5)
+        assert proof['stop_policy']=='geometric_only'
+        assert proof['progress_policy']=='all_independent_positions'
+
+
+def test_geometric_only_parallel_still_rejects_intersecting_sweeps(monkeypatch):
+    arms=['right_front','right_rear']
+    p=SimpleNamespace(names={a:joint_names(a)for a in arms},cfg=dict(stopping_reserve_policy='geometric_only',
+        state_timeout_s=.2,rate_hz=20.,stop_latency_s=1.,braking_acceleration_rad_s2=.2,
+        model_margin_m=.04,velocity_limit_rad_s=.1),
+        spheres=SimpleNamespace(motion_radii={a:np.ones((1,6))for a in arms},radii={a:np.array([.05])for a in arms}))
+    start={j:0. for a in arms for j in joint_names(a)}
+    def crossing(*args):
+        boxes=np.zeros((1,2,1,3));return boxes,boxes
+    monkeypatch.setattr(reviewed,'swept_arm',crossing)
+    proof,error=reviewed.prove_group(p,start,{a:trajectory(a,0.,.1)for a in arms},.1)
+    assert error and proof['pairs'][0]['geometric_clearance_lower_bound_m']<.04

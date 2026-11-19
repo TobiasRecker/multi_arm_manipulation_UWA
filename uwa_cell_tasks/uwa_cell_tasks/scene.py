@@ -305,6 +305,26 @@ def physics_description(description):
     return ET.tostring(root,encoding='unicode')
 
 
+def add_virtual_marker_visual(description):
+    """Show the checked virtual tool in Gazebo without adding contact forces."""
+    root = ET.fromstring(description)
+    link = root.find("link[@name='left_front_tool0']")
+    if link is None:
+        raise ValueError('Drawing world needs left_front_tool0')
+    visual = ET.SubElement(link,'visual',name='virtual_marker')
+    ET.SubElement(visual,'origin',xyz='0 0 0.237',rpy='0 0 0')
+    geometry = ET.SubElement(visual,'geometry')
+    ET.SubElement(geometry,'cylinder',radius='.003',length='.114')
+    material = ET.SubElement(visual,'material',name='virtual_marker_orange')
+    ET.SubElement(material,'color',rgba='1 0.30 0.04 1')
+    tip = ET.SubElement(link,'visual',name='virtual_marker_tip')
+    ET.SubElement(tip,'origin',xyz='0 0 0.297',rpy='0 0 0')
+    ET.SubElement(ET.SubElement(tip,'geometry'),'sphere',radius='.003')
+    ET.SubElement(ET.SubElement(tip,'material',name='virtual_marker_tip_color'),
+                  'color',rgba='1 0.8 0.08 1')
+    return ET.tostring(root,encoding='unicode')
+
+
 def prepare_scene(layout, cfg, directory):
     directory = Path(directory).resolve()
     if (directory/'scene.json').exists():raise FileExistsError('Scene is immutable; prepare into a new directory')
@@ -343,6 +363,8 @@ def prepare_scene(layout, cfg, directory):
         cfg['gripper_gear_stiffness_nm_rad'],cfg['gripper_motor_stiffness_nm_rad'],cfg['gripper_transmission'],
         max([cfg['joint_velocity_rad_s']]+list(cfg.get('joint_velocity_overrides_rad_s',{}).values())),cfg.get('braking_acceleration_rad_s2',.5),cfg.get('finger_velocity_limit_rad_s',.05),
         cfg.get('gripper_motor_torque_limit_nm',.35), motion_arms=motion_arms)
+    if cfg.get('drawing_recipe'):
+        description = add_virtual_marker_visual(description)
     (directory/'robot.urdf').write_text(description)
     sdf = dynamic_sdf(instance, shapes, cfg); (directory/'carton.sdf').write_text(sdf)
     world = ET.Element('sdf', version='1.9'); w = ET.SubElement(world, 'world', name='uwa_grasp_lab')

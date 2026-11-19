@@ -114,6 +114,11 @@ Artefakte und Tests unter `artifacts/` ablegen. Zusätzlich ein kurzes
 geänderte Dateien, aufgetretene Fehler und Reparaturen, manuelle Hilfen,
 konkrete Harnesslücken sowie noch unbekannte Messgrößen. Relevanten eigenen
 Diff und finalen Quellstand/Hashes referenzieren; fremde Diffs nicht zuordnen.
+In einer frischen isolierten Kopie den Patch mit
+`git diff --binary STARTCOMMIT --` exportieren. Das erfasst auch bereits
+gestagte Änderungen an verfolgten Dateien. Neue Dateien bei Bedarf zusätzlich
+in den Patch aufnehmen. Die Dateiliste des Exports gegen den vollständigen
+Arbeitsstand prüfen.
 In gemeinsam genutzten Checkouts Git-HEAD am Ende mit dem in `trial.json`
 vergleichen. Bei parallelen Commits den eigenen Diff gegen die ursprüngliche
 Revision **und** die Eingangssnapshots prüfen. Bericht, Diff und Prüfnachweise
