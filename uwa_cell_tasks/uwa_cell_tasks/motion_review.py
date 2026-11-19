@@ -264,12 +264,13 @@ class ReviewStore:
                 raise ValueError("Action already dispatched or out of sequence")
             db.execute("INSERT INTO dispatch VALUES(?,?)", (identifier, component))
 
-    def check_startup(self, identifier, stage):
+    def check_startup(self, identifier, stage, arm=None):
         with self.connection() as db:
             row = self._row(db, identifier)
             meta = json.loads(row["meta"])
             if (row["status"] != "running" or not self._eligible(self._control(db), row, meta)
-                    or meta["stage"] != stage or not meta.get("explicit_regular_start")):
+                    or meta["stage"] != stage or not meta.get("explicit_regular_start")
+                    or (arm is not None and "program_start_arms" in meta and arm not in meta["program_start_arms"])):
                 raise ValueError("Regular program startup was not included in this release")
 
     def finish(self, identifier, success, reason=None):

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import sqlite3
 import sys
+import time
 
 import pytest
 from PIL import Image
@@ -355,3 +356,35 @@ def test_named_offline_program_replans_for_each_pose_without_live_review(tmp_pat
         assert workflow["phase"] == "OFFLINE_APPROACH_PREPARED"
         assert workflow["success"] is True and workflow["execute"] is False
         assert (output / "review-high.json").is_file() and (output / "review-entry.json").is_file()
+
+
+@pytest.mark.parametrize("step,expected", [("ready", []), ("play", ["right_front"]), ("wait_ros", None)])
+def test_program_review_uses_current_status(tmp_path, cycle_runner, monkeypatch, step, expected):
+    arms = {arm: {"code": "ready"} for arm in ("left_front","left_rear","right_front","right_rear")}
+    if step != "ready":
+        arms["right_front"] = {"code": "needs_preparation", "next_step": step}
+    def status(command, **kwargs):
+        assert command[-2:] == ["--status", "--json"]
+        return cycle_runner.subprocess.CompletedProcess(command, int(step != "ready"),
+                    json.dumps({"mode": "status", "arms": arms}), "")
+    monkeypatch.setattr(cycle_runner.subprocess, "run", status)
+    flow = cycle_runner.Workflow(tmp_path, {"started_monotonic_s": time.monotonic()})
+    if expected is None:
+        with pytest.raises(ValueError, match="right_front"):
+            cycle_runner.requested_program_starts(flow, True, "motion")
+    else:
+        assert cycle_runner.requested_program_starts(flow, True, "motion") == expected
+
+
+def test_program_start_cannot_expand_to_newly_stopped_arm(tmp_path):
+    store = ReviewStore(tmp_path)
+    store.area("new", True)
+    store.settings(trust=100)
+    identifier = store.submit("motion", dict(packet(), explicit_regular_start=True,
+                                             program_start_arms=["right_front"]), {})
+    assert not store.claim(identifier)
+    store.decide(identifier, store.export(identifier)["sha256"], "approve")
+    assert store.claim(identifier)
+    store.check_startup(identifier, "motion", "right_front")
+    with pytest.raises(ValueError, match="not included"):
+        store.check_startup(identifier, "motion", "right_rear")

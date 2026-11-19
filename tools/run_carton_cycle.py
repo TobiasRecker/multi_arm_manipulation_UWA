@@ -231,6 +231,31 @@ def plan_offline(flow, args):
                        review_bundles=[str(path) for path in paths])
 
 
+def requested_program_starts(flow, requested, stage):
+    """Use the same Dashboard and reverse-connection checks as the Play executor."""
+    if not requested:
+        return []
+    result = subprocess.run([sys.executable, str(REPO/"scripts/ur_bringup.py"), "--status", "--json"],
+                            capture_output=True, text=True, timeout=30)
+    if result.returncode not in (0, 1):
+        raise ValueError("Could not read External Control readiness: " + (result.stderr or result.stdout)[-400:])
+    data = json.loads(result.stdout)
+    arms = data.get("arms", {})
+    if data.get("mode") != "status" or set(arms) != {"left_front","left_rear","right_front","right_rear"}:
+        raise ValueError("Incomplete four-arm External Control status")
+    flow.report.setdefault("program_readiness", {})[stage] = arms
+    flow.save()
+    starts = []
+    for arm, row in arms.items():
+        if row["code"] == "ready":
+            continue
+        if row["code"] == "needs_preparation" and row.get("next_step") == "play":
+            starts.append(arm)
+        else:
+            raise ValueError(f"{arm}: External Control unavailable · {row.get('message') or row['code']}")
+    return sorted(starts)
+
+
 def approach(flow, args, store):
     out = flow.out
     status = store.status()
@@ -261,9 +286,11 @@ def approach(flow, args, store):
     runners, paths = prepare_approach(flow, args, joint, tcp, recipe, out/"snapshot/observations.json",
                                      out/"registration/object-pose.json", pregrasp_m)
     asset = read_json(REPO/"uwa_cell_description/assets/carton_avocado_v1/asset.json")
+    starts = requested_program_starts(flow, args.start_ros_programs, "motion")
     meta, preview = motion_packet(paths, asset["dimensions_m"], speed, args.risk or "high",
                                   args.reason or "Operator review requested for this approach.",
-                                  args.start_ros_programs)
+                                  bool(starts))
+    meta["program_start_arms"] = starts
     meta["scene_session"] = status["session_id"]
     with flow.approval(store, meta, preview) as identifier:
         for (name, tool, source, value), bundle, sha in zip(runners, paths, meta["components"], strict=True):
@@ -274,7 +301,7 @@ def approach(flow, args, store):
             flow.phase(name, tool, source, value, "--reviewed", bundle, "--reviewed-sha256", sha,
                        "--review-id", identifier, "--execute", "--reset-unloaded", "--command-velocity", joint,
                        "--tcp-speed-m-s", tcp, "--output", out/name,
-                       *(["--start-ros-programs"] if args.start_ros_programs and name == "high" else []))
+                       *(["--start-ros-programs"] if starts and name == "high" else []))
     flow.report.update(phase="WAITING_VISUAL_REVIEW", entry_finished_unix=time.time(),
                        entry_state_sha256=digest((out/"entry/result.json").read_bytes()))
 
@@ -293,7 +320,8 @@ def close_after_entry(flow, args, store):
     except (ValueError, KeyError, OSError, TypeError) as exc:
         raise CaptureUnavailable(str(exc)) from exc
     preview = dict(preview, image=image, groups=[], duration_s=0, start=read_json(state_path)["segments"][-1]["final_positions"])
-    component = contact_component(state_sha, image["original_sha256"], args.start_ros_programs)
+    starts = requested_program_starts(flow, args.start_ros_programs, "contact")
+    component = contact_component(state_sha, image["original_sha256"], bool(starts))
     risk = args.risk or "high"
     if not args.visual_confirmed:
         risk = "high"
@@ -303,13 +331,13 @@ def close_after_entry(flow, args, store):
                 risk=risk, reason=args.reason or "Operator review of the actual open-entry image requested.",
                 stage="contact", duration_s=0, speed_percent=store.status()["settings"]["speed_percent"],
                 components=[component], entry_state_sha256=state_sha, capture_sha256=image["original_sha256"],
-                explicit_regular_start=args.start_ros_programs, scene_session=flow.report["scene_session"],
+                explicit_regular_start=bool(starts), program_start_arms=starts, scene_session=flow.report["scene_session"],
                 arms=["right_front","right_rear"], requires_area=True)
     with flow.approval(store, meta, preview) as identifier:
         flow.phase("close", "carton_gripper_phase.py", "close", "--state", state_path, "--output", out/"grasp",
                    "--execute", "--visual-confirmed", "--review-id", identifier,
                    "--review-image-sha256", image["original_sha256"],
-                   *(["--start-ros-programs"] if args.start_ros_programs else []))
+                   *(["--start-ros-programs"] if starts else []))
         contact = read_json(out/"grasp/result.json")
         if not contact.get("success") or not contact.get("static_contact_hold_verified"):
             raise ValueError("Final static contact hold unconfirmed")

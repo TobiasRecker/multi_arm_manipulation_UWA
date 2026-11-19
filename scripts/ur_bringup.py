@@ -365,7 +365,7 @@ def run_arm(arm, apply, *, dashboard=Dashboard, get_transport=transport,
                            else f'Noch nicht bereit; nächster Schritt: {step}.')
                     action = (f'ROS-Treiber und External-Control-Host/Port prüfen (Script-Port {arm.script_port}).'
                               if step == 'wait_ros' else None)
-                    return dict(report, code='needs_preparation', message=msg, manual_action=action)
+                    return dict(report, code='needs_preparation', next_step=step, message=msg, manual_action=action)
                 if step == 'wait':
                     end = time.monotonic() + transition_timeout
                     while state.mode in TRANSIENT and time.monotonic() < end:
@@ -439,12 +439,12 @@ def main(argv=None):
             sys.path.insert(0, str(INVENTORY.parents[1] / 'uwa_cell_tasks'))
             from uwa_cell_tasks.motion_review import ReviewStore
             store = ReviewStore()
-            def check_review(step):
+            def check_review(step, arm_id):
                 if step != 'play':
                     raise Blocked('separate_preparation_required', 'Der Pilot darf nur das vorbereitete ROS-Programm starten.',
                                   'Antriebe und Programm über UWA Robot Power vorbereiten.')
                 store.check_active(*review_binding)
-                store.check_startup(args.review_id, args.review_stage)
+                store.check_startup(args.review_id, args.review_stage, arm_id)
             before_write = check_review
         arms = load_arms(INVENTORY)
         selected = [arms[rid] for rid in ROBOT_IDS if not args.arm or rid in args.arm]
@@ -454,7 +454,7 @@ def main(argv=None):
                 for arm in selected:
                     print(f'{arm.id}: Vorbereitung läuft …', file=sys.stderr, flush=True)
                     if before_write:
-                        reports.append(run_arm(arm, True, before_write=before_write))
+                        reports.append(run_arm(arm, True, before_write=lambda step, rid=arm.id: before_write(step, rid)))
                     else:
                         reports.append(run_arm(arm, True, start_driver=launch_driver))
                     if not args.json:

@@ -1,5 +1,49 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Aktuell nach Klarstellung: kein Reserveblocker, UR-Startup offen
+
+- Beide aktuellen Parallelphasen sind mit `geometric_only` und0,0m zusätzlichem
+  dynamischem Stoppaufschlag geprüft. Der Prüfer ist bereits verwendet und
+  entsprechend AGENTS.md dokumentiert; kein weiterer ungenutzter Prüfer,
+  der zugleich Kommunikations-/Startupfehler beheben würde.
+- attempt16 wurde vom Operator tatsächlich freigegeben. Regulärer ROS-Start
+  unter vier bestätigten unbeladenen Holds war Bestandteil dieser Revision.
+  Vor jedem Arm-/Fingerziel Abbruch nach30s Startup-Zeitüberschreitung des
+  bestehenden `ur_bringup.py --apply --review-id ...`. Eligibility und
+  Software-Witness-Reset unter Holds waren bestätigt; Startup-Abschluss nicht.
+  Kein Fahrziel, kein Griff/Kontakt, keine automatische Wiederholung.
+- Program-start.json blieb leer; deshalb nicht behaupten, ein bestimmter Arm
+  sei in diesem Versuch erfolgreich gestartet oder dies sei ein Bremsreserve-
+  Abbruch. Vorangegangener Verbindungsverlust RF/LR ist separat im Treiberjournal
+  belegt. Native Zustände nach Timeout rein lesend neu erfasst unter
+  `setup/tasks/carton_motion_review_20261119/after-attempt16/`.
+- Offener Punkt ist die verlässliche reale Programmanbindung auf N100, kein
+  fehlender geometrischer Parallelplan. Native Programm-/Frische-/Stoppgates
+  nicht durch Entfernen räumlicher Reserven umgehen. Aktuell keine aktive
+  Freigabe oder nächste Fahrwiederholung zugesagt.
+
+## Agentenfreier Webstart bis zum ersten Blocker, 19.11.2026
+
+- Nutzerauftrag: den vorhandenen Ablauf bis zum ersten Hilfepunkt testen und
+  dort gemeinsam weitersehen. Um 18:01 AWST nahm die Bibliothek einen Live-Start
+  für `carton-supported-v1` an. Der Testserver nutzte die dokumentierte
+  Optikkonfiguration in einem separaten Laufordner.
+- Der Ablauf stoppte in `live_preflight` am SHA-256-Abgleich von
+  `tools/run_carton_cycle.py`. Der N100 hat eine andere Runner- und
+  Rezepterzeugerversion. `config/carton_programs/carton-supported-v1.json`
+  fehlt dort. Registrierer, Fahrprofil und Texturmodell stimmten bytegleich
+  überein. Vorab war der Arbeitsbereich laut N100 freigegeben, offene Reviews
+  gab es keine.
+- Der erste Blocker liegt vor der OAK-Aufnahme. Kein neuer Review-Eintrag,
+  Programmstart, Arm- oder Fingerziel. Testserver beendet. Der Test hat die
+  Wrist-Bildentscheidung und die reale Programmstartphase nicht erreicht.
+  Nachweis `setup/tasks/carton_agent_free_live_20261119/result.json`.
+
+## Bedarfsabhängiger UR-Programmstart, 19.11.2026
+
+Die bedarfsabhängige Play-Freigabe ist im aktiven N100-Kartonrunner installiert (Sicherung und Hashlisten unter `~/uwa-ur-runtime/review-candidates/program-readiness.2oUsF55y`). Lokale Prüfungen: 27 Review-/GUI- und 30 Dashboard-/Power-Tests bestanden. Lesender N100-Test meldete rechts hinten bereit, die anderen drei Arme mit nächstem Schritt Play. Alle Befehlslisten waren leer. Keine Fahrt und kein Dienstneustart. Der N100 behält seine vorhandene Rezeptvariante.
+
+
 ## Aktuell: Parallelprüfer reservefrei, Programmstart getrennt,19.11.2026
 
 - Nutzerklarstellung beantwortet: Der korrigierte Motion-review-Parallelprüfer
@@ -63,6 +107,11 @@
   Neue Kontaktwelt mit nativer Gazebo-Ansicht. 44 Phasen mit 19.594
   Modellzuständen und 390,11 s geplanter Simulationszeit ab Hub offline
   geprüft. Die Bewegungsphasen stehen in `run01/state.json`.
+- Der Gazebo-Lauf hat alle 44 Phasen ab Hub und das Öffnen beendet.
+  162,97 mm Hub aus Gazebo, Kreis, acht Hauskanten und sechs virtuelle
+  Zustellungen. Der Karton steht nach dem Öffnen schräg an der Tischkante.
+  Die geplante Auflage überbrückt den 191-mm-Spalt. Native Bilder und Ergebnis
+  in `report.md` im Laufordner. Gazebo-Fenster offen belassen.
 - Lyrical-Build für fünf Pakete erfolgreich. 135 gezielte Offline-Tests
   bestanden. Zwei Alt-Fixtures mit abweichendem Basisursprung bzw. Modellhash
   zeigen denselben Fehler in der Ausgangsversion. Details im Laufordner.
@@ -1502,6 +1551,21 @@
   Test-/Audit-Änderungen in der neuen Agentenabgabe. Patch umfasst exakt
   die vier geänderten Dateien gegen den Startcommit. Report unter
   `trial/verification/run01-0b91c207/report.md` der neuen Sitzung.
+- Nutzerentscheidung19.11.: diesen Ablauf als Standard für neue Aufgaben
+  hinterlegt. `start_gemini_trial.py` startet alle unterstützten Fälle in
+  isolierten Quellkopien und wählt Hydrogen High. `--model` überschreibt
+  die Vorgabe. Der Prompt enthält `finish_gemini_trial.py`, das zu Fall und
+  Spezifikation passende Audits nutzt, Viewer, Git-Patch und Bericht prüft
+  bzw. erstellt und vorhandene gezielte Tests bei Python-Änderungen ausführt.
+  Kreisfall prüft drei 22-mm-Kreise mit festem Karton und vorgegebenen Rollen,
+  Nikolausfall die Hausgeometrie, Haus-und-Lochkreis deren eigene Bedingungen.
+  Neue Fälle brauchen eigene Prüfkriterien; siehe Trace-Protokoll.
+- Starter mit CLI-Ersatz über PTY für alle drei Fälle geprüft, einschließlich
+  Modell-Override. Frische Offline-Läufe für `circles` und `nikolaus` im
+  temporären Checkout bestanden und im Logger abgeschlossen; Prüfaufrufe
+  2,48 s und 7,09 s. Haus-und-Lochkreis über den bestehenden Namen in einer
+  neuen Ausgabekopie erneut PASS, 15 vorhandene Tests. Keine neue Gemini-
+  Sitzung für die Umstellung gestartet.
 
 ## Haus- und Lochkreis in Gazebo, 2026-11-19
 

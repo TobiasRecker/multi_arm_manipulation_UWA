@@ -298,6 +298,12 @@ class ReviewPanel(QtWidgets.QWidget):
             self.feedback.setText('REVOCATION UNCONFIRMED · ' + str(exc))
         self.controls()
 
+    def awaiting_operator(self, item):
+        settings = self.status["settings"]
+        threshold = {"low": 50, "medium": 100}.get(item.get("risk"), 101)
+        return (not self.status.get("area_released") or item.get("explicit_regular_start")
+                or settings["trust"] < threshold or item.get("task") != settings.get("task"))
+
     def render_status(self, data):
         settings, items = data['settings'], data['pending']
         self.audit.emit('review connection', 'connected')
@@ -322,8 +328,8 @@ class ReviewPanel(QtWidgets.QWidget):
         self.series.setText(f"Test series · {series['name']} · minimum {series['min_percent']:g}%"
                             if series else 'Agent speed reductions require your consent.')
         self.series_button.setText('End test series' if series else 'Authorize test series…')
-        fresh = [item for item in items if item['status'] == 'pending' and item['id'] not in self.unseen]
-        self.unseen = {item['id'] for item in items}
+        fresh = [item for item in items if item['status'] == 'pending' and item['id'] not in self.unseen and self.awaiting_operator(item)]
+        self.unseen = {item['id'] for item in items if self.awaiting_operator(item)}
         prev_id = fresh[0]['id'] if fresh else self.key[0] if self.key else None
         with QtCore.QSignalBlocker(self.requests):
             self.requests.clear()
@@ -379,6 +385,8 @@ class ReviewPanel(QtWidgets.QWidget):
             self.controls()
             return
         state = 'DECISION REQUIRED' if item['status'] == 'pending' else item['status'].upper()
+        if item['status'] == 'pending' and not self.awaiting_operator(item):
+            state = 'AWAITING AUTOMATIC RELEASE'
         self.summary.setText(state + ' · ' + item['summary'])
         arms = ', '.join(arm.replace('_', ' ').capitalize() for arm in item['arms'])
         clock = f"  ·  {item['duration_s']:.1f} s" if item['stage'] == 'motion' else '  ·  Held in place'
@@ -386,7 +394,8 @@ class ReviewPanel(QtWidgets.QWidget):
                              f"Arm speed cap  ·  {speed_text(item['speed_percent'])}  ·  Plan {item['sha256'][:12]}")
         self.preview.setText('Show held pose in RViz' if item['stage'] == 'contact' else 'Open RViz')
         if item.get('explicit_regular_start'):
-            self.details.setText(self.details.text() + '\nIncludes a regular External Control program start.')
+            self.details.setText(self.details.text() + '\nIncludes a regular External Control program start.'
+                                 + (' Required for ' + ', '.join(item['program_start_arms']) if item.get('program_start_arms') else ''))
         self.controls()
         if changed and not self.current and self.export is None:
             QtCore.QTimer.singleShot(0, self.fetch_if_needed)

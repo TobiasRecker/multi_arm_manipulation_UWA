@@ -89,7 +89,9 @@ Der Runner prüft die Versionen von Rezept, Registrierung, Programm und
 Fahrprofil auf dem N100 sowie das Texturmodell `setup/tracking/models/carton_avocado_v1/reference.npz`.
 Der laufende Pilot verlangt eine aktuelle Arbeitsbereichsfreigabe und
 betriebsbereite Arme. Die Diagnose des Live-Pfads wurde mit simulierten
-Start- und Abbruchsabläufen geprüft. Die echte Übernahme steht aus.
+Start- und Abbruchsabläufen geprüft. Der erste Live-Starttest am 19.11.2026
+endete beim Versionsabgleich von `run_carton_cycle.py` vor der Aufnahme.
+Auf dem N100 fehlte auch die benannte Programmdefinition. [Starttest](../../../setup/tasks/carton_agent_free_live_20261119/result.json)
 
 FoundationPose ist ein separater RGB-D-Archivpfad mit Startmaske. Der
 Weblauf verwendet die vorhandene analytische Registrierung. Das
@@ -187,10 +189,14 @@ verwendet `--recipe "$recipe"`.
 `risk` ist `low`, `medium` oder `high`. Ohne Einschätzung ist die Bedienperson
 gefragt. Das Werkzeug bereitet beide vollständigen Fahrphasen vor. Während
 einer offenen Entscheidung wartet derselbe Prozess und prüft anschließend
-den aktuellen Start. Regulärer Programmstart unter bestätigten unbeladenen
-Holds wird nur mit dem zusätzlichen Argument `--start-ros-programs` in die
-Bewertung aufgenommen und erfordert die ausdrückliche Bedienentscheidung.
-Er darf das bereits geladene External-Control-Programm mit Play starten.
+den aktuellen Start. Mit `--start-ros-programs` liest der Pilot unmittelbar vor der Fahr- oder
+Kontaktfreigabe den Dashboardzustand und die ROS-Reverse-Verbindungen aller
+vier Arme. Laufen alle vorbereiteten Programme, gilt die normale Risikostufe
+der Aufgabe. Brauchen einzelne Arme Play, zeigt die Anfrage deren Namen.
+Der Bedienentscheid umfasst Play für diese Arme unter bestätigten unbeladenen
+Holds sowie die angezeigte Aktion. Bei fehlender Verbindung oder anderem
+Vorbereitungsbedarf meldet der Pilot die Ursache. Fällt später ein weiterer
+Arm aus, erfordert dessen Start eine neue Freigabe.
 Power, Bremsen und Programmvorbereitung bleiben im separaten Betriebsablauf.
 Mit `--registration-directory` und `--recipe` am ursprünglichen Rezeptpfad
 kann eine erfolgreiche Registrierung desselben aktuellen Bildsatzes nach

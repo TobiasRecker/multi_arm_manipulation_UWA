@@ -1,5 +1,10 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Bedarfsabhängiger UR-Programmstart, 19.11.2026
+
+Kartonpilot auf dem N100: Bei optionalem regulärem Programmstart unmittelbar vor der Review den wirklichen Play-Bedarf verwenden. Für eine betriebsbereite Zelle gilt das Aufgabenvertrauen. Die Zustimmung für Play ist an die konkret gemeldeten Arme und die Revision gebunden.
+
+
 ## Nutzerentscheidung zur Gazebo-Simulation, 19.11.2026
 
 - Geplante Bahnen ausschließlich offline prüfen. Gazebo dient der Wiedergabe

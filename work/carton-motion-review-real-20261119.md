@@ -1,5 +1,27 @@
 # Reale Übernahme Motion review,19.11.2026
 
+## Aktuell nach Klarstellung: kein Reserveblocker, UR-Startup offen
+
+- Beide aktuellen Parallelphasen sind mit `geometric_only` und0,0m zusätzlichem
+  dynamischem Stoppaufschlag geprüft. Der Prüfer ist bereits verwendet und
+  entsprechend AGENTS.md dokumentiert; kein weiterer ungenutzter Prüfer,
+  der zugleich Kommunikations-/Startupfehler beheben würde.
+- attempt16 wurde vom Operator tatsächlich freigegeben. Regulärer ROS-Start
+  unter vier bestätigten unbeladenen Holds war Bestandteil dieser Revision.
+  Vor jedem Arm-/Fingerziel Abbruch nach30s Startup-Zeitüberschreitung des
+  bestehenden `ur_bringup.py --apply --review-id ...`. Eligibility und
+  Software-Witness-Reset unter Holds waren bestätigt; Startup-Abschluss nicht.
+  Kein Fahrziel, kein Griff/Kontakt, keine automatische Wiederholung.
+- Program-start.json blieb leer; deshalb nicht behaupten, ein bestimmter Arm
+  sei in diesem Versuch erfolgreich gestartet oder dies sei ein Bremsreserve-
+  Abbruch. Vorangegangener Verbindungsverlust RF/LR ist separat im Treiberjournal
+  belegt. Native Zustände nach Timeout rein lesend neu erfasst unter
+  `setup/tasks/carton_motion_review_20261119/after-attempt16/`.
+- Offener Punkt ist die verlässliche reale Programmanbindung auf N100, kein
+  fehlender geometrischer Parallelplan. Native Programm-/Frische-/Stoppgates
+  nicht durch Entfernen räumlicher Reserven umgehen. Aktuell keine aktive
+  Freigabe oder nächste Fahrwiederholung zugesagt.
+
 ## Aktuell: Parallelprüfer reservefrei, Programmstart getrennt,19.11.2026
 
 - Nutzerklarstellung beantwortet: Der korrigierte Motion-review-Parallelprüfer
