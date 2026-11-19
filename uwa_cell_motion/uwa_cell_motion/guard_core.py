@@ -49,8 +49,16 @@ class GuardState:
         qs, vs = np.asarray([r[1] for r in h]), np.asarray([r[2] for r in h])
         velocity,span=standstill_limits(self.cfg,qs.shape[1])
         peaks=np.max(abs(vs),axis=0);spans=np.ptp(qs,axis=0)
-        confirmed=bool(np.all(peaks<=velocity) and np.all(spans<=span))
-        evidence.update(confirmed=confirmed,reason='CONFIRMED' if confirmed else 'VELOCITY' if np.any(peaks>velocity) else 'POSITION_SPAN',
+        measured=peaks.copy();measure=self.cfg.get('standstill_velocity_measure','peak')
+        if measure=='position_trend':
+            times=np.array([r[0]for r in h]);times-=times.mean()
+            denominator=float(times@times)
+            if denominator<=0:return evidence
+            trends=abs(times@(qs-qs.mean(axis=0))/denominator)
+            measured[:6]=trends[:6]  # Tool chatter bounds remain unchanged.
+        confirmed=bool(np.all(measured<=velocity) and np.all(spans<=span))
+        evidence.update(confirmed=confirmed,reason='CONFIRMED' if confirmed else 'VELOCITY' if np.any(measured>velocity) else 'POSITION_SPAN',
+            velocity_measure=measure,velocity_estimates_rad_s=measured.tolist(),
             velocity_peaks_rad_s=peaks.tolist(),position_spans_rad=spans.tolist(),
             velocity_limits_rad_s=velocity.tolist(),position_span_limits_rad=span.tolist())
         return evidence

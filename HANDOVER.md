@@ -8,6 +8,9 @@
   Bedienung über `setup/titanpc/compute.py` aus dem Workspace.
 - Rootloses Apptainer im eigenen Datenordner installiert. Lyrical-CPU-Job
   mit isolierten Arbeitsordnern, Abbruch, Zeitlimit und Ergebnisabruf geprüft.
+  Fertige Images für ROS Lyrical, MoveIt/OMPL/SciPy und PyTorch/CUDA 12.6.
+  Synthetischer FCL-Kollisions-/Freifall sowie Matrixprodukt auf der TITAN RTX
+  bestanden. Nachweise unter `setup/titanpc/results/` im Workspace.
   CPU/GPU-Jobs gehören zur Offline-Verarbeitung. Live-UR-Ausführung und
   Schutzdienste nutzen ihre eigene reale Betriebsanbindung.
 
@@ -31,9 +34,20 @@
   Wrist-Nachbarabstand, Weg. Rangheuristiken sind keine Sicherheitsgrenzen.
 - Gesamte Einfahrt wird künftig vor hoher Realfahrt an ausdrücklich geplantem
   zukünftigen Hochzustand geprüft; Live-Startbindung bleibt erhalten. Aktuelle
-  Korrektur nurRF, RR bleibt fest. Bisher noch kein geprüfter Wechselpfad aus
-  dem positiven in negativen Zweig; längere begrenzte Offline-Suche läuft,
-  keine Korrekturfahrt behauptet. Aktiver Arbeitsstand im Kartonzyklus-Dokument.
+  Korrektur nurRF, RR bleibt fest. ReineZufalls-IK hatte zunächst anderen
+  Schulter-/Wristzweig trotz negativemEllbogen geliefert. FrischeIK aus real
+  bewährtemReferenzseed findetdirektenvollenRF-Pfad; kompletteFolgeeinfahrt
+  PASS (`rf-vetted-plan/`, `corrected-entry-plan/`). Seed ist keinReplay.
+- RealerRF-Korrekturstart `rf-correction/` vorControlleraktivierung abgebrochen:
+  RR-Ruhewächter registriert0,0010157rad/s beiPositionsspannen<0,000089rad,
+  nativeRRSTOP/neueLatch. Alle4Ressourcenholds bestätigt. RF-Zweig daher real
+  noch NICHT korrigiert, keine erneuteEinfahrt/Schließung. Nichtblindresetten.
+- Konkreter Kandidat `uwa_cell_motion/config/hardware_carton_supported_trend_candidate.yaml`
+  bewertetArmruhe überPositionstrend und identische0,0005radPositionsspanne/0,5s
+  stattjederqdSpitze. Raw0,1rad/s-/Kollisions-/Frische-/UR-Stopps unverändert;
+  DefaultprofilweiterPeak.39gezielteOfflineprüfungenPASS. LokaleUnterstützung
+  vorbereitet, laufenderN100Dienst NICHTgeändert; Nutzerfreigabeangefragt und
+  ausstehend, weilAGENTS BestandsschutzbestehenderSicherheitsstoppsfordert.
 
 ## N100-Liveübergabe und gemessener Wiederholungszyklus,19.11.2026
 
@@ -677,6 +691,24 @@
   abgelehnt. Normale Offline-CLI in der Quellkopie mit Seitenkreis und
   Audit geprüft. Der neue Agent implementiert das Haus.
   [Einstieg für den Bediener](docs/agent_trials/NIKOLAUS_TRIAL_03.md).
+
+## Nikolaushaus-Agententest ausgewertet, 2026-11-19
+
+- Nutzer bittet um Analyse der Gemini-Bearbeitung und meldet auffällige
+  Endbewegung des Zeichenarms. Hauptrepo-Audit der acht Hauskanten und
+  beider Seitenkreise PASS; Gemini-Audit bytegleich wiederholt,
+  archivierter Drei-Kreis-Lauf besteht den erweiterten Prüfer.
+- `return_from_y_min` und `return_box` spielen die gemeinsamen Hinwege
+  rückwärts. Letzte Phase 374,52–406,41 s Modellzeit, LF-Handgelenke
+  1/3 drehen −172,83°/+130,64°. Nach dem Haus führt ein separater
+  40-mm-Standoff-Weg von B nach A zurück. Sieben direkte Parkvarianten
+  mit unverändertem Halterpfad im Offline-Screen am virtuellen
+  Stift/Karton-Konflikt gescheitert. Kein alternativer Rückweg freigegeben.
+- Entwicklungszeit 19:25 min, Hauptplanung als Befehl 71,52 s,
+  Anpassung und Prüfung zusammen rund 12:44 min Stufenwandzeit.
+  Vorschlag: Datenvertrag für Zeichenpfade, freier Zeichenarm-Rückweg
+  ab tatsächlicher Ausstiegspose und wiederverwendbare Audit-/Timingschritte.
+  [Auswertung und Messbelege](docs/agent_trials/REVIEW_NIKOLAUS_03.md).
 
 ## Neuplanung des Gazebo-Drei-Kreis-Ablaufs, 2026-11-18
 

@@ -1,15 +1,17 @@
 # Karton greifen: kurzer realer Ablauf
 
-Stand19.11.2026: **beide rechten Greifer am aufliegenden Karton geschlossen**.
-Hohe Anfahrt und offene Einfahrt real bestanden. Beide Greifer meldenOBJ2 bei
-FOR0/SPE16; beim Schließen stoppt der bestehende Ruhewächter das hintere rechte
-UR-Programm. Alle4Arme anschließend frisch gehalten/stationär bestätigt.
-Gesamtablauf deshalb kein vollständiger PASS. **NurHOLD, kein Hub/Transport;
-keine automatische Programmerholung oder unabhängige Armfahrt.** Aktueller
-Nachweis `setup/tasks/carton_grasp_20261119/grasp/final-held-state.json`, Foto
-`setup/tasks/carton_grasp_20261119/grasp-jaws.jpg`; Details in HANDOVER.md.
-Der folgende Ablauf beschreibt einen neuen unbeladenen Start, nicht die
-Fortsetzung aus diesem Kontaktzustand.
+Aktuell19.11.2026: Nach Nutzerbestätigung des ersten korrekten Griffs wurde der
+Karton ausdrücklich losgelassen, beide rechten URs über den N100 hoch-/Home
+gefahren und der Wiederholungsversuch begonnen. Beide Greifer weiterhin offen.
+Dieser Zeitversuch wählte für RF einen ungeeigneten Ellenbogen-unten-Zweig;
+seine Absenkbahn wurde abgelehnt. RR-Hochpose ist vom Nutzer als gut bestätigt.
+Korrekte RF-Konfiguration samt kompletter Einfahrt inzwischen offline geprüft,
+aber real noch nicht korrigiert: Ruhewächter stoppte vor neuem Armziel. Alle
+Arme gehalten, keine neue Schließung. Aktueller Stand im HANDOVER und
+`work/carton-cycle-n100-20261119.md`. Kandidaten-Ruheprofil noch NICHT aktiv.
+
+UR-Treiber/Guard/Greifer/Executor jetzt auf N100 `~/uwa-ur-runtime`, Domain66/
+LOCALHOST; GUI auf ROSmini mit`--n100`. Keine parallelen ROSmini-Hardwaredienste.
 
 ## Normaler Bedienablauf
 
@@ -109,3 +111,14 @@ wird dafür nicht verwendet.
   ohne erneute Geometrie-/Controllerübergabe während eigener Aktivierung.
 - Kontaktmitglieder vor letzter Armprüfung speichern: ein Programmstopp macht
   einen real geklemmten Karton nicht wieder zu einem unbeladenen Fehlerzustand.
+
+## Konfiguration vor Zahlen vergleichen
+
+Beim aufrechten Tischkarton RF im zuvor erfolgreichen physischen Ellbogenzweig
+planen. Andere Zweige nicht nur wegen kurzer Jointdistanz wählen. „Ellenbogen
+unten“ und „Wrist innen“ sind kontextbezogene Nachteile; Nachbarabstände,
+Gelenkreserven, skalierter Jacobian und Weg werden danach ausgewiesen.
+Rezept enthält bewährteIK-Startwerte mit Herkunft; Ziele werden aus aktueller
+Bildpose frisch gelöst und geprüft. GanzeEinfahrt VOR hoherReal-Anfahrt prüfen.
+`run_carton_cycle.py` protokolliert diese normalen Phasen und hält vor dem
+Agent-Bildcheckpoint an; kein automatischer Wiederholungs-/Recoveryloop.

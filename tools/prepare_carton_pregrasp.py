@@ -151,7 +151,24 @@ def prepare(args):
         goals[arm] = dict(frame_id='world', target_link=arm+'_tool0',
                           pose=dict(position=pre[:3, 3].tolist(), orientation_xyzw=Rotation.from_matrix(pre[:3, :3]).as_quat().tolist()))
     request = dict(start=start, goals=goals)
-    raw = enumerate_candidates(problem, request, seeds=24, max_per_arm=24, budget_s=30.)
+    # Recompute current targets from vetted task-posture seeds before random
+    # multistart. A seed is a branch hint, never a saved executable endpoint.
+    from uwa_cell_motion.carton_paths import solve_near
+    from uwa_cell_gazebo.charuco_views import Chain
+    problem.chains={r:Chain(problem.original_description,'world',r+'_tool0')for r in selected}
+    seeded={};seed_errors={}
+    for arm in selected:
+        seed=source_plan['candidate'].get('preferred_ik_seeds',{}).get(arm)
+        if seed is not None:
+            try:seeded[arm]=solve_near(problem,arm,start,goal_frames[arm]['tool0_pregrasp'],seed).tolist()
+            except ValueError as error:seed_errors[arm]=str(error)
+    raw=None
+    if len(seeded)==len(selected):
+        raw=enumerate_candidates(problem,dict(start=start,goals=seeded),max_per_arm=24,budget_s=30.)
+        raw['posture_seed_policy']='Fresh IK from previously vetted task branches; current endpoint/model validation retained'
+    if raw is None or not raw['combinations']:
+        raw=enumerate_candidates(problem,request,seeds=24,max_per_arm=24,budget_s=30.)
+    raw['task_seed_errors']=seed_errors
     dump(out/'raw-cartesian-candidates.json', raw)
     # Random multistart can find a correct pose several turns away. Add the
     # closest limit-respecting equivalent endpoint, preserving raw evidence.

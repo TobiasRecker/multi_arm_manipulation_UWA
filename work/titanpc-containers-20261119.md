@@ -1,6 +1,7 @@
 # CPU- und GPU-Container auf titanpc
 
-- Status in Arbeit, 19.11.2026 (Perth). Nutzer wünscht, längere oder
+- Status abgeschlossen, 19.11.2026 (Perth), Hauptagent dieser Einrichtung.
+  Nutzer wünscht, längere oder
   rechenintensive CPU- und insbesondere GPU-Jobs bevorzugt auf titanpc
   in Containern auszuführen. Betroffen sind Workspace-/Zellregeln, ein
   eigener Compute-Ordner auf titanpc und Start-/Abrufwerkzeuge. Keine
@@ -15,4 +16,15 @@
   getrennte Ausgaben und fehlende Netzwerkroute bestätigt. Ablauf über
   die bestehende Benutzer-Unit, Abschluss nach SSH-Ende und Ergebnisabruf
   geprüft. Ein eigener Testjob bestätigt wirksame CPU-/RAM-Grenzen und
-  Beendigung nach sechs Sekunden. GPU-Import und MoveIt-Build laufen.
+  Beendigung nach sechs Sekunden. Gezielter Abbruch und unveränderte
+  Übergabe von Argumenten mit Leerzeichen und Dollarzeichen geprüft.
+- GPU-Image importiert, `torch 2.7.1+cu126` rechnet eine Matrix erfolgreich
+  auf der TITAN RTX (CUDA 12.6, Compute Capability 7.5). Planungsimage mit
+  root-gemapptem Namespace (`--ignore-subuid`) gebaut, da die Host-Binaries
+  `newuidmap`/`newgidmap` fehlen. Build-Budget für den eigenen laufenden
+  Dienst verlängert und temporäre Einstellung nach Abschluss entfernt.
+  MoveIt-FCL erkennt einen echten synthetischen Kollisionsfall und den
+  freien Kontrollfall im planungsspezifischen Job. SciPy-Probe bestanden.
+- Fertige Images und SHA-256 unter `uwa-compute/images/` auf RAID1_L.
+  Eigene Build-/Prüfdienste beendet. Host-, Ablauf- und Ergebnisnachweise
+  unter `setup/titanpc/results/`. Hauptanleitung `setup/titanpc/README.md`.

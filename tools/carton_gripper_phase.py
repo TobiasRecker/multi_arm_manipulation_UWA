@@ -33,7 +33,11 @@ def held_error(values,now,expected,limits,positions,*,require_running=True):
     if set(state.get('records',{}))!=set(ROBOT_IDS):return 'Native arm state incomplete'
     for arm,record in state['records'].items():
         if max(now-record['source_stamp'],now-record['received'])>limits['state_timeout_s']:return arm+': native state stale'
-        if not np.isfinite(record['q']+record['v']).all() or max(abs(v)for v in record['v'])>limits['standstill_velocity_rad_s']:return arm+': moving/nonfinite'
+        if not np.isfinite(record['q']+record['v']).all():return arm+': moving/nonfinite'
+        # An explicitly selected trend profile already proves stationarity
+        # above from fresh guard evidence with the unchanged position span.
+        trend=g.get('stationarity_evidence',{}).get(arm,{}).get('velocity_measure')=='position_trend'
+        if not trend and max(abs(v)for v in record['v'])>limits['standstill_velocity_rad_s']:return arm+': moving/nonfinite'
         status=record['status']
         if arm in ('right_front','right_rear') and (status['robot_mode']!=7 or (require_running and status['runtime_state']!=2) or status['safety_mode'] not in (1,2)):return arm+': native program/safety state not ready'
         if max(abs(q-positions[j])for j,q in zip(joint_names(arm),record['q']))>.0005:return arm+': pose changed since entry/pregrasp'

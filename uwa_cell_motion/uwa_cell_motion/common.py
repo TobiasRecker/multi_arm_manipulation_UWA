@@ -33,6 +33,9 @@ def config(path=None):
         path = Path(get_package_share_directory('uwa_cell_motion'))/'config/motion.yaml'
     data = yaml.safe_load(Path(path).read_text())
     for name, value in data.items():
+        if name=='standstill_velocity_measure':
+            if value not in ('peak','position_trend'):raise ValueError('Unknown standstill velocity measure')
+            continue
         if name == 'stopping_reserve_policy':
             if value not in ('enforce','geometric_only'):raise ValueError('Unknown stopping reserve policy')
             continue
