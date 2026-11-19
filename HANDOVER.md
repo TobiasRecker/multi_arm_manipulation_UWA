@@ -583,6 +583,12 @@
 
 ## Gemini-Lauf geprüft und Nikolaushaus vorbereitet, 2026-11-19
 
+- Auf Nutzerwunsch bleibt der Starter erhalten und akzeptiert
+  `--mode=auto` für den direkten Start im Antigravity-Automatikmodus.
+  Der gewünschte Modus wird pro Lauf in `observer.json` gespeichert.
+  Ohne Option entscheidet der Client wie bisher. Der aktive Modus ist
+  in der CLI-Statuszeile sichtbar.
+
 - `box_gemini_20261119/session-50t0fawy` enthält einen neuen Offline-Lauf
   mit Gemini 4 Neon (High). Drei Kreise à 22 mm, gemeinsamer Rückweg und
   Spitzengeschwindigkeit 0,096583 rad/s bestätigt. Erneuter Audit auf

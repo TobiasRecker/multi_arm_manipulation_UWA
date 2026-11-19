@@ -18,7 +18,10 @@ def home_near(q,bounds):
     for value,wanted,(lo,hi)in zip(q,nominal,bounds):
         choices=[wanted+2*np.pi*k for k in range(-2,3)if lo<=wanted+2*np.pi*k<=hi]
         if not choices:raise ValueError('Home outside joint bounds')
-        result.append(min(choices,key=lambda x:abs(x-value)))
+        chosen=min(choices,key=lambda x:abs(x-value))
+        # Do not target exactly the model's +/-360deg boundary: stationary
+        # encoder noise otherwise trips unchanged measured joint-limit checks.
+        result.append(float(np.clip(chosen,lo+.001,hi-.001)))
     return result
 
 
@@ -50,7 +53,7 @@ def prepare(a):
     report=dict(success=False,executable=False,motion_kind='unloaded_'+a.operation,base_signature=p.signature,
         planned_only=bool(a.after_retreat),start_kind='PLANNED_AFTER_RETREAT_NOT_CURRENT'if a.after_retreat else 'MEASURED_STATIONARY_ENCODERS',
         inputs={str(v.resolve()):hashlib.sha256(v.read_bytes()).hexdigest()for v in inputs},segments=[],
-        arm_commands=[],finger_commands=[],loaded_motion=False,home_definition='[0,-90,0,-90,0,0]deg, nearest equivalent winding within physical bounds')
+        arm_commands=[],finger_commands=[],loaded_motion=False,home_definition='[0,-90,0,-90,0,0]deg, nearest winding; boundary target1mrad inside physical bounds, measured-limit checks unchanged')
     try:
         for arm in ['right_front','right_rear']:
             p.current_open=open_model(p,binding,scene,arm,out/('open-'+arm));q0=np.array([start[j]for j in joint_names(arm)]);T=p.chains[arm].forward(start)

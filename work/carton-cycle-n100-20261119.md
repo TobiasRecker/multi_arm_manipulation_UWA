@@ -11,3 +11,7 @@
 - AktuellerQuellstand übertragen, fehlende zwei Carton-PrepareTools im Staging ergänzt. Isolierter N100-Build18Pakete/21,1sPASS. Pendant-Hostumstellung aller4auf192.168.8.5/Ports51002,52002,53002,54002 beimNutzer angefragt, nochabzuwarten.
 
 - Nutzer bestätigt Pendant-Hostumstellung mit „erledigt“. Regulärer N100-Livebringup/Provisionierung/Schutz- und Greiferstart jetzt beauftragt ausgeführt; ROSmini-Dienste bleiben aus. N100-Retreatplan tatsächlich geometrischPASS, je6,412/6,374snominal bei0,1rad/s. Home-Direktpfad und erster Zwischenvorschlag noch verworfen; keineHomefahrt freigegeben, weitere Offlineplanung nötig.
+
+- Tatsächlicher N100-Bringup alle4ready, Holds provisioniert, Guard/Greiferservice aktiv. `retreat/result.json` realPASS: beide150mmhoch, Endholds/Stillstand bestätigt. Keine ROSmini-Hardwaredienste mehr.
+- Home-Direktpfad RF verletzt Modell-Nachbarpuffer (nativeFCL/Carton am ersten verworfenen Zustand frei). Alternative zuerst aufrichten, dann Basisdrehen vollständig geprüft. Homefahrt RF erreicht nominalenGrenzbereich-360°, stoppt an 1,26µrad Unterlauf durch Encoderrauschen. Kein Kartonkollisionsnachweis; vorhandene Fehlermeldung war ungenau und enthält jetzt Modellprüfungsgrund. Alle4Holds im Fehlerpfad bestätigt.
+- Homeziel an physischen Winkelgrenzen1mrad nachinnen gelegt (keine Mess-/Stopptoleranz gelockert), aktueller Wiederanlauf `home-interior/` aus neuerMessung. Geschwindigkeiten unverändert. NochkeinneuerGreifzyklus begonnen.

@@ -8,6 +8,14 @@ cd /home/rosmatch/UWA_ws
 python3 src/multi_arm_manipulation_UWA/tools/start_gemini_trial.py --case nikolaus
 ```
 
+Für einen direkten Start im Antigravity-Automatikmodus
+`--mode=auto` anhängen. Der gewünschte Modus steht anschließend in
+`observer.json` unter `mode_requested`. Ob Antigravity ihn aktivieren
+konnte, zeigt die Statuszeile der CLI. Falls Konto oder Terminal-Sandbox
+den Modus nicht unterstützen, kann Antigravity auf den Standardmodus
+zurückfallen. Ohne Option entscheidet die bestehende Client-Konfiguration.
+[Antigravity-Freigabemodi](https://antigravity.google/docs/cli/modes)
+
 Der Starter legt pro Versuch ein eigenes Verzeichnis an und öffnet dort
 eine frische Unterhaltung in einer separaten Quellkopie des aktuellen
 Commits. Die Quellkopie enthält keine bisherigen Ergebnisordner und hat

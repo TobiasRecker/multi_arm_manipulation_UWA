@@ -44,9 +44,13 @@ def main():
     parser.add_argument("--prepare-only", action="store_true", help="Save a prompt for a fresh IDE session")
     parser.add_argument("--agy", type=Path, default=DEFAULT_AGY, help="Path to the local Antigravity CLI")
     parser.add_argument("--model", help="Gemini model slug from agy models")
+    parser.add_argument("--mode", choices=("auto", "accept-edits", "plan"),
+                        help="Antigravity execution mode for this CLI session")
     parser.add_argument("--case", choices=("circles", "nikolaus"), default="circles",
                         help="The Nikolaus test opens a separate checkout of the current commit")
     args = parser.parse_args()
+    if args.prepare_only and args.mode:
+        parser.error("--mode applies to CLI sessions; choose the mode in the IDE for --prepare-only")
 
     version = None
     agy = args.agy.expanduser().resolve()
@@ -93,7 +97,8 @@ def main():
         hashes[str(relative)] = hashlib.sha256(data).hexdigest()
     metadata = dict(schema_version=1, case=args.case, repo=str(agent_repo), git_head=revision,
                     trial=str(trace), client=client,
-                    model_requested=args.model, prepared_at=perth_time(), context_sha256=hashes)
+                    model_requested=args.model, mode_requested=args.mode,
+                    prepared_at=perth_time(), context_sha256=hashes)
     metadata_path = session / "observer.json"
 
     def write_metadata():
@@ -111,6 +116,8 @@ def main():
         command.extend(["--add-dir", str(session)])
     if args.model:
         command.extend(["--model", args.model])
+    if args.mode:
+        command.append(f"--mode={args.mode}")
     metadata["terminal_started_at"] = perth_time()
     write_metadata()
     begin = time.monotonic()

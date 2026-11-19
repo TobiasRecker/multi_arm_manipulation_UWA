@@ -102,7 +102,8 @@ class EntryClient(ApproachClient):
             if np.linalg.norm(force[:3]-self.force_reference[:3])>10. or np.linalg.norm(force[3:]-self.force_reference[3:])>1.5:raise RuntimeError('Unexpected native wrench change; entry held, no closing')
         if self.monitor_open and self.positions and time.monotonic()-self.last_open_check>.05:
             self.last_open_check=time.monotonic()
-            if not self.problem.current_open.check(self.positions)[0]:raise RuntimeError('Measured open-jaw/carton collision')
+            valid,reasons=self.problem.current_open.check(self.positions)
+            if not valid:raise RuntimeError('Measured open-jaw model invalid: '+str(reasons))
 
 
 def main():
