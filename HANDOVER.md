@@ -971,11 +971,27 @@
   129 Punkte der Gegenwand-Kreisreferenz mit festem Werkzeug und
   bewegtem Karton bestanden den punktweisen Modellcheck; Anfahrt,
   Rückzug und zeitparametrierter Gesamtweg dort noch nicht belegt.
-- Unabhängiger `check_house_drill_trial.py` für sechs Zustellzyklen,
-  Haus, Kreise, feste Haltergriffe, Rückkehr und unveränderten Stiftarm.
-  Geometrietests bestanden, alter Lauf mit bewegtem Stift korrekt
-  abgelehnt. Echte Agentenbearbeitung steht aus. Keine Geräteaktionen.
-  [Testanleitung](docs/agent_trials/HOUSE_DRILL_TRIAL_04.md).
+- Gemini-Lauf `setup/agent_trials/house_drill_gemini_20261119/session-bodzvnj2`
+  abgeschlossen. Der Prüfer `check_house_drill_trial.py` aus dem Hauptrepo
+  besteht mit den abgegebenen Gelenkinterpolanten. Alle acht Hauskanten,
+  sechs Zustellzyklen, beide Kreise, feste Haltergriffe, Rückkehr und
+  unveränderter Stiftarm beim Kreis auf der Gegenwand sind im Modell belegt.
+  503,81 s Modellzeit in 46 Phasen, Spitzenwert 0,098483 rad/s. Abgabe und
+  Quelldiff liegen im Trial. Der erste Python-Probeaufruf überschrieb
+  `PYTHONPATH`; korrigierter Aufruf hängt den bestehenden Wert an.
+- Terminalstart bis `trial_end`: 35:30 min. 16 Bash-Freigaben belegen im
+  CLI-Log 16:31 min Wartezeit. Die verbleibenden 18:59 min enthalten
+  Lesen, Editieren, Chat und Rechenbefehle. Der Modelllauf brauchte 98,19 s.
+  Beim einfacheren Nikolaushaus waren es 20:01 min, davon 7:42 min
+  Freigabewartezeit. Aufgaben und Umfang unterscheiden sich.
+- Nutzer wünscht vorab freigegebene Routine. `house-drill` im CLI-Starter
+  bereitet Logger und `trial/artifacts` vor. Sitzungsregeln und lokaler
+  Antigravity-Hook decken wörtliche Logbefehle, eine Dateiliste und
+  `mkdir` in `trial/artifacts` ab. Ask-/Deny-Einträge übernommen,
+  globale Allow-Einträge durch die Sitzungsregeln ersetzt. Tests gegen
+  den Starter, 15 Positiv-/Negativfälle und Laden in CLI 1.5.12 bestanden.
+  Neuer vollständiger Gemini-Lauf steht aus. `antigravity.log` liegt nun
+  direkt in der Sitzung. [Testanleitung](docs/agent_trials/HOUSE_DRILL_TRIAL_04.md).
 
 ## Neuplanung des Gazebo-Drei-Kreis-Ablaufs, 2026-11-18
 

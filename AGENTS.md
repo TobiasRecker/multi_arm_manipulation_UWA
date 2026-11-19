@@ -157,6 +157,11 @@
   separater Quellkopie starten und die neue Form aus der gespeicherten
   Gelenkbahn prüfen. Alte Ergebnisordner bleiben außerhalb des
   bereitgestellten Kontexts. Details in docs/agent_trials/.
+- Nutzerauftrag19.11.: harmlose wiederkehrende Freigaben im Gemini-Test
+  vorab behandeln. Logger und Artefaktordner im Starter vorbereiten,
+  automatische Shellfreigaben an die isolierte Sitzung und wörtliche
+  Befehle binden. Freigabewartezeit aus CLI-Ereignissen getrennt von
+  Entwicklungswandzeit, Rechenzeit und Roboter-Modellzeit auswerten.
 - Nutzerpräzisierung19.11.: Zeichnen als reversibler Test für allgemeine
   werkstückbezogene Bahnen. Zielanwendungen sind unter anderem Kleben,
   Farbauftrag, Sägen/spanende Bearbeitung und Schaumauftrag am gehaltenen

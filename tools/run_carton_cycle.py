@@ -150,7 +150,7 @@ def approach(flow, args, store):
                "--metadata", args.metadata, "--intrinsics", args.intrinsics, "--description",
                args.recipe/"hardware.urdf", "--output", out/"registration",
                *(["--camera-reference-pose", args.camera_reference_pose] if args.camera_reference_pose else []),
-               *(["--planar-texture"] if args.planar_texture else []),
+               *(["--planar-texture"] if getattr(args,"planar_texture",False) else []),
                *(["--roi", *args.roi] if args.roi else []),
                *(["--face-roi", *args.face_roi] if args.face_roi else []))
     flow.phase("plan_high", "prepare_carton_pregrasp.py", "--observations", out/"snapshot/observations.json",

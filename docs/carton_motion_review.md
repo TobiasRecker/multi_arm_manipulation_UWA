@@ -108,13 +108,26 @@ Diese Modellgrößen sind keine gemessenen Bremswege. Näheres im
 Beide ROS-2-Lyrical-Pakete ließen sich bauen. Die [107 lokalen Tests](../../../setup/tasks/carton_motion_review_20261119/pilot-tests.xml) und zehn isolierte Freigabetests auf dem N100 bestanden. Auf dem N100 ist der GUI-Endpunkt aktiv. Die neue Bewegungssteuerung liegt als inaktiver Kandidat bereit. Die erste reale Vergleichsfahrt steht aus.
 
 Zwei fertig gefüllte Stores aus demselben Karton-Archivfall liegen auf ROSmini.
-Aus `~/UWA_ws` startet die zweite Variante direkt mit einer gleichzeitigen
-offenen Einfahrt der rechten Arme:
+Aus `~/UWA_ws` öffnet dieser Befehl die Demo mit der gemeinsamen offenen
+Einfahrt der rechten Arme.
 
 ```bash
 python3 src/multi_arm_manipulation_UWA/scripts/ur_power_gui.py \
     --review-mock setup/tasks/carton_motion_review_20261119/gui-mock-parallel
 ```
+
+1. In **UWA Robot Power · Mock review → Motion review** auf **Open RViz** klicken.
+   RViz zeigt zuerst die Startpose. Im zweiten Fenster **UWA planned motion · …**
+   auf **Play preview** klicken. Falls RViz das Fenster verdeckt, mit **Alt+Tab**
+   wechseln. Der Zeitregler lässt sich auch bei pausierter Vorschau bewegen.
+2. Im Parallelbeispiel fahren die rechten Arme zunächst einzeln zur Vorposition.
+   Für die gemeinsame Einfahrt den Zeitregler auf etwa **24 von 47 Sekunden**
+   schieben und **Play preview** klicken. **4× playback** beschleunigt die Anzeige.
+3. Um auch die Entscheidung auszuprobieren, im Fenster **Mock review** oben
+   **Release work area for session** klicken. Sobald **WORK AREA RELEASED**
+   angezeigt wird und der offene Plan geladen ist, ist **Approve** verfügbar.
+   Damit wird die Entscheidung lokal gespeichert. Die Vorschau lässt sich
+   schon vor der Freigabe abspielen.
 
 Für die Vorschau beim tatsächlichen Startwert das letzte Argument durch
 `setup/tasks/carton_motion_review_20261119/gui-mock` ersetzen. Der Vergleich

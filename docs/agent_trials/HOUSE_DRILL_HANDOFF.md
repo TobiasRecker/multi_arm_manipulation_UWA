@@ -10,7 +10,9 @@ Modellquelle gleichermaßen für alle Stufen:
 `/home/rosmatch/UWA_ws/setup/research/offline-carton-sides-20261117/standard/smoothed/result.json`.
 Vor Modellaufrufen die bestehende Umgebung aus
 `/home/rosmatch/UWA_ws/src/multi_arm_manipulation_UWA/scripts/env.bash`
-laden. `OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1` setzen. Die Python-Tools
+laden. `OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1` setzen. Bei eigenen
+Python-Probes die Paketpfade aus deiner Quellkopie vor das bestehende
+`PYTHONPATH` setzen und den bestehenden Wert anhängen. Die Python-Tools
 aus deiner **Quellkopie** starten. Arbeits- und Prüfdateien liegen im
 Trialordner. Dienste oder Plugins müssen dafür nicht gestartet werden.
 
@@ -55,7 +57,8 @@ Trialordner. Dienste oder Plugins müssen dafür nicht gestartet werden.
 
 ## Ablauf und Rückgabe
 
-1. Logger mit `--task box-house-drill-04` initialisieren.
+1. Falls der Starter den Logger vorbereitet hat, direkt mit `start orient`
+   beginnen. Sonst mit `--task box-house-drill-04` initialisieren.
    Stufen `orient`, `adapt`, `plan`, `verify`, `deliver` erfassen.
    Rechenbefehle samt stdout/stderr wrappen, Editoren und Freigaben
    bei Bedarf als Notizen ergänzen. Keine Befehle für Zelle oder Kamera.

@@ -14,17 +14,22 @@ Sitzungsordner. Das Terminalprotokoll liegt unter
 Für eine neue Sitzung in der IDE-Erweiterung `--prepare-only` verwenden
 und den erzeugten Prompt aus dem ausgegebenen Repo starten.
 
-Auf ROSmini meldet Antigravity CLI 1.5.12 bei der aktuellen
-AppArmor-Konfiguration einen Ausfall seiner Terminal-Sandbox und fällt
-von `auto` in den Standardmodus zurück. Im laufenden Test ist
-`accept-edits` aktiv. Damit werden Dateiedits automatisch angenommen.
-Für wiederkehrende Aufrufe kann man bei der Freigabe **always allow in
-this conversation** für den konkret geprüften Befehl wählen. Bei einem
-neuen Start lässt sich `--mode=accept-edits` direkt angeben. Der Starter
-warnt nun beim bekannten AppArmor-Fallback und schreibt den Hinweis
-in `observer.json`. Maßgeblich bleibt die tatsächliche Statuszeile.
+Auf ROSmini fiel Antigravity CLI 1.5.12 beim ersten Versuch wegen der
+AppArmor-Konfiguration von `auto` auf `default` zurück. Der Starter
+warnt in diesem Fall. Bei Bedarf direkt mit `--mode=accept-edits` starten.
+Dieser Modus übernimmt Dateiedits im Test-Checkout automatisch.
+
+Der CLI-Starter legt jetzt Logger und `trial/artifacts` an. Er lädt eine
+Konfiguration nur für diese Sitzung und schreibt `antigravity.log` in
+den Sitzungsordner. Die abgegrenzte Freigabe deckt Logger-Einträge, eine
+Dateiliste und `mkdir` direkt unter `trial/artifacts` ab, jeweils in den
+im erzeugten Prompt genannten Aufrufformen. Die globale Allow-Liste wird
+für diesen Lauf durch die Sitzungsregeln ersetzt. Vorhandene Ask- und
+Deny-Regeln werden übernommen. Modellläufe, Python-Probes und Tests
+verwenden weiterhin die normale Freigabe des gewählten CLI-Modus.
 [Antigravity-Freigabemodi](https://antigravity.google/docs/cli/modes) ·
-[Berechtigungen](https://antigravity.google/docs/permissions?tab=cli)
+[Berechtigungen](https://antigravity.google/docs/permissions?tab=cli) ·
+[Hooks](https://antigravity.google/docs/hooks?tab=cli)
 
 Der erste Seitenkreis bleibt bei 22 mm Radius. Auf der Unterseite wird
 das Haus linear um Faktor zwei skaliert. Die sechs axialen Stellen liegen
@@ -71,3 +76,9 @@ prüft es zusätzlich die sechs unveränderten Gelenke des Stiftarms und
 die Ausrichtung der Gegenwand. Eine bloße Visuallinie oder ein aus
 dem früheren Versuch übernommener bewegter Stift genügt diesem Test nicht.
 Geometrie-, Kollisions- und Kontaktphysiknachweise sind getrennt.
+
+Für Entwicklungsgeschwindigkeit den Terminalstart aus `observer.json`
+bis `trial_end` in `trial/events.jsonl` messen. Im CLI-Log die Zeit von
+`Surfacing tool confirmation` bis `Responding to tool confirmation` für
+denselben Schritt erfassen. Die Differenz zur Gesamtzeit enthält weiter
+Lesen, Bearbeiten und Befehlslaufzeiten.

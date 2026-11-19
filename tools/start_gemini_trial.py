@@ -15,6 +15,9 @@ import tempfile
 import time
 from zoneinfo import ZoneInfo
 
+from agent_trial import Trial
+from antigravity_trial_permissions import PYTHON, trace_command
+
 
 REPO = Path(__file__).resolve().parents[1]
 WORKSPACE = REPO.parents[1]
@@ -47,6 +50,7 @@ CASES = {
     "house-drill": ("house_drill_gemini_20261119", PROCESS_CONTEXT),
 }
 BASELINE_CONTEXT_FILES = {"AGENTS.md", "box_drawing_pilot.md", "TRACE_PROTOCOL.md", "workpiece_paths.md"}
+HOUSE_DRILL_FIXTURE = WORKSPACE / "setup/research/offline-carton-sides-20261117/standard/smoothed/result.json"
 
 
 def perth_time():
@@ -67,6 +71,34 @@ def auto_mode_warning(version):
                     "kernel.apparmor_restrict_unprivileged_userns=1. "
                     "Expect command confirmations. Use --mode=accept-edits to auto-approve file edits.")
     return None
+
+
+def configure_house_drill_cli(agent_repo, session, trace):
+    # --settings replaces the permissions object for this invocation. Carry
+    # over explicit review/deny rules without importing broad global allows.
+    user_settings = Path.home() / ".gemini/antigravity-cli/settings.json"
+    permissions = json.loads(user_settings.read_text()).get("permissions", {}) if user_settings.exists() else {}
+    hooks = agent_repo / ".agents/hooks.json"
+    settings = session / "antigravity-settings.json"
+    settings.write_text(json.dumps({"permissions": {
+        "allow": [f"read_file({HOUSE_DRILL_FIXTURE})"],
+        "ask": permissions.get("ask", []),
+        "deny": [*permissions.get("deny", []), f"write_file({hooks})", f"write_file({settings})"],
+    }}, indent=2) + "\n")
+
+    hook = REPO / "tools/antigravity_trial_permissions.py"
+    hooks.parent.mkdir(exist_ok=True)
+    with hooks.open("x") as stream:
+        json.dump({"uwa-trial-permissions": {
+            "PreToolUse": [{"matcher": "run_command", "hooks": [{
+                "command": shlex.join([PYTHON, "-I", str(hook), str(trace), str(agent_repo)]),
+                "timeout": 5,
+            }]}],
+        }}, stream, indent=2)
+        stream.write("\n")
+    with (agent_repo / ".git/info/exclude").open("a") as stream:
+        stream.write("\n/.agents/hooks.json\n")
+    return settings
 
 
 def main():
@@ -110,6 +142,11 @@ def main():
         subprocess.run(["git", "clone", "--quiet", "--no-local", "--single-branch",
                         "--depth", "1", "--no-tags", str(REPO), str(agent_repo)], check=True)
         subprocess.run(["git", "-C", str(agent_repo), "remote", "remove", "origin"], check=True)
+    settings = None
+    if args.case == "house-drill" and not args.prepare_only and args.mode != "plan":
+        settings = configure_house_drill_cli(agent_repo, session, trace)
+        Trial(trace).init(agent_repo, "box-house-drill-04", f"Antigravity CLI {version}")
+        (trace / "artifacts").mkdir()
     revision = subprocess.check_output(["git", "-C", str(agent_repo), "rev-parse", "HEAD"], text=True).strip()
     source_prompt = context[0].read_text().rstrip()
     client = "Google Antigravity for VS Code" if args.prepare_only else f"Antigravity CLI {version}"
@@ -117,6 +154,16 @@ def main():
               f"Dein Arbeits-Repo ist {agent_repo}.\n"
               f"Dein absoluter Trial-Pfad ist {trace}.\n"
               f"Client laut Start: {client}. Modellvorgabe: {args.model or 'keine, tatsächliches Modell erfassen falls sichtbar'}.\n")
+    if settings:
+        logger = shlex.join(trace_command(trace))
+        prompt += ("\nDer Logger sowie der Ordner trial/artifacts sind bereits vorbereitet. "
+                   "Beginne mit diesem Befehl. Nutze denselben absoluten Aufruf für alle Logschritte. "
+                   "Protokollschritte separat und ohne Variablen, Umleitungen oder Shellblöcke aufrufen.\n"
+                   f"```bash\n{logger} start orient\n"
+                   f"{logger} run --label list-files -- /usr/bin/ls -la -- {shlex.quote(str(agent_repo / 'tools'))}\n```\n"
+                   "Nutze list_dir zum Lesen von Ordnern. Falls ein eigener Unterordner unter artifacts nötig ist, "
+                   "verwende /usr/bin/mkdir -p -- und den wörtlichen absoluten Pfad. "
+                   "Der Planer erzeugt seinen Ausgabeordner selbst.\n")
     (session / "prompt.md").write_text(prompt)
     snapshots = session / "context"
     snapshots.mkdir()
@@ -134,6 +181,8 @@ def main():
                     prepared_at=perth_time(), context_sha256=hashes)
     if warning:
         metadata["auto_mode_warning"] = warning
+    if settings:
+        metadata.update(antigravity_settings=str(settings), antigravity_log=str(session / "antigravity.log"))
     metadata_path = session / "observer.json"
 
     def write_metadata():
@@ -149,6 +198,8 @@ def main():
     command = [str(agy), "-i", prompt]
     if isolated:
         command.extend(["--add-dir", str(session)])
+    if settings:
+        command.extend(["--settings", str(settings), "--log-file", metadata["antigravity_log"]])
     if args.model:
         command.extend(["--model", args.model])
     if args.mode:
