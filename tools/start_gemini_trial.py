@@ -10,6 +10,7 @@ from pathlib import Path
 import shlex
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from zoneinfo import ZoneInfo
@@ -52,6 +53,22 @@ def perth_time():
     return datetime.now(ZoneInfo("Australia/Perth")).isoformat()
 
 
+def auto_mode_warning(version):
+    # This release rejects Auto while this Linux policy flag is enabled,
+    # even when the system Bubblewrap binary works with its own profile.
+    if version == "1.5.12" and sys.platform.startswith("linux"):
+        policy = Path("/proc/sys/kernel/apparmor_restrict_unprivileged_userns")
+        try:
+            restricted = policy.read_text().strip() == "1"
+        except OSError:
+            return None
+        if restricted:
+            return ("Antigravity CLI 1.5.12 rejects auto mode with "
+                    "kernel.apparmor_restrict_unprivileged_userns=1. "
+                    "Expect command confirmations. Use --mode=accept-edits to auto-approve file edits.")
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--prepare-only", action="store_true", help="Save a prompt for a fresh IDE session")
@@ -77,6 +94,9 @@ def main():
                                      text=True, timeout=15).stdout.strip()
         except (OSError, subprocess.SubprocessError) as error:
             parser.error(f"Antigravity version check failed: {error}")
+    warning = auto_mode_warning(version) if args.mode == "auto" else None
+    if warning:
+        print(f"WARNING: {warning}", file=sys.stderr, flush=True)
 
     isolated = args.case != "circles"
     folder, context = CASES[args.case]
@@ -112,6 +132,8 @@ def main():
                     trial=str(trace), client=client,
                     model_requested=args.model, mode_requested=args.mode,
                     prepared_at=perth_time(), context_sha256=hashes)
+    if warning:
+        metadata["auto_mode_warning"] = warning
     metadata_path = session / "observer.json"
 
     def write_metadata():

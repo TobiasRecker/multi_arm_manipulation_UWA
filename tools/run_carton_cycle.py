@@ -31,7 +31,7 @@ def main():
         if result.returncode:raise RuntimeError(name+' failed; no automatic retry; see '+str(out/(name+'.log')))
     try:
         if a.close_after_review:
-            phase('close','carton_gripper_phase.py','close','--state',out/'entry/result.json','--output',out/'grasp','--execute','--visual-confirmed')
+            phase('close','carton_gripper_phase.py','close','--state',out/'entry/result.json','--output',out/'grasp','--execute','--visual-confirmed',*(['--start-ros-programs']if a.start_ros_programs else []))
             report.update(success=True,phase='SUPPORTED_CONTACT_HELD')
         else:
             phase('snapshot','prepare_carton_hardware.py','--observe','--output',out/'snapshot')
@@ -48,7 +48,7 @@ def main():
             # Already activated/open from release: read readiness, don't send
             # another opening or activation merely to repeat the same state.
             phase('open_readiness','carton_gripper_phase.py','prepare','--state',out/'high/result.json','--output',out/'open-readiness')
-            phase('entry','run_carton_open_entry.py','--plan',out/'entry-plan/result.json','--output',out/'entry','--execute','--reset-unloaded')
+            phase('entry','run_carton_open_entry.py','--plan',out/'entry-plan/result.json','--output',out/'entry','--execute','--reset-unloaded',*(['--start-ros-programs']if a.start_ros_programs else []))
             report['phase']='WAITING_VISUAL_REVIEW'
     except BaseException as error:report.update(success=False,phase='STOPPED_NO_AUTOMATIC_RECOVERY',error=str(error))
     finally:

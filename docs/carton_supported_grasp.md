@@ -1,13 +1,13 @@
 # Karton greifen: kurzer realer Ablauf
 
-Aktuell19.11.2026: Der erste korrekte Griff wurde vom Nutzer bestätigt. Auf
-seinen Auftrag wurde der Karton losgelassen, beide rechten Arme zurück nach
-Home gefahren und die Betriebsanbindung auf N100 umgestellt. Nach korrigierter
-RF-Ellenbogenkonfiguration läuft ein neuer gemessener Versuch (`cycle03`).
-Letzter bestätigter Zustand davor: beide offen in Home, kein Kontakt.
+Aktuell19.11.2026,13:01: Beide rechten Greifer halten den aufliegenden Karton
+nach Wiederholung über den N100. Abschlussprüfung PASS, beide OBJ2 und frischer
+statischer Endhalt bestätigt. Gemeinsamer virtueller Objektframe eingefroren;
+jetzt nur HOLD, keine unabhängige Armfahrt und keine automatische Erholung.
 Das positionsbasierte Ruheprofil ist aktiv und auch für künftige Kartonabläufe
-vom Nutzer freigegeben. Aktuelles Ergebnis vor Folgeaktionen im HANDOVER und
-`work/carton-cycle-n100-20261119.md` prüfen.
+vom Nutzer freigegeben. Seit letztem Home rund19min05s inklusive Softwarefehler
+und Korrekturen, kein störungsfreier Zeitbenchmark. Nachweise/aktueller Zustand
+im HANDOVER und `work/carton-cycle-n100-20261119.md`.
 
 UR-Treiber/Guard/Greifer/Executor jetzt auf N100 `~/uwa-ur-runtime`, Domain66/
 LOCALHOST; GUI auf ROSmini mit`--n100`. Keine parallelen ROSmini-Hardwaredienste.
@@ -37,8 +37,9 @@ Bedienablauf. Bei einem technischen Abbruch bleiben die Arme gestoppt und die
 Greiferziele erhalten. Es gibt keine automatische Neustart-/Öffnen-/Rückfahrserie.
 Die vorhandene Kollisions-, Datenfrische-, Halte- und native UR-Sicherheit bleibt
 aktiv. Armweise Freigabe und reale offene Einfahrt sind seit19.11. praktisch
-bestätigt. Der RR-Ruhecheck während realem Greifschluss bleibt offen; keine
-Tragfähigkeits-/Kraftqualifikation oder geladene Hardwarebewegung.
+bestätigt. Der aktuelle statische
+Greifschluss mit Trend-Ruheprofil ist bestanden; Tragfähigkeits-/Kraftqualifikation
+und geladene Hardwarebewegung bleiben offen.
 
 ## Bausteine für Agenten
 
@@ -124,3 +125,12 @@ Rezept enthält bewährteIK-Startwerte mit Herkunft; Ziele werden aus aktueller
 Bildpose frisch gelöst und geprüft. GanzeEinfahrt VOR hoherReal-Anfahrt prüfen.
 `run_carton_cycle.py` protokolliert diese normalen Phasen und hält vor dem
 Agent-Bildcheckpoint an; kein automatischer Wiederholungs-/Recoveryloop.
+
+
+Bei explizit beauftragtem regulärem Programmstart vor dem Schließen bietet
+`carton_gripper_phase.py close --start-ros-programs --execute --visual-confirmed`
+den geprüften Weg: sämtliche Schnittstellen vorher aufbauen, alle vier Greifer
+offen und alle Arme frisch stationär/gehalten/normal bestätigen, dann vorhandenen
+unbeladenen Startpfad verwenden. Keine Freigabe nach Kontakt, keine Quittierung
+nativer Sicherheitsmeldungen. Der Standard sendet weiterhin kein Play.
+Greiferstatus liest persistent über dieselben RPC-Endpunkte jeweils neu vom Gerät.

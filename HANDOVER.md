@@ -1,5 +1,69 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Karton für Umstellen freigeben,19.11.2026
+
+- Nutzer bestätigt Griff, möchte repräsentativen neuen Versuch mit umgestelltem
+  Karton. Aktueller Auftrag ausschließlich: lösen, hochfahren, Home, danach warten.
+- Beide rechten Greifer tatsächlich geöffnet: OBJ3/POS3/PRE0/FOR0/SPE16,
+  remaining_contact_members[]. Releasebericht bewahrt kurzen Halte-Transienten
+  (`HELD_OPEN_UNCONFIRMED`); keine Wiederholung des Fingerziels. Frischer
+  Offen-/Armzustand aufgenommen; Rückzug/Home mit vorhandenen vollständigen
+  Vorfahrprüfungen in Arbeit. Keine geladene unabhängige Bewegung.
+- Reale Betriebsdienste weiter ausschließlich N100. Laufende Ergebnisse
+  `setup/tasks/carton_reposition_20261119/`, Arbeitsstand
+  `src/multi_arm_manipulation_UWA/work/carton-reposition-20261119.md`.
+- Vorherige Kontakt-HOLD-Aussagen unten historisch. Nach Home keine erneute
+  Greifsequenz; erst Nutzerumstellung abwarten und neue Kartonpose bestimmen.
+
+
+## Kartonzyklus N100 abgeschlossen,19.11.2026,13:01
+
+- **Aktuell beide rechten Greifer am aufliegenden Karton geschlossen. Nur HOLD.**
+  RF/RR melden ACT1/STA3/FLT0/OBJ2/PRE255/FOR0/SPE16, POS204/202.
+  Abschlussprüfung `continuation/grasp-started/result.json` tatsächlich PASS,
+  `SUPPORTED_TWO_ARM_CONTACT_HELD`, beide Kontaktmitglieder und statischer
+  Endhalt bestätigt. Gemeinsamer virtueller Objektframe/TCP-Offsets eingefroren.
+  Keine unabhängigen Armziele, kein Reset/Play/Öffnen, kein Hub als automatische
+  Erholung nach Kontakt. Geladene Hardwarebewegung bleibt nicht implementiert.
+- Abschließender unabhängiger Lesesnapshot `final-held/observations.json`:
+  alle4 Programme RUNNING/runtime2, safety1, stationär; Positionsspannen im
+  kurzen Snapshot maximal0,000125rad. Aktuelles OAK-Abschlussbild unter
+  `setup/tasks/carton_cycle_n100_20261119/final-{preview,jaws}.jpg` (ROSmini).
+- Betriebsanbindung nun N100 `~/uwa-ur-runtime`, Domain66/LOCALHOST, GUI ROSmini
+  `--n100`. Alle4 External-Control-Hosts192.168.8.5, Ports unverändert.
+  Keine parallelen ROSmini-Hardwaredienste starten. Geschwindigkeitsgrenze
+  unverändert0,1rad/s, Beschleunigung0,2rad/s², Modellpuffer40mm.
+- Ruheprofil `hardware_carton_supported_trend.yaml` aktiv und auf neue
+  ausdrückliche Nutzerfreigabe auch künftig Karton-Toolstandard. Armruhe über
+  Positionstrend, weiterhin0,0005radSpanne/0,5s. Weitere fachlich begründete
+  Ruhelockerung erlaubt, aktuell nicht nötig vorgenommen. Keine Freigabe zur
+  Lockerung von Frische-/Kollisions-/Geschwindigkeits-/nativenUR-Stopps.
+- RF-Ellenbogenkonfiguration wie vom Nutzer gewünscht korrigiert. Tatsächliche
+  hohe Anfahrt und offene Einfahrt in `continuation/` beide PASS. Vor Schließen
+  aktuelle OAK-Fotos12:56:19/12:59:51 visuell geprüft: Backenpaare straddeln
+  kurze Wände, Tischauflage. Keine neue Wrist-Zentriermetrologie behauptet.
+- **Zeit:** seit letztem Home-Start12:42:12 bis beobachtetem Griffabschluss
+  13:01:16 rund19min05s, einschließlich Softwareabbruch/Korrektur/Fortsetzung.
+  Ab initialem Logger11:18:30 insgesamt1h42min46s inklusive Hostwechsel,
+  Nutzerwartezeiten, Konfigurationskorrektur und Fehlversuchen; erste
+  Dokumentlesung vor Logger ausgeschlossen. **Kein störungsfreier Zykluswert.**
+  Lokale Zeitbasis/Einzelphasen: `setup/tasks/carton_cycle_n100_20261119/`
+  `timing.json` und `completion.json`; keine Host-Monotonzeiten subtrahiert.
+- Beobachteter Blocker war nach Ruhekorrektur wiederholt eine Hardware-/Manager-
+  RPC-Antwort >0,3s beim ROS-Schnittstellenwechsel. Keine Frischegrenze gelockert.
+  Bekannte Cancel-Clients jetzt vor Timern, Arm-/Read-Schnittstellen für beide
+  seriellen Arme vor Programmstart, bis Serienende erhalten; Gripper-Read-RPCs
+  persistent mit jeweils neuen Geräteanfragen. Hohe Anfahrt und Einfahrt danach
+  bestanden. Zeitlicher Zusammenhang belegt, keine allgemeine Middleware-
+  Ursachen- oder Dauerstabilitätsgarantie. Gezielte Offlineprüfungen bestanden.
+- Erster Schlussversuch vor Fingerziel wegen STOPPED-Programm verweigert.
+  Nach gezielter Korrektur **expliziter** regulärer Start erst nach vollständigem
+  Graphaufbau unter allen4 offenen stationären Holds; danach nurRF/RRgeschlossen.
+  Neuer Opt-in `carton_gripper_phase.py close --start-ros-programs` ist nur bei
+  `--execute --visual-confirmed` zulässig. Kein Sicherheitsstopp quittiert,
+  keine automatische Wiederanlaufserie. Frühere Fehlerdateien bleiben erhalten.
+
+
 ## Aktueller Kartonzyklus auf N100,19.11.2026 (12:42)
 
 - Nach zuvor bestätigtem Griff vom Nutzer beauftragt: lösen, hoch, Home und
@@ -787,6 +851,17 @@
   Standoff-Wiederanschluss ein, den der bestehende Fallback voraussetzt.
 
 ## Gemini-Test für doppeltes Haus, Lochkreis und festen Stift, 2026-11-19
+
+- Nutzer meldet ausbleibendes Auto-Approve. CLI-Log vom Start 12:43:58
+  bestätigt `--mode=auto` erkannt, dann Rückfall auf Standardmodus,
+  da Antigravity 1.5.12 bei
+  `kernel.apparmor_restrict_unprivileged_userns=1` seine Sandbox
+  deaktiviert. Im laufenden Terminal später `accept-edits`; Shellbefehle
+  fragen weiter. Separater Bubblewrap-Nur-Lese-Test direkt auf dem Host
+  besteht. Ursache ist die Antigravity-Erkennung bei aktiver AppArmor-
+  Richtlinie. Starter warnt jetzt in diesem bekannten Fall und protokolliert
+  die Warnung. Praktischer Weg im laufenden Test: `accept-edits` und
+  gezielte Freigaben für diese Unterhaltung. Host-Richtlinie unverändert.
 
 - Nutzer wünscht geometrisch doppeltes Nikolaushaus auf der Unterseite,
   sechs gleichmäßig verteilte Bohrstellen auf Ø150 mm und möglichst den

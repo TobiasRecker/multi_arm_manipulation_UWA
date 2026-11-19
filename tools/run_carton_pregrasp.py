@@ -6,6 +6,7 @@ Default: verify/model-check saved geometric evidence only. --execute plus
 confirmed open and all other resource holds retained across each scoped arm release.
 """
 import argparse
+from contextlib import ExitStack, contextmanager
 import json
 from pathlib import Path
 import sys
@@ -25,7 +26,7 @@ from uwa_cell_motion.execution import motion_context
 from uwa_cell_motion.hardware_execution import HardwareClient
 from uwa_cell_motion.single_execution import follow
 from uwa_cell_motion.hardware_state import require_domain,signature,Peer
-from uwa_cell_gripper_control.client import GripperClient
+from uwa_cell_gripper_control.api import endpoint
 from uwa_cell_gazebo.charuco_views import Chain
 from hardware_stop_probe import Observer,quiet_window
 
@@ -61,6 +62,32 @@ class ApproachClient(HardwareClient):
         future=client.call_async(request);self.wait(future.done,5.)
         self.service_timings.append(dict(service=name,duration_s=time.monotonic()-started))
         return future.result()
+
+
+@contextmanager
+def approach_resources(problem, arms, client_type=ApproachClient, observer_type=Observer):
+    """Build the entire arm graph before starting any programs or trajectories.
+
+    Keep both arm clients alive across the serial transition. Reading gripper
+    status uses provisioned read-only RPCs on these same nodes, without creating
+    and destroying extra action clients between the two arm goals.
+    """
+    with ExitStack() as cleanup:
+        resources={}
+        for arm in arms:
+            observer=observer_type(problem.profiles[arm]['ip']);cleanup.callback(observer.close)
+            client=client_type(problem,arm,observer);cleanup.callback(client.destroy_node)
+            for rid in ROBOT_IDS:
+                name=endpoint(rid,'hardware')+'/read'
+                client.rpc_clients[(Trigger,name)]=client.create_client(Trigger,name)
+            resources[arm]=(observer,client)
+        yield resources
+
+
+def read_gripper_status(client, arm):
+    response=client.service(Trigger,endpoint(arm,'hardware')+'/read',Trigger.Request())
+    if not response.success:raise RuntimeError(response.message)
+    return json.loads(response.message)
 
 
 def start_ros_programs_held(client, root, problem, segment, save):
@@ -168,25 +195,23 @@ def main():
     if not args.execute:
         report.update(success=True, phase='OFFLINE_CHECKED_NOT_EXECUTED'); save(); return 0
     require_domain('hardware')
-    with motion_context():
+    with motion_context(), approach_resources(problem,selected) as resources:
         for index, segment in enumerate(report['segments']):
-            arm = segment['arm'];client=None;observer=None
+            arm = segment['arm'];observer,client=resources[arm]
             try:
-                observer=Observer(problem.profiles[arm]['ip'])
                 end=time.monotonic()+2.
                 while not observer.snapshot():
                     if observer.error or time.monotonic()>end:raise RuntimeError('Independent native observer unavailable')
                     time.sleep(.01)
                 report['phase'] = 'UNLOADED_CHECK_'+arm; save()
                 for r in ROBOT_IDS:
-                    with GripperClient(r) as gripper: status = gripper.status()
+                    status=read_gripper_status(client,r)
                     segment.setdefault('grippers_before', {})[r] = status
                     if not unloaded_open_status(status):
                         raise ValueError(r+': not confirmed open/unloaded; no reset or goal sent')
                 # Gripper discovery/services have their own executor. Build the
                 # arm history afterwards, so those blocking checks cannot punch
                 # a gap in the driver/native alignment window.
-                client=ApproachClient(problem,arm,observer)
                 if args.start_ros_programs and index==0:
                     start_ros_programs_held(client,root,problem,segment,save)
                 client.connect()
@@ -250,11 +275,11 @@ def main():
                 save(); return 1
             finally:
                 if observer is not None:
-                    observer.close();native=root/(arm+'-native.json')
+                    native=root/(arm+'-native.json')
                     dump(native,dict(records=observer.snapshot(),error=observer.error))
                     segment['native_trace']=str(native);save()
                 if client is not None:
-                    segment["service_timings"]=client.service_timings;save();client.destroy_node()
+                    segment["service_timings"]=client.service_timings;save()
         report.update(success=True, phase='AT_HIGH_PREGRASP_HELD_NO_CONTACT'); save()
     return 0
 

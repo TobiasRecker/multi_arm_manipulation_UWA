@@ -14,6 +14,18 @@ Sitzungsordner. Das Terminalprotokoll liegt unter
 Für eine neue Sitzung in der IDE-Erweiterung `--prepare-only` verwenden
 und den erzeugten Prompt aus dem ausgegebenen Repo starten.
 
+Auf ROSmini meldet Antigravity CLI 1.5.12 bei der aktuellen
+AppArmor-Konfiguration einen Ausfall seiner Terminal-Sandbox und fällt
+von `auto` in den Standardmodus zurück. Im laufenden Test ist
+`accept-edits` aktiv. Damit werden Dateiedits automatisch angenommen.
+Für wiederkehrende Aufrufe kann man bei der Freigabe **always allow in
+this conversation** für den konkret geprüften Befehl wählen. Bei einem
+neuen Start lässt sich `--mode=accept-edits` direkt angeben. Der Starter
+warnt nun beim bekannten AppArmor-Fallback und schreibt den Hinweis
+in `observer.json`. Maßgeblich bleibt die tatsächliche Statuszeile.
+[Antigravity-Freigabemodi](https://antigravity.google/docs/cli/modes) ·
+[Berechtigungen](https://antigravity.google/docs/permissions?tab=cli)
+
 Der erste Seitenkreis bleibt bei 22 mm Radius. Auf der Unterseite wird
 das Haus linear um Faktor zwei skaliert. Die sechs axialen Stellen liegen
 im Abstand von je 60° auf einem vollständigen Lochkreis Ø150 mm.

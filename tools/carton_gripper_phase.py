@@ -3,7 +3,8 @@
 
 Default read-only. prepare: activate/open only at confirmed high pregrasp.
 close: both arms already inserted, held and visually checked; rawFOR0/SPE16.
-No arm goals, reset, program/power action, auto opening, lift or loaded motion.
+No arm goals, automatic restart/opening, lift or loaded motion.
+Explicit --start-ros-programs starts only before closing under all-four open holds.
 """
 import argparse,hashlib,json,sys,time
 from concurrent.futures import ThreadPoolExecutor
@@ -99,20 +100,47 @@ def freeze_group(state_path,state,monitor,contacts):
 
 def main():
     ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('phase',choices=['prepare','close','release']);ap.add_argument('--state',type=Path,required=True);ap.add_argument('--output',type=Path,required=True);ap.add_argument('--execute',action='store_true');ap.add_argument('--visual-confirmed',action='store_true',help='Agent inspected entry, or table support for explicit release; no operator approval prompt')
-    args=ap.parse_args();state=json.loads(args.state.read_text());wanted='AT_HIGH_PREGRASP_HELD_NO_CONTACT' if args.phase=='prepare' else 'BOTH_OPEN_AT_WALL_HELD_NO_CLOSE'
+    ap.add_argument('--start-ros-programs',action='store_true',help='Explicit unloaded regular program startup after graph creation, before close; no native safety acknowledgement')
+    args=ap.parse_args()
+    if args.start_ros_programs and not (args.execute and args.phase=='close' and args.visual_confirmed):ap.error('Program startup only with explicit visually reviewed unloaded close')
+    state=json.loads(args.state.read_text());wanted='AT_HIGH_PREGRASP_HELD_NO_CONTACT' if args.phase=='prepare' else 'BOTH_OPEN_AT_WALL_HELD_NO_CLOSE'
     if not state.get('success') or state.get('phase')!=wanted:raise ValueError('Confirmed '+wanted+' result required')
     if args.phase in ('close','release') and args.execute and not args.visual_confirmed:ap.error('Inspect actual entry/support before using --visual-confirmed')
-    expected=state['hardware_signature'];limits=state['supervision_limits'];positions=state['segments'][-1]['final_positions'];out=args.output.resolve();out.mkdir(parents=True,exist_ok=False);report=dict(success=False,phase=args.phase.upper(),arm_commands=[],finger_commands=[],loaded_motion=False,force_raw=0,speed_raw=16,nominal_force_note='Minimum raw setting, not measured jaw force',state=str(args.state.resolve()),state_sha256=hashlib.sha256(args.state.read_bytes()).hexdigest(),visual_confirmed=args.visual_confirmed,results={});require_domain('hardware');rclpy.init();clients={};monitor=None
+    expected=state['hardware_signature'];limits=state['supervision_limits'];positions=state['segments'][-1]['final_positions'];out=args.output.resolve();out.mkdir(parents=True,exist_ok=False);report=dict(success=False,phase=args.phase.upper(),arm_commands=[],finger_commands=[],loaded_motion=False,force_raw=0,speed_raw=16,nominal_force_note='Minimum raw setting, not measured jaw force',state=str(args.state.resolve()),state_sha256=hashlib.sha256(args.state.read_bytes()).hexdigest(),visual_confirmed=args.visual_confirmed,results={});require_domain('hardware');rclpy.init();clients={};monitor=None;startup_client=None;startup_observer=None;startup_directory=None
     def save():dump(out/'result.json',report)
     save()
     try:
-        for arm in ('right_front','right_rear'):
+        for arm in (ROBOT_IDS if args.start_ros_programs else ('right_front','right_rear')):
             g=clients[arm]=GripperClient(arm);status=g.status();report.setdefault('before',{})[arm]=status
             ready=(ready_for_open_preparation(status) if args.phase=='prepare' else closing_contact(status) if args.phase=='release' else unloaded_open_status(status))
             if not ready:raise ValueError(arm+': not open/unloaded')
             r=status['registers']
-            if args.phase=='close' and (r['ACT']!=1 or r['STA']!=3 or r['FOR']!=0 or r['SPE']!=16):raise ValueError(arm+': prepare active open minimal-force gripper first')
-        monitor=HeldMonitor(expected,limits,positions,**({'require_running':False}if args.phase=='release'else {}));monitor.connect();report['holds_before']={k:v[0]for k,v in monitor.values.items()};save()
+            if args.phase=='close' and arm in ('right_front','right_rear') and (r['ACT']!=1 or r['STA']!=3 or r['FOR']!=0 or r['SPE']!=16):raise ValueError(arm+': prepare active open minimal-force gripper first')
+        monitor=HeldMonitor(expected,limits,positions,**({'require_running':False}if args.phase=='release'else {}))
+        if args.start_ros_programs:
+            import tempfile
+            from uwa_cell_motion.hardware_model import HardwareProblem
+            from run_carton_pregrasp import ApproachClient,start_ros_programs_held
+            from hardware_stop_probe import Observer
+            plan=json.loads(Path(state['plan']).read_text())
+            evidence=json.loads(next(Path(p)for p in plan['inputs']if p.endswith('/evidence.json')).read_text())
+            startup_directory=tempfile.TemporaryDirectory(prefix='uwa-static-close-start-')
+            problem=HardwareProblem(startup_directory.name,evidence['configuration'],REPO/'config/hardware_inventory.yaml')
+            from uwa_cell_motion.hardware_state import signature
+            if signature(problem,'hardware')!=expected:raise ValueError('Static startup model/config differs from held entry')
+            startup_observer=Observer(problem.profiles['right_front']['ip'])
+            deadline=time.monotonic()+2.
+            while not startup_observer.snapshot():
+                if startup_observer.error or time.monotonic()>deadline:raise RuntimeError('Static startup native observer unavailable')
+                time.sleep(.01)
+            startup_client=ApproachClient(problem,'right_front',startup_observer)
+            report['explicit_unloaded_startup']={};save()
+            start_ros_programs_held(startup_client,out,problem,report['explicit_unloaded_startup'],save)
+            # These extra clients are retained until final hold/contact capture.
+            # No ROS entity teardown between startup and the finger goals.
+        monitor.connect();report['holds_before']={k:v[0]for k,v in monitor.values.items()};save()
+        if args.start_ros_programs:clients_to_close={a:clients[a]for a in ('right_front','right_rear')}
+        else:clients_to_close=clients
         if not args.execute:report.update(success=True,phase='READ_ONLY_READY_NO_COMMANDS');save();return 0
         def action(arm):
             g=clients[arm];records=[]
@@ -126,7 +154,7 @@ def main():
         # existing arm holds/watchdogs remain authoritative; retain grip targets.
         monitor.connect()
         with ThreadPoolExecutor(max_workers=2) as pool:
-            futures={arm:pool.submit(action,arm)for arm in clients};report['finger_commands']=[dict(arm=a,operation=args.phase,force_raw=0,speed_raw=16)for a in clients];save()
+            futures={arm:pool.submit(action,arm)for arm in clients_to_close};report['finger_commands']=[dict(arm=a,operation=args.phase,force_raw=0,speed_raw=16)for a in clients_to_close];save()
             while not all(f.done()for f in futures.values()):
                 monitor.spin();error=monitor.error()
                 if error:report.setdefault('hardware_fault',error);save()
@@ -135,7 +163,7 @@ def main():
                 except BaseException as error:report.setdefault('errors',{})[arm]=str(error)
         monitor.spin();error=monitor.error()
         if error:report.setdefault('hardware_fault',error)
-        for arm,g in clients.items():
+        for arm,g in clients_to_close.items():
             try:report.setdefault('after',{})[arm]=g.status()
             except BaseException as error:report.setdefault('errors',{})[arm]=str(error)
         # Contact is physical state even when the subsequent arm validation
@@ -170,6 +198,9 @@ def main():
     except BaseException as error:report.update(error=str(error),phase='HELD_NO_AUTOMATIC_RECOVERY');save();return 1
     finally:
         for g in clients.values():g.close()
+        if startup_client is not None:startup_client.destroy_node()
+        if startup_observer is not None:startup_observer.close()
+        if startup_directory is not None:startup_directory.cleanup()
         if monitor is not None:monitor.node.destroy_node()
         rclpy.shutdown()
 

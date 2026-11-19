@@ -16,7 +16,7 @@ from uwa_cell_motion.execution import motion_context
 from uwa_cell_motion.single_execution import follow
 from uwa_cell_gripper_control.client import GripperClient
 from hardware_stop_probe import Observer,quiet_window
-from run_carton_pregrasp import ApproachClient,start_ros_programs_held
+from run_carton_pregrasp import ApproachClient,start_ros_programs_held,approach_resources,read_gripper_status
 from prepare_carton_open_entry import open_model
 
 
@@ -120,20 +120,20 @@ def main():
         p.current_arm=s['arm'];p.current_open=models[s['arm']];p.current_primitive=s['primitive'];p.time_parameterize(s['request'],[])
     if not args.execute:report.update(success=True,phase='OFFLINE_ENTRY_RECHECKED');save();return 0
     save()
-    with motion_context():
+    with motion_context(), approach_resources(p,['right_front','right_rear'],EntryClient,ForceObserver) as resources:
         for index,arm in enumerate(['right_front','right_rear']):
-            ob=ForceObserver(p.profiles[arm]['ip']);client=None;record=dict(arm=arm);report['segments'].append(record)
+            ob,client=resources[arm];record=dict(arm=arm);report['segments'].append(record)
             try:
                 deadline=time.monotonic()+3
                 while not quiet_window(ob.snapshot()[-12:]):
                     if ob.error or time.monotonic()>deadline:raise RuntimeError('No independent quiet prewindow')
                     time.sleep(.02)
                 for r in ROBOT_IDS:
-                    with GripperClient(r) as g:status=g.status()
+                    status=read_gripper_status(client,r)
                     record.setdefault('grippers_before',{})[r]=status
                     if not unloaded_open_status(status):raise ValueError(r+': not open/unloaded')
                     if r in ('right_front','right_rear') and status['registers'].get('ACT')!=1:raise ValueError(r+': activate/open at high pose before entry')
-                p.current_arm=arm;p.current_open=models[arm];client=EntryClient(p,arm,ob)
+                p.current_arm=arm;p.current_open=models[arm]
                 if args.start_ros_programs and index==0:start_ros_programs_held(client,out,p,record,save)
                 client.connect();client.health()
                 if not unloaded_guard_ready(client.guard):raise ValueError('Current clear physical stationarity required')
@@ -168,8 +168,7 @@ def main():
                     report['stop_result']=client.stop(ROBOT_IDS)
                 save();return 1
             finally:
-                ob.close();dump(out/(arm+'-native.json'),dict(error=ob.error,records=ob.snapshot()))
-                if client is not None:client.destroy_node()
+                dump(out/(arm+'-native.json'),dict(error=ob.error,records=ob.snapshot()))
         phase={'unloaded_retreat':'BOTH_OPEN_AT_HIGH_HELD_NO_CONTACT','unloaded_home':'BOTH_OPEN_AT_HOME_HELD'}.get(plan.get('motion_kind'),'BOTH_OPEN_AT_WALL_HELD_NO_CLOSE')
         report.update(success=True,phase=phase);save();return 0
 

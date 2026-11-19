@@ -15,13 +15,13 @@ hardware at the retained0.1rad/s command limit, with open grippers and confirmed
 final holds. No grasp or lift was attempted. See the
 [current evidence and photo](work/carton-pregrasp-20261118.md).
 
-On19November the corrected pregrasp and open entry passed on hardware. Both
-right grippers then reported carton contact at FOR0/SPE16. The rear-right
-standstill monitor stopped its UR program during closing; the overall grasp
-run did not pass its final validation. All four arms are held and stationary,
-and the carton remains supported on the table. Keep this contact group in
-HOLD; no independent arm motion, automatic reset/play/opening or lift. See the
-[operating workflow and current held-contact limits](docs/carton_supported_grasp.md).
+On19November both right arms completed the corrected approach and open entry
+using the N100 runtime. Both grippers closed on the table-supported carton and
+passed final static hold/contact checks. The common virtual object frame is
+frozen: HOLD only, no independent loaded arm motion or automatic recovery.
+The position-trend standstill profile is approved for future carton runs. The
+repeat included software interruptions and is not a clean cycle-time benchmark.
+See the [workflow and evidence](docs/carton_supported_grasp.md).
 
 Open **UWA Robot Power** from the application menu for all four arms.
 **Standby** stops ROS on the robots and switches off the drives; **Start + ROS**

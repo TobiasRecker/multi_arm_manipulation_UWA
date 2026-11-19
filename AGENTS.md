@@ -163,6 +163,12 @@
   laut aktuellem Code keine dauerhaften Treiber beenden. Breite ROS-Signal-
   beendigung nicht ohne Nachweis dem Schließen dieses Fensters zuschreiben.
 
+- Serielle Hardwareaufträge: Arm-/Aktions-/Read-Schnittstellen möglichst vor
+  regulärem Programmstart aufbauen und über Armwechsel behalten. Wiederholter
+  Graphauf-/abbau korrelierte am N100 mit Manager-RPC-Frischefehlern. Jedes
+  Status-Read muss weiterhin frisch vom Gerät kommen; keine Frischegrenze
+  durch Statuscaching umgehen. Nach realem Kontakt nur HOLD, kein Startup.
+
 ## Explizit freigegebene Ruhebewertung,19.11.2026
 
 - Erweiterung durch Nutzer: dieses Ruheprofil auch künftig nutzen; weitere

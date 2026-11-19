@@ -24,6 +24,7 @@ class GripperClient:
         self.node=rclpy.create_node('gripper_client_'+arm)
         self.executor=SingleThreadedExecutor();self.executor.add_node(self.node)
         self.action=ActionClient(self.node,GripperCommand,self.path+'/operate')
+        self.services={name:self.node.create_client(Trigger,self.path+'/'+name) for name in ('read','capabilities')}
 
     def __enter__(self):return self
 
@@ -43,16 +44,14 @@ class GripperClient:
         return future.result()
 
     def service(self, name):
-        client=self.node.create_client(Trigger,self.path+'/'+name)
-        try:
-            # Initial discovery on the full four-arm graph can exceed3s.
-            # This is availability waiting before any request, not a longer
-            # device/command deadline or permission to use stale status.
-            if not client.wait_for_service(timeout_sec=10.):raise RuntimeError('Gripper service unavailable: '+self.path+'/'+name)
-            response=self.wait(client.call_async(Trigger.Request()),3.)
-            if not response.success:raise RuntimeError(response.message)
-            return json.loads(response.message)
-        finally:self.node.destroy_client(client)
+        if name not in self.services:self.services[name]=self.node.create_client(Trigger,self.path+'/'+name)
+        client=self.services[name]
+        # Persist endpoints across reads; each request still fetches fresh
+        # device status. Graph churn must not interrupt the arm managers.
+        if not client.wait_for_service(timeout_sec=10.):raise RuntimeError('Gripper service unavailable: '+self.path+'/'+name)
+        response=self.wait(client.call_async(Trigger.Request()),3.)
+        if not response.success:raise RuntimeError(response.message)
+        return json.loads(response.message)
 
     def status(self):return self.service('read')
 
