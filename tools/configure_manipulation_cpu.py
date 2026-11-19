@@ -43,13 +43,12 @@ def main():
         if not descendant(pid):continue
         role=None
         if str(directory/'world.live.sdf') in a:role='physics'
-        if len(a)>3 and Path(a[1]).name=='cell_task' and a[2] in ('guard','supervisor'):role=a[2]
         if role:
             if role in selected:raise RuntimeError('Ambiguous own '+role+' process')
             selected[role]=(pid,a)
-    if set(selected)!={'physics','guard','supervisor'}:raise RuntimeError('Wait for physics, guard and supervisor readiness')
-    profile={'physics':{0,1,2,3},'guard':{4},'supervisor':{5}}
-    if not set(range(6))<=os.sched_getaffinity(0):raise RuntimeError('This measured workstation profile needs CPUs0–5')
+    if set(selected)!={'physics'}:raise RuntimeError('Wait for the physics process')
+    profile={'physics':{0,1,2,3}}
+    if not profile['physics']<=os.sched_getaffinity(0):raise RuntimeError('This measured workstation profile needs CPUs 0–3')
     records=[]
     for role,(pid,argv) in selected.items():
         path=Path('/proc')/str(pid)

@@ -153,7 +153,15 @@ def main():
     prompt = (f"{source_prompt}\n\n"
               f"Dein Arbeits-Repo ist {agent_repo}.\n"
               f"Dein absoluter Trial-Pfad ist {trace}.\n"
-              f"Client laut Start: {client}. Modellvorgabe: {args.model or 'keine, tatsächliches Modell erfassen falls sichtbar'}.\n")
+              f"Client laut Start: {client}. Modellvorgabe: {args.model or 'keine, tatsächliches Modell erfassen falls sichtbar'}.\n"
+              "Nutze die vorhandenen Tests. Entwickle, ergänze oder ändere keine eigenen Tests.\n")
+    if args.case == 'house-drill':
+        finish = shlex.join([PYTHON, str(REPO/'tools/finish_house_drill_trial.py'), str(session), 'run01'])
+        prompt += ("\nSchließe die Planungsstufe im Logger ab. Für Prüfung und Abgabe führe dann diesen "
+                   "Aufruf aus und setze bei Bedarf statt run01 den tatsächlichen Ergebnisordnernamen ein.\n"
+                   f"```bash\n{finish}\n```\n"
+                   "Der Aufruf protokolliert die Prüfstufe und schließt den Trial bei PASS ab. "
+                   "Verwende den ausgegebenen Bericht. Bei FAIL lies nur die benannte Fundstelle.\n")
     if settings:
         logger = shlex.join(trace_command(trace))
         prompt += ("\nDer Logger sowie der Ordner trial/artifacts sind bereits vorbereitet. "

@@ -1,5 +1,29 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Aktuell: Empfangs-FIFO korrigiert, 19.11.2026
+
+- attempt13 wurde in der echten GUI vom Operator freigegeben, noch bevor eine
+  zusätzliche Chatfrage nötig war. Abbruch im Preflight vor jedem Arm-/Finger-
+  ziel: `right_front: driver JointStates unavailable/stale`. Native Messung:
+  für beide Arme keine Bewegung über0,003rad/s. Kein Kontakt, Karton frei.
+- Neue Daten zeigen den zu großen neuen Empfangspuffer als konkretes Problem:
+  Driverpakete wurden zuletzt bereits196,7/198,8ms alt verarbeitet, danach
+  an der unveränderten200ms-Grenze verworfen; nativeRTDE-Daten blieben frisch.
+  Queue128 kann bei500Hz bereits256ms Rückstau enthalten. Keine Frischegrenze
+  erhöhen, keine alten Pakete als aktuell deklarieren.
+- Eigenen Empfänger beibehalten, Queue auf ursprüngliche Sensor-Tiefe5
+  korrigiert. Die große FIFO war hier eine Fehlentscheidung. Quellzeit,
+  Epochen-, Lücken-,5mrad-,200ms-, Geschwindigkeits- und Geometriestopps bleiben
+  unverändert. Empfängerfehler/Threadleben jetzt im Fehlerbericht enthalten.
+-12 gezielte Empfänger-/Ausführungsprüfungen PASS. Neuer rein passiver N100-
+  Nachweis verlangt bereits laufende, gehaltene UR-Programme; er startet
+  keine Programme und sendet keine Ziele. Noch keine weitere Reviewversion
+  zur Fahrt bereitgestellt, bis dieser Empfangsnachweis ausgewertet ist.
+- attempt13-Ticket0d108c72db544069b597e6bff47df419 ist failed; vorherige
+  Freigaben nicht wiederverwenden. Physischer Start zuletzt wie nachattempt11,
+  vor weiterer Fahrt wieder frisch prüfen. Tasknachweise unverändert unter
+  `setup/tasks/carton_motion_review_20261119/`.
+
 ## Aktuell: gemeinsamer Start korrigiert, 19.11.2026
 
 - Operator hat attempt12 tatsächlich freigegeben. Die vorbereiteten Phasen
@@ -321,10 +345,8 @@
 
 ## Sicherheitsprotokoll in UWA Robot Power, 19.11.2026
 
-- Aktueller Übernahmestand: explizit beauftragt. Der N100-Kandidat `~/uwa-ur-runtime/review-candidates/guard-log.EOr0jTmD` besteht alle 40 isolierten Tests. Beim Abgleich lief der bisherige Dienst seit 14:20:59 AWST, Versuch 12 war beendet, Versuch 13 wurde vorbereitet. Wartungsfenster angefragt. Der neue Guard gilt bis zum eingetragenen Neustart- und Laufnachweis als inaktiv.
-
-- Noch offen: Beim nächsten regulären Betriebswechsel des N100-Wächters übernimmt der betreuende Agent die zusätzlichen Journalmeldungen und dokumentiert hier den geprüften Laufstand. Ein Termin ist bisher nicht vereinbart. [Übernahme und Nachweis](../../setup/n100/ur-runtime/README.md#guard-protokoll-beim-nächsten-betriebswechsel)
-
+- Seit 19.11.2026, 17:14:28 AWST ist der geprüfte Guard auf miniminiPC aktiv. Für weitere Arbeiten diesen Stand verwenden. Die installierten Python-Module verweisen per Symlink auf die aktualisierten Quellen. SHA-256 für hardware_nodes.py beginnt mit 43bb1c691f01, für guard_core.py mit 5343b37f04fe. Alle 40 Kandidatentests bestanden. Dienstaufruf fe6d7a01decf464d93fe41843fd4c636. Sicherung unter `~/uwa-ur-runtime/review-candidates/guard-log-backup.sgiKZeF4`.
+- Guard, Supervisor und Watchdog sendeten nach dem Neustart jeweils mehrere bewaffnete Statuspakete. Alle vier Arme meldeten Stillstand. Um 17:15 AWST bestätigte der Supervisor alle vier Holds und den Interlock. Der Watchdog war ausgelöst, die Fahrt gesperrt. Kein Reset und keine Fahrfreigabe im Rahmen des Wechsels.
 - Über **Safety log → Save logs** oder die gleichnamige Desktop-Aktion kann die Bedienperson den N100-Bericht auch während einer offenen Freigabesitzung lesen und auf ROSmini sichern. Alte abgeschlossene Fehler lösen beim Öffnen des aktualisierten Power-Fensters keine erneute Entscheidungsaufforderung aus. [Bedienung](docs/ur_power_gui.md#investigating-a-stop)
 - Erster geprüfter Export um 16:36 Uhr Perth. Von den letzten 600 nativen STOP-Anforderungen entfielen 578 innerhalb desselben rund 38-sekündigen Fensters auf den fehlenden oder ausgelösten Supervisor-Heartbeat, je eine Wiederholungsfolge pro Arm. Die Ausgabe kennzeichnet die Begrenzung der Journalquelle. Versuch 09 endete nach 3,75 s gemessener Bewegung von rechts vorne. Versuch 10 scheiterte vor dem ersten Armziel der Hochanfahrt. [Lesbarer Bericht](../../setup/logs/uwa-control/sessions/20261119_163625_617287_e599ab6a/safety-report.txt)
 - Protokolländerung am Wächter lokal getestet. Künftige Einträge enthalten neue Ursachen im bestehenden Halt sowie bei DISTANCE den verfügbaren Abstand und Grenzwert. Der N100-Bericht funktioniert auch mit dem bisherigen Journalformat. 81 gemeinsame Regressionen für GUI, Export und Schutzlogik bestanden. In diesem Diagnoseauftrag keine Hardwareaktion und kein Neustart eines Schutzdienstes.
@@ -1320,7 +1342,7 @@
   Checkout: 16 Tests für Pfadbausteine, Box-CLI und Episoden bestanden
   in 1,66 s Prozesswandzeit. Vorschlag für isolierte Entwicklung: Audits
   für jede Bahn und gezielte Regression bei Bausteinänderung; ganze Suite
-  bei gemeinsamer Integration. Der Testablauf wurde noch nicht geändert.
+  bei gemeinsamer Integration. Der Ein-Aufruf-Abschluss folgt unten.
 - Detailmessung auf Nutzerfrage für die 304,60 s der Hydrogen-Phase `verify`:
   28,58 s aktive geloggte Befehle, 43,27 s vom CLI protokollierte automatische
   Toolprüfungen ohne Überlappung mit diesen Befehlsintervallen, 232,75 s
@@ -1328,6 +1350,22 @@
   Danach folgten Archivieren und Lesen der Ergebnisse, Viewer-Inspektion
   samt Retry, Suite und ergänzter Unit-Test, Hashprüfung und Stufenende.
   Auch zwischen dem 66-ms-Hashbefehl und dem Stufenende vergingen 28,29 s.
+- Nutzerauftrag19.11. umgesetzt: `finish_house_drill_trial.py SITZUNG RUN`
+  führt beide im Hauptrepo bereitgestellten Audits aus, prüft Viewer-JSON,
+  Phasen, kanonischen Ergebnis-Hash und Arbeitsstand, führt bei Python-
+  Änderungen fokussierte vorhandene Tests aus und exportiert Bericht,
+  Logs und vollständigen Patch gegen den Startcommit. Der Starter setzt
+  den Aufruf in den Prompt ein. Eigene oder geänderte Tests und Audits
+  sind für Gemini ausgeschlossen und werden in der gebündelten Abgabe
+  gemeldet. Bei PASS schließt der Aufruf den Trial im Logger ab.
+- Viewer-Fehler war ein verlorenes `$`-Escape in Geminis Inline-Regex. Der
+  Prüfbefehl liest das eingebettete JSON mit dem JSON-Decoder, ohne JavaScript
+  auszuführen. Drei frühere Viewer bestanden, falsch gebundener Viewer wurde
+  abgelehnt. Vollständiger Offline-Probelauf in separater Kopie: 13,70 s für
+  Prüfung und Abgabe, 15 vorhandene Tests bestanden, `trial_end=complete`.
+  Export in frischer Kopie angewandt und fünf Dateien einschließlich
+  gestagter, ungestagter und neuer Datei bytegleich geprüft. Laufzeit der
+  nächsten vollständigen Gemini-Sitzung steht aus.
 
 ## Haus- und Lochkreis in Gazebo, 2026-11-19
 

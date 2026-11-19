@@ -22,7 +22,7 @@ Trialordner. Dienste oder Plugins müssen dafür nicht gestartet werden.
 | `tools/box_drawing_pilot.py` | Vorhandener Kommandozeileneinstieg |
 | `uwa_cell_tasks/uwa_cell_tasks/workpiece_paths.py` | `SurfaceFrame`, `SurfacePolyline` und `AxialFeed` |
 | `uwa_cell_tasks/uwa_cell_tasks/box_drawing.py` | Flächenpräsentation, fest gekoppelte Haltearme, gemeinsames Zeitgesetz, optionale Rückwegsuche |
-| `tools/verify_box_drawing_pilot.py` | FK-/Zeit-/Episodenaudit als Einstieg für einen neuen Prüfer |
+| Prüf- und Abgabeaufruf im Startprompt | Vorhandene Bahnaudits, Viewer-Prüfung, gezielte Tests und Abgabe |
 | `tools/agent_trial.py`, `docs/agent_trials/TRACE_PROTOCOL.md` | Schrittzeiten, Befehle und Rohtexte |
 
 ## Bewegungsanforderungen
@@ -59,14 +59,16 @@ Trialordner. Dienste oder Plugins müssen dafür nicht gestartet werden.
 
 1. Falls der Starter den Logger vorbereitet hat, direkt mit `start orient`
    beginnen. Sonst mit `--task box-house-drill-04` initialisieren.
-   Stufen `orient`, `adapt`, `plan`, `verify`, `deliver` erfassen.
+   Stufen `orient`, `adapt` und `plan` erfassen.
    Rechenbefehle samt stdout/stderr wrappen, Editoren und Freigaben
    bei Bedarf als Notizen ergänzen. Keine Befehle für Zelle oder Kamera.
 2. Projektänderungen und Tests nur in der eigenen Kopie. Beginne mit
    einem kleinen nachprüfbaren Vorschlag. Ergebnis und Viewer unter
    `TRIAL/artifacts/` ablegen. Erzeuge die sichtbaren Axial- und
    Kreisphasen aus den tatsächlichen Bahnkoordinaten.
-3. `changes.patch` und `report.md` im Trialordner schreiben. Nenne
-   Audit, tatsächlich erreichte Tiefe und Abweichungen pro Stelle,
-   Nachweis der Stiftfixierung auf der Gegenwand, Modellzeiten sowie
-   Randbedingungen und Ablehnungen. Protokoll nach Abgabe abschließen.
+3. Planungsstufe schließen und den Prüf- und Abgabeaufruf aus dem
+   Startprompt ausführen. Er verwendet die vorhandenen Tests und Audits,
+   prüft die eingebetteten Viewer-Daten und erzeugt `report.md` und
+   `changes.patch`. Bei bestandener Prüfung schließt er das Protokoll ab.
+   Tests und Audits unverändert lassen. Bei einem Fehler den Befund nutzen,
+   um gezielt die Modelllösung nachzubessern.

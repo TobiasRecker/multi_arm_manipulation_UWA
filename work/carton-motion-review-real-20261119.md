@@ -1,5 +1,29 @@
 # Reale Übernahme Motion review,19.11.2026
 
+## Aktuell: Empfangs-FIFO korrigiert, 19.11.2026
+
+- attempt13 wurde in der echten GUI vom Operator freigegeben, noch bevor eine
+  zusätzliche Chatfrage nötig war. Abbruch im Preflight vor jedem Arm-/Finger-
+  ziel: `right_front: driver JointStates unavailable/stale`. Native Messung:
+  für beide Arme keine Bewegung über0,003rad/s. Kein Kontakt, Karton frei.
+- Neue Daten zeigen den zu großen neuen Empfangspuffer als konkretes Problem:
+  Driverpakete wurden zuletzt bereits196,7/198,8ms alt verarbeitet, danach
+  an der unveränderten200ms-Grenze verworfen; nativeRTDE-Daten blieben frisch.
+  Queue128 kann bei500Hz bereits256ms Rückstau enthalten. Keine Frischegrenze
+  erhöhen, keine alten Pakete als aktuell deklarieren.
+- Eigenen Empfänger beibehalten, Queue auf ursprüngliche Sensor-Tiefe5
+  korrigiert. Die große FIFO war hier eine Fehlentscheidung. Quellzeit,
+  Epochen-, Lücken-,5mrad-,200ms-, Geschwindigkeits- und Geometriestopps bleiben
+  unverändert. Empfängerfehler/Threadleben jetzt im Fehlerbericht enthalten.
+-12 gezielte Empfänger-/Ausführungsprüfungen PASS. Neuer rein passiver N100-
+  Nachweis verlangt bereits laufende, gehaltene UR-Programme; er startet
+  keine Programme und sendet keine Ziele. Noch keine weitere Reviewversion
+  zur Fahrt bereitgestellt, bis dieser Empfangsnachweis ausgewertet ist.
+- attempt13-Ticket0d108c72db544069b597e6bff47df419 ist failed; vorherige
+  Freigaben nicht wiederverwenden. Physischer Start zuletzt wie nachattempt11,
+  vor weiterer Fahrt wieder frisch prüfen. Tasknachweise unverändert unter
+  `setup/tasks/carton_motion_review_20261119/`.
+
 ## Aktuell: gemeinsamer Start korrigiert, 19.11.2026
 
 - Operator hat attempt12 tatsächlich freigegeben. Die vorbereiteten Phasen

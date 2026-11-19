@@ -1,5 +1,15 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Nutzerentscheidung zur Gazebo-Simulation, 19.11.2026
+
+- Geplante Bahnen ausschließlich offline prüfen. Gazebo dient der Wiedergabe
+  und Kontaktphysik. Keine Laufzeitwächter, Gelenkgrenz-, Geschwindigkeits- oder
+  Stillstandstests, auch nicht für passive Finger. Keine Fehler- oder
+  Sicherheitstests in Gazebo.
+- Simulierte Padkontakte dürfen den Greifvorgang auslösen. Manuelle
+  Aktionsstornierung und reguläre Controllerantworten gehören zur Bedienung.
+  Die getrennte reale UR-Schutzkette nur nach ihrer eigenen Freigabe ändern.
+
 ## Aufgabenbezogene Freigabe im Kartonpiloten, 19.11.2026
 
 - Bestätigte Korrektur19.11.: Auch der Parallelprüfer muss die aktive
@@ -186,6 +196,12 @@
   direkten Vergleich dieselbe Aufgabe mit Hydrogen und Neon jeweils auf
   `High` verwenden. Zeitpunkt der ersten gültigen Modellbahn und der
   fertigen Abgabe getrennt erfassen.
+- Nutzerauftrag19.11.: Gemini soll vorhandene Tests verwenden und keine
+  eigenen Tests entwickeln, ergänzen oder ändern. Beim Haus-und-Lochkreis-
+  Versuch beide vorhandenen Bahnaudits, Viewer-Prüfung und Abgabe über
+  `tools/finish_house_drill_trial.py` bündeln. Bei Python-Änderungen gezielte
+  bestehende Tests ausführen. Die vollständige Regression gehört zur
+  Übernahme in das gemeinsame Toolkit.
 - Nutzerpräzisierung19.11. für Haus-/Bohrdemo: Ablauf zuerst mit
   Gazebo-Nachweis beurteilen, bevor der Nutzer der Übertragung auf die
   reale Zelle vertraut. Offline-FK/Ansicht, Kontaktphysik mit getragenem
@@ -206,7 +222,7 @@
 
 ## Reale Bedienabläufe ohne Diagnosekaskaden (2026-11-18)
 
-- Bei einem konkreten Abbruch zuerst den aktuellen N100-Bericht aus **Safety log** oder dem passenden lokalen Export lesen und den betroffenen Versuch über dessen Workflowpfad zuordnen. Bei der nächsten regulären Aktualisierung des N100-Wächters den [offenen Übernahmepunkt](../../setup/n100/ur-runtime/README.md#guard-protokoll-beim-nächsten-betriebswechsel) bearbeiten und den Laufstand im Zell-HANDOVER festhalten.
+- Bei einem konkreten Abbruch zuerst den aktuellen N100-Bericht aus **Safety log** oder dem passenden lokalen Export lesen und den betroffenen Versuch über dessen Workflowpfad zuordnen. Den auf dem N100 seit 19.11.2026 um 17:14 AWST aktiven [Wächterstand](../../setup/n100/ur-runtime/README.md#guard-protokoll-auf-dem-n100) verwenden. Den aktuellen Interlockstatus vor einer Fahrt separat prüfen.
 
 - Nutzerwunsch vom 19.11.2026: Die Ursache wiederkehrender Sperren in **UWA Robot Power** sichtbar machen. Bei der Auswertung Zeitpunkt, betroffene Arme, Auswirkung und vorhandene Messwerte zur Schwelle heranziehen. Mehrere Meldungen desselben Vorfalls und eigenständige Auslösungen unterscheiden.
 
@@ -1345,20 +1361,12 @@
   Bewegungsphasen beliebig in ein Maximum mischen. Einzelne beobachtete Läufe
   von Wiederholstatistik und realer Belastbarkeit unterscheiden.
 
-- Präzisierung17.11.: Nutzer beauftragt ausdrücklich einen reinen Kontakt-
-  Simulationsmodus ohne erzwungene dynamische Stoppreserve. Taskparameter
-  `simulation_stop_reserve_mode: observe` nur in force-observedExploration;
-  Standard `enforce` erhalten. Reserve weiter berechnen/protokollieren;
-  geometrischeKollisionsprüfung/20mmModellpuffer, Kontakt-/Schlupf-/Frische-
-  undGruppenstopps bleiben aktiv. KeineÜbertragung aufHardware/Realprofile.
-  Nutzer hält schnellereRealreaktion mitpassendemInterface/PREEMPT_RT für
-  möglich; bisherige350msPlanlatenz/2rad/s² sindAnnahmen, keineUR-Messwerte.
-
-- Echtzeitvorbereitung17.11. ausdrücklichbeauftragt: Kernelpaket-/Rechteplan,
-  höhereWächterrateundEnd-to-end-Messungvorbereiten. KeinKernelwechsel/Neustart/
-  RealstoppalleinausVorbereitung. Simulation10–100Hzexplizitparametriert,
-  Default10Hz; Hardwareprofilegetrenntlassen.350ms/2rad/s²warenSimannahmen,
-  realesCommissioningaktuell1300ms/0,2rad/s². KeineACK-/TopiclatenzalsBremszeit.
+- Seit 19.11. gelten Stoppreserven in der Simulation ausschließlich als
+  Offline-Planungsmodell. `simulation_stop_reserve_mode` betrifft die
+  Planprüfung. Die alten Kontakt-/Schlupf-/Frische- und Gruppenwächter in
+  Gazebo sowie die damaligen höheren Simulations-Wächterraten sind überholt.
+  Die historische Echtzeitvorbereitung ging von 350 ms/2 rad/s² im
+  Simulationsmodell und 1300 ms/0,2 rad/s² im Real-Commissioning aus.
 
 - RT-Folgeauftrag17.11.: KernelinstallationundUR-Echtzeitrechteausdrücklich
   erlaubtundabgeschlossen; NeustartnachNutzeransage, nichtautomatisch.

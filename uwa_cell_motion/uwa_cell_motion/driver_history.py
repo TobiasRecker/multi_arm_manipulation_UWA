@@ -19,8 +19,10 @@ class DriverHistoryReceiver:
         self.executor.add_node(self.node)
         self.done=threading.Event()
         self.error=None
-        # Buffer bursts without changing the consumer's 200-ms source-age gate.
-        qos=QoSProfile(depth=128,reliability=ReliabilityPolicy.BEST_EFFORT,
+        # Keep the existing sensor-data depth: a deep FIFO can stay permanently
+        # older than the 200-ms gate at 500Hz. Independent acquisition, rather
+        # than a large queue, bridges task-thread geometry/RPC work.
+        qos=QoSProfile(depth=5,reliability=ReliabilityPolicy.BEST_EFFORT,
                        durability=DurabilityPolicy.VOLATILE)
         for arm in arms:
             self.node.create_subscription(JointState,profiles[arm]['namespace']+'/joint_states',

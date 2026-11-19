@@ -409,11 +409,11 @@ def prepare_scene(layout, cfg, directory):
     # Bind the local dependencies used by offline planning and playback.
     import uwa_cell_control,uwa_cell_calibration,uwa_cell_gazebo,uwa_cell_description
     dependency_groups=[(Path(motion_node.__file__).resolve().parent,
-        ('common.py','geometry.py','planning.py','simulation_goals.py')),
+        ('common.py','geometry.py','planning.py')),
         (Path(uwa_cell_control.__file__).resolve().parent,
          ('scan_separation.py','view_geometry.py','parallel_scan.py','parking.py')),
         (Path(uwa_cell_calibration.__file__).resolve().parent,('model.py',)),
-        (Path(uwa_cell_gazebo.__file__).resolve().parent,('charuco_views.py','configuration.py','charuco.py')),
+        (Path(uwa_cell_gazebo.__file__).resolve().parent,('charuco_views.py','configuration.py','charuco.py','trajectory.py')),
         (Path(uwa_cell_description.__file__).resolve().parent,('configuration.py','calibration_profile.py','scene_assets.py'))]
     for base,files in dependency_groups:
         sources.update(base/name for name in files)
@@ -431,7 +431,7 @@ def prepare_scene(layout, cfg, directory):
         carton_sdf_sha256=hashlib.sha256((directory/'carton.sdf').read_bytes()).hexdigest(),
         clock_bridge_binary=str(clock_bridge.resolve()),clock_bridge_sha256=hashlib.sha256(clock_bridge.read_bytes()).hexdigest(),
         implementation_sha256=implementation,
-        implementation_binding_scope='task_and_local_motion_dependencies_v2',
+        implementation_binding_scope='task_and_local_motion_dependencies_v3',
         telemetry_source='native_physics_ecm',
         lift_reference_point_object_m=mass_properties(shapes,cfg['mass_kg'])[0],
         lift_reference_kind='uniform_material_model_centre_of_mass',

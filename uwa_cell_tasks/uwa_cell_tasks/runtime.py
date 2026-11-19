@@ -15,12 +15,11 @@ from std_msgs.msg import String
 from std_srvs.srv import Trigger,SetBool
 from controller_manager_msgs.srv import SwitchController,ListControllers
 from control_msgs.action import FollowJointTrajectory
-from uwa_cell_motion.simulation_goals import trajectory_goal
+from uwa_cell_gazebo.trajectory import trajectory_goal
 from action_msgs.msg import GoalStatus
 from uwa_cell_description.configuration import load_layout,joint_names,gripper_joint
 from uwa_cell_motion.common import simulation_only
-from uwa_cell_gazebo.charuco_views import Chain
-from match_cooperative_handling.rigid_object import pose_error,interpolate
+from match_cooperative_handling.rigid_object import pose_error
 from .core import ARMS,RunStore,GraspGroup,verify,write_json,seal,resource_lease,gripper_profile,object_point_height
 from .planning import TaskProblem,grasp_candidates,plan_approach,object_trajectory,grasp_entry,PlannedObjectConstraint,carton_motion_poses,compile_object_recipe
 from .scene import verify_scene
@@ -35,6 +34,7 @@ class Simulation(MotionNode):
             cli_args=['--ros-args','-r','/clock:='+namespace+'/clock'])
         self.set_parameters([rclpy.parameter.Parameter('use_sim_time',value=True)])
         self.directory=Path(scene_directory)
+        self.stop_directory=self.directory
         self.q={}
         self.cfg=json.loads((self.directory/'scene.json').read_text())['cfg']
         self.motion_arms = (*ARMS, 'left_front') if self.cfg.get('drawing_recipe') else ARMS

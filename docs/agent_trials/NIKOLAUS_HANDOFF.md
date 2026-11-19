@@ -20,12 +20,11 @@ benötigen weder einen ROS-Knoten noch Gazebo oder echte Geräte.
 | `docs/box_drawing_pilot.md` | CLI, `present_surface`, Zwischenvorschau, Ergebnisformat und Greifbezug |
 | `tools/box_drawing_pilot.py` | Einstiegs-CLI |
 | `uwa_cell_tasks/uwa_cell_tasks/box_drawing.py` | Zeichenbahn, Anfahrt, Prüfung und gemeinsamer Rückweg |
-| `tools/verify_box_drawing_pilot.py` | Bisheriger FK-/Zeitaudit für Kreise |
+| `tools/check_nikolaus_trial.py RUN` | Vorhandener FK-/Zeitaudit für die Hausaufgabe |
 | `tools/agent_trial.py`, `docs/agent_trials/TRACE_PROTOCOL.md` | Stufenprotokoll und Rohdaten |
 
-Der bisherige Prüfer ist auf Kreisform spezialisiert. Erweitere die
-Prüfung für das Haus aus den tatsächlich gespeicherten
-Gelenkinterpolanten. Geprüfte Kanten und Zeichenflächen müssen im
+Verwende den vorhandenen Prüfer für das Haus aus den tatsächlich
+gespeicherten Gelenkinterpolanten. Geprüfte Kanten und Zeichenflächen müssen im
 Ergebnis nachvollziehbar sein. Haltearme bleiben beim Zeichnen in
 derselben Stellung. Die neue Bahn muss am Ende das Zurückfahren mit
 denselben Griffen erlauben. Die HTML-Kollisionshüllen beziehen sich
@@ -43,7 +42,7 @@ auf dem Karton anzeigen. Alte Kreisprogramme bleiben lauffähig.
    absoluten Trialpfad starten. Die vorhandenen Logger-Stufen
    `orient`, `adapt`, `plan`, `verify`, `deliver` nutzen.
 2. Lauf und Viewer in einen neuen Ordner unter `TRIAL/artifacts/`
-   schreiben. Den eigenen Audit ausführen. Fehlversuche und sichtbare
+   schreiben. Den vorhandenen Audit ausführen. Fehlversuche und sichtbare
    Berechtigungsabfragen mit Auswirkungen auf den Ablauf dokumentieren.
 3. Quelldiff als `TRIAL/changes.patch` und Ergebnis als `TRIAL/report.md`
    ablegen. Liste geänderte Stellen, Prüfungen, ungelöste Fehler,

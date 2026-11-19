@@ -240,7 +240,7 @@ def controller_names(layout):
 
 
 def controller_parameters(layout):
-    manager = {'update_rate': 100, 'use_sim_time': True,
+    manager = {'update_rate': 100, 'use_sim_time': True, 'enforce_command_limits': False,
                'joint_state_broadcaster': {'type': 'joint_state_broadcaster/JointStateBroadcaster'}}
     result = {'/uwa_cell/controller_manager': {'ros__parameters': manager}}
     for robot_id in ROBOT_IDS:

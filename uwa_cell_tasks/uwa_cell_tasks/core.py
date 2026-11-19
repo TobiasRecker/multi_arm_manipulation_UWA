@@ -87,7 +87,7 @@ def configuration(path=None):
         if not isinstance(drawing, str) or not Path(drawing).is_absolute():
             raise ValueError('Drawing recipe must be an absolute file path')
         if not (cfg['exploration_mode'] and cfg['simulation_stop_reserve_mode']=='observe'):
-            raise ValueError('Drawing contact experiment requires force-observed simulation')
+            raise ValueError('Drawing contact playback requires the exploratory offline reserve mode')
         if cfg['joint_velocity_rad_s'] != .1 or cfg.get('roll_long_axis'):
             raise ValueError('Drawing requires the 0.1 rad/s profile and one recipe')
     for key, value in cfg.items():
@@ -96,10 +96,10 @@ def configuration(path=None):
             raise ValueError('Expected positive finite ' + key)
     if cfg['simulation_stop_reserve_mode'] not in ('enforce','observe'):
         raise ValueError('simulation_stop_reserve_mode must be enforce or observe')
-    if cfg['simulation_stop_reserve_mode']=='observe' and not (cfg['exploration_mode'] and cfg['force_observation']):
-        raise ValueError('Observe-only stopping reserve requires explicit force-observed simulation exploration')
+    if cfg['simulation_stop_reserve_mode']=='observe' and not cfg['exploration_mode']:
+        raise ValueError('Observe-only stopping reserve requires explicit simulation exploration')
     if not 10<=cfg['simulation_guard_rate_hz']<=100 or (cfg['simulation_guard_rate_hz']!=10 and not cfg['exploration_mode']):
-        raise ValueError('Faster simulation guard requires exploration and a rate in[10,100]Hz')
+        raise ValueError('Modeled reserve cadence requires a rate in [10, 100] Hz and exploration above 10 Hz')
     comparison=cfg.get('force_comparison_lift',False)
     multiplier=cfg.get('carrying_speed_multiplier',1.)
     if not isinstance(comparison,bool):raise ValueError('force_comparison_lift must be boolean')
@@ -126,7 +126,6 @@ def configuration(path=None):
         raise ValueError('Task exceeds the first simulation operating envelope')
     if cfg['finger_velocity_limit_rad_s']>(2. if exploration else .05) or cfg['braking_acceleration_rad_s2']>5.:
         raise ValueError('Task exceeds the simulation observation/stop envelope')
-    if exploration and not cfg['force_observation']:raise ValueError('Exploration requires force observation')
     if cfg['simulation_real_time_factor']>1.:
         raise ValueError('Contact qualification requires an unaccelerated simulation')
     if cfg['maximum_attempts'] != int(cfg['maximum_attempts']):

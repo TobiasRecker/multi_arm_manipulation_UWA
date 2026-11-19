@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
  <name>uwa_cell_calibration</name><version>0.1.0</version>
- <description>Supervised eye-in-hand calibration for the simulated UWA cell.</description>
+ <description>Eye-in-hand calibration for the simulated UWA cell.</description>
  <maintainer email="rosmatch@example.com">rosmatch</maintainer><license>MIT</license>
  <buildtool_depend>ament_python</buildtool_depend>
  <exec_depend>uwa_cell_calibration_msgs</exec_depend><exec_depend>uwa_cell_gazebo</exec_depend>

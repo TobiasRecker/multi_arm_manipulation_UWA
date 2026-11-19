@@ -34,6 +34,8 @@ Markierungen auf einem Viewer allein sind kein Bahnbeleg. Behalte das
 gemeinsame 0,1-rad/s-Profil und die geometrischen Prüfungen bei.
 Der Test umfasst keine ROS- oder Gazebo-Dienste und keinen Gerätezugriff.
 
-Liefere ausführbaren Offline-Aufruf, Zeitprotokoll, Quelldiff,
-`report.md`, Modellergebnis, Viewer und separaten Audit. Halte
-Suchgrenzen, Fehlversuche, Teilresultate und verwendete Bausteine fest.
+Protokolliere den Offline-Modellaufruf und speichere Modellergebnis,
+Viewer und Suchdiagnose in deinem Trial. Nutze anschließend den vom
+Starter angegebenen Aufruf für Prüfung und Abgabe. Verwende die
+vorhandenen Prüfungen. Entwickle oder ändere keine Tests und Audits.
+Erkläre relevante Ablehnungen oder Teilresultate in der Schlussmeldung.

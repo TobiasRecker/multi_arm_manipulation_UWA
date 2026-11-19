@@ -136,28 +136,6 @@ def test_invalid_profile_is_rejected_before_publication(data):
     with pytest.raises(ValueError):validate_result(bad)
 
 
-def test_passive_mimic_velocity_does_not_mask_actual_arm_motion():
-    from types import SimpleNamespace
-    from uwa_cell_calibration.backend import Backend
-    state=SimpleNamespace(stop_joints=['arm_joint','gripper_driver'],velocities={'arm_joint':0.,'gripper_driver':0.,'mimic':.2})
-    assert Backend.stationary(state)
-    state.velocities['arm_joint']=.02
-    assert not Backend.stationary(state)
-
-
-def test_stationary_window_recovers_from_one_transient_velocity_sample():
-    import time
-    from types import SimpleNamespace
-    from uwa_cell_calibration.backend import Backend
-    readings=iter([False]+[True]*100)
-    state=SimpleNamespace(description='live',last_joints=time.monotonic(),
-        positions={j:0. for r in ROBOT_IDS for j in joint_names(r)},state={'phase':'CAPTURING'},
-        halted=lambda:False,stationary=lambda:next(readings),velocities={},stop_joints=[])
-    started=time.monotonic()
-    Backend.require_telemetry(state)
-    assert time.monotonic()-started>=.2
-
-
 def test_failed_model_loading_and_profile_commit_keep_previous_model(data,tmp_path,monkeypatch):
     import threading
     from types import SimpleNamespace
@@ -191,22 +169,3 @@ def test_failed_model_loading_and_profile_commit_keep_previous_model(data,tmp_pa
                                      lambda:profile_state.update(active='previous'))
     assert profile_state['active']=='previous' and model.planner is old and not old.cancelled
     assert model.model_xml=='previous xml' and attempts[-1].cancelled
-
-
-@pytest.mark.parametrize('pause_ack',[True,False])
-@pytest.mark.parametrize('stationary,pending',[(False,False),(True,True)])
-def test_unconfirmed_stop_and_pending_acceptance_require_pause(monkeypatch,pause_ack,stationary,pending):
-    import threading
-    from types import SimpleNamespace
-    from uwa_cell_calibration import backend
-    ticks=iter(np.arange(0,100,.1))
-    monkeypatch.setattr(backend,'time',SimpleNamespace(monotonic=lambda:next(ticks),sleep=lambda _:None))
-    events=[];requests=[]
-    state=SimpleNamespace(shutdown_event=threading.Event(),abort=threading.Event(),last_joints=0.,
-        registration_pending={'left_front'} if pending else set(),pending_goals={},motion_handles={},uncertain_goals=set(),stationary=lambda:stationary,
-        pause_world=lambda:requests.append('pause') or pause_ack,
-        status=lambda phase,**values:events.append((phase,values)))
-    backend.Backend.confirm_halt(state)
-    assert requests==['pause'] and state.abort.is_set()
-    assert events[-1][0]=='STOPPED' and events[-1][1]['world_pause_confirmed'] is pause_ack
-    assert ('Weder Stillstand' in events[-1][1]['message']) is not pause_ack

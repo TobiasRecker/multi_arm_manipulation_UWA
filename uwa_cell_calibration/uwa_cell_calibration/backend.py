@@ -1,4 +1,4 @@
-"""Independent ROS session owner, capture engine and wall-time motion watchdog."""
+"""Calibration planning, Gazebo playback and image acquisition."""
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -31,17 +31,16 @@ from sensor_msgs.msg import Image, CameraInfo, JointState
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
 from geometry_msgs.msg import TransformStamped
-from trajectory_msgs.msg import JointTrajectoryPoint, JointTrajectory
 from control_msgs.action import FollowJointTrajectory
 from controller_manager_msgs.srv import ListControllers
-from rcl_interfaces.srv import GetParameters
 from tf2_ros import Buffer, TransformListener, TransformBroadcaster, TransformException
 from uwa_cell_calibration_msgs.action import RunCalibration
 from uwa_cell_calibration_msgs.srv import PrepareCalibration, ApplyCalibration
 
-from uwa_cell_gazebo.configuration import load_layout, joint_names, gripper_joint, ROBOT_IDS, default_layout_path, render_description
+from uwa_cell_gazebo.configuration import load_layout, joint_names, ROBOT_IDS, default_layout_path, render_description
 from uwa_cell_gazebo.charuco import detect_pose, pose_error, table_board_transform
 from uwa_cell_gazebo.charuco_check import tf_matrix
+from uwa_cell_gazebo.trajectory import trajectory_goal
 from .model import calibrated_description
 from .planner import PlanningProcess
 from .storage import atomic_json, fingerprint, validate_result, profile_directory
@@ -68,8 +67,6 @@ class Backend(Node):
         self.declare_parameter('session_root',str(Path(os.environ.get('UWA_WS',str(Path.home()/'UWA_ws')))/'setup/calibration'))
         self.layout_path=Path(self.get_parameter('layout').value)
         self.layout=load_layout(self.layout_path)
-        self.stop_joints=[j for rid in ROBOT_IDS for j in joint_names(rid)]+[
-            gripper_joint(rid) for rid in ROBOT_IDS if self.layout['robots'][rid]['tools']['gripper']!='none']
         self.root=Path(self.get_parameter('session_root').value).expanduser().resolve()
         self.root.mkdir(parents=True,exist_ok=True)
         self.profile_directory=profile_directory(self.root,self.layout)
@@ -81,13 +78,13 @@ class Backend(Node):
         self.state={'phase':'IDLE','robot_id':'','accepted':0,'target':40,'rejected':0,'message':'Simulation bereitstellen; Posen vorbereiten.',
                     'plan_id':'','result_path':'','counts':{},'active_profile':''}
         self.description='';self.active_description='';self.model_xml=None;self.planner=None
-        self.positions={};self.velocities={};self.last_joints=0.;self.history=deque(maxlen=3000)
+        self.positions={};self.history=deque(maxlen=3000)
         self.images={};self.infos={};self.last_images={};self.detections={r:deque(maxlen=80) for r in ROBOT_IDS}
-        self.processed={};self.heartbeat=0.;self.owner='';self.clock_value=None;self.last_clock_change=time.monotonic()
-        self.frozen={};self.hold_positions={};self.camera_quality={}
+        self.processed={};self.owner='';self.clock_value=None
+        self.camera_quality={}
         self.motion_handles={};self.pending_goals={};self.registration_pending=set();self.motion_results={}
         self.uncertain_goals=set()
-        self.controlled_robots=set();self.goal_reserved=False;self.run_handle=None
+        self.goal_reserved=False;self.run_handle=None
         self.plan=None;self.session=None;self.halt_thread=None;self.running=False;self.threads=[]
         self.profile_restored=False;self.command_sent=0.;self.preparation_start=0.
         self.operation_thread=None
@@ -97,7 +94,6 @@ class Backend(Node):
         transient=QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL,reliability=ReliabilityPolicy.RELIABLE)
         self.create_subscription(String,'/uwa_cell/robot_description',self.on_description,transient,callback_group=self.group)
         self.create_subscription(JointState,'/uwa_cell/joint_states',self.on_joints,qos_profile_sensor_data,callback_group=self.group)
-        self.create_subscription(String,PREFIX+'/heartbeat',self.on_heartbeat,10,callback_group=self.group)
         self.status_pub=self.create_publisher(String,PREFIX+'/status',transient)
         self.description_pub=self.create_publisher(String,'/uwa_cell/calibrated/robot_description',transient)
         self.preview={}
@@ -105,7 +101,6 @@ class Backend(Node):
         for rid in ROBOT_IDS:
             self.create_subscription(Image,f'/uwa_cell/{rid}/wrist_camera/image_raw',lambda m,r=rid:self.on_image(r,m),qos_profile_sensor_data,callback_group=self.group)
             self.create_subscription(CameraInfo,f'/uwa_cell/{rid}/wrist_camera/camera_info',lambda m,r=rid:self.infos.update({r:m}),qos_profile_sensor_data,callback_group=self.group)
-            self.create_subscription(JointTrajectory,f'/uwa_cell/{rid}_trajectory_controller/joint_trajectory',lambda m,r=rid:self.external_command(r,m),10,callback_group=self.group)
             self.preview[rid]=self.create_publisher(Image,f'{PREFIX}/{rid}/image_annotated',qos_profile_sensor_data)
             self.trajectory_clients[rid]=ActionClient(self,FollowJointTrajectory,f'/uwa_cell/{rid}_trajectory_controller/follow_joint_trajectory',callback_group=self.group)
         self.create_service(PrepareCalibration,PREFIX+'/prepare',self.prepare,callback_group=self.group)
@@ -117,7 +112,7 @@ class Backend(Node):
         self.status_clock=Clock(clock_type=ClockType.STEADY_TIME)
         self.create_timer(.1,self.publish_status,clock=self.status_clock,callback_group=self.group)
         self.create_timer(.05,self.publish_model,callback_group=self.group)
-        self.spawn(self.image_loop);self.spawn(self.watchdog)
+        self.spawn(self.image_loop)
         if (self.profile_directory/'active.json').is_file():
             self.status('RESTORING',message='Lade gespeichertes kalibriertes Modell')
             self.operation_thread=self.spawn(self.restore_existing)
@@ -128,7 +123,7 @@ class Backend(Node):
     def restore_existing(self):
         try:
             deadline=time.monotonic()+30
-            while not self.description or time.monotonic()-self.last_joints>1:
+            while not self.description or not self.positions:
                 if self.halted():raise InterruptedError('Profile restore stopped')
                 if time.monotonic()>deadline:raise TimeoutError('Start the simulated cell before restoring its calibration profile')
                 time.sleep(.05)
@@ -159,7 +154,6 @@ class Backend(Node):
     def publish_status(self):
         with self.mutex:state=dict(self.state)
         state['client_id']=self.owner
-        state['stopped']=self.stationary() and time.monotonic()-self.last_joints<.5
         state['camera_quality']=dict(self.camera_quality)
         self.status_pub.publish(String(data=json.dumps(state)))
         if self.run_handle and self.run_handle.is_active:
@@ -169,31 +163,15 @@ class Backend(Node):
             self.run_handle.publish_feedback(feedback)
 
     def on_description(self,msg):
-        if self.description and fingerprint(msg.data)!=fingerprint(self.description) and self.state['phase'] in ACTIVE:
-            self.request_halt('Robot description changed during session')
         self.description=msg.data
 
-    def on_heartbeat(self,msg):
-        if msg.data==self.owner:self.heartbeat=time.monotonic()
-
     def on_joints(self,msg):
-        now=time.monotonic()
-        self.positions.update(zip(msg.name,msg.position));self.velocities.update(zip(msg.name,msg.velocity))
-        self.last_joints=now
-        stamp=msg.header.stamp.sec+msg.header.stamp.nanosec*1e-9
-        self.history.append((stamp,dict(self.positions),dict(self.velocities)))
-        if self.clock_value is None or stamp>self.clock_value:
-            self.last_clock_change=now
-        elif stamp<self.clock_value-.05 and self.state['phase'] in ACTIVE:
-            self.request_halt('Simulation clock jumped backwards')
-        self.clock_value=stamp
+        self.positions=dict(zip(msg.name,msg.position))
+        self.clock_value=msg.header.stamp.sec+msg.header.stamp.nanosec*1e-9
+        self.history.append((self.clock_value,self.positions))
 
     def on_image(self,rid,msg):
         self.images[rid]=msg;self.last_images[rid]=time.monotonic()
-
-    def external_command(self,rid,msg):
-        if msg.points and self.state['phase'] in ACTIVE:
-            self.request_halt(f'External trajectory topic command on {rid}; disable rqt output')
 
     def image_loop(self):
         while not self.shutdown_event.wait(.08):
@@ -224,50 +202,20 @@ class Backend(Node):
             time.sleep(.01)
         return future.result()
 
-    def require_telemetry(self,interruptible=True,force_stationary=False):
-        if not self.description:raise ValueError('No live robot_description; start the simulated cell first')
-        if time.monotonic()-self.last_joints>1:raise ValueError('Fresh simulated joint states are required')
-        if any(j not in self.positions for r in ROBOT_IDS for j in joint_names(r)):raise ValueError('Missing arm joint states')
-        if force_stationary or self.state['phase'] not in ('MOVING','RETURNING','PARKING','POSITIONING'):
-            # An isolated velocity spike is possible even on actuated joints in
-            # Gazebo. Require a stable window before dispatch, rather than
-            # aborting a valid dataset on one noisy telemetry sample.
-            deadline=time.monotonic()+2.;stable=None
-            while time.monotonic()<deadline:
-                if interruptible and self.halted():raise InterruptedError('Stationary check interrupted')
-                if time.monotonic()-self.last_joints>1:raise ValueError('Joint telemetry stale')
-                if self.stationary():
-                    stable=stable or time.monotonic()
-                    if time.monotonic()-stable>=.2:break
-                else:stable=None
-                time.sleep(.02)
-            else:
-                moving={j:self.velocities.get(j) for j in self.stop_joints if abs(self.velocities.get(j,1))>=.01}
-                raise ValueError(f'All arms/grippers must be stationary: {moving}')
+    def require_telemetry(self):
+        if not self.description:raise ValueError('No robot_description; start the simulated cell first')
+        if any(j not in self.positions for r in ROBOT_IDS for j in joint_names(r)):
+            raise ValueError('Missing arm joint positions for the plan start')
 
-    def stationary(self):
-        # Passive mimic velocity telemetry jitters in this Gazebo backend.
-        # Check every actuated arm/gripper joint; independently monitor all link
-        # joint positions for unexpected changes during acquisition.
-        return all(abs(self.velocities.get(j,1.))<.01 for j in self.stop_joints)
-
-    def require_controllers(self,ids):
+    def require_controllers(self):
         client=self.create_client(ListControllers,'/uwa_cell/controller_manager/list_controllers',callback_group=self.group)
         try:
             if not client.wait_for_service(timeout_sec=3):raise ValueError('Controller manager missing')
             result=self.wait_future(client.call_async(ListControllers.Request()))
             active={c.name:c.state for c in result.controller}
-            if any(active.get(r+'_trajectory_controller')!='active' for r in ROBOT_IDS):raise ValueError('All four arm controllers must be active')
+            if any(active.get(r+'_trajectory_controller')!='active' for r in ROBOT_IDS):
+                raise ValueError('All four arm controllers must be active')
         finally:self.destroy_client(client)
-        for rid in ids:
-            client=self.create_client(GetParameters,f'/uwa_cell/{rid}_trajectory_controller/get_parameters',callback_group=self.group)
-            try:
-                if not client.wait_for_service(timeout_sec=3):raise ValueError('Controller parameters unavailable')
-                params=['constraints.decelerate_on_cancel']+[f'constraints.{j}.max_deceleration_on_cancel' for j in joint_names(rid)]
-                response=self.wait_future(client.call_async(GetParameters.Request(names=params)))
-                if not response.values[0].bool_value or any(v.double_value<.5-1e-9 for v in response.values[1:]):
-                    raise ValueError('Restart the cell with the updated decelerate-on-cancel controller settings')
-            finally:self.destroy_client(client)
 
     def ensure_planner(self):
         if self.planner is None:
@@ -283,9 +231,8 @@ class Backend(Node):
             ids=[r for r in ROBOT_IDS if r in request.robot_ids]
             if len(ids)!=len(request.robot_ids) or not ids or not 30<=request.samples_per_robot<=50 or not request.client_id:
                 response.accepted=False;response.message='Select unique cell robot IDs, 30-50 samples and a client ID';return response
-            self.abort.clear();self.pause.clear();self.owner=request.client_id;self.heartbeat=time.monotonic()
+            self.abort.clear();self.pause.clear();self.owner=request.client_id
             self.preparation_start=time.monotonic()
-            self.frozen=dict(self.positions)
             self.state.update(phase='PREPARING',message='Prüfe Telemetrie und plane Messstellungen',plan_id='',result_path='',robot_id='',accepted=0,rejected=0,target=request.samples_per_robot,counts={r:0 for r in ids},
                               summary={},ground_truth={},relative_bases={},table_bases={},progress_total=0,
                               active_robots=[],cohort=[],parked_robots=[],stage_index=0,stage_total=0,
@@ -295,7 +242,7 @@ class Backend(Node):
 
     def prepare_work(self,ids,count,diagonal_pairs=True):
         try:
-            self.require_telemetry();self.require_controllers(ROBOT_IDS if diagonal_pairs else ids)
+            self.require_telemetry();self.require_controllers()
             self.layout=load_layout(self.layout_path)
             with tempfile.TemporaryDirectory(prefix='uwa_calibration_reference_') as directory:
                 expected=render_description(self.layout,directory)[0]
@@ -336,7 +283,7 @@ class Backend(Node):
 
     def accept_goal(self,request):
         with self.mutex:
-            if self.state['phase']!='READY' or self.goal_reserved or not self.plan or request.plan_id!=self.plan['plan_id'] or self.abort.is_set() or time.monotonic()-self.heartbeat>1.5:return GoalResponse.REJECT
+            if self.state['phase']!='READY' or self.goal_reserved or not self.plan or request.plan_id!=self.plan['plan_id'] or self.abort.is_set():return GoalResponse.REJECT
             self.goal_reserved=True
             return GoalResponse.ACCEPT
 
@@ -349,13 +296,12 @@ class Backend(Node):
         if command=='pause_world':
             response.success=self.pause_world();response.message='Gazebo pause requested';self.request_halt('Simulation manually paused');return response
         if command=='stop':
-            self.request_halt('Stopp angefordert');response.success=True;response.message='Stop latched';return response
+            self.request_halt('Stopp angefordert');response.success=True;response.message='Cancellation requested';return response
         if command=='pause':
             if not self.running or self.state['phase']=='SOLVING':response.success=False;response.message='No pausable acquisition';return response
             self.request_halt('Pause angefordert',pause=True);response.success=True;response.message='Pausing';return response
         if command=='resume':
-            if self.state['phase']!='PAUSED' or self.abort.is_set():response.success=False;response.message='Resume only from confirmed PAUSED';return response
-            if time.monotonic()-self.heartbeat>1:response.success=False;response.message='Session owner heartbeat missing';return response
+            if self.state['phase']!='PAUSED' or self.abort.is_set():response.success=False;response.message='Resume only from PAUSED';return response
             self.pause.clear();self.status('RUNNING',message='Fortgesetzt; Wege werden erneut geprüft')
             response.success=True;response.message='Resuming';return response
 
@@ -374,22 +320,17 @@ class Backend(Node):
             self.status('STOPPED',message=reason)
 
     def confirm_halt(self):
-        deadline=time.monotonic()+1.5;stable=None
+        deadline=time.monotonic()+5.
         while time.monotonic()<deadline and not self.shutdown_event.is_set():
-            pending=bool(self.registration_pending) or bool(self.uncertain_goals) or any(not f.done() for f in list(self.pending_goals.values()))
-            stopped=(self.stationary() and time.monotonic()-self.last_joints<.5)
-            if stopped and not pending and not self.motion_handles:
-                stable=stable or time.monotonic()
-                if time.monotonic()-stable>=.2:
-                    self.hold_positions=dict(self.positions)
-                    self.status('PAUSED' if self.pause.is_set() and not self.abort.is_set() else 'STOPPED',message='Stillstand bestätigt: '+self.state.get('stop_reason',''))
-                    return
-            else:stable=None
+            with self.motion_lock:
+                pending=bool(self.registration_pending or self.motion_handles)
+            if not pending:
+                phase='PAUSED' if self.pause.is_set() and not self.abort.is_set() else 'STOPPED'
+                self.status(phase,message=self.state.get('stop_reason',''))
+                return
             time.sleep(.02)
-        paused=self.pause_world()
-        self.abort.set();self.status('STOPPED',world_pause_confirmed=paused,
-                                    message=('Stopp nicht rechtzeitig bestätigt; Gazebo-Pause bestätigt. Sitzung abgebrochen.' if paused
-                                             else 'ACHTUNG: Weder Stillstand noch Gazebo-Pause bestätigt. Keine weiteren Fahrbefehle.'))
+        self.abort.set()
+        self.status('ERROR',message='Keine Antwort auf die Gazebo-Aktionsstornierung')
 
     def pause_world(self):
         try:
@@ -400,25 +341,7 @@ class Backend(Node):
             result,response=transport.request('/world/uwa_lab/control',WorldControl(pause=True),WorldControl,Boolean,1000)
             return bool(result and response.data)
         except Exception as error:
-            self.get_logger().error(f'Gazebo pause fallback failed: {error}');return False
-
-    def watchdog(self):
-        while not self.shutdown_event.wait(.05):
-            phase=self.state['phase'];now=time.monotonic()
-            if phase not in ACTIVE:continue
-            if now-self.heartbeat>1.5:
-                self.request_halt('GUI/client heartbeat lost');continue
-            if now-self.last_joints>1 or now-self.last_clock_change>1:
-                self.request_halt('Joint telemetry or simulation clock stale');continue
-            if self.running or phase in ('PREPARING','APPLYING'):
-                for rid in self.state.get('cohort',[]):
-                    if now-self.last_images.get(rid,0)>2:self.request_halt(f'{rid}: camera stream lost')
-                holding=phase in ('PAUSED','CAPTURING')
-                controlled={j for rid in self.controlled_robots for j in joint_names(rid)} if self.running and not holding else set()
-                baseline=self.hold_positions if holding else self.frozen
-                for joint,position in baseline.items():
-                    if joint not in controlled and abs(self.positions.get(joint,position)-position)>.015:
-                        self.request_halt(f'Unexpected movement of {joint}');break
+            self.get_logger().error(f'Gazebo pause request failed: {error}');return False
 
     def wait_unpaused(self):
         while self.pause.is_set() and not self.abort.is_set():
@@ -451,35 +374,24 @@ class Backend(Node):
         self.wait_unpaused()
         self.require_telemetry()
         ids=list(targets)
-        self.controlled_robots=set()
         source_positions=dict(self.positions)
-        self.frozen=dict(source_positions)
         self.status(phase,robot_id=ids[0],active_robots=ids,
                     message={'PARKING':'Wartearm zur Seite parken','POSITIONING':'Aktives Paar zum Board ausrichten',
                              'RETURNING':'Rückfahrt zur Sitzungsstartstellung'}.get(phase,'Geprüfte Messstellung des Diagonalpaars' if len(ids)==2 else 'Fahre geprüfte Messstellung'))
         checked=self.ensure_planner().call({'op':'paths','start':source_positions,'targets':targets},self.halted)
-        goals={}
-        for rid,path in checked['paths'].items():
-            if not self.trajectory_clients[rid].wait_for_server(timeout_sec=3):raise ValueError(f'{rid}: trajectory action missing')
-            goal=FollowJointTrajectory.Goal();goal.trajectory.joint_names=joint_names(rid)
-            for p in path[1:]:
-                point=JointTrajectoryPoint(positions=p['positions'],velocities=p['velocities'],accelerations=p['accelerations'])
-                point.time_from_start.sec=int(p['time']);point.time_from_start.nanosec=round((p['time']-int(p['time']))*1e9)
-                if point.time_from_start.nanosec>=1000000000:point.time_from_start.sec+=1;point.time_from_start.nanosec-=1000000000
-                goal.trajectory.points.append(point)
-            goals[rid]=goal
-        self.require_telemetry(force_stationary=True)
-        start_time=self.get_clock().now()+Duration(seconds=.75)
-        acceptance_deadline=start_time.nanoseconds-150000000
+        for rid in checked['paths']:
+            if not self.trajectory_clients[rid].wait_for_server(timeout_sec=3):
+                raise ValueError(f'{rid}: trajectory action missing')
+        start_time=self.get_clock().now()+Duration(seconds=1.)
+        goals={rid:trajectory_goal(dict(joint_names=joint_names(rid),points=path),start_time.to_msg())
+               for rid,path in checked['paths'].items()}
         self.status(motion_start_ns=start_time.nanoseconds,envelope_separation_m=checked['envelope_separation_m'])
         with self.motion_lock:
             if self.halted():raise InterruptedError('Stopped before goal dispatch')
             if any(abs(self.positions[j]-source_positions[j])>.01 for r in ROBOT_IDS for j in joint_names(r)):
                 raise ValueError('Joint state changed during planning; cohort was not dispatched')
-            self.controlled_robots=set(ids)
             self.motion_results={}
             for rid,goal in goals.items():
-                goal.trajectory.header.stamp=start_time.to_msg()
                 self.registration_pending.add(rid)
                 try:self.pending_goals[rid]=self.trajectory_clients[rid].send_goal_async(goal)
                 except Exception:
@@ -492,11 +404,11 @@ class Backend(Node):
                    'duration':checked['duration'],'envelope_separation_m':checked['envelope_separation_m']}
             with (self.session/'motion_events.jsonl').open('a') as stream:stream.write(json.dumps(event)+'\n')
         try:
+            deadline=time.monotonic()+5.
             while self.registration_pending:
                 if self.halted():raise InterruptedError('Stopped during cohort goal acceptance')
-                if self.get_clock().now().nanoseconds>=acceptance_deadline:raise TimeoutError('Not all goals acknowledged before shared start; cohort cancelled')
+                if time.monotonic()>=deadline:raise TimeoutError('Gazebo controller did not acknowledge goal')
                 time.sleep(.01)
-            if self.get_clock().now().nanoseconds>=acceptance_deadline:raise TimeoutError('Cohort acknowledgements arrived too late for shared start')
             if self.halted():raise InterruptedError('Cohort start stopped')
             if set(self.motion_results)!=set(ids):raise ValueError('Missing trajectory acceptance/result future')
             deadline=time.monotonic()+checked['duration']*5+10
@@ -511,27 +423,12 @@ class Backend(Node):
                     if result.status!=4 or result.result.error_code!=0:raise ValueError(f'{rid}: trajectory aborted: {result.result.error_string}')
                     remaining.remove(rid)
                 time.sleep(.01)
-            for rid,target in targets.items():
-                if max(abs(self.positions[j]-q) for j,q in zip(joint_names(rid),target))>.02:raise ValueError(f'{rid}: goal tracking error exceeds 0.02 rad')
         except InterruptedError:raise
         except Exception as error:self.request_halt(str(error));raise
         with self.motion_lock:
             self.pending_goals={r:f for r,f in self.pending_goals.items() if r not in ids}
-        self.status('SETTLING',message='Warte auf Stillstand und frische Bilder')
-        start=None;deadline=time.monotonic()+8
-        while time.monotonic()<deadline:
-            if self.halted():raise InterruptedError('Settling interrupted')
-            if all(abs(self.velocities.get(j,1))<.01 for rid in ids for j in joint_names(rid)):
-                start=self.clock_value if start is None else start
-                if self.clock_value-start>=.5:
-                    self.frozen=dict(self.positions);self.controlled_robots=set();return
-            else:start=None
-            time.sleep(.02)
-        raise TimeoutError('Robot did not settle')
-
     def capture(self,rid,pose,index,announce=True,after=None):
         if announce:
-            self.hold_positions=dict(self.positions)
             self.status('CAPTURING',message='Wähle scharfes Bild aus fünf frischen Boardansichten')
         after=self.clock_value if after is None else after
         deadline=time.monotonic()+6;seen=set();choices=[]
@@ -549,7 +446,7 @@ class Backend(Node):
                 except TransformException:continue
                 if not self.history:continue
                 joint_sample=min(list(self.history),key=lambda item:abs(item[0]-stamp))
-                if abs(joint_sample[0]-stamp)>.04 or any(abs(joint_sample[2].get(j,1))>=.01 for j in joint_names(rid)):continue
+                if abs(joint_sample[0]-stamp)>.04 or any(j not in joint_sample[1] for j in joint_names(rid)):continue
                 seen.add(stamp)
                 score=cv2.Laplacian(cv2.cvtColor(pixels,cv2.COLOR_BGR2GRAY),cv2.CV_64F).var()
                 choices.append((score,msg,info,detected,pixels,tf,joint_sample))
@@ -586,7 +483,6 @@ class Backend(Node):
                 self.wait_unpaused()
                 try:
                     self.move_many({r:p['joints'] for r,p in pending.items()})
-                    self.hold_positions=dict(self.positions)
                     self.status('CAPTURING',active_robots=list(pending),robot_id=next(iter(pending)),
                                 message='Je Kamera das schärfste von fünf frischen Bildern auswählen')
                     after=self.clock_value;outcomes={}
@@ -644,7 +540,7 @@ class Backend(Node):
         self.run_handle=goal;self.running=True;records={r:[] for r in self.plan['robots']}
         result=RunCalibration.Result()
         try:
-            self.require_telemetry();self.require_controllers(ROBOT_IDS if self.plan['mode']=='diagonal_pairs' else self.plan['robots'])
+            self.require_telemetry();self.require_controllers()
             if fingerprint(self.description)!=self.plan['description_fingerprint']:raise ValueError('Cell model changed since preparation')
             if any(abs(self.positions.get(j,q)-q)>.015 for j,q in self.plan['start'].items()):raise ValueError('Joint state changed since preparation; prepare again')
             for rid,expected in self.plan['matrices'].items():
@@ -653,7 +549,6 @@ class Backend(Node):
                     (info.width,info.height)!=(expected['width'],expected['height']) or
                     not np.allclose(info.k,np.asarray(expected['k']).ravel()) or list(info.d)!=expected['d']):
                     raise ValueError('CameraInfo changed since preparation; prepare again')
-            self.frozen=dict(self.positions)
             self.status('RUNNING',message='Messfahrt gestartet')
             run_start=dict(self.positions)
             self.plan['run_start']=run_start;self.plan['run_start_stamp']=self.clock_value
@@ -705,11 +600,10 @@ class Backend(Node):
     def apply(self,request,response):
         with self.mutex:
             if self.state['phase'] not in ('COMPLETE','READY','IDLE','STOPPED','ERROR') or self.goal_reserved or (self.operation_thread and self.operation_thread.is_alive()):
-                response.accepted=False;response.message='Apply is allowed only while idle and stationary';return response
+                response.accepted=False;response.message='Apply is allowed only while idle';return response
             if not request.client_id:
-                response.accepted=False;response.message='A responsive client ID is required';return response
-            self.abort.clear();self.pause.clear();self.frozen=dict(self.positions)
-            self.owner=request.client_id;self.heartbeat=time.monotonic()
+                response.accepted=False;response.message='A client ID is required';return response
+            self.abort.clear();self.pause.clear();self.owner=request.client_id
             self.status('APPLYING',message='Prüfe und aktiviere getrenntes kalibriertes Modell')
         try:
             self.require_telemetry()

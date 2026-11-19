@@ -1,7 +1,7 @@
 # Automatische Hand-Auge-Kalibrierung in der Simulation
 
 Die Pakete `uwa_cell_calibration` und `uwa_cell_calibration_msgs` führen
-überwachte Messfahrten aus. Sie schätzen die unbekannte Kameramontage jedes
+vorab geplante Messfahrten aus. Sie schätzen die unbekannte Kameramontage jedes
 Arms und die relative Lage der beiden Roboter auf demselben Tisch. Die linke
 und rechte Tischgruppe werden getrennt ausgewertet. Die Routine verbindet
 sich ausschließlich mit der isolierten Simulation (Domain 64, Partition
@@ -9,10 +9,7 @@ sich ausschließlich mit der isolierten Simulation (Domain 64, Partition
 
 ## Start und Bedienung
 
-Nach dem Build aller vier Repository-Pakete die Zelle wie gewohnt starten.
-Nach erstmaliger Installation der Kalibrierung die Zelle einmal neu starten,
-damit ihre Armcontroller die neuen Abbremsparameter laden. Der Backend prüft
-dies vor der Vorbereitung.
+Nach dem Build die simulierte Zelle wie gewohnt starten.
 
 ```bash
 cd ~/UWA_ws
@@ -44,10 +41,10 @@ ersten Backend-Start berücksichtigt und muss zur laufenden Zelle passen.
    messen. Bei einer Teilmenge werden nur ausgewählte Arme der beiden Gruppen
    vermessen; andere Arme werden dennoch bei Bedarf geparkt. Setupwege bleiben
    seriell. Die GUI zeigt beide aktiven Arme, Parkzustand, Schritt und Zähler je Arm.
-5. **Pause** bremst alle aktiven Controller ab. Erst nach bestätigtem Stillstand
-   aller Arme wird **Fortsetzen** möglich. Der unterbrochene Zielweg wird aus dem
+5. **Pause** storniert die aktiven Trajektorien. Nach den Aktionsantworten
+   wird **Fortsetzen** möglich. Der unterbrochene Zielweg wird aus dem
    tatsächlichen Zustand neu geprüft und die Aufnahme gegebenenfalls wiederholt.
-6. **STOPP** verriegelt weitere Befehle und bricht die Sitzung ab. Bereits
+6. **STOPP** storniert die aktiven Ziele und beendet die Sitzung. Bereits
    gespeicherte Daten bleiben erhalten. Es gibt nach Stopp oder Fehler keine
    automatische Rückfahrt. Eine neue Fahrt erfordert erneutes Vorbereiten.
 7. Nach regulärem Abschluss beider Gruppen folgt für alle umpositionierten Arme
@@ -57,7 +54,7 @@ ersten Backend-Start berücksichtigt und muss zur laufenden Zelle passen.
    werden Schätzung, unabhängige Validierung und Ground-Truth-Abweichungen
    getrennt im Tab **Ergebnisse** angezeigt; **Livebilder** bleibt verfügbar.
 8. **Ergebnis übernehmen** ist eine ausdrückliche Aktivierung des bestandenen
-   Ergebnisses im Stillstand. Der Dialog beschreibt das getrennte Modell.
+   Ergebnisses nach Abschluss der Sitzung. Der Dialog beschreibt das getrennte Modell.
 
 **Simulation pausieren** fordert den Stopp an und pausiert Gazebo zusätzlich
 direkt über Gazebo Transport, unabhängig vom ROS-Backend. Die Welt kann danach
@@ -245,50 +242,24 @@ kalibrierte Planungsmodell. Die Gazebo-Geometrie, physischen Montagen,
 ursprüngliche Beschreibung und ursprünglichen Ground-Truth-TFs werden dabei
 nicht ersetzt und die Zell-Simulation wird nicht neu gestartet.
 
-## Überwachung und ROS-Schnittstellen
+## ROS-Schnittstellen
 
 Unter `/uwa_cell/calibration`:
 
 | Schnittstelle | Typ | Zweck |
 |---|---|---|
-| `prepare` | `PrepareCalibration` Service | Roboter, Messzahl, Besitzer-ID, `diagonal_pairs` (Standard true); startet Vorbereitung asynchron |
-| `run` | `RunCalibration` Action | geprüfte `plan_id`, Feedback, Ergebnis, Abbruch |
-| `pause`, `resume`, `stop` | `std_srvs/Trigger` | bewusste Steuerung und verriegelter Stopp |
-| `pause_world` | `std_srvs/Trigger` | zusätzliche Gazebo-Pause |
-| `apply` | `ApplyCalibration` Service | Ergebnisdatei, Besitzer-ID; startet Profilprüfung |
-| `heartbeat` | `std_msgs/String` | Besitzer-Lebenszeichen, 5 Hz |
-| `status` | `std_msgs/String` JSON, transient local | Phase, Fortschritt, Qualität und Ergebnis |
-| `<robot_id>/image_annotated` | `sensor_msgs/Image` | Liveerkennung |
+| `prepare` | `PrepareCalibration` | Messstellungen und Wege offline berechnen |
+| `run` | `RunCalibration` | Plan ausführen, Daten aufnehmen und auswerten |
+| `pause`, `resume`, `stop` | `std_srvs/Trigger` | Wiedergabe manuell steuern |
+| `pause_world` | `std_srvs/Trigger` | Physik in Gazebo manuell pausieren |
+| `apply` | `ApplyCalibration` | Ergebnisdatei prüfen und Profil aktivieren |
+| `status` | `std_msgs/String` | Phase, Fortschritt, Qualität und Ergebnis |
+| `<robot_id>/image_annotated` | `sensor_msgs/Image` | Erkannten Bildinhalt anzeigen |
 
-Ein Dateilock verhindert mehrere Backends. Eine aktive Operation sperrt
-weitere Sitzungen. Ein Lebenszeichen gehört zur vorbereitenden GUI oder zum
-CLI-Client; andere GUIs können beobachten und stoppen. Nur eine responsive
-GUI hält ihren Besitz aufrecht, ein noch laufender ROS-Thread allein reicht
-nicht. Mehr als 1,5 s ohne Besitzer, veraltete Gelenke/Simulationszeit,
-rückwärts springende Zeit, Kameraverlust, Controllerfehler, fremde
-Trajektorientopics und unerwartete Bewegung anderer Gelenke lösen den Stopp aus.
-Fremde Action-Ziele werden über verdrängte Controllerziele bzw. unerwartete
-Bewegung erkannt; die Routine beansprucht keine exklusive Sperre fremder ROS-
-Programme. Manuelle rqt-Ausgabe deshalb vor dem Start deaktivieren.
-
-Der Stopp sperrt den Versand unter demselben Lock wie das Absenden eines
-Trajektorienpaars, storniert **beide** Ziele einschließlich spät bestätigter
-Ziele und wartet auf alle Ergebnisse sowie gemessenen Stillstand. Ein Fehler
-eines Controllers stoppt die gesamte Gruppe. Die Armcontroller bremsen
-stornierte Ziele kontrolliert ab; mindestens 0,5 rad/s² konfigurierte
-Abbremsung wird vor der Sitzung geprüft. Wird der Stillstand nicht innerhalb 1,5 s
-bestätigt, wird die Gazebo-Pause angefordert und deren Antwort ausgewertet.
-Planung und Optimierung laufen in einem eigenen Prozess ohne Befehlsclients;
-dessen Abbruch kann die Bewegungsüberwachung nicht blockieren.
-
-Ist wegen eines Transportfehlers unklar, ob ein Controller ein Ziel angenommen
-hat, wird dies nicht als Leerlauf gewertet: die Weltpause greift und eine neue
-Sitzung bleibt bis zur Klärung bzw. einem Controller-/Zellreset gesperrt.
-`motion_events.jsonl` protokolliert versendete Gruppen, gemeinsame Startzeiten,
-Dauern und Hüllraumabstände; Sitzungsrohdaten bleiben außerhalb Git.
-
-Dies ist ein überwachter Softwarestopp für die Simulation. Eine spätere
-Hardwareversion braucht die reale UR-Anbindung und deren Stoppsystem.
+Die Planung läuft in einem eigenen Prozess. Die simulierten Controller
+erhalten die vorbereiteten Bahnen eines Paars mit gemeinsamer Startzeit.
+Pause und Stopp verwenden Aktionsstornierung. `motion_events.jsonl` erfasst
+versendete Bahnen, Startzeiten, Dauern und berechnete Hüllraumabstände.
 
 ## Prüfen
 
@@ -302,18 +273,7 @@ OPENBLAS_NUM_THREADS=1 python3 -m pytest \
 Die synthetischen Tests verwenden andere, dem Solver unbekannte Kamera- und
 Basisposen sowie verrauschte Bildpunkte. Sie prüfen Richtungen, Ausreißer,
 Degeneration, unabhängige Validierung, Kollisionsgeometrie, Grenzen,
-Geschwindigkeiten und getrennte Modelle. Liveprüfungen benötigen eine freie
-Zelle ohne andere Messfahrt; sie bewegen ausschließlich den linken vorderen Arm:
-
-```bash
-python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_gui_check.py" --exercise
-python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_gui_check.py" --freeze
-python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_gui_check.py" --planning
-python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_gui_check.py" --capture
-python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_gui_check.py" --world-pause
-ros2 run uwa_cell_calibration calibration_cli --robots left_front --sequential --stop-after 1
-ros2 run uwa_cell_calibration calibration_cli --robots left_front --sequential --pause-after 3 --resume-after 2 --stop-after 12
-```
+Geschwindigkeiten und getrennte Modelle offline.
 
 Vollständigen 40×4-Datensatz offline prüfen und bei unverändert zurückgekehrten
 Armen die Live-Profilprüfung ausführen:
@@ -331,28 +291,14 @@ den bestandenen vollständigen Lauf: maximal 0,131 mm / 0,035° Kamerafehler und
 und Offlineprüfungen umfassen 57 bestandene Tests. Das sind Nachweise in der
 Simulation, keine Genauigkeitsfreigabe für die reale Zelle.
 
-Die Paarprüfungen bewegen außerdem die Wartearme beim Parken. Nur an einer
-freien Simulationszelle ohne andere Messfahrt ausführen:
-
-```bash
-python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_diagonal_check.py" \
-  --mode pause --output /tmp/diagonal-pause-stop.json
-python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_diagonal_check.py" \
-  --mode disconnect --output /tmp/diagonal-owner-loss.json
-python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_diagonal_check.py" \
-  --mode capture --output /tmp/diagonal-capture-stop.json
-python3 "$UWA_WS/src/multi_arm_manipulation_UWA/uwa_cell_calibration/test/live_diagonal_check.py" \
-  --mode full --output /tmp/diagonal-full.json
-```
-
 Der [Paar-Prüfbericht vom 2026-11-09](handeye_diagonal_validation_2026-11-09.json)
 dokumentiert den bestandenen vollständigen 40×4-Paarlauf mit real beobachteten
 gleichzeitigen Gelenkgeschwindigkeiten in beiden Gruppen. Maximal 0,078 mm /
 0,030° Kamerafehler und 0,092 mm / 0,025° relativer Basisfehler gegen Ground Truth;
-79 aktuelle Offline-Tests bestanden. Gemeinsamer Fahrtstopp nach 0,46 s,
+79 damalige Offline-Tests bestanden. Historischer Fahrtstopp nach 0,46 s,
 Aufnahmestopp nach 0,30 s und GUI-Heartbeatverlust nach 2,33 s einschließlich
-Lease-Frist bestätigt; keine automatische Weiterfahrt. Das neue Profil und der
-Rückfall bei fehlerhaften Kandidaten wurden ebenfalls live geprüft.
+Lease-Frist bestätigt. Seit 19.11.2026 erfolgt die Gazebo-Wiedergabe ohne
+diese Laufzeitwächter oder Stoppversuche.
 
 Den datierten Stand der tatsächlich ausgeführten Prüfungen und ihrer Grenzen
 enthält [HANDOVER.md](../HANDOVER.md). Referenzen:

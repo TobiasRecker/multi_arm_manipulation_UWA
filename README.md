@@ -587,16 +587,11 @@ completes a 147.8 mm vertical lift and return at fivefold carrying speed, with
 small per-jaw load changes. It does not qualify the full quarter turn; its
 configured stopping reserve rejects that complete path at 5×.
 
-For the new **simulation-only four-arm collision guard and PTP comparison**,
-see [the motion guide](docs/four_arm_motion.md). It provides a10Hz neighbor-pair
-sphere guard with latched per-arm resource holds, independent watchdog,
-RRTConnect and an independent circular-field baseline. Planning, preview and
-execution are separate commands; starting the guard explicitly stops the
-simulated arms until a stationary reset. The separate
-[hardware backend](docs/four_arm_hardware_motion.md) adds output-only RTDE,
-six-joint resource holds and native STOP fallback in domain66; it defaults to
-monitor-only. Its controller/planner paths are mock-tested; real stopping
-reserves remain unmeasured and no physical commissioning is claimed.
+The [four-arm motion guide](docs/four_arm_motion.md) covers offline
+collision and joint-limit checks, RRTConnect and a circular-field baseline.
+Gazebo plays the timed plans through its normal controllers. The separate
+[hardware backend](docs/four_arm_hardware_motion.md) has its own guard,
+supervisor, native STOP fallback and ROS domain.
 
 A first [single-UR CDF prototype](docs/single_ur_cdf.md) now constructs
 nonparametric contact-template distances in joint radians and plans with a
@@ -944,11 +939,11 @@ python3 -m pytest ~/UWA_ws/src/multi_arm_manipulation_UWA/uwa_cell_gazebo/test -
 # Read-only clock, joint, controller and base-transform checks:
 ros2 run uwa_cell_gazebo verify_cell
 # Explicitly test a small wrist move on each arm and restore its original pose:
-ros2 run uwa_cell_gazebo verify_cell --move
+ros2 run uwa_cell_gazebo verify_cell
 # Check four RGB streams, calibration, tool frames and finger coupling:
 ros2 run uwa_cell_gazebo verify_tools
 # Close/open each simulated gripper and restore its original position:
-ros2 run uwa_cell_gazebo verify_tools --move
+ros2 run uwa_cell_gazebo verify_tools
 # Optionally save image snapshots and a JSON report:
 ros2 run uwa_cell_gazebo verify_tools --images /tmp/uwa-camera-images --output /tmp/uwa-tools.json
 ```
@@ -997,6 +992,6 @@ Evidence: `uwa-cell-tools-*.log` / `*.json` and
 `uwa-cell-camera-images/` under the log directory above.
 
 The [real-time preparation guide](docs/realtime_preparation.md) records the
-Ubuntu26.04 kernel/privilege plan, explicit faster simulation-guard candidates,
+Ubuntu26.04 kernel/privilege plan, historical simulation-guard measurements,
 and passive reaction-chain measurement tools. No kernel or active hardware
 profile was changed by that preparation.

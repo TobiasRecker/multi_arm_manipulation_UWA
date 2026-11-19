@@ -19,7 +19,7 @@ def test_contact_scene_keeps_open_geometry_mass_and_actual_fingers(tmp_path):
     assert any(path.endswith('/rigid_object.py') for path in record['implementation_sha256'])
     assert any(path.endswith('/runtime.py') for path in record['implementation_sha256'])
     assert any(path.endswith('/geometry.py') for path in record['implementation_sha256'])
-    assert any(path.endswith('/libcollision_hold.so') for path in record['implementation_sha256'])
+    assert any(path.endswith('/trajectory.py') for path in record['implementation_sha256'])
     description=(tmp_path/'robot.urdf').read_text();root=ET.fromstring(description)
     backend=root.find("ros2_control[@name='ContactGrippers']")
     assert len(backend.findall('joint'))==12

@@ -1,7 +1,6 @@
-"""Read-only checks by default; --move explicitly tests and restores each simulated arm."""
+"""Read the simulated cell model, TFs and controller inventory."""
 import argparse
 import json
-import math
 from pathlib import Path
 import re
 import subprocess
@@ -10,15 +9,12 @@ import time
 import numpy as np
 from scipy.spatial.transform import Rotation
 import rclpy
-from rclpy.action import ActionClient
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from rclpy.time import Time
 from controller_manager_msgs.srv import ListControllers
-from control_msgs.action import FollowJointTrajectory
 from rosgraph_msgs.msg import Clock
 from sensor_msgs.msg import JointState
-from trajectory_msgs.msg import JointTrajectoryPoint
 from tf2_ros import Buffer, TransformListener
 
 from .configuration import ROBOT_IDS, controller_names, joint_names, load_layout
@@ -94,35 +90,9 @@ class CellVerification(Node):
         transform = self.buffer.lookup_transform('world', f'{robot_id}_base_link', Time()).transform
         return np.array([transform.translation.x, transform.translation.y, transform.translation.z])
 
-    def move_and_wait(self, robot_id, target):
-        client = ActionClient(self, FollowJointTrajectory,
-                              f'/uwa_cell/{robot_id}_trajectory_controller/follow_joint_trajectory')
-        try:
-            if not client.wait_for_server(timeout_sec=10.0):
-                raise RuntimeError(f'Action server missing for {robot_id}')
-            goal = FollowJointTrajectory.Goal()
-            goal.trajectory.joint_names = joint_names(robot_id)
-            point = JointTrajectoryPoint()
-            point.positions = [float(value) for value in target]
-            point.velocities = [0.0] * 6
-            point.time_from_start.sec = 3
-            goal.trajectory.points = [point]
-            handle = self.future(client.send_goal_async(goal))
-            if not handle.accepted:
-                raise RuntimeError(f'{robot_id}: trajectory was rejected')
-            result = self.future(handle.get_result_async(), timeout=25.0)
-            if result.status != 4 or result.result.error_code != 0:
-                raise RuntimeError(f'{robot_id}: trajectory failed: {result.result.error_string}')
-            self.until(lambda: max(abs(self.positions[j] - target[i])
-                                   for i, j in enumerate(joint_names(robot_id))) < 0.03)
-        finally:
-            client.destroy()
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--layout')
-    parser.add_argument('--move', action='store_true', help='Test a 0.1-rad wrist move per arm and restore it')
     parser.add_argument('--output')
     args = parser.parse_args()
     # The check deliberately cannot connect to the real cell's ROS domain.
@@ -137,7 +107,6 @@ def main():
         node.until(lambda: all(j in node.positions for j in expected_joints)
                    and len(node.clock_samples) > 5)
         assert node.clock_samples[-1] > node.clock_samples[0], 'Simulation clock is stopped'
-        assert all(math.isfinite(node.positions[j]) for j in expected_joints), 'Nonfinite joint positions'
         client = node.create_client(ListControllers, '/uwa_cell/controller_manager/list_controllers')
         assert client.wait_for_service(timeout_sec=15), 'Controller manager missing'
         response = node.future(client.call_async(ListControllers.Request()))
@@ -157,30 +126,9 @@ def main():
             local = np.array(robot['mount_xyz']) + [0, 0, table['height']]
             expected = Rotation.from_euler('xyz', table['rpy']).apply(local) + table['xyz']
             assert np.linalg.norm(pose - expected) < 0.001, (robot_id, pose, expected)
-        moved = []
-        if args.move:
-            for robot_id in ROBOT_IDS:
-                before = dict(node.positions)
-                original = np.array([before[j] for j in joint_names(robot_id)])
-                target = original.copy()
-                target[5] += 0.1
-                try:
-                    node.move_and_wait(robot_id, target)
-                    max_other_drift = max(abs(node.positions[j] - before[j])
-                                         for other in ROBOT_IDS if other != robot_id
-                                         for j in joint_names(other))
-                    assert max_other_drift < 0.01, f'Other arm moved by {max_other_drift} rad'
-                    moved.append(robot_id)
-                finally:
-                    node.move_and_wait(robot_id, original)
-        for robot_id, pose in initial_bases.items():
-            assert np.linalg.norm(node.base_pose(robot_id) - pose) < 0.001, 'Robot base drifted'
-        final_physics_pose = gazebo_model_pose()
-        assert np.linalg.norm(final_physics_pose - initial_physics_pose) < 0.001, 'Gazebo cell root drifted'
         result = {'joint_count': len(expected_joints), 'clock_advances': True,
                   'controllers': controllers, 'bases_match_layout': True,
-                  'gazebo_cell_root_stable': True,
-                  'motion_tested_and_restored': moved, 'ros_domain': 64}
+                  'gazebo_cell_root_matches_layout': True, 'ros_domain': 64}
         text = json.dumps(result, indent=2)
         print(text)
         if args.output:

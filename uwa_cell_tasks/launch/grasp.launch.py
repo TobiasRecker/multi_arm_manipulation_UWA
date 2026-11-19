@@ -23,6 +23,7 @@ def setup(context):
     layout_file=LaunchConfiguration('layout').perform(context);layout=load_layout(layout_file)
     params=yaml.safe_load((directory/'model/controllers.yaml').read_text())
     params={key.replace('/uwa_cell',ns,1):value for key,value in params.items()}
+    params[ns+'/controller_manager']['ros__parameters']['enforce_command_limits']=False
     for value in params.values():
         constraints=value['ros__parameters'].get('constraints')
         if constraints:

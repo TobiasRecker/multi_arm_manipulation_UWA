@@ -171,8 +171,13 @@ def audit(run):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("run", type=Path)
+    parser.add_argument("--output", type=Path, help="Also save the audit as JSON")
     args = parser.parse_args()
     try:
-        print(json.dumps(audit(args.run), indent=2))
+        payload = json.dumps(audit(args.run), indent=2)
+        if args.output:
+            with args.output.open("x") as output:
+                output.write(payload + "\n")
+        print(payload)
     except (OSError, ValueError, KeyError) as error:
         parser.exit(1, f"FAIL: {error}\n")

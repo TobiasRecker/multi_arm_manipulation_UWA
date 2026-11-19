@@ -26,8 +26,6 @@ def generate_launch_description():
         SetEnvironmentVariable('ROS_AUTOMATIC_DISCOVERY_RANGE','LOCALHOST'),
         SetEnvironmentVariable('GZ_PARTITION','uwa_cell_sim'),SetEnvironmentVariable('GZ_IP','127.0.0.1'),
         OpaqueFunction(function=backend_if_needed),
-        # No exit handler kills the backend when the GUI disappears: its independent
-        # wall-time watchdog must first cancel and confirm motion stop.
         Node(package='uwa_cell_calibration',executable='calibration_gui',
              condition=IfCondition(LaunchConfiguration('gui')),output='screen'),
     ])

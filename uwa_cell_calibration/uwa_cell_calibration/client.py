@@ -18,11 +18,9 @@ class Client(Node):
         super().__init__('calibration_client_'+uuid.uuid4().hex[:8])
         self.client_id=uuid.uuid4().hex
         self.state={};self.images={};self.goal=None;self.result=None;self.error=''
-        self.last_status=0.;self.last_pulse=time.monotonic()
+        self.last_status=0.
         qos=QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL,reliability=ReliabilityPolicy.RELIABLE)
         self.create_subscription(String,PREFIX+'/status',self.on_status,qos)
-        self.heartbeat=self.create_publisher(String,PREFIX+'/heartbeat',10)
-        self.create_timer(.2,self.send_heartbeat)
         for rid in ROBOT_IDS:
             self.create_subscription(Image,f'{PREFIX}/{rid}/image_annotated',lambda m,r=rid:self.images.update({r:m}),qos_profile_sensor_data)
         self.prepare_client=self.create_client(PrepareCalibration,PREFIX+'/prepare')
@@ -33,13 +31,6 @@ class Client(Node):
     def on_status(self,msg):
         try:self.state=json.loads(msg.data);self.last_status=time.monotonic()
         except (TypeError,ValueError):pass
-
-    def pulse(self):self.last_pulse=time.monotonic()
-
-    def send_heartbeat(self):
-        # A responsive ROS thread alone must not keep a frozen GUI alive.
-        if time.monotonic()-self.last_pulse<.5:
-            self.heartbeat.publish(String(data=self.client_id))
 
     def service(self,client,request):
         if not client.service_is_ready():self.error='Kalibrierungsbackend nicht erreichbar';return None

@@ -7,7 +7,6 @@ environment. This runner contains no hardware transport or automatic review.
 import argparse
 import hashlib
 import json
-import os
 from pathlib import Path
 import signal
 import subprocess
@@ -34,14 +33,7 @@ def live_grasp_launches():
     return result
 
 
-def end_world(launch,run):
-    state=read(run/'state.json')
-    if state['state'] not in ('DONE','FAILED') or not state.get('stop',{}).get('confirmed'):
-        raise RuntimeError('Own world retained: measured task stop is not confirmed')
-    if state['state']=='DONE' and not state.get('group',{}).get('released'):
-        raise RuntimeError('Own world retained: completed task has not released on support')
-    # The exact Popen child is the only process signalled. ROS launch cleans its
-    # own children; no process-name kill or signal to unrelated process groups.
+def end_world(launch):
     if launch.poll() is None:
         launch.send_signal(signal.SIGINT)
         launch.wait(timeout=30.)
@@ -51,9 +43,6 @@ def classify(state,validation,loads,diagnostic):
     text=json.dumps(diagnostic).lower()+' '+str(state.get('error','')).lower()
     if not validation['passed']:
         if 'stale' in text or 'expired' in text:return 'telemetry_or_lease_failure'
-        if 'distance' in text or 'stopping reserve' in text:return 'configured_stopping_reserve'
-        if 'speed limit' in text:return 'configured_speed_envelope'
-        if 'slip' in text or 'rigid' in text:return 'grasp_rigidity_failure'
         return 'task_failure_inspect_raw_evidence'
     if not loads['coverage_complete']:return 'incomplete_force_measurement'
     if any(p['maximum_mean_load_upper_bound_n']>loads['pad_load_reference_n'] for p in loads['pads'].values()):
@@ -61,7 +50,7 @@ def classify(state,validation,loads,diagnostic):
     return 'observed_simulation_pass'
 
 
-def case(root,cfg,reference,index,timeout,layout=None,fault=None,minimum_lift=.012):
+def case(root,cfg,reference,index,timeout,layout=None):
     directory=root/f'case{index:02d}';directory.mkdir()
     scene=directory/'scene';run=directory/'run';profile=directory/'profile.yaml'
     profile.write_text(yaml.safe_dump(cfg,sort_keys=False))
@@ -71,15 +60,14 @@ def case(root,cfg,reference,index,timeout,layout=None,fault=None,minimum_lift=.0
             subprocess.run(args,stdout=output,stderr=subprocess.STDOUT,check=True)
     layout_args=['--layout',str(layout)] if layout else []
     checked(['ros2','run','uwa_cell_tasks','cell_task','prepare','--config',str(profile),'--output',str(scene)]+layout_args,'prepare.log')
-    logs=[];launch=recorder=runner=probe=None
+    logs=[];launch=recorder=runner=None
     def start(args,name):
         output=(directory/name).open('w');logs.append(output)
         return subprocess.Popen(args,stdout=output,stderr=subprocess.STDOUT,start_new_session=True)
     try:
         launch=start(['ros2','launch','uwa_cell_tasks','grasp.launch.py','scene:='+str(scene)]+
             (['layout:='+str(layout)] if layout else []),'launch.log')
-        recorder=start([sys.executable,str(tools/'trace_manipulation.py'),str(run),'--prepare','--timeout',str(timeout+90)]+
-            (['--terminal-tail-s','2.'] if fault else []),'trace.log')
+        recorder=start([sys.executable,str(tools/'trace_manipulation.py'),str(run),'--prepare','--timeout',str(timeout+90)],'trace.log')
         deadline=time.monotonic()+100.
         while True:
             if launch.poll() is not None:raise RuntimeError('Own simulation startup failed')
@@ -89,10 +77,6 @@ def case(root,cfg,reference,index,timeout,layout=None,fault=None,minimum_lift=.0
             if ready and (run/'force-trace.jsonl').exists() and (run/'evaluation-trace.jsonl').exists():break
             if time.monotonic()>deadline:raise TimeoutError('Own controllers/recorder not ready')
             time.sleep(1.)
-        if fault:
-            probe=start(['taskset','-c','6-11',sys.executable,str(tools/'test_manipulation_fault.py'),str(run),
-                '--scene',str(scene),'--fault',fault,'--minimum-lift-m',str(minimum_lift)],'fault.log')
-        time.sleep(10.)  # DDS discovery before arming, never during motion.
         runner=start(['taskset','-c','6-11','ros2','run','uwa_cell_tasks','cell_task','run',
             '--scene',str(scene),'--output',str(run),'--reference',str(reference)]+layout_args,'runner.log')
         write_json(directory/'processes.json',dict(launch=launch.pid,runner=runner.pid,recorder=recorder.pid))
@@ -107,10 +91,9 @@ def case(root,cfg,reference,index,timeout,layout=None,fault=None,minimum_lift=.0
                 (run/'STOP').write_text('EXPERIMENT TIMEOUT: STOP REQUESTED\n')
                 runner.wait(timeout=15.);break
             time.sleep(.2)
-        if probe is not None:probe.wait(timeout=35.)
         recorder.wait(timeout=10.)
         state=read(run/'state.json')
-        end_world(launch,run)
+        end_world(launch)
         checked([sys.executable,str(tools/'validate_manipulation.py'),'--scene',str(scene),str(run)],'validation.log')
         # Incomplete force coverage is retained as a failed measurement, not
         # hidden by a subprocess exception or accepted as a successful case.
@@ -126,36 +109,24 @@ def case(root,cfg,reference,index,timeout,layout=None,fault=None,minimum_lift=.0
             if previous and row['phase']==previous['phase']:
                 phase=row['phase'];phase_times[phase]=phase_times.get(phase,0.)+row['elapsed_wall_s']-previous['elapsed_wall_s']
             previous=row
-        fault_report=read(run/'fault-test-report.json') if fault else None
-        # A physically successful injected stop cannot qualify a different
-        # implementation. Fault reports intentionally expect FAILED, so the
-        # normal full-cycle verdict alone cannot supply this binding check.
         implementation_bound=validation['checks']['current_implementation_bound']
-        accepted=implementation_bound and (fault_report['passed'] if fault_report else validation['passed']) and loads['coverage_complete'] and below
+        accepted=validation['passed'] and loads['coverage_complete'] and below
         return dict(directory=str(directory),object_speed_m_s=cfg['max_object_speed_m_s'],
             task_passed=validation['passed'],force_coverage_complete=loads['coverage_complete'],
             per_jaw_10ms_mean_below_user_reference=below,
-            accepted=accepted,fault=fault,fault_test_passed=fault_report['passed'] if fault_report else None,
+            accepted=accepted,
             current_implementation_bound=implementation_bound,
-            classification=('loaded_group_fault_pass' if accepted else 'loaded_group_fault_or_measurement_failure')
-                if fault else classify(state,validation,loads,diagnostic),
+            classification=classify(state,validation,loads,diagnostic),
             sampled_phase_wall_durations_s=phase_times,
             error=state.get('error'),scene_sha256=read(scene/'scene.json')['sha256'],
             validation_sha256=validation['sha256'],loads_sha256=loads['sha256'])
     finally:
-        if probe is not None and probe.poll() is None:
-            # The probe's finally block resumes only its own paused process
-            # and requests group holds; never strand a SIGSTOP'ed runner.
-            probe.send_signal(signal.SIGINT);probe.wait(timeout=35.)
         if runner is not None and runner.poll() is None:
             (run/'STOP').write_text('EXPERIMENT DRIVER EXIT: STOP REQUESTED\n')
             try:runner.wait(timeout=15.)
             except subprocess.TimeoutExpired:pass
-        if launch is not None and launch.poll() is None:
-            if runner is None:
-                # No recipe was ever launched; no ownership or motion exists.
-                launch.send_signal(signal.SIGINT);launch.wait(timeout=30.)
-            else:end_world(launch,run)  # Retain world if stop unconfirmed.
+        if launch is not None:
+            end_world(launch)
         if recorder is not None and recorder.poll() is None:
             recorder.send_signal(signal.SIGINT);recorder.wait(timeout=10.)
         for output in logs:output.close()
@@ -167,28 +138,24 @@ def main():
     p.add_argument('--output',type=Path,required=True);p.add_argument('--object-speeds',type=float,nargs='+',required=True)
     p.add_argument('--repeats',type=int,default=2);p.add_argument('--case-timeout',type=float,default=1500.)
     p.add_argument('--layout',type=Path,help='Optional explicit initial-state fixture; does not qualify Home execution')
-    p.add_argument('--faults',nargs='+',choices=['member_stop','runner_pause','guard_pause'])
-    p.add_argument('--minimum-fault-lift-m',type=float,default=.012)
     args=p.parse_args();simulation_only()
     if live_grasp_launches():p.error('An own grasp world is already running; finish it first')
     cfg=configuration(args.config)
-    if args.faults and len(args.object_speeds)!=1:p.error('Fault matrix requires exactly one selected object speed')
     if not cfg['exploration_mode'] or not cfg['force_observation']:p.error('Explicit instrumented exploration profile required')
     if not 1<=args.repeats<=5 or not 1<=len(args.object_speeds)<=8 or any(not 0<s<=.1 for s in args.object_speeds):
         p.error('Finite ladder:1–8 speeds in(0,0.1]m/s,1–5 repeats')
     root=args.output.resolve();root.mkdir(parents=True,exist_ok=False)
-    result=dict(kind='loaded_group_fault_matrix' if args.faults else 'finite_simulation_speed_ladder',complete=False,cases=[],
+    result=dict(kind='finite_simulation_speed_ladder',complete=False,cases=[],
         source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         initial_layout=str(args.layout.resolve()) if args.layout else 'default_home',
         interpretation='Observed cases only; no monotonic boundary, material damage model or hardware qualification')
     try:
         for speed in args.object_speeds:
-            for fault in (args.faults or [None]):
-                for repeat in range(args.repeats):
-                    entry=case(root,dict(cfg,max_object_speed_m_s=speed),args.reference.resolve(),len(result['cases']),args.case_timeout,
-                        args.layout.resolve() if args.layout else None,fault,args.minimum_fault_lift_m)
-                    entry['repeat']=repeat;result['cases'].append(entry)
-                    write_json(root/'result.json',seal(result))
+            for repeat in range(args.repeats):
+                entry=case(root,dict(cfg,max_object_speed_m_s=speed),args.reference.resolve(),len(result['cases']),
+                           args.case_timeout,args.layout.resolve() if args.layout else None)
+                entry['repeat']=repeat;result['cases'].append(entry)
+                write_json(root/'result.json',seal(result))
         result['complete']=True
     except BaseException as error:
         result['error']=str(error);raise

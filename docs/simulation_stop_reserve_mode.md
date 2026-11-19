@@ -1,5 +1,7 @@
 # Kontakt-Simulation: Stoppreserve beobachten statt erzwingen
 
+> Historischer Stand vom 17.11.2026. Seit dem 19.11.2026 wirkt diese Option ausschließlich bei der Offline-Planprüfung. Der aktuelle Gazebo-Start verwendet die regulären Controller ohne die hier beschriebenen Laufzeitwächter.
+
 Stand2026-11-17; ausdrücklicher Nutzerauftrag für virtuelle Dynamikversuche.
 Der Taskplaner und sein Laufzeitwächter unterstützen:
 

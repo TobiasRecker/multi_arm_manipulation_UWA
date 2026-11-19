@@ -17,11 +17,12 @@ from uwa_cell_control.parallel_scan import collision_signature
 from .common import ROBOT_IDS, all_names, dump, joint_names, load_layout, simulation_only
 from .execution import motion_context
 from .node import MotionNode
-from .simulation_goals import trajectory_goal
+from uwa_cell_gazebo.trajectory import trajectory_goal
 
 
 class GazeboPlayback(MotionNode):
     def __init__(self, layout_path=None):
+        simulation_only()
         super().__init__('ptp_playback', namespace='/uwa_cell')
         self.names = all_names(load_layout(layout_path))
         self.positions = {}

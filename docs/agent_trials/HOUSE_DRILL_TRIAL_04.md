@@ -57,25 +57,30 @@ geprüften Teile abgeben und den bewegten Stift als Teilresultat kennzeichnen.
 
 ## Auswertung
 
-Im ausgegebenen Sitzungsordner liegen nach dem Lauf `trial/report.md`,
-`trial/changes.patch`, Zeitprotokoll, Viewer und Modellergebnis. Der
-Prüfer im **Hauptrepo** rekonstruiert die Stiftspitze aus den Gelenkbahnen
-in Welt- und Kartonkoordinaten:
+Der erzeugte Startprompt enthält den Aufruf für Prüfung und Abgabe.
+Beispiel aus dem UWA-Workspace nach Ende der Planungsstufe:
 
 ```bash
-cd /home/rosmatch/UWA_ws
-source src/multi_arm_manipulation_UWA/scripts/env.bash
-OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python3 \
-  src/multi_arm_manipulation_UWA/tools/check_house_drill_trial.py PFAD_ZUM_ERGEBNISORDNER
+python3 src/multi_arm_manipulation_UWA/tools/finish_house_drill_trial.py PFAD_ZUR_SITZUNG run01
 ```
 
-Das Prüfprogramm verlangt die acht doppelten Hauskanten, sechs
-durchgehende axiale Zustellzyklen, beide vollständigen Kreisreferenzen,
-feste Griffrelationen und Rückkehr aller Gelenke. Für den letzten Kreis
-prüft es zusätzlich die sechs unveränderten Gelenke des Stiftarms und
-die Ausrichtung der Gegenwand. Eine bloße Visuallinie oder ein aus
-dem früheren Versuch übernommener bewegter Stift genügt diesem Test nicht.
-Geometrie-, Kollisions- und Kontaktphysiknachweise sind getrennt.
+Der Aufruf verwendet die beiden Prüfer aus dem Hauptrepo. Der
+Aufgabenaudit rekonstruiert die Stiftspitze aus den Gelenkbahnen und prüft
+Hauskanten, sechs axiale Zyklen, die Kreise, festen Stift, Griffrelationen
+und Rückkehr. Der zweite Audit prüft unter anderem Geschwindigkeit,
+Beschleunigung, Ruck und die Bindung ans Episodenprotokoll. Die
+Viewer-Prüfung liest das eingebettete JSON direkt, vergleicht Programm,
+Ergebnis-Hash, Phasen und Zeitachse und prüft die axialen Renderer-Daten.
+Geometrie-, Kollisions- und Kontaktphysiknachweise bleiben getrennt.
+
+Bei Python-Änderungen führt der Aufruf die vorhandenen Tests für
+Pfadgeometrie, Box-CLI und Episoden aus. Der Agent ändert keine Tests oder
+Audits. Änderungen daran erscheinen als Fehler in der Abgabe. Bericht,
+vollständiger Patch, Prüf-JSON und Logs liegen zusammen unter
+`trial/verification/run01-…/`. Der Aufruf beendet den Trial bei `PASS`.
+Bei `FAIL` bleibt der Trial für eine Korrektur offen. Frühere Prüfversuche
+bleiben erhalten. Einen abgeschlossenen Lauf kann man mit
+`--review-output PFAD_ZUM_NEUEN_ORDNER` erneut auswerten.
 
 Für Entwicklungsgeschwindigkeit den Terminalstart aus `observer.json`
 bis `trial_end` in `trial/events.jsonl` messen. Im CLI-Log die Zeit von

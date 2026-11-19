@@ -5,7 +5,14 @@ carton, 30 mm lift, two-second dwell, set down and release. The task transport
 cannot address hardware. It requires domain64, `uwa_cell_sim`, LOCALHOST and an
 isolated `/uwa_grasp_*` namespace. No real power, brake or program commands exist.
 
-See the compact [500g force/speed/stop report](carton_dynamic_validation_2026-11-16.md)
+**Current Gazebo workflow, 19 November 2026.** Inspect collision geometry,
+joint bounds, timing and rigid-grasp/tool constraints in the compiled plans.
+Gazebo plays those plans using its contact physics and normal action controllers.
+Pad contact triggers the simulated grip latch. The runtime does not supervise
+joint speeds, passive joints, collision clearance, slip or standstill.
+The experiments listed below retain their original implementation and results.
+
+See the historical [500g force/speed/stop report](carton_dynamic_validation_2026-11-16.md)
 for current measured results, profile differences and remaining limits.
 
 The [matched 1×/5× vertical-lift comparison](carton_speed_comparison_2026-11-17.md)
@@ -48,8 +55,7 @@ measuring path in this engine, not real UR dynamics or carton crushing.
 
 `config/carton_exploration.yaml` explicitly enables experimental envelopes.
 Arm and finger velocity limits are separate; unselected left arms retain0.05rad/s.
-Planning and live guarding include per-joint velocity, measured overspeed and
-braking/latency in stopping reserves. The minimum grasp-entry duration is
+Plan checks include per-joint limits and modeled braking/latency reserves. The minimum grasp-entry duration is
 configurable and entry uses a checked C2 spline with one common quintic law.
 Object carrying always retains its single object path and common time law.
 A configured envelope can be rejected before any movement if its reserve does
@@ -60,7 +66,7 @@ Three loaded stop cases now pass for the explicit10mm/s/0.2rad/s-finger
 profile below. A physical maximum remains unmeasured. Failed attempts remain
 evidence.
 
-Start `tools/trace_manipulation.py RUN --prepare` before arming: it now records
+For a separate load study, `tools/trace_manipulation.py RUN --prepare` records
 full received native force windows in `force-trace.jsonl` as well as the20Hz
 motion trace. Analyze with `tools/analyze_manipulation_loads.py RUN --scene SCENE
 --output NEW_REPORT.json`. Its complete-coverage flag requires valid consecutive
@@ -72,9 +78,9 @@ conservative upper bound because individual peaks may not coincide.
 
 `tools/explore_manipulation.py --config PROFILE --reference REFERENCE_NPZ
 --output NEW_DIRECTORY --object-speeds 0.005 0.01 --repeats 2` prepares and
-launches separate cases, starts recorders before arming, configures own CPUs,
-waits for external agent reviews, evaluates motion/load traces and ends only
-its own world after confirmed task standstill. It refuses another active grasp
+launches separate cases, starts optional experiment recording, configures its
+physics process, waits for agent reviews, evaluates load traces after playback
+and ends its own world. It refuses another active grasp
 launch. Each case keeps profile, logs and raw evidence. No automatic image or
 plan approval is supplied. The result lists observed cases without assuming a
 monotonic speed boundary. A comparison of10ms pad means with the user’s50N
@@ -123,7 +129,7 @@ remains the historical slow commissioning profile.
 
 `cell_task skills` now lists16contracts including force reference validation,
 load observation, virtual fixture preparation, experiment cases and loaded-stop
-tests. New scenes also bind local planning/watchdog dependencies, the shared
+tests. New scenes also bind local planning/playback dependencies, the shared
 motion configuration, native hold library and RRT worker (`binding_scope v2`).
 Older sealed reports retain their original, narrower dependency binding.
 
@@ -256,10 +262,8 @@ This launches a separate world `uwa_grasp_lab`, private ROS clock, TF tree and
 controllers under `/uwa_grasp_validation`. The existing simulation is not
 restarted. Do not launch a second grasp world while the first is alive. Both
 worlds share this PC's compute resources; avoid concurrent CPU-heavy benchmarks.
-The contact profile uses a1ms physics step and explicit real-time factor0.6
-for compute headroom on this shared workstation. Wall-clock state freshness,
-source-progress checks and independent watchdogs are unchanged. Accelerated
-contact qualification is rejected by configuration validation.
+The contact profile uses a 1 ms physics step and a real-time factor of 0.6
+for compute headroom on this shared workstation.
 
 After all nodes are ready and before starting a recipe, apply the measured
 workstation CPU profile from another sourced terminal:
@@ -269,16 +273,8 @@ python3 src/multi_arm_manipulation_UWA/tools/configure_manipulation_cpu.py \
   --scene setup/tasks/my-contact-scene
 ```
 
-This scopes descendants of that exact launch: physics CPUs0–3, guard CPU4,
-supervisor CPU5. Camera/rendering policy and other launches remain untouched.
-It writes a sealed `cpu-profile.json`; this is affinity, not a CPU reservation
-or a real-time guarantee. It requires those CPUs on this16-core workstation.
-Run recipes with `taskset -c 6-11 ros2 run ...` in the qualification profile.
-Start the trace using `--prepare` before the runner, allow discovery to settle,
-and verify its trace file exists before resetting/arming controllers. Starting
-new ROS participants during an armed run has correlated with freshness faults.
-Wait for measured stationary readiness before reset; a partial reset is a
-failed start, not permission to proceed with the remaining held arms.
+The optional affinity helper assigns CPUs 0–3 to that launch’s physics
+process and writes `cpu-profile.json`.
 
 Clock, actual object pose and contact data are published directly from the
 physics ECM into private ROS topics. The pose/contact timestamp explicitly
@@ -307,7 +303,7 @@ ros2 run uwa_cell_tasks cell_task review setup/tasks/my-grasp-run \
 ```
 
 `observe`/`replan` restart observation within the configured three-attempt limit;
-`abort` latches the owned arms. Reviews time out after300s. The agent performs
+`abort` ends the recipe. Reviews time out after300s. The agent performs
 these reviews itself within the user's task; a separate manual approval per
 phase is not required. A decision from another revision is rejected.
 
@@ -315,10 +311,9 @@ phase is not required. A decision from another revision is rejected.
 ros2 run uwa_cell_tasks cell_task stop setup/tasks/my-grasp-run
 ```
 
-`STOP REQUESTED` is not confirmed standstill. Read the resulting state and hold
-confirmation. No automatic open, recovery or return motion occurs. A failed
-run cannot be resumed with its old directory. The independent supervisor retains
-holds after task loss. A physically held group cannot be reset automatically.
+`STOP REQUESTED` asks the runner to cancel its current goals. The run state
+records the cancellation responses. The simulated grip latch remains until the
+release phase or an explicit intervention.
 
 ## Skill and data interfaces
 
@@ -326,7 +321,7 @@ holds after task loss. A physically held group cannot be reset automatically.
 timeouts and stop behavior. Public Python modules separate `core` (contracts,
 reviews, `GraspGroup`), `scene` (asset/contact shapes), `planning` (grasp proposals,
 approach and shared object motion), `observation` (image worker), `runtime`
-(simulation actions) and `guard` (independent runtime verification). The first
+(Gazebo playback). The first
 recipe composes these functions; new manipulation recipes reuse their interfaces.
 
 | Skill | Python entry point / composition | Required result |
@@ -335,17 +330,17 @@ recipe composes these functions; new manipulation recipes reuse their interfaces
 | `propose_grasp` | `planning.grasp_candidates` | Ranked candidates with explicit assumptions and pad envelope |
 | `plan_approach` | `plan_approach`, `grasp_entry`, predicted `object_trajectory` | Bound, collision-checked approach/entry/lift witness |
 | `review` | `runtime.await_review`, `RunStore.submit_review` or CLI `review` | Current packet hash, revision and concrete decision reason |
-| `approach` | `Simulation.follow(plan['trajectory'])` | Measured checked endpoint and standstill |
+| `approach` | `Simulation.follow(plan['trajectory'])` | Trajectory action completion |
 | `inspect_pregrasp` | `observe`, pose comparison and alignment review | Fresh image alignment within corridor |
 | `grasp` | `grasp_entry`, `Simulation.follow`, `Simulation.grippers(.8)` | Stable two-sided contact at both grippers |
-| `form_group` | `core.GraspGroup`, publish immutable group record | Frozen object-to-TCP offsets, independently monitored membership |
+| `form_group` | `core.GraspGroup`, publish immutable group record | Frozen object-to-TCP offsets |
 | `move_object` | `planning.object_trajectory`, `Simulation.follow` | One object path and shared twelve-joint time law |
-| `set_down` | Same object-path compiler toward support | Actual supported object, stationary carrying arms |
-| `release` | `grippers(0)`, `GraspGroup.release`, guard acknowledgement, `stop` | Open grippers, dissolved group, confirmed resource holds |
+| `set_down` | Same object-path compiler toward support | Completion of the planned set-down action |
+| `release` | `grippers(0)`, `GraspGroup.release` | Opening trajectory and dissolved group |
 
 The recipe in `runtime._run_task` shows the complete ownership, review and
-cleanup composition. These functions are not independent unguarded robot APIs:
-reuse the resource lease, scene binding, heartbeat and retained-grip stop path.
+cleanup composition. Reuse the resource lease, scene binding and explicit
+trajectory actions.
 The predicted lift witness cannot form a loaded group; actual contacts and
 fresh visual/actual-TCP capture are required first.
 
@@ -356,14 +351,14 @@ fresh visual/actual-TCP capture are required first.
   carry a SHA256 over canonical contents.
   The scene also pins task Python sources, the cooperative geometry module,
   launch file, contact plugin and native clock executable. Source changes
-  require a newly prepared/relaunched scene; the runner checks bindings during
-  execution. Edit task code between runs, not while a bound run is active.
+  require a freshly prepared scene. The runner verifies scene and plan
+  bindings before playback.
 - Observation is `uwa_cell_tracking` image registration with matching rendered
   CameraInfo. The contact simulator has no image sensors. A separate static
   photo world contains measured joint poses, the physical simulated object's
   visual, and cameras; it has no controllers, collision bodies or motion plugins.
-  Physical and renderer timestamps remain separately labelled. Arms and object
-  are audited stationary during capture; image estimation is another process.
+  Physical and renderer timestamps remain separately labelled. Image
+  estimation runs in a separate process.
   Simulator truth defines the rendered scene and evaluates motion, but is never
   passed to the image estimator as an object-pose prior or hypothesis selector.
 - Noiseless frames can have identical pixels. Only this simulator adapter accepts
@@ -390,12 +385,8 @@ The most restrictive joint scales the whole time law. Dense interpolated FK
 and collision checks verify the compiled path. Other arms remain measured scene
 obstacles. No independent member command is exposed by `GraspGroup`.
 
-The independent geometric process includes measured finger joints, observes
-contact loss/rigidity, and expands member faults to both carrying arms. The
-existing independent resource supervisor handles guard loss and pair leases.
-The gripper target latch is separate from arm holds: arm stopping cannot open
-the fingers or discard the retained squeezing target. No relative-pose update
-is accepted while the group remains loaded.
+The gripper latch maintains the squeezing target in the contact model.
+The group keeps its original transforms for all phases of the compiled plan.
 
 For a compact read-only agent packet (after sourcing the environment):
 
@@ -405,7 +396,7 @@ python3 src/multi_arm_manipulation_UWA/tools/inspect_manipulation_review.py setu
 
 It verifies packet hashes and reports pending status, image paths, candidate
 assumptions, alignment error and trajectory bounds. It does not approve anything;
-actual images and current task/guard evidence remain part of the agent review.
+actual images and the current artifacts remain part of the agent review.
 
 ## Contact model and limits
 
@@ -467,24 +458,8 @@ still idealized and does not establish real UR force or tracking performance.
 The common controller supplies position and velocity references; the actuator
 predicts that reference between ROS samples. Switching to position-only hold
 resources disables velocity feedforward. Gazebo's consumed velocity command is
-recreated every physics step. A5mrad action path tolerance detects failed tracking.
-
-The task guard independently latches every received right-joint speed above
-0.05rad/s plus1e-8 numerical tolerance. Peaks persist across subsequent quiet
-samples and10Hz geometry ticks; the general guard's5% tolerance is not used as
-the task envelope. Joint telemetry is100Hz: this is sampled evidence, not a
-continuous-time velocity guarantee.
-
-Opening requires both the action result and all12 measured finger DOFs within
-0.02rad of open and below0.003rad/s for0.3simulation seconds. A successful
-action with physically closed fingers is rejected. The0.5-damping comparison
-exposed this case and was rejected in the agent image checkpoint before entry.
-
-Only the read-only ListControllers query is retried once after a missing reply.
-Reset, switches, captures and grip-latch mutations are not replayed. Stop sends
-requests to both members before waiting; one transport failure cannot prevent
-the other request. Confirmation requires fresh measured states and active
-independent hold controllers. A service acknowledgement alone is not a hold.
+recreated every physics step. Both arm and gripper actions use the plan’s time law. The action result marks
+completion of the open command. During closure, contact engages the latch.
 
 Defaults in `config/carton.yaml`: mass0.3kg, friction0.6 and thickness2.5mm are
 unmeasured simulation assumptions. Rigid cardboard cannot establish crushing
@@ -499,21 +474,8 @@ their results do not establish nominal Home operation at1mm/s. Closure advances 
 0.02rad/s in free space and0.004rad/s from0.65rad into contact; opening uses
 the coarse rate. The native force servo enforces the same reference limits.
 
-Continuous clock/object/contact streams use latest-state best-effort delivery;
-slow image receivers cannot request a reliable backlog on the physics publisher.
-Wall-clock freshness checks and retained-grip stops remain unchanged. A separate
-lease-owned observation stress tool runs full image localization without arm or
-gripper trajectory goals; scene reset/rearm and final resource holds are explicit.
-Current transport test: twelve `VALID` observations, no guard faults, measured
-maximum source-advance gap124.5ms (150ms joint freshness limit). This is an
-observed test result, not a hard real-time guarantee.
-
-```bash
-python3 src/multi_arm_manipulation_UWA/tools/stress_manipulation_observation.py \
-  --scene setup/tasks/my-contact-scene \
-  --reference setup/tracking/models/carton_avocado_v1/reference.npz \
-  --output setup/tasks/my-observation-stress --captures 12
-```
+Clock, object and contact data use best-effort delivery. Recording is optional
+for experiments that need post-run load or contact data.
 
 Before starting the runner, start a separate read-only evaluation trace in
 a persistent process. `--prepare` requires a new run directory and creates its
@@ -524,7 +486,7 @@ python3 src/multi_arm_manipulation_UWA/tools/trace_manipulation.py setup/tasks/m
 ```
 
 The JSONL records contact/support, measured joints, simulator object pose and
-holds. It is an evaluation artifact and is never supplied to the planner.
+group membership. It is a record for post-run evaluation.
 
 ```bash
 python3 src/multi_arm_manipulation_UWA/tools/validate_manipulation.py \
@@ -541,60 +503,14 @@ grasp; constant perception error is not mislabelled as subsequent slip. That
 evaluation baseline is never supplied to planning or control, and neither set
 of offsets is updated while carrying the object.
 
-Five complete physical-contact lifts, mass/friction variations and fault tests
-are the intended acceptance. Only actually completed tests in HANDOVER count
-as evidence; merely having these commands is not a successful grasp result.
-
 RViz must use the private TF topics `/uwa_grasp_validation/tf` and `tf_static`,
 the private robot description, and `/uwa_grasp_validation/tasks/markers`.
 The marker labels simulator truth explicitly and displays group/stop state in text.
 
-## Loaded-group fault verification
+## Historical loaded-group experiments
 
-`tools/test_manipulation_fault.py` deliberately fails a running isolated recipe.
-Start its probe before pickup, while the agent still reviews the recipe. It waits
-for a fresh, confirmed two-arm group with all four contacts, unsupported object
-and at least5mm actual lift, then injects one selected fault. `member_stop` calls
-the scoped front-member stop service; `runner_pause` or `guard_pause` pauses only
-the exact matching task process. The process is always continued for cleanup;
-the stopped recipe is never resumed. These are simulation tests only.
-
-The report requires both independent holds, stationary arms for a retained
-window, fresh telemetry, retained pads, unsupported load and the rigid corridor,
-then a FAILED recipe with confirmed holds. No gripper-open or trajectory command
-is sent. A loaded failed group cannot be reset as a new task; retain its evidence
-and deliberately end the own test world before another isolated test episode.
-
-```bash
-python3 src/multi_arm_manipulation_UWA/tools/test_manipulation_fault.py RUN \
-  --scene SCENE --fault runner_pause
-```
-
-A passed fault test is a negative-case verification, never a completed grasp run.
-
-Loaded fault evidence (2026-11-14), all with four retained pads, unsupported
-load, fresh actual telemetry, retained stationary holds and an expected FAILED
-recipe with confirmed stop:
-
-| Run | Fault | Mass / friction / object cap / start | Max relative position error | Hold confirmation including stationary window |
-| --- | --- | --- | --- | --- |
-|72|One member stopped|0.3kg /0.6 /1mm/s /pregrasp fixture|0.271mm|0.394s|
-|75|Runner paused|0.2kg /0.4 /0.5mm/s /Home|1.421mm|0.920s|
-|77|Guard paused|0.2kg /0.4 /0.5mm/s /Home|1.419mm|0.617s|
-
-These times include the measured stationary confirmation window; they are not
-raw controller reaction times or a worst-case stopping guarantee. The probe
-checks a healthy pre-injection guard and freezes its mechanical baseline while
-the group is still supported. The independent trace audit also checks that no
-right-member holds or faults preceded injection. The physical-stop deadline is
-5wall-seconds; the900s wait budget only covers reaching the eligible load state.
-
-Rejected attempts73/74 never reached injection. Attempt76 failed before motion
-because an unselected left passive finger did not settle; the right pair held,
-the carton remained supported and no fault was injected. A fresh world was used
-for77. Every failed attempt is retained. Test worlds were explicitly ended after
-confirmed holds, without opening or resuming a loaded group. The ordinary cell
-simulation and physical robots were untouched.
+Earlier stop experiments are indexed in `setup/tasks/manipulation_qualification_20261116/`.
+The Gazebo fault-injection tools were retired on 19 November.
 
 ### Gripper preload is part of the experimental model
 
@@ -623,7 +539,7 @@ cannot clear this rotation. The carton starts across the table gap; the final
 footprint is shifted wholly onto one horizontal table. The current experimental
 profile selects the left table; the direct right-table descent has a checked
 front-arm forearm/wrist collision. The arm speed cap is0.04rad/s to retain the
-full stopping reserve; collision thresholds and guard deadlines are unchanged.
+full stopping reserve; offline collision thresholds retain their documented values.
 
 This reuses the same grasp proposals, approach planner, `GraspGroup`, immutable
 offsets, common12-joint object-path compiler, supervisor and contact/slip guard.
@@ -676,12 +592,9 @@ Play/pause, timeline, orbit and zoom are display-only. This animation represents
 commanded model geometry, never successful contact physics. The regular
 `cell_task preview RUN` shows the actual review and complete motion stages.
 
-## Simulation-only stopping-reserve observation (2026-11-17)
+## Offline stopping-reserve model
 
-For contact experiments, the explicitly requested
-[reserve observation mode](simulation_stop_reserve_mode.md) removes only the
-dynamic stopping budget from planning/runtime intervention. Set
-`simulation_stop_reserve_mode: observe` with exploration and force observation.
-The default is `enforce`; geometry/model margin and contact/slip/freshness/group
-stops stay active. Full modeled reserve violations remain in the recorded guard
-pairs. This is not a hardware mode or a completed quarter-turn physics test.
+`simulation_stop_reserve_mode: enforce` includes modeled stopping reserve in
+plan verification. The explicit exploratory `observe` mode permits a plan
+based on geometric clearance and the model margin, while retaining the modeled
+reserve in planning evidence. Neither mode installs a runtime watcher.

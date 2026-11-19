@@ -6,6 +6,7 @@ from uwa_cell_motion.geometry import SphereModel
 
 def motion_configuration(task):
     cfg=motion_config()
+    # The historical profile key provides a cadence assumed by the offline reserve model.
     cfg.update(rate_hz=task.get('simulation_guard_rate_hz',10.),
         velocity_limit_rad_s=task['joint_velocity_rad_s'],
         acceleration_limit_rad_s2=task['joint_acceleration_rad_s2'],

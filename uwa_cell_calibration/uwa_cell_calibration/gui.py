@@ -90,7 +90,6 @@ class Window(QtWidgets.QMainWindow):
         if answer==QtWidgets.QMessageBox.StandardButton.Yes:self.node.apply()
 
     def refresh(self):
-        self.node.pulse()
         state=self.node.state;phase=state.get('phase','OFFLINE')
         owns=state.get('client_id')==self.node.client_id
         online=time.monotonic()-self.node.last_status<1.5
@@ -106,7 +105,7 @@ class Window(QtWidgets.QMainWindow):
         self.pause_button.setText('Fortsetzen' if phase=='PAUSED' else 'Pause')
         fits=state.get('summary',{})
         passed=bool(fits) and all(f.get('passed',False) for f in fits.values())
-        self.apply_button.setEnabled(online and passed and phase=='COMPLETE' and bool(state.get('result_path')) and state.get('stopped',False) and self.node.apply_client.service_is_ready())
+        self.apply_button.setEnabled(online and passed and phase=='COMPLETE' and bool(state.get('result_path')) and self.node.apply_client.service_is_ready())
         for box in self.robots.values():box.setEnabled(not busy)
         self.count.setEnabled(not busy)
         self.diagonal.setEnabled(not busy)
@@ -168,7 +167,7 @@ class Window(QtWidgets.QMainWindow):
             self.last_result='';self.result_table.setRowCount(0)
             self.tabs.setCurrentIndex(0)
             self.results.setPlainText('Aktives Profil: '+state.get('active_profile','keines'))
-        if self.closing and (phase in ('STOPPED','IDLE','READY','COMPLETE','ERROR') and state.get('stopped')):
+        if self.closing and (phase in ('STOPPED','IDLE','READY','COMPLETE','ERROR')):
             self.allow_close=True;self.closing=False;self.timer.stop();self.close()
         elif self.closing and time.monotonic()-self.close_started>3:
             if not self.pause_pending:self.pause_pending=True;self.pause_world()

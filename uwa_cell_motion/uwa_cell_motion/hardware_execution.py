@@ -53,7 +53,9 @@ class HardwareClient(MotionClient):
     def driver_evidence(self):
         with self.driver_lock:
             return dict(clock_fault_events=list(self.clock_fault_events),
-                        driver_latest=dict(self.driver),
+                        receiver_error=None if self.driver_receiver is None else self.driver_receiver.error,
+                        receiver_alive=None if self.driver_receiver is None else self.driver_receiver.worker.is_alive(),
+                        captured_monotonic_s=time.monotonic(),driver_latest=dict(self.driver),
                         driver_history={r:list(rows)for r,rows in self.driver_history.items()})
     def destroy_node(self):
         try:

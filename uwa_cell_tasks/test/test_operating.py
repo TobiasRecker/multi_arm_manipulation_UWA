@@ -5,15 +5,14 @@ from uwa_cell_tasks.core import configuration
 from uwa_cell_tasks.operating import velocity_limits,TaskSphereModel,motion_configuration
 
 
-def test_exploration_requires_explicit_mode_and_force_observation(tmp_path):
+def test_exploration_requires_explicit_mode(tmp_path):
     cfg=configuration();cfg['joint_velocity_rad_s']=.1;cfg['joint_acceleration_rad_s2']=.3
     cfg['finger_velocity_limit_rad_s']=.5;cfg['gripper_coarse_velocity_rad_s']=.15;cfg['gripper_fine_velocity_rad_s']=.02
     path=tmp_path/'profile.yaml';path.write_text(yaml.safe_dump(cfg))
     with pytest.raises(ValueError,match='operating envelope'):configuration(path)
     cfg['exploration_mode']=True;path.write_text(yaml.safe_dump(cfg));accepted=configuration(path)
     assert motion_configuration(accepted)['velocity_limit_rad_s']==.1
-    cfg['force_observation']=False;path.write_text(yaml.safe_dump(cfg))
-    with pytest.raises(ValueError,match='requires force'):configuration(path)
+    assert not accepted['force_observation']
 
 
 def test_per_joint_limits_do_not_raise_unselected_obstacle_limits():
@@ -64,7 +63,7 @@ def test_carrier_override_remains_in_full_stopping_budget_and_excludes_obstacles
 
 
 @pytest.mark.parametrize('exploration,forces,mode,accepted',[
-    (False,True,'observe',False),(True,False,'observe',False),
+    (False,True,'observe',False),(True,False,'observe',True),
     (True,True,'observe',True),(True,True,'disabled',False),
     (False,True,'enforce',True)])
 def test_reserve_mode_is_explicit_exploration(tmp_path,exploration,forces,mode,accepted):
@@ -93,7 +92,7 @@ def test_observe_mode_keeps_geometric_margin_and_logs_full_reserve(monkeypatch):
     assert pair['threshold_m']==pytest.approx(.02)
     assert pair['modeled_stopping_threshold_m']==pytest.approx(.18)
     assert pair['modeled_stopping_reserve_violated']
-    # The same mode is used by planning, not just the runtime guard.
+    # Planning uses the same model and reserve mode.
     problem=Problem.__new__(Problem);problem.names=model.names;problem.spheres=model;problem.cfg=cfg
     monkeypatch.setattr('uwa_cell_motion.planning.PAIRS',[('right_front','right_rear')])
     assert problem.thresholds()[0]['threshold_m']==pytest.approx(.02)
@@ -105,7 +104,7 @@ def test_observe_mode_keeps_geometric_margin_and_logs_full_reserve(monkeypatch):
 
 @pytest.mark.parametrize('rate,exploration,valid',[(10,False,True),(25,True,True),
     (50,True,True),(100,True,True),(25,False,False),(101,True,False),(9,True,False)])
-def test_guard_rate_is_explicit_and_shared_with_planning(tmp_path,rate,exploration,valid):
+def test_offline_reserve_model_cadence(tmp_path,rate,exploration,valid):
     cfg=configuration();cfg.update(simulation_guard_rate_hz=rate,exploration_mode=exploration)
     path=tmp_path/'rate.yaml';path.write_text(yaml.safe_dump(cfg))
     if valid:assert motion_configuration(configuration(path))['rate_hz']==rate

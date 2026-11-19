@@ -37,25 +37,15 @@ with current pending status, image paths, candidate data and trajectory bounds.
 It never approves a review. A saved packet with pending=false is not a request
 to continue.
 
-Use the documented0.6 real-time-factor/1ms commissioning profile (or an
-explicit0.1–1ms exploration refinement with separate evidence) and workstation CPU
-configuration before recipes. For independent validation, start the recorder
-with `tools/trace_manipulation.py RUN --prepare` before starting the runner;
-verify its trace file exists and allow discovery to settle before reset/arming.
-Avoid introducing new ROS participants while armed. A constructor-only RunStore
-does not persist state; `--prepare` explicitly creates the CREATED state.
+Check the planned trajectories offline. Gazebo plays them through normal
+controllers and contact physics. The simulated pad contact triggers the grasp.
+Use the recorder only for a requested experiment that needs force or contact
+data. `--prepare` creates its separate run directory with a CREATED state.
 
-For a new500g translation task use the tested fast profile from
-`setup/tasks/manipulation_qualification_20261116/result.json` under the workspace
-root: source the normal cell environment, then the recorded frozen
-`environment.bash`, and pass its explicit `qualified-profile.yaml`. The compact
-report `docs/carton_dynamic_validation_2026-11-16.md` contains the exact command.
-Two full10mm/s Home cycles and three loaded stops pass with the same0.2rad/s
-finger envelope and fully retained stopping reserve. This is a finite observed
-profile, not a physical speed maximum or a rotation/hardware qualification.
-The package default remains the old slow commissioning profile; do not select it
-merely because no config was supplied. Old14November evidence used other masses
-and includes repeat failures; preserve it without applying it to500g.
+Historical 500 g translation runs used frozen profiles and guard code. Their
+results remain in `setup/tasks/manipulation_qualification_20261116/` and
+`docs/carton_dynamic_validation_2026-11-16.md`. Use the current user-selected
+speed for new plans.
 
 Keep the runner alive while reviewing from a second tool invocation. At each
 `WAITING_REVIEW`, read the current `review.json`, actual images/overlays and
@@ -70,10 +60,9 @@ harness derives both arms with one time law and one12-joint action. Keep other
 arms as measured obstacles. Do not replace this with independent arm planning,
 retime members separately, or update grasp offsets to conceal slip.
 
-On failure inspect state, primary guard causes and confirmed holds. Arm stopping
-retains grip; no automatic opening, return or resume. A fresh run is not a way to
-reset a loaded grasp group. Use `cell_task stop RUN` and wait for confirmed
-standstill when abandoning an active run. Scope process cleanup to this task.
+Use `cell_task stop RUN` to cancel the active Gazebo trajectory goals.
+Check the run state for the resulting action responses. The simulated gripping
+target remains latched until release. Scope process cleanup to the task.
 
 Report only observed results. Software tests, collision-free compiled motion,
 visual pose consensus and actual contact-supported lifting are separate evidence.
@@ -84,29 +73,13 @@ of the harness does not establish holding reliability or hardware readiness.
 Update HANDOVER and `work/carton-grasp-pipeline.md` with new evidence and limits.
 
 For dynamic experiments read the exploration section of docs/manipulation_pipeline.md.
-Use an explicit force-observed exploration profile and the single shared object
-law. Default `simulation_stop_reserve_mode: enforce` retains per-DOF stopping
-reserves. On17November the user explicitly authorized simulation-only
-`observe`: calculate/log those reserves without enforcing them in planning or
-runtime, while geometric collision checks/model margin and all contact,
-freshness, speed and group stops remain active. See
-`docs/simulation_stop_reserve_mode.md`; never apply this task mode to hardware. Commissioning reports do not qualify
-new speed profiles. Planned jerk limits do not qualify real actuator jerk or
-loaded stops.50N is a user-reported reference per jaw/wall patch, not a measured
-material failure limit. Direct force reference tests passed; no floating base
-is presently required. The finite experiment driver completed two negative5/10mm/s cases with force
-evaluation and scoped cleanup. Both carried500g to29.4mm and stopped at a
-configured passive-finger speed bound during descent. After increasing only
-virtual motor preload, a5mm/s fixture cycle and two complete10mm/s Home cycles
-with500g passed (gap-free forces,29.924mm lift,<=0.274mm relative position error,
-<=5.556N per-jaw peak upper bound). The final0.2rad/s-finger profile additionally passes two full Home repeats
-and all three loaded faults; the sealed16November index binds their common
-profile/implementation. Its largest per-jaw peak upper bound is5.504N. No physical speed maximum or hardware setting is qualified.
-Preserve the older negative evidence and narrower source-binding scope.
+Use an explicit force-observed profile for a requested load study and the
+single shared object law. `simulation_stop_reserve_mode` controls the
+offline model only. The earlier guarded force/speed trials are historical.
 
 For the optional longitudinal quarter turn, read `work/carton-roll-90.md` and
 `config/carton_roll_90.yaml`. The original end-wall pinch, fixed grasp offsets,
-shared object compiler and guard are reused. Nominal geometry needs about146mm
+shared object compiler is reused. Nominal geometry needs about146mm
 clearance lift, not30mm. The checked left-table placement keeps the opening
 facing the fixed OAK camera; direct right-table descent self-collides. Scene04
 passes complete dense geometry/timing checks and has a labelled file-only model
@@ -115,9 +88,7 @@ entry was rejected; the fixture attempt reached four pad contacts but stopped
 before pickup on a170ms state gap. The lower-RTF repeat lifts147.7mm but stops near9degrees on2.03mm relative
 error. The stronger virtual preload trial stops before pickup on a169ms
 state gap. No complete quarter-turn is qualified; see the sealed
-`setup/tasks/carton_roll_summary_20261116/result.json` under the workspace. Never
-weaken freshness limits to make the experiment pass or present planned motion
-as a completed contact cycle. Phase budgets come from the reviewed trajectory;
+`setup/tasks/carton_roll_summary_20261116/result.json` under the workspace. Never use a planned motion as evidence of a completed contact cycle. Phase budgets come from the reviewed trajectory;
 the old short lift's generic120s skill metadata does not describe a250s turn.
 
 For a requested real carton test, first read
