@@ -10,7 +10,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'uwa_cell_tasks'))
-from uwa_cell_tasks.pilot_episode import Episode, write
+from uwa_cell_tasks.pilot_episode import Episode, digest, write
 from uwa_cell_motion.common import ROBOT_IDS, joint_names
 from uwa_cell_motion.smooth_paths import sample_segment
 from uwa_cell_gazebo.charuco_views import Chain
@@ -22,6 +22,10 @@ def audit(run):
     episode = Episode(run/'episode')
     policy_hash = hashlib.sha256((run/'policy.py').read_bytes()).hexdigest()
     assert policy_hash == report['policy_sha256'] == episode.manifest['program_sha256']
+    if 'program_sha256' in report:
+        task_hash = digest(report['program'])
+        assert task_hash == report['program_sha256'] == episode.manifest['metadata']['task_spec_sha256']
+        assert task_hash == digest(json.loads((run/'program.json').read_text()))
     assert hashlib.sha256(Path(report['source_path']).read_bytes()).hexdigest() == report['source_sha256']
     urdf = (run/'model/carton-moveit/robot.urdf').read_text()
     assert hashlib.sha256(urdf.encode()).hexdigest() == report['model_urdf_sha256']
@@ -41,8 +45,23 @@ def audit(run):
     samples = 0
     phase_names = []
     drawn = []
+    circle_faces = set()
+    active_face = None
+    holder_reference = None
     radius = report['program'].get('circle_radius_m', .025)
     face_geometry = {'y_max': (1, 1), 'z_min': (2, -1), 'y_min': (1, -1)}
+    polyline_edges = {}
+    edge_counts = {}
+    for face, path in report['program'].get('surface_paths', {}).items():
+        assert path['kind'] == 'surface_polyline'
+        axis, sign = face_geometry[face]
+        normal = np.eye(3)[axis] * sign
+        tangent = np.array([1., 0., 0.])
+        points = np.asarray(path['points_uv_m']) @ np.array([tangent, np.cross(normal, tangent)])
+        points += normal * report['dimensions_m'][axis]/2
+        polyline_edges[face] = list(zip(points, points[1:]))
+        edge_counts[face] = 0
+    holder_indices = [names.index(joint) for arm in holders for joint in joint_names(arm)]
     for phase in report['phases']:
         phase_names.append(phase['id'])
         segment = phase['segment']
@@ -53,6 +72,21 @@ def audit(run):
         positions = sample_segment(segment, np.linspace(0, duration, 151))
         jump = max(jump, float(np.max(abs(last-positions[0]))))
         angles = []
+        along = []
+        face = phase['face'] if phase['drawing'] else None
+        if face is not None and face != active_face:
+            drawn.append(face)
+            holder_reference = positions[0, holder_indices]
+        active_face = face
+        edge = None
+        if face in polyline_edges:
+            edge = polyline_edges[face][edge_counts[face]]
+            edge_counts[face] += 1
+            assert np.allclose(phase['stroke']['start_local_m'], edge[0], atol=1e-10, rtol=0)
+            assert np.allclose(phase['stroke']['end_local_m'], edge[1], atol=1e-10, rtol=0)
+            delta = edge[1] - edge[0]
+            length = np.linalg.norm(delta)
+            direction = delta / length
         for q in positions:
             state = dict(initial, **dict(zip(names, q)))
             poses = {a: chains[a].forward(state)@tcp[a]@np.linalg.inv(offsets[a]) for a in holders}
@@ -61,25 +95,34 @@ def audit(run):
             angle = max(angle, float(np.linalg.norm(Rotation.from_matrix(base[:3, :3]@poses[holders[1]][:3, :3].T).as_rotvec())))
             assert all(abs(state[j]-initial[j])<1e-10 for j in joint_names('left_rear'))
             if phase['drawing']:
-                assert all(abs(state[j]-positions[0][names.index(j)])<1e-8 for a in holders for j in joint_names(a))
+                assert np.max(np.abs(q[holder_indices] - holder_reference)) < 1e-8
                 tool = chains[worker].forward(state)
                 tip = tool[:3, 3]+.30*tool[:3, 2]
                 local = base[:3, :3].T@(tip-base[:3, 3])
-                axis, sign = face_geometry[phase['face']]
-                angles.append(np.arctan2(-local[2] * sign if axis == 1 else local[1] * sign,
-                                         local[0]))
-                tip_error = max(tip_error, abs(local[axis]-sign*report['dimensions_m'][axis]/2),
-                                abs(np.linalg.norm(np.delete(local, axis))-radius))
+                if edge is None:
+                    axis, sign = face_geometry[face]
+                    angles.append(np.arctan2(-local[2] * sign if axis == 1 else local[1] * sign, local[0]))
+                    tip_error = max(tip_error, abs(local[axis]-sign*report['dimensions_m'][axis]/2),
+                                    abs(np.linalg.norm(np.delete(local, axis))-radius))
+                else:
+                    fraction = (local - edge[0]) @ direction
+                    along.append(fraction)
+                    tip_error = max(tip_error, np.linalg.norm(local - (edge[0] + np.clip(fraction, 0., length)*direction)))
             samples += 1
+        if along:
+            assert abs(along[0]) < .00025 and abs(along[-1] - length) < .00025
+            assert min(np.diff(along)) > -1e-8
         if angles:
+            assert face not in circle_faces, f'Multiple circles on {face}'
+            circle_faces.add(face)
             sweep = np.unwrap(angles)
             assert abs(sweep[-1] - sweep[0] - 2*np.pi) < .001
             assert np.all(np.diff(sweep) > 0)
-            drawn.append(phase['face'])
         last = positions[-1]
         total += duration
     assert closure<1e-6 and angle<1e-5 and jump<1e-7 and tip_error<.00025
     assert drawn == report['program']['surfaces']
+    assert all(edge_counts[face] == len(edges) for face, edges in polyline_edges.items())
     assert len(drawn) == len(set(drawn))
     assert np.max(abs(last - [initial[j] for j in names])) < 1e-7
     velocity = report['program'].get('velocity_rad_s', .35)
@@ -99,12 +142,15 @@ def audit(run):
     summary = episode.summary()
     assert summary['status']=='MODEL_SEQUENCE_COMPLETE' and abs(total-summary['model_duration_s'])<1e-8
     assert not summary['force_channels'] and summary['detected_events']['object_lost'] is None
-    return dict(passed=True, result_sha256=hashlib.sha256((run/'result.json').read_bytes()).hexdigest(),
+    result = dict(passed=True, result_sha256=hashlib.sha256((run/'result.json').read_bytes()).hexdigest(),
                 scope='independent FK/time/episode audit; not independent collision or physical validation',
                 drawn_faces=drawn, phase_count=len(phase_names), kinematic_samples=samples, derivative_samples_per_phase=2001,
                 derivative_peaks=peaks.tolist(), duration_model_s=total, max_phase_jump_rad=jump,
                 max_holder_position_disagreement_m=closure, max_holder_orientation_disagreement_rad=angle,
                 max_tool_reference_error_m=float(tip_error), feedback_count=len(summary['feedback']))
+    if edge_counts:
+        result['checked_polyline_edges'] = edge_counts
+    return result
 
 
 if __name__=='__main__':

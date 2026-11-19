@@ -27,3 +27,13 @@
 
 - KorrigiertebeidseitigeEinfahrt `corrected-entry-plan` bestehtvorab. RF-Korrekturlauf aber VORControlleraktivierung/FollowJointTrajectoryabgebrochen: neuerNativeSTOPRR12:06:20 wegenRuhegeschwindigkeit0,0010157rad/s beiPositionsspannen<0,000089rad, obwohlalleRessourcenholdsbestätigt. KeineKorrekturfahrtstattgefunden, RRweiteramgutenHochpunkt/RFweiterpositiverEllbogen. KeinRücksetzenimBlindloop.
 - Konkreter Kandidat offline vorbereitet, NICHTaktiv: `hardware_carton_supported_trend_candidate.yaml`. ArmruheüberlinearenPositionstrend stattjedemrawqdPeak; vorhandene0,0005radSpanne/0,5s bleibtgleich, rawGeschwindigkeitsstop0,1rad/s/Frische/Kollision/UR-Sicherheitunverändert. DefaultprofilbehältPeakmodus. LokalerGuard/HeldMonitorunterstützenOpt-in, N100laufenderDienstnichtgeändert. GezielteDefault-/Drift-/Sprung-/Rohspeed-/Stale-Prüfungenbestanden; NutzerrückfragewegenBestandsschutzSicherheitsstoppsvorAktivierungnotwendig.
+
+- Nutzer gibt neuenRuhenachweis ausdrücklichfrei: „Ja, Ruheprofil aktivieren“. AktiveFassung `hardware_carton_supported_trend.yaml` erzeugt; nachaktuellenHoldsnurN100Guardgezieltneu laden, keineDriver-/Greiferneustarts. AnschließendFreshObservation/PlanbindungmitneuemProfil. BestehendePeakdefaultprofile unverändert, RawSpeedstop/Positionsspanne/Frische/Abstände unverändert.
+
+- RF-Korrektur unter explizitgenehmigtemTrendprofil tatsächlichPASS (`rf-trend-correction/result.json`, AT_HIGH_PREGRASP_HELD_NO_CONTACT). NurRFgefahren, RRunverändert. GanzeEinfahrtzuvorPASS. AktuellesHochbildfürvisuelleKonfigurationsprüfungangefordert.
+- FürgewünschtebrauchbareGesamtzeit jetztklarseparierterNeustartabHomegeplant, ohneerstnochKontaktzuverursachen. UnterbrochenerErstversuch/Korrekturbleibenseparat. KeinAusschlussvonFehlernauseinerbehauptetensauberenSerie. Profile/Config0,1 unverändert.
+
+- KorrigierteHochposevisuellbestätigt (`corrected-high-preview.jpg`): beide passenderGriffzweig, RRunverändert. Rücksetzen `clean-home/result.json` realPASS beideoffenHome. SeparaterZeitlaufcycle02abHomejetztgestartet, korrigierteRezeptur/VorprüfungganzerEinfahrt.
+- Auto-Review lehnte dauerhafteTrendprofil-StandardumstellungmehrererWerkzeugeab (FreigabenuraktuellerKartontest). Nichtumgangen: lokaleDefaultänderungenzurückgenommen, N100Standardsunverändert, aktuellerZyklusnutztgenehmigtesProfilnurexplizitvia--config. PhysischeAufgabeimzulässigenUmfangweitergeführt.
+
+- ErweiterteNutzerfreigabe: „Du kannst das Ruheprofil auch in Zukunft verwenden ... auch noch etwas laxer machen.“ DauerhafteNutzungundfachlichbegründeteweitereRuheanpassungdamitgenehmigt; keineimpliziteFreigabeandererGrenzen. AktuellerAbbruchcycle02betrifftSupervisor-/Watchdogherzschlag, nichtRuheprofil; getrennteUrsachenprüfungstattblindRuheweiterlockern.

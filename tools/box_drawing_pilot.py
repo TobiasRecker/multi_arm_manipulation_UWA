@@ -23,6 +23,8 @@ def main():
     p.add_argument('--radius-mm', type=float, help='Circle radius for --faces (default 25)')
     p.add_argument('--presentation-budget', type=int, help='Maximum pose candidates per face (default 8)')
     p.add_argument('--max-transfer-s', type=float, help='Reject any presentation over this model time')
+    p.add_argument('--tool-paths', type=Path, help='JSON surface polylines for selected faces')
+    p.add_argument('--replan-return', action='store_true', help='Search a separate worker route on the box return')
     p.add_argument('--feedback-from',type=Path)
     p = sub.add_parser('summary')
     p.add_argument('run', type=Path)
@@ -41,7 +43,8 @@ def main():
             result = compile_pilot(
                 args.source, args.output, variant=args.variant, feedback_from=args.feedback_from,
                 faces=args.faces, radius_m=None if args.radius_mm is None else args.radius_mm/1000,
-                presentation_budget=args.presentation_budget, max_transfer_s=args.max_transfer_s)
+                presentation_budget=args.presentation_budget, max_transfer_s=args.max_transfer_s,
+                tool_paths=args.tool_paths, replan_return=args.replan_return)
         except (ValueError, OSError) as error:
             parser.exit(1, f'box_drawing_pilot: {error}\n')
         print(json.dumps(dict(status=result['status'], output=str(args.output.resolve()),

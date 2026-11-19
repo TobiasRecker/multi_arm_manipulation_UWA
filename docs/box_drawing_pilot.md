@@ -8,6 +8,9 @@ ist eine spätere Option, keine Voraussetzung für den Einstieg.
 
 ## Flächenfolge mit automatischer Präsentation
 
+Linienzüge aus einer JSON-Datei und neue Rückwegplanung sind unter
+[Werkstückbezogene Werkzeugbahnen](workpiece_paths.md) beschrieben.
+
 Für neue Varianten genügt eine geordnete Liste der Flächen im Kartonframe.
 Der Planer probiert Halteposen für die beiden rechten Arme und freie
 Bewegungen für `left_front`. `left_rear` bleibt geparkt.

@@ -1,0 +1,54 @@
+# User approved19November2026: position-trend stationarity; all span/speed/collision/freshness limits retained.
+# Publish each20Hz native-state update without an extra100ms guard-cycle wait.
+rate_hz: 20.0
+state_timeout_s: 0.2
+heartbeat_timeout_s: 0.25
+stop_latency_s: 1.0
+braking_acceleration_rad_s2: 0.2
+velocity_limit_rad_s: 0.1
+command_velocity_limit_rad_s: 0.1
+acceleration_limit_rad_s2: 0.2
+stopping_reserve_model: per_body_joint_caps_v2
+joint_velocity_limits_rad_s:
+  left_front:
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  left_rear:
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  right_front:
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  right_rear:
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+model_margin_m: 0.04
+reset_hysteresis_m: 0.01
+standstill_velocity_rad_s: 0.001
+standstill_window_s: 0.5
+sphere_spacing_m: 0.05
+planning_budget_s: 10.0
+joint_check_step_rad: 0.005
+field_step_s: 0.1
+field_influence_m: 0.18
+field_max_steps: 3000
+goal_tolerance_rad: 0.001
+stopping_reserve_policy: geometric_only
+
+standstill_velocity_measure: position_trend

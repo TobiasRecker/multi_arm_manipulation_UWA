@@ -129,6 +129,14 @@
   separater Quellkopie starten und die neue Form aus der gespeicherten
   Gelenkbahn prüfen. Alte Ergebnisordner bleiben außerhalb des
   bereitgestellten Kontexts. Details in docs/agent_trials/.
+- Nutzerpräzisierung19.11.: Zeichnen als reversibler Test für allgemeine
+  werkstückbezogene Bahnen. Zielanwendungen sind unter anderem Kleben,
+  Farbauftrag, Sägen/spanende Bearbeitung und Schaumauftrag am gehaltenen
+  Fenster. Axialer Vorschub entlang einer Flächennormale ist ein eigener
+  Pfadtyp für Bohren und Schrauben. Geometrie und realen Werkzeugeingriff
+  getrennt beschreiben. Bewegungen des freien Arbeitsarms beim Rückweg
+  aus der letzten Arbeitspose koordinieren und denselben Modellprüfungen
+  unterziehen. Bedienung in docs/workpiece_paths.md.
 - Piloteinstieg ist bestätigt; weitere Architekturvarianten bleiben Empfehlungen,
   keine pauschale Hardwarefreigabe. Erster file-only Modellstand/Bedienung:
   docs/box_drawing_pilot.md. Forschungsbericht:
@@ -146,6 +154,21 @@
   UWA Robot Power bedient Start + ROS/Standby; reines Fensterschließen soll
   laut aktuellem Code keine dauerhaften Treiber beenden. Breite ROS-Signal-
   beendigung nicht ohne Nachweis dem Schließen dieses Fensters zuschreiben.
+
+## Explizit freigegebene Ruhebewertung,19.11.2026
+
+- Erweiterung durch Nutzer: dieses Ruheprofil auch künftig nutzen; weitere
+  großzügigere Ruhebewertung ist erlaubt. Änderungen fachlich begründen und
+  dokumentieren. Das ist keine Freigabe höherer Fahrgeschwindigkeiten oder
+  lockerer Kollisions-/Datenfrischegrenzen.
+
+- Nutzer bestätigt Aktivierung von `hardware_carton_supported_trend.yaml` für
+  den aktuellen Kartonablauf. Armruhe aus linearer Gelenkpositionsentwicklung
+  und identischer Positionsspanne0,0005rad/0,5s bewerten; rohe qd-Spitzen bleiben
+  sichtbar und unterliegen unverändert dem0,1rad/s-Geschwindigkeitswächter.
+  Hardware-Frische/Kollision/nativeUR-Sicherheit bleiben unverändert.
+- Peakbewertung bleibt Default andererProfile. Keine allgemeine Erlaubnis,
+  beliebige Stoppgrenzen zu lockern. NeueProfilbindung vor realer Fahrt prüfen.
 
 ## Geschwindigkeiten: dauerhafte Nutzervorgabe (2026-11-18)
 

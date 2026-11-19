@@ -46,8 +46,11 @@
   bewertetArmruhe überPositionstrend und identische0,0005radPositionsspanne/0,5s
   stattjederqdSpitze. Raw0,1rad/s-/Kollisions-/Frische-/UR-Stopps unverändert;
   DefaultprofilweiterPeak.39gezielteOfflineprüfungenPASS. LokaleUnterstützung
-  vorbereitet, laufenderN100Dienst NICHTgeändert; Nutzerfreigabeangefragt und
-  ausstehend, weilAGENTS BestandsschutzbestehenderSicherheitsstoppsfordert.
+  vorbereitet; NutzerhatAktivierungexplizitfreigegeben („Ja, Ruheprofil aktivieren“).
+  AktiveFassung `hardware_carton_supported_trend.yaml` aufN100nachbestätigten
+  HoldsübergezieltenGuard-Neustartübernommen. Treiber/Greiferunverändert.
+  FrischgebundenerRF-Planistgültig, ganzeEinfahrtvorRealstarterneutprüfen;
+  Korrekturfahrt/Griffabschlussnochzuverifizieren. DefaultprofilebleibenPeak.
 
 ## N100-Liveübergabe und gemessener Wiederholungszyklus,19.11.2026
 
@@ -709,6 +712,37 @@
   Vorschlag: Datenvertrag für Zeichenpfade, freier Zeichenarm-Rückweg
   ab tatsächlicher Ausstiegspose und wiederverwendbare Audit-/Timingschritte.
   [Auswertung und Messbelege](docs/agent_trials/REVIEW_NIKOLAUS_03.md).
+
+## Werkstückbezogene Werkzeugbahnen und freier Arbeitsarm-Rückweg, 2026-11-19
+
+- Nutzer definiert Zeichnen als reversiblen Stellvertreter. Planer soll
+  Kleben/Farbauftrag, Sägen/spanende Bearbeitung und Fensterschaum entlang
+  werkstückbezogener Bahnen unterstützen. Axialer Vorschub für Bohren
+  und Schrauben vorgesehen. Bestätigt einen neu geplanten Rückweg.
+- `workpiece_paths.py` liefert Flächenframes, freie Punktfolgen und
+  `AxialFeed` mit Vorpose, Oberfläche, Zieltiefe und Rückzug, auch auf
+  geneigten Flächen. Axial ist ein geometrischer Referenzbaustein.
+  Reale Prozesskopplung, erlaubter Eingriffsbereich, Werkzeugsensorik
+  und Eingriffsfreigabe sind getrennt zu integrieren.
+- Boxpilot akzeptiert `--tool-paths DATEI` mit Linienzügen je Fläche.
+  Daten und Programmhash sind an die Episode gebunden. FK-Audit prüft
+  tatsächliche Kanten, Richtung und feste Haltung. Test: 8 Hauskanten
+  auf `z_min`, beide 22-mm-Kreise und unabhängiger Nikolaus-Audit PASS.
+  Unabhängiger Test einer offenen Dreikantenbahn auf `y_max` und
+  archivierter Drei-Kreis-Audit ebenfalls PASS.
+- `--replan-return` behält beide Halterpfade und wechselt den freien
+  Arbeitsarm innerhalb der ersten Rückbewegung gleitend zur Parkpose.
+  Beim Haus sind die Halter-Stützstellen bitgleich zur Gemini-Referenz.
+  Die letzte Phase verkürzt sich 31,89→22,15 s, Armspanne dort null
+  (früher 172,83°/130,64° an Handgelenken 1/3). Modellgesamtzeit
+  406,41→396,67 s, 19.864 Prüfpunkte bei höchstens 20 ms, minimale
+  Hüllenlücke 50,20 mm, Geschwindigkeit 0,09767 rad/s. Ursprüngliche
+  Rückfahrt als vollständig geprüfter Fallback am Zweiflächenlauf PASS.
+- 15 gezielte Tests und sieben Browserchecks bestanden. Bedienung
+  [Werkstückbahnen](docs/workpiece_paths.md). Dateimodell, Viewer,
+  Vergleiche und Referenzdaten in `setup/tasks/workpiece_paths_20261119/`.
+  Keine Hardwareaktionen. Der offene Linienzug hält vorerst den
+  Standoff-Wiederanschluss ein, den der bestehende Fallback voraussetzt.
 
 ## Neuplanung des Gazebo-Drei-Kreis-Ablaufs, 2026-11-18
 

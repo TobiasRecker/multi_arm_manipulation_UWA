@@ -23,8 +23,9 @@
 <script>
 const data=__DATA__,$=id=>document.getElementById(id),canvas=$('view'),ctx=canvas.getContext('2d');
 const isCandidate = data.candidate_preview === true;
+const hasPolylines = Object.keys(data.program.surface_paths || {}).length > 0;
 $('title').textContent = isCandidate ? 'Present ' + data.program.surfaces[0] + ' · Candidate preview' :
-    'Hold the box · Draw ' + data.program.surfaces.length + ' circles';
+    hasPolylines ? 'Hold the box · Follow surface paths' : 'Hold the box · Draw ' + data.program.surfaces.length + ' circles';
 $('feedbackSection').hidden = isCandidate;
 $('finishedScope').hidden = isCandidate;
 $('surfaces').textContent = 'Drawing surfaces: ' + data.program.surfaces.join(', ') + '.';

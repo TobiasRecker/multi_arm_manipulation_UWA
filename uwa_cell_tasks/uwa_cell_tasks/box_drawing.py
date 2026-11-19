@@ -20,6 +20,7 @@ from uwa_cell_motion.carton_paths import solve_near
 from uwa_cell_motion.smooth_paths import plan_segment, sample_segment
 from uwa_cell_motion.two_arm_teacher import TwoArmTeacher, point_box_distance
 from .pilot_episode import Episode, digest, write
+from .workpiece_paths import SurfaceFrame, SurfacePolyline, point_segment_distance
 
 
 WORKER = 'left_front'
@@ -96,7 +97,8 @@ def policy(variant='baseline'):
 
 class DrawingModel:
     def __init__(self, directory, source, episode, *, radius_m=.025,
-                 presentation_budget=8, max_transfer_s=None):
+                 presentation_budget=8, max_transfer_s=None, surface_paths=None,
+                 replan_return=False):
         self.holding = TwoArmTeacher(directory, source, elevation=.16)
         self.p = self.holding.problem
         self.pose = self.holding.initial.copy()
@@ -110,6 +112,8 @@ class DrawingModel:
         self.max_closure_error = 0.
         self.episode = episode
         self.radius_m = radius_m
+        self.surface_paths = surface_paths or {}
+        self.replan_return = replan_return
         self.presentation_budget = presentation_budget
         self.max_transfer_s = max_transfer_s
         self.presentations = []
@@ -165,6 +169,17 @@ class DrawingModel:
         tip[:3, 3] += tip[:3, 2] * PEN_LENGTH
         return tip
 
+    def surface_frame(self, face):
+        axis, sign = SURFACES[face]
+        normal = np.eye(3)[axis] * sign
+        return SurfaceFrame(normal * self.holding.dimensions[axis]/2, normal, (1., 0., 0.))
+
+    def entry_tip(self, pose, face):
+        path = self.surface_paths.get(face)
+        if path is None:
+            return self.tip_target(pose, face, 0., standoff=STANDOFF)
+        return pose @ self.surface_frame(face).tool_pose(path.points_uv_m[0], STANDOFF)
+
     def worker_ik(self, tip, seed):
         names = joint_names(WORKER)
         q = solve_near(self.p, WORKER, seed, self.tool0_target(tip), np.array([seed[j] for j in names]))
@@ -217,14 +232,13 @@ class DrawingModel:
         self.current_phase = name
         self.commit_phase(self.prepare_phase(name, states, poses, face=face, draw=draw))
 
-    def prepare_phase(self, name, states, poses, *, face=None, draw=False, max_duration_s=None, preview=None):
-        positions = np.array([[s[j] for j in self.names] for s in states])
+    def prepare_phase(self, name, states, poses, *, face=None, draw=False, max_duration_s=None,
+                      preview=None, stroke=None, segment=None):
         # Object motion is reconstructed from the first holder at every sample.
         # Both holders share the same spline and time law.
-        kind = 'JOINT' if len(positions) == 2 else 'CARTESIAN_LINE'
-        segment = dict(kind=kind, knots=np.linspace(0, 1, len(positions)).tolist(),
-                       positions=positions.tolist(), check={})
-        segment = plan_segment(segment, velocity=VELOCITY, acceleration=.4, jerk=2.)
+        if segment is None:
+            positions = [[s[j] for j in self.names] for s in states]
+            segment = self.timed_joint_path(positions)
         duration = segment['time_law']['duration_s']
         if max_duration_s is not None and duration > max_duration_s:
             raise ValueError(f'Transfer requires {duration:.3f} s; limit is {max_duration_s:.3f} s')
@@ -255,15 +269,27 @@ class DrawingModel:
                 axis, sign = SURFACES[face]
                 expected = sign * self.holding.dimensions[axis] / 2
                 if draw:
-                    plane_error = abs(local[axis] - expected)
-                    circle_error = abs(np.linalg.norm(np.delete(local, axis)) - self.radius_m)
-                    max_tool_error = max(max_tool_error, float(max(plane_error, circle_error)))
-                    if max(plane_error, circle_error) > .00025:
+                    if stroke is None:
+                        error = max(abs(local[axis] - expected),
+                                    abs(np.linalg.norm(np.delete(local, axis)) - self.radius_m))
+                    else:
+                        error = point_segment_distance(local, *stroke)
+                    max_tool_error = max(max_tool_error, float(error))
+                    if error > .00025:
                         raise ValueError('Marker model reference deviation > .25 mm')
             samples.append(dict(local_time_s=float(t), pose=pose.tolist(), q=q.tolist(), tip=tip[:3, 3].tolist(),
                                 marker_base=(tip[:3, 3]-.12*tip[:3, 2]).tolist()))
         phase = dict(id=name, face=face, drawing=draw, duration_s=duration, segment=segment, samples=samples)
+        if stroke is not None:
+            phase['stroke'] = dict(kind='line', start_local_m=stroke[0].tolist(), end_local_m=stroke[1].tolist())
         return phase, states[-1], poses[-1], (min_gap, max(closure_errors), max_tool_error)
+
+    @staticmethod
+    def timed_joint_path(positions):
+        kind = 'JOINT' if len(positions) == 2 else 'CARTESIAN_LINE'
+        segment = dict(kind=kind, knots=np.linspace(0, 1, len(positions)).tolist(),
+                       positions=np.asarray(positions).tolist(), check={})
+        return plan_segment(segment, velocity=VELOCITY, acceleration=.4, jerk=2.)
 
     def commit_phase(self, prepared):
         phase, state, pose, (gap, closure_error, tool_error) = prepared
@@ -289,9 +315,9 @@ class DrawingModel:
         states = self.line_states(self.state, start_tip, end_tip)
         self.phase(name, states, [self.pose]*len(states), face=face)
 
-    def line_states(self, start, start_tip, end_tip):
+    def line_states(self, start, start_tip, end_tip, count=33):
         states = [dict(start)]
-        for u in np.linspace(0, 1, 33)[1:]:
+        for u in np.linspace(0, 1, count)[1:]:
             tip = start_tip.copy()
             tip[:3, 3] = (1-u)*start_tip[:3, 3] + u*end_tip[:3, 3]
             states.append(self.worker_ik(tip, states[-1]))
@@ -386,6 +412,11 @@ class DrawingModel:
         self.worker_park_state = dict(self.state)
 
     def _check_face_branch(self, pose, state, face):
+        if face in self.surface_paths:
+            for _, states, _ in self.polyline_phases(pose, state, face, count=17):
+                for sample in states:
+                    self.check(pose, sample)
+            return
         seed = dict(state)
         for gap in np.linspace(STANDOFF,0.,25):
             seed = self.worker_ik(self.tip_target(pose,face,0.,standoff=float(gap)),seed)
@@ -395,6 +426,10 @@ class DrawingModel:
             self.check(pose,seed)
 
     def prepare_drawing(self, pose, start, face):
+        if face in self.surface_paths:
+            return [self.prepare_phase(name, states, [pose]*len(states), face=face,
+                                       draw=stroke is not None, stroke=stroke)
+                    for name, states, stroke in self.polyline_phases(pose, start, face)]
         pre = self.tip_target(pose, face, 0., standoff=STANDOFF)
         contact = self.tip_target(pose, face, 0.)
         approach = self.line_states(start, pre, contact)
@@ -408,6 +443,28 @@ class DrawingModel:
             self.prepare_phase(f'{name}_{face}', states, [pose]*len(states), face=face, draw=name == 'draw')
             for name, states in [('approach', approach), ('draw', circle), ('retract', retract)]
         ]
+
+    def polyline_phases(self, pose, start, face, count=33):
+        frame = self.surface_frame(face)
+        points = self.surface_paths[face].points_uv_m
+        local = [frame.tool_pose(point) for point in points]
+        targets = [pose @ point for point in local]
+        safe_entry = self.entry_tip(pose, face)
+        safe_exit = pose @ frame.tool_pose(points[-1], STANDOFF)
+        seed = start
+        segments = [(f'approach_{face}', safe_entry, targets[0], None)]
+        for index, (a, b) in enumerate(zip(targets, targets[1:]), 1):
+            stroke = (local[index - 1][:3, 3], local[index][:3, 3])
+            segments.append((f'draw_{face}_edge_{index}', a, b, stroke))
+        segments.append((f'retract_{face}', targets[-1], safe_exit, None))
+        if points[-1] != points[0]:
+            segments.append((f'return_standoff_{face}', safe_exit, safe_entry, None))
+        for name, a, b, stroke in segments:
+            states = self.line_states(seed, a, b, count)
+            yield name, states, stroke
+            seed = states[-1]
+        if max(abs(seed[joint] - start[joint]) for joint in self.names) > 1e-7:
+            raise ValueError('Stroke does not rejoin the checked transfer at standoff')
 
     def present_surface(self, face):
         """Find and check one pose and route for the next drawing operation."""
@@ -448,7 +505,7 @@ class DrawingModel:
                                          candidate.offset_m, candidate.translation_leads_turn)
         target = pose_at(1.)
         current_tip = self.actual_tip(self.state)
-        target_tip = self.tip_target(target, face, 0., standoff=STANDOFF)
+        target_tip = self.entry_tip(target, face)
         if np.allclose(self.pose, target, atol=1e-9, rtol=0) and np.allclose(
             current_tip, target_tip, atol=1e-8, rtol=0
         ):
@@ -630,13 +687,74 @@ class DrawingModel:
         raise ValueError('No checked simultaneous reorientation')
 
     def return_together(self):
+        routes = []
         for index, (states, poses, face) in enumerate(reversed(self.coordinated_outbound)):
             if index == len(self.coordinated_outbound) - 1:
                 name = 'return_box'
             else:
                 name = f'return_from_{face}' if face is not None else 'return_from_away'
-            self.phase(name, list(reversed(states)), list(reversed(poses)))
+            routes.append((name, list(reversed(states)), list(reversed(poses))))
+        planned = self.plan_worker_return(routes) if self.replan_return and routes else None
+        if planned is not None:
+            for phase in planned:
+                self.commit_phase(phase)
+        else:
+            for name, states, poses in routes:
+                self.phase(name, states, poses)
         self.coordinated_outbound.clear()
+
+    def plan_worker_return(self, routes):
+        """Try clearing the worker during the first reverse sweep, then park it."""
+        paths = [np.array([[state[j] for j in self.names] for state in states])
+                 for _, states, _ in routes]
+        if np.max(np.abs(paths[0][0] - [self.state[j] for j in self.names])) > 1e-7:
+            raise ValueError('Discontinuous return start before replanning')
+        worker = [self.names.index(j) for j in joint_names(WORKER)]
+        parked = paths[-1][-1, worker]
+        end = paths[-1][-1]
+        if np.max(np.abs(end - [self.worker_park_state[j] for j in self.names])) > 1e-7:
+            raise ValueError('Expected return goal to match the park state')
+        original_s = sum(self.timed_joint_path(path)['time_law']['duration_s'] for path in paths)
+        progress = np.linspace(0., 1., len(paths[0]))
+        for leave_at, park_by in ((.2, .9), (.3, .95), (.4, 1.), (.55, 1.)):
+            transition = np.clip((progress - leave_at) / (park_by - leave_at), 0., 1.)
+            weight = (transition**3 * (10. - 15.*transition + 6.*transition**2))[:, None]
+            candidate = [path.copy() for path in paths]
+            candidate[0][:, worker] += weight * (parked - candidate[0][:, worker])
+            for path in candidate[1:]:
+                path[:, worker] = parked
+            record = dict(stage='worker_return', leave_at=leave_at, park_by=park_by, original_s=original_s)
+            try:
+                prepared = self.check_worker_return(routes, candidate, original_s)
+            except ValueError as error:
+                self.diagnostics.append(dict(record, status='REJECTED', reason=str(error)))
+                continue
+            self.diagnostics.append(dict(record, status='MODEL_CHECKED',
+                                         duration_s=sum(phase[0]['duration_s'] for phase in prepared)))
+            return prepared
+        self.diagnostics.append(dict(stage='worker_return', status='REVERSE_FALLBACK', original_s=original_s))
+        return None
+
+    def check_worker_return(self, routes, candidate, original_s):
+        segments = [self.timed_joint_path(path) for path in candidate]
+        if sum(s['time_law']['duration_s'] for s in segments) >= original_s - 1e-6:
+            raise ValueError('Candidate does not shorten the model return')
+        holder = HOLDERS[0]
+        object_from_tool = self.holding.tcp_offsets[holder] @ np.linalg.inv(self.holding.offsets[holder])
+        for (name, _, _), segment in zip(routes, segments):
+            times = np.linspace(0, segment['time_law']['duration_s'], 151)
+            for t, q in zip(times, sample_segment(segment, times)):
+                state = dict(self.state, **dict(zip(self.names, q)))
+                pose = self.p.chains[holder].forward(state) @ object_from_tool
+                try:
+                    self.check(pose, state)
+                except ValueError as error:
+                    raise ValueError(f'{name} screen at {t:.3f} s: {error}') from error
+        return [
+            self.prepare_phase(name, [dict(self.state, **dict(zip(self.names, q))) for q in path],
+                               poses, segment=segment)
+            for (name, _, poses), path, segment in zip(routes, candidate, segments)
+        ]
 
     def park_worker(self):
         target = dict(self.state)
@@ -644,7 +762,8 @@ class DrawingModel:
             target[name] = self.worker_park_state[name]
         self.phase('park_worker', [dict(self.state), target], [self.pose, self.pose])
 
-def surface_program(faces, radius_m, presentation_budget, max_transfer_s):
+def surface_program(faces, radius_m, presentation_budget, max_transfer_s, surface_paths=None,
+                    replan_return=False):
     faces = list(faces)
     if not faces or any(face not in SURFACES for face in faces) or len(set(faces)) != len(faces):
         raise ValueError('Choose distinct faces from ' + ', '.join(SURFACES))
@@ -654,6 +773,8 @@ def surface_program(faces, radius_m, presentation_budget, max_transfer_s):
         raise ValueError('Presentation budget must be an integer from 1 to 27')
     if max_transfer_s is not None and (not isfinite(max_transfer_s) or max_transfer_s <= 0):
         raise ValueError('Transfer limit must be finite and positive')
+    if surface_paths is not None and set(surface_paths) - set(faces):
+        raise ValueError('Specify tool paths only for requested faces')
     steps = []
     code = ['def task(api):']
     for face in faces:
@@ -667,16 +788,32 @@ def surface_program(faces, radius_m, presentation_budget, max_transfer_s):
                    velocity_rad_s=VELOCITY, circle_radius_m=radius_m,
                    presentation_budget=presentation_budget, max_transfer_s=max_transfer_s,
                    scope='Requested box surfaces with searched holding poses and common return path', steps=steps)
+    if surface_paths:
+        program['surface_paths'] = {face: path.record() for face, path in surface_paths.items()}
+    if replan_return:
+        program['return_strategy'] = 'replan_worker_with_reverse_fallback'
     return program, '\n'.join(code) + '\n'
 
 
 def compile_pilot(source, output, *, variant='baseline', feedback_from=None, faces=None,
-                  radius_m=None, presentation_budget=None, max_transfer_s=None):
+                  radius_m=None, presentation_budget=None, max_transfer_s=None,
+                  tool_paths=None, replan_return=False):
+    surface_paths = {}
+    if tool_paths is not None:
+        spec = json.loads(Path(tool_paths).read_text())
+        if not isinstance(spec, dict) or spec.get('schema_version') != 1 or not isinstance(spec.get('surfaces'), dict):
+            raise ValueError('Expected a schema_version 1 tool-path file with a surfaces map')
+        for face, path in spec['surfaces'].items():
+            if (not isinstance(path, dict) or path.get('kind') != 'surface_polyline' or
+                    not isinstance(path.get('points_uv_m'), list)):
+                raise ValueError(f'{face}: expected a surface_polyline with points_uv_m')
+            surface_paths[face] = SurfacePolyline(path['points_uv_m'])
     if faces is not None:
         program, code = surface_program(faces, .025 if radius_m is None else radius_m,
-                                        8 if presentation_budget is None else presentation_budget, max_transfer_s)
+                                        8 if presentation_budget is None else presentation_budget, max_transfer_s,
+                                        surface_paths, replan_return)
     else:
-        if any(value is not None for value in (radius_m, presentation_budget, max_transfer_s)):
+        if replan_return or any(value is not None for value in (radius_m, presentation_budget, max_transfer_s, tool_paths)):
             raise ValueError('Search options require a face sequence')
         program = policy(variant)
         code = legacy_code(variant)
@@ -691,6 +828,7 @@ def compile_pilot(source, output, *, variant='baseline', feedback_from=None, fac
                'uwa_cell_control.parallel_scan']
     repo = Path(__file__).resolve().parents[2]
     files = [Path(__file__), Path(__file__).with_name('pilot_episode.py'),
+             Path(__file__).with_name('workpiece_paths.py'),
              repo/'tools/box_drawing_pilot.py', repo/'tools/box_drawing_viewer.html']
     files += [Path(importlib.import_module(name).__file__) for name in modules]
     code_binding = {str(p.resolve()): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
@@ -707,15 +845,20 @@ def compile_pilot(source, output, *, variant='baseline', feedback_from=None, fac
     episode = Episode.create(output / 'episode', backend='kinematic_model', program_sha256=code_sha,
                              observable_events=('agent_intervention',),
                              metadata=dict(task_scope=program['scope'], source=str(Path(source).resolve()),
-                                           feedback_source=feedback_binding))
+                                           feedback_source=feedback_binding, task_spec_sha256=digest(program)))
     try:
         model = DrawingModel(output / 'model', source, episode,
                              radius_m=program['circle_radius_m'],
                              presentation_budget=program.get('presentation_budget', 8),
-                             max_transfer_s=program.get('max_transfer_s'))
-        if any(program['circle_radius_m'] >= min(np.delete(model.holding.dimensions, SURFACES[face][0]))/2
-               for face in program['surfaces']):
-            raise ValueError('Circle radius must fit within each requested face')
+                             max_transfer_s=program.get('max_transfer_s'),
+                             surface_paths=surface_paths, replan_return=replan_return)
+        for face in program['surfaces']:
+            half = np.delete(model.holding.dimensions, SURFACES[face][0])/2
+            if face in surface_paths:
+                if np.any(np.abs(surface_paths[face].points_uv_m) >= half):
+                    raise ValueError(f'{face}: tool path must fit within the face')
+            elif program['circle_radius_m'] >= min(half):
+                raise ValueError('Circle radius must fit within each requested face')
         # Execute exactly the saved program against the file-only model API.
         namespace = {}
         exec(compile(code, str(output / 'policy.py'), 'exec'), {'__builtins__': {}}, namespace)
@@ -736,7 +879,7 @@ def compile_pilot(source, output, *, variant='baseline', feedback_from=None, fac
         report = dict(schema_version=1, artifact_type='cooperative_box_drawing_model_pilot', executable=False,
                       backend='kinematic_model', status='MODEL_SEQUENCE_COMPLETE', program=program,
                       feedback_source=feedback_binding,
-                      policy_sha256=code_sha, source_path=str(model.holding.source),
+                      policy_sha256=code_sha, program_sha256=digest(program), source_path=str(model.holding.source),
                       source_sha256=model.holding.source_sha256, model_signature=model.p.signature,
                       implementation_sha256=code_binding,
                       model_urdf_sha256=hashlib.sha256((output/'model/carton-moveit/robot.urdf').read_bytes()).hexdigest(),
