@@ -38,7 +38,12 @@ def arguments():
                     help="Include explicit unloaded regular startup under verified holds in this review")
     for name in ("image", "metadata", "intrinsics", "recipe", "entry-image", "entry-metadata"):
         ap.add_argument("--" + name, type=Path)
+    ap.add_argument("--registration-directory", type=Path, help="Reuse a successful registration only when every bound source and current capture is unchanged")
+    ap.add_argument("--path-budget-s", type=float, help="Offline path-search time per candidate; no change to execution speed")
     ap.add_argument("--camera-reference-pose", type=Path)
+    ap.add_argument("--photo-reference", type=Path)
+    ap.add_argument("--verification-image", type=Path)
+    ap.add_argument("--verification-metadata", type=Path)
     ap.add_argument("--planar-texture", action="store_true", help="Use validated affine/panel feature views for foreshortened carton faces")
     for roi in ("--roi", "--face-roi"):
         ap.add_argument(roi, nargs=4, type=int)
@@ -55,6 +60,26 @@ def arguments():
     elif not all((args.image, args.metadata, args.intrinsics, args.recipe)):
         ap.error("Approach needs --image, --metadata, --intrinsics and --recipe")
     return args
+
+
+def reuse_registration(source, destination, required_inputs):
+    """Reuse checked perception without replaying an old object after scene changes."""
+    import shutil
+    source=Path(source);proof=read_json(source/"registration.json")
+    pose=source/"object-pose.json";binding=read_json(pose)
+    if not proof.get("success") or Path(proof["object_pose"]).resolve()!=pose.resolve():
+        raise ValueError("Successful original registration required")
+    inputs=binding.get("source_inputs",{})
+    if not inputs:raise ValueError("Registration has no bound sources")
+    for path in required_inputs:
+        path=Path(path).resolve()
+        if str(path) not in inputs:raise ValueError("Current input missing from reused registration: "+str(path))
+    for file,sha in inputs.items():
+        if digest(Path(file).read_bytes())!=sha:raise ValueError("Reused registration input changed: "+file)
+    shutil.copytree(source,destination)
+    return dict(source=str(source.resolve()),object_pose_sha256=digest(pose.read_bytes()),
+                registration_sha256=digest((source/"registration.json").read_bytes()),
+                sources_verified=len(inputs))
 
 
 class Workflow:
@@ -142,22 +167,34 @@ def approach(flow, args, store):
     if not status["area_released"] or not status.get("area_released_at"):
         raise ValueError("Release the physical work area in UWA Robot Power before acquiring the scene")
     current_capture(args.image, args.metadata, status["area_released_at"], time.time())
+    if getattr(args,"verification_image",None):current_capture(args.verification_image,args.verification_metadata,status["area_released_at"],time.time())
     flow.report["scene_session"] = status["session_id"]
     speed = status["settings"]["speed_percent"]
     joint, tcp = caps(speed)
-    flow.phase("snapshot", "prepare_carton_hardware.py", "--observe", "--output", out/"snapshot")
-    flow.phase("registration", "register_carton_from_oak.py", "--image", args.image,
-               "--metadata", args.metadata, "--intrinsics", args.intrinsics, "--description",
-               args.recipe/"hardware.urdf", "--output", out/"registration",
-               *(["--camera-reference-pose", args.camera_reference_pose] if args.camera_reference_pose else []),
-               *(["--planar-texture"] if getattr(args,"planar_texture",False) else []),
-               *(["--roi", *args.roi] if args.roi else []),
-               *(["--face-roi", *args.face_roi] if args.face_roi else []))
+    flow.phase("snapshot", "prepare_carton_hardware.py", "--observe", "--stationarity-config", args.config, "--output", out/"snapshot")
+    if getattr(args,"registration_directory",None):
+        required=[args.image,args.metadata,args.intrinsics,args.recipe/"hardware.urdf",REPO/"tools/register_carton_from_oak.py"]
+        if getattr(args,"verification_image",None):required.extend([args.verification_image,args.verification_metadata])
+        flow.report["reused_registration"]=reuse_registration(args.registration_directory,out/"registration",required)
+        flow.save()
+    else:
+        flow.phase("registration", "register_carton_from_oak.py", "--image", args.image,
+                   "--metadata", args.metadata, "--intrinsics", args.intrinsics, "--description",
+                   args.recipe/"hardware.urdf", "--output", out/"registration",
+                   *(["--camera-reference-pose", args.camera_reference_pose] if args.camera_reference_pose else []),
+                   *(["--planar-texture"] if getattr(args,"planar_texture",False) else []),
+                   *(["--photo-reference", args.photo_reference] if getattr(args,"photo_reference",None) else []),
+                   *(["--verification-image",args.verification_image,"--verification-metadata",args.verification_metadata]if getattr(args,"verification_image",None)else []),
+                   *(["--roi", *args.roi] if args.roi else []),
+                   *(["--face-roi", *args.face_roi] if args.face_roi else []))
     flow.phase("plan_high", "prepare_carton_pregrasp.py", "--observations", out/"snapshot/observations.json",
                "--object-pose", out/"registration/object-pose.json", "--contact-design", args.recipe/"contacts.json",
                "--contact-scene", args.recipe/"scene.json", "--config", args.config, "--pregrasp-m", ".15",
-               "--output", out/"high-plan")
+               "--output", out/"high-plan",
+               *(["--path-budget-s",args.path_budget_s]if getattr(args,"path_budget_s",None)else []))
     evidence = read_json(out/"high-plan/evidence.json")
+    if not evidence.get("path"):
+        raise ValueError("High approach has no checked path: "+str(evidence.get("status"))+"; inspect high-plan/evidence.json")
     positions = dict(evidence["saved_start"])
     positions.update(zip(evidence["path"]["joint_names"], evidence["path"]["waypoints"][-1], strict=True))
     atomic_json(out/"planned-high.json", dict(planned_only=True,segments=[dict(final_positions=positions)]))

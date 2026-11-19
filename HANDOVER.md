@@ -1,5 +1,90 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Aktuell19.11.2026: freigegebene Hochanfahrt gestoppt, kein Griff
+
+- Operator hat Motionrevisionf252b03840344e83a5dea047c5f1cade tatsächlich in
+  echter GUI bewilligt; Herkunftoperator, inzwischen Vertrauen50/Familiar,
+  Tempo unverändert33⅓%. Die mittlere Risikostufe bleibt bedienpflichtig.
+- attempt09 hat reguläre ROS-Programme unter unbeladenen Holds gestartet und
+  nur RF ein tatsächliches Armziel gesendet. Nach3,75s beobachteter Bewegung
+  Abbruch: `right_front: time-aligned driver cache differs from independent
+  actual joints`. RR nicht gefahren, keine Fingerziele, keine Einfahrt/kein
+  Kontakt/kein Hub. Reviewstatusfailed; kein automatisches Replay/Reset/Play.
+- Frischer rein lesender Abschluss nach Stopp: alle4 nativRUNNING/Normal,
+  ProgrammeSTOPPED/runtime1, genehmigte Trendruhe für alle4 bestätigt.
+  RechteGreiferOBJ3/POS3/PRE0/FOR0/SPE16offen. RF nun leicht von Home versetzt:
+  q≈[-0,04531,-1,57698,-0,05210,-1,57729,0,04580,-0,04859]rad.
+  Alter Planstart ist überholt; kein automatisches Zurückfahren.
+- Runner bestätigt Ressourcenholds/Latches, sein `standstill_confirmed:false`
+  ist kein späterer Stillstandsnachweis; der neue Read-only-Snapshot bestätigt
+  Stillstand separat. Ursache des Zeitabgleichabbruchs noch offen; Werte im
+  neuen Reviewed-Fehlerbericht fehlen. Read-only-Zeitdiagnose in Arbeit,
+  keine Grenze gelockert. NativeStopps des Schutzdiensts ebenfalls erhalten.
+- Daten setup/tasks/carton_motion_review_20261119/attempt09/high/ sowie
+  after-reviewed-stop/ auf N100; Arbeitsstand im Zellrepo
+  work/carton-motion-review-real-20261119.md. Vor weiterer Bewegung neuen
+  tatsächlichen Start prüfen und neue genaue Reviewrevision vorlegen.
+
+## Aktuell19.11.2026: Motion-review-Planung wieder aufgenommen
+
+- Nutzer erlaubt nach der POWER_OFF-Rückfrage ausdrücklich weiterzumachen.
+  Vorhandener echter GUI-Start lief bereits; eigener Drives-only-Versuch wurde
+  vor jeder Aktion von dessen Startsperre abgewiesen. Kein paralleler Start.
+- Danach alle vier nativ RUNNING/Normal/STOPPED. Alle vier unbeladenen
+  CollisionHolds unter frischer nativer/Driver-Ruhe an aktuelle Gelenke
+  gebunden, jeweils PASS, keine Armbewegung/kein Play. RF-Basis bleibt nahe0°.
+- Bestehende echte Bereichssitzung73300e040a5d407db9916ab38ee1d877 weiterhin
+  freigegeben, Vertrauen0/Tempo33⅓% unverändert. Zwei neue native OAK-Fotos
+  15:53:26 und15:53:52/Fokus107 auf N100 übertragen; Übersicht visuell geprüft.
+- attempt08 direkte Zwei-Bild-RegistrierungPASS (26/24/24/24Inlier,
+  interne1,450mm/0,368°; keine Absolutgenauigkeitsbehauptung). attempt09
+  verwendet diese10 SHA-geprüften Eingaben weiter und nimmt frischen Iststart.
+  Hohe Gesamtanfahrt UND offene Einfahrt vollständig vorbereitet.
+  Aktuell WAITING_FOR_MOTION_REVIEW, Ticketf252b03840344e83a5dea047c5f1cade,
+  echte GUI-Entscheidung ausstehend,84,294s nominell, beide Phasen seriell.
+  Beide Ellbogen oberhalb Tisch, RF-Basisziel+0,389rad statt altem Umlauf.
+  Reale Ziele erst nach echtem GUI-Approve; noch keine Arm-/Greiferziele.
+  Wegsuchbudget60s ist nur Rechenzeit. Guard/Tempo/40mm unverändert.
+  Letzte Snapshot-Moduskorrektur jetzt auf N100 übertragen.
+- Nachweise setup/tasks/carton_motion_review_20261119/ auf ROSmini/N100.
+
+## Motion review real übernommen,19.11.2026: Antriebe ausgeschaltet
+
+- Nutzer hat nach manueller Kabelabwicklung den Arbeitsbereich erneut in der
+  echten GUI freigegeben; Sitzung `73300e040a5d407db9916ab38ee1d877`.
+  RF-Basis steht nun nahe0° (letzter eingeschalteter Messwert etwa−0,0572rad),
+  der alte Start nahe−360° ist überholt. RF-CollisionHold wurde vor erneutem
+  Play unter nativ STOPPED/Normal an die echte Pose gebunden; Nachweis PASS,
+  keine Gelenkbewegung. Den alten Winkelumlauf nicht wieder anfahren.
+- Aktueller zuletzt bestätigter Zustand: **alle vier URs POWER_OFF / NORMAL /
+  STOPPED**, rechte Greifer offen, kein neuer Kontakt. In dieser Motion-review-
+  Serie wurden **keine Arm- oder Greiferziele** gesendet. Nutzerklärung, ob
+  bewusst ausgeschaltet oder wieder startbereit zu machen, steht aus.
+  Bis zur Antwort keine Power-/Bremsen-/Programmaktionen. Konstante Positionen
+  im ausgeschalteten Zustand sind kein gültiger gemessener Planungsstart.
+- Neuer Motion-review-Softwarestand auf N100 übernommen: Quellbackup,
+  18Pakete/24,2s Build PASS, vier Treiber, Greiferschnittstellen FOR0/SPE16
+  und bewaffneter Guard mit bestehendem Trendprofil/RR20. Echte GUI läuft;
+  Vertrauen0 und Tempo33⅓% bleiben Nutzerwerte. Noch kein ausführbarer
+  Reviewauftrag zur Entscheidung, keine Freigabe durch den Agenten.
+- Zwei aktuelle OAK-Bilder nach Bereichsfreigabe ergeben drei akzeptierte
+  Textur-/Auflagefits mit24/25/24Inlier und4,045/4,283/4,151px Unterstützung.
+  Interne Streuung0,107mm/0,0394° beschreibt Konsistenz, keine absolute
+  Genauigkeit. Historische Foto-/Kamerareferenzen sind SHA-gebunden;
+  die Objektpose stammt aus aktuellen Bildern, globale Profile unverändert.
+- attempt01–03 scheiterten vor Bewegung an Bild-/Referenzbedingungen;
+  attempt04/05 vor Planung an Startbereitschaft. Snapshot verwendet jetzt
+  dasselbe genehmigte Trendruhekriterium wie der Guard und verlangt zusätzlich
+  native Betriebsbereitschaft.17 gezielte Tests PASS; letzte native Modusprüfung
+  bisher nur lokal, noch nicht auf N100 übertragen. Keine Geschwindigkeits-,
+  Frische- oder Kollisionsgrenzen gelockert.
+- Nach Wiederherstellung frische tatsächliche Startwerte und bestehende
+  Haltesollwerte prüfen; komplette hohe Anfahrt/offene Einfahrt als eine
+  Revision zur echten GUI-Entscheidung. Vor Kontakt aktuelles Einfahrbild und
+  eigenes Kontaktreview. Kein Hub oder Transport beauftragt.
+- Nachweise `setup/tasks/carton_motion_review_20261119/`; ausführlicher Stand
+  im Zellrepo `work/carton-motion-review-real-20261119.md`.
+
 ## Neuer Kartonort: bis Start vorbereitet, Hardwarepause19.11.2026
 
 - Nutzer meldet umgestellten Karton; während Erkennung stoppt er Hardware und

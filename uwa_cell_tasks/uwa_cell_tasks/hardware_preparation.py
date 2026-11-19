@@ -161,7 +161,29 @@ def observe(inventory):
     return result
 
 
-def prepare(directory, profile_path, inventory, *, live=False):
+def operating_stationarity(observation,cfg):
+    """Use exactly the armed guard's configured quiet criterion on recorded data."""
+    from uwa_cell_motion.guard_core import GuardState
+    from uwa_cell_motion.common import joint_velocity_limits,SPEED_TOLERANCE
+    for rid,arm in observation['arms'].items():
+        if not arm.get('observed') or not arm.get('samples'):continue
+        arm['peak_stationary_observed']=arm.get('stationary_observed',False)
+        core=GuardState(cfg);rows=arm['samples']
+        for row in rows:
+            stamp=row['device_timestamp_s'];core.receive(rid,row['actual_q'],row['actual_qd'],stamp,stamp)
+        evidence=core.stationarity_evidence(rid,rows[-1]['device_timestamp_s'])
+        limits=joint_velocity_limits(cfg,rid,6)
+        within_speed=all(all(abs(v)<=float(limit)*SPEED_TOLERANCE for v,limit in zip(row['actual_qd'],limits))for row in rows)
+        evidence['operating_speed_within_bounds']=within_speed
+        evidence['scope']='Recorded device-time window; live freshness/holds must still pass before motion'
+        native_ready=all(r.get('robot_mode')==7 and r.get('safety_mode') in (1,2) for r in rows)
+        evidence['native_state_suitable_for_planning']=native_ready
+        arm['stationarity_evidence']=evidence
+        arm['stationary_observed']=evidence['confirmed'] and within_speed and native_ready
+    return observation
+
+
+def prepare(directory, profile_path, inventory, *, live=False, stationarity_config=None):
     """Write a preparation bundle, never a plan accepted by hardware execute."""
     directory = Path(directory); directory.mkdir(parents=True, exist_ok=False)
     profile_path, inventory = Path(profile_path), Path(inventory)
@@ -170,6 +192,10 @@ def prepare(directory, profile_path, inventory, *, live=False):
             profile.get('object_speed_m_s') != .0005 or profile.get('lift_m') != .005):
         raise ValueError('Expected the explicit slow first-test preparation profile')
     observation = observe(inventory) if live else dict(arms={}, grippers={})
+    if stationarity_config is not None:
+        from uwa_cell_motion.common import config
+        operating_stationarity(observation,config(stationarity_config))
+        observation['stationarity_configuration']=dict(path=str(Path(stationarity_config).resolve()),sha256=hashlib.sha256(Path(stationarity_config).read_bytes()).hexdigest())
     write_json(directory/'observations.json', seal(observation))
     (directory/'profile.yaml').write_bytes(profile_path.read_bytes())
     blockers = ['world/base/table registration requires real verification',

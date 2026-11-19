@@ -23,8 +23,12 @@ final holds. No grasp or lift was attempted. See the
 On19November both right arms completed the corrected supported grasp using
 the N100 runtime. On the user's next request the carton was released and
 both right arms returned to Home with open grippers and confirmed holds.
-Wait for the user to reposition the carton; register its new pose before
-another grasp. The position-trend standstill profile is approved for future
+The user has repositioned the carton and released the work area for a new
+Motion review run. All four drives are ready again, with their unloaded hold targets rebound
+to current positions under stopped programs. After operator approval, right front started the reviewed high approach
+and was stopped by the driver/native-state comparison. All arms are stationary,
+programs stopped and right grippers open; no entry or grasp occurred.
+The timing mismatch is under investigation before any further movement. The position-trend standstill profile is approved for future
 carton runs. See the [workflow and evidence](docs/carton_supported_grasp.md).
 
 Open **UWA Robot Power** from the application menu for all four arms.

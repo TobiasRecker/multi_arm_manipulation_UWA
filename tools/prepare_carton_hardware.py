@@ -16,6 +16,7 @@ if __name__ == '__main__':
     p.add_argument('--profile', type=Path, default=repo/'uwa_cell_tasks/config/carton_hardware_first_test.yaml')
     p.add_argument('--inventory', type=Path, default=repo/'config/hardware_inventory.yaml')
     p.add_argument('--observe', action='store_true', help='Read native arm outputs and gripper GET registers; requires hardware domain66')
+    p.add_argument('--stationarity-config',type=Path,help='Use the explicitly selected active guard profile for recorded quiet evidence; raw data retained')
     a = p.parse_args()
-    result = prepare(a.output, a.profile, a.inventory, live=a.observe)
+    result = prepare(a.output, a.profile, a.inventory, live=a.observe,stationarity_config=a.stationarity_config)
     print(json.dumps(result, indent=2))

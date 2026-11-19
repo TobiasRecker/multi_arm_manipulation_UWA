@@ -39,9 +39,14 @@ Metadaten und zugehörige Intrinsics vorab wie im
 [realen Kartonablauf](carton_supported_grasp.md) bereitstellen. Das
 Registrierungsfoto nach der Bereichsfreigabe dieser Sitzung aufnehmen.
 Für versetzte Kartons akzeptiert der Zyklus die bestehenden Registrierungsoptionen
-`--roi`, `--face-roi` und `--camera-reference-pose`. Vor dem
+`--roi`, `--face-roi` und `--camera-reference-pose`. Mit
+`--verification-image` und `--verification-metadata` lässt sich eine zweite
+aktuelle Aufnahme direkt gegen dieselbe Modelltextur prüfen. Jedes Bild muss
+einen eigenen gültigen Auflagefit liefern; beide Posen müssen die bestehenden
+Übereinstimmungsgrenzen erfüllen. Eine optionale `--photo-reference` dient nur
+als Bildmerkmalsreferenz und liefert keine alte Objektpose zurück. Vor dem
 Hardwarepilot muss der N100 dieselbe geprüfte Runner- und Guard-Version
-betreiben. Andere Fahranforderungen und die Bedienung am Pendant mit dkkken
+betreiben. Andere Fahranforderungen und die Bedienung am Pendant mit den
 anwesenden Personen abstimmen.
 
 ```bash
@@ -57,6 +62,10 @@ Holds wird nur mit dem zusätzlichen Argument `--start-ros-programs` in die
 Bewertung aufgenommen und erfordert die ausdrückliche Bedienentscheidung.
 Er darf das bereits geladene External-Control-Programm mit Play starten.
 Power, Bremsen und Programmvorbereitung bleiben im separaten Betriebsablauf.
+Mit `--registration-directory` kann eine erfolgreiche Registrierung desselben
+aktuellen Bildsatzes nach SHA-Prüfung aller gebundenen Quellen weiterverwendet
+werden. Der Iststart wird trotzdem neu aufgenommen. `--path-budget-s` erhöht
+nur die verfügbare Offline-Rechenzeit, keine Fahrgeschwindigkeit.
 Eine Ablehnung oder Neuplanungsanforderung beendet
 diesen Versuch. Für eine geänderte Bahn ein neues Ausgabeverzeichnis wählen.
 
@@ -105,7 +114,7 @@ Diese Modellgrößen sind keine gemessenen Bremswege. Näheres im
 
 ## Ergebnisse und lokale Reproduktion
 
-Beide ROS-2-Lyrical-Pakete ließen sich bauen. Die [107 lokalen Tests](../../../setup/tasks/carton_motion_review_20261119/pilot-tests.xml) und zehn isolierte Freigabetests auf dem N100 bestanden. Auf dem N100 ist der GUI-Endpunkt aktiv. Die neue Bewegungssteuerung liegt als inaktiver Kandidat bereit. Die erste reale Vergleichsfahrt steht aus.
+Beide ROS-2-Lyrical-Pakete ließen sich bauen. Die [107 lokalen Tests](../../../setup/tasks/carton_motion_review_20261119/pilot-tests.xml) und zehn isolierte Freigabetests auf dem N100 bestanden. Auf dem N100 wurden GUI-Endpunkt und neue Bewegungssteuerung im realen Kartonauftrag übernommen. Die erste reale Vergleichsfahrt steht aus; aktuellen Betriebszustand und Nachweise nennt [die Übergabe](../HANDOVER.md).
 
 Zwei fertig gefüllte Stores aus demselben Karton-Archivfall liegen auf ROSmini.
 Aus `~/UWA_ws` öffnet dieser Befehl die Demo mit der gemeinsamen offenen

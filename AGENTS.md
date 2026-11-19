@@ -194,6 +194,17 @@
   Status-Read muss weiterhin frisch vom Gerät kommen; keine Frischegrenze
   durch Statuscaching umgehen. Nach realem Kontakt nur HOLD, kein Startup.
 
+- Nach manueller Gelenkbewegung bei gestopptem External-Control-Programm
+  vor Play bestehende Haltesollwerte neu an die echte Pose binden. CollisionHold
+  speichert seine Position beim Aktivieren; ein alter Sollwert darf nach
+  Kabelabwicklung/Handbewegung nicht zurückgesendet werden. Neubindung nur
+  explizit unbeladen, nativ STOPPED/Normal, stationär und mit passenden frischen
+  Driver-/Istwerten; vorhandene Stopps/Latches nicht dadurch aufheben.
+- Nutzer wickelte19.11. RF-Basiskabel durch manuelle Drehung von nahe-360° nach
+  nahe0° ab. Diesen neuen Winkelumlauf als Start verwenden und Kabelführung
+  bei Konfigurations-/Homeentscheidungen mit berücksichtigen; kein Replay des
+  alten Umlaufs allein wegen numerisch ähnlicher Werkzeugpose.
+
 ## Explizit freigegebene Ruhebewertung,19.11.2026
 
 - Erweiterung durch Nutzer: dieses Ruheprofil auch künftig nutzen; weitere
