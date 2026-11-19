@@ -27,10 +27,11 @@ Ergebnisse werden der neuen Unterhaltung nicht als Kontext übergeben.
 
 Die ersten und letzten Kreise behalten 22 mm Radius. Auf der Unterseite
 zeichnet der Agent ein Nikolaushaus mit acht Kanten in einem Zug.
-Der Agent schreibt den neuen Zeichenbaustein und prüft ihn selbst.
+Der ursprüngliche Versuch verlangte eine neue Implementierung. Neue
+Läufe verwenden den vorhandenen Oberflächenpfad und den gebündelten
+Prüf- und Abgabeaufruf aus dem Startprompt.
 Haltegeometrie, Modellquelle, Rollen und Gelenkgrenze bleiben der
-Vergleichsrahmen. Geprüft wird die Erweiterung eines vorhandenen
-Toolkits durch einen frischen Agenten.
+Vergleichsrahmen.
 
 [Prompt](PROMPT_NIKOLAUS_TRIAL_03.md) · [Agentenübergabe](NIKOLAUS_HANDOFF.md)
 
@@ -42,8 +43,8 @@ Für vergleichbare Befunde Modell und genutzten Freigabemodus festhalten.
 
 ## Abnahme nach dem Lauf
 
-Im ausgegebenen Sitzungsordner befinden sich `trial/report.md`, Trace,
-Ergebnis und Viewer. Nach dem Bericht kann der Bedientest die tatsächlichen
+Im ausgegebenen Sitzungsordner befinden sich Bericht unter
+`trial/verification/`, Trace, Ergebnis und Viewer. Bei Bedarf kann der Bedientest die tatsächlichen
 Gelenkbahnen zusätzlich mit dem Prüfer aus dem **Hauptrepo** auswerten:
 
 ```bash

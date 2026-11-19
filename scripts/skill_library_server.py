@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 import fcntl
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
-import os
 from pathlib import Path
 import re
 import subprocess
@@ -19,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE = ROOT.parents[1]
 PROGRAM_ID = "carton-supported-v1"
 RUN_ID = re.compile(r"[a-f0-9]{32}")
+PREVIEWS = {"oak_preview", "right_front_preview", "right_rear_preview"}
 STATIC = {
     "/": (ROOT / "scripts/skill_library/index.html", "text/html; charset=utf-8"),
     "/index.html": (ROOT / "scripts/skill_library/index.html", "text/html; charset=utf-8"),
@@ -31,7 +31,7 @@ STAGES = [
     {"id": "registration", "title": "Locate the carton", "description": "Fit its pose from the known carton texture and check the table reference."},
     {"id": "planning", "title": "Plan both arms", "description": "Compute and check the high approach and open entry from measured joints."},
     {"id": "motion_review", "title": "Review the approach", "description": "Review the current paths in UWA Robot Power before real motion."},
-    {"id": "wrist", "title": "Inspect the grasp alignment", "description": "Measure the visible carton rim in wrist-camera images. Real contact uses a fresh entry photo."},
+    {"id": "wrist", "title": "Inspect the grasp alignment", "description": "Measure the visible carton rim in archived wrist-camera images. Real contact uses a fresh OAK4 entry photo."},
     {"id": "contact_review", "title": "Close and hold", "description": "Review the actual entry before closing both grippers on the supported carton."},
 ]
 
@@ -80,7 +80,8 @@ class Runs:
                        description="Both right arms grasp the known Avocado carton at its measured pose and hold it on the table.",
                        object="Avocado carton", arms=["Right front", "Right rear"], stages=STAGES,
                        demo_available=True, live_available=blocker is None, live_blocker=blocker)
-        latest = max(self.directory.glob("*/run.json"), key=lambda path: path.stat().st_mtime, default=None)
+        latest = max((path for path in self.directory.glob("*/run.json") if RUN_ID.fullmatch(path.parent.name)),
+                     key=lambda path: path.stat().st_mtime, default=None)
         return dict(programs=[program], active_run=self.get(latest.parent.name) if latest else None)
 
     def get(self, identifier):
@@ -112,6 +113,18 @@ class Runs:
         if result is not None:
             record["result"] = result
         return record
+
+    def preview(self, identifier, key):
+        run = self.get(identifier)
+        if not run or key not in PREVIEWS:
+            return None
+        artifact = run.get("result", {}).get("artifacts", {}).get(key)
+        if artifact:
+            directory = (self.directory / identifier).resolve()
+            path = (directory / artifact).resolve()
+            if path.is_relative_to(directory) and path.suffix == ".jpg" and path.is_file():
+                return path.read_bytes()
+        return None
 
     @staticmethod
     def record_exit(process, directory):
@@ -174,8 +187,19 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/api/catalog":
             self.json(200, self.server.runs.catalog())
         elif self.path.startswith("/api/runs/"):
-            run = self.server.runs.get(self.path.removeprefix("/api/runs/"))
-            self.json(200, run) if run else self.json(404, {"error": "Run not found."})
+            identifier, separator, key = self.path.removeprefix("/api/runs/").partition("/artifacts/")
+            if separator:
+                body = self.server.runs.preview(identifier, key)
+                if body is None:
+                    self.json(404, {"error": "Preview not found."})
+                else:
+                    self.response(200, body, "image/jpeg")
+            else:
+                run = self.server.runs.get(identifier)
+                if run:
+                    self.json(200, run)
+                else:
+                    self.json(404, {"error": "Run not found."})
         elif self.path in STATIC and STATIC[self.path][0].is_file():
             path, media = STATIC[self.path]
             self.response(200, path.read_bytes(), media)

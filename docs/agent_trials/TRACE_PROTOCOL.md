@@ -93,6 +93,24 @@ Keine Zugangsdaten oder komplette Umgebungsvariablen in Protokolle ausgeben.
 
 ## Abschluss und Rückgabe
 
+Der Gemini-Starter verwendet standardmäßig Hydrogen High und gibt für
+die Offline-Fälle `circles`, `nikolaus` und `house-drill` den
+gebündelten Aufruf `tools/finish_gemini_trial.py SITZUNG RUN` aus.
+Nach Beenden der Planungsstufe übernimmt er Aufgabenaudit, Prüfung von
+Gelenkbahn und Viewer sowie Patch und Bericht. Bei Python-Änderungen führt
+er die vorhandenen gezielten Tests aus. Gemini schreibt und ändert keine
+Tests oder Audits. Die Artefakte liegen unter `trial/verification/`.
+Bei `PASS` schließt der Aufruf den Trial ab. Bei `FAIL` bleibt er für
+eine Korrektur offen.
+
+Für neue Aufgaben im Box-Offlinemodell den Fall und Kontext im Starter
+`CASES` hinterlegen und den zugehörigen Aufgabenaudit in `TASK_AUDITS`
+der Abschlussroutine anbinden. Kriterien aus der jeweiligen Spezifikation
+prüfen. Für andere Ergebnisformate braucht es deren eigenen Prüfeinstieg.
+
+Für manuell protokollierte Läufe ohne gebündelten Abschluss kann man
+das Protokoll direkt abschließen:
+
 ```bash
 python3 "$TRACE" --trial "$TRIAL" finish --status complete \
   --summary 'Dritte Fläche implementiert; Prüfungen/Viewer siehe report.md'

@@ -42,7 +42,7 @@ bash src/multi_arm_manipulation_UWA/scripts/cell.sh assets
 ```
 
 RViz öffnen: `bash src/multi_arm_manipulation_UWA/scripts/cell.sh rviz`.
-Die Anzeige heißt **Reconstructed objects - photo textures (approximate)** und
+Die Anzeige heißt **Tabletop props and reconstructions** und
 verwendet `/uwa_cell/scene_assets/markers`, eingebettete Materialien eingeschaltet.
 Der zusätzliche TF-Frame heißt `asset/avocado_carton`.
 

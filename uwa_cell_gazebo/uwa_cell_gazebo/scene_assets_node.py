@@ -28,12 +28,19 @@ class SceneAssets(Node):
     def __init__(self):
         super().__init__('scene_assets',namespace='uwa_cell')
         self.declare_parameter('layout',str(default_layout_path()))
+        self.declare_parameter('world','uwa_lab')
+        self.declare_parameter('marker_only',False)
+        self.world = self.get_parameter('world').value
+        if self.world not in ('uwa_lab','uwa_grasp_lab'):
+            raise ValueError('Scene assets require a UWA simulation world')
         self.transport=TransportNode();self.owned=set();self.current=[]
-        self.markers=self.create_publisher(MarkerArray,'/uwa_cell/scene_assets/markers',
+        self.markers=self.create_publisher(MarkerArray,'scene_assets/markers',
             QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL))
         self.tf=StaticTransformBroadcaster(self)
         self.create_service(Trigger,'~/reload',self.reload)
         self.create_timer(2.,self.publish)
+
+    def load_initial_assets(self):
         deadline=time.monotonic()+60
         while rclpy.ok():
             try:self.apply();break
@@ -42,17 +49,25 @@ class SceneAssets(Node):
                 time.sleep(1)
 
     def request(self,suffix,message,kind):
-        ok,response=self.transport.request('/world/uwa_lab/'+suffix,message,kind,Boolean,3000)
+        ok,response=self.transport.request(f'/world/{self.world}/{suffix}',message,kind,Boolean,3000)
         return ok and response.data
 
     def remove(self,name):
         return self.request('remove',Entity(name=name,type=Entity.MODEL),Entity)
 
     def apply(self):
-        current=instances(load_layout(self.get_parameter('layout').value))
+        layout=load_layout(self.get_parameter('layout').value)
+        if self.get_parameter('marker_only').value:
+            # Older grasp snapshots predate these props. Retain their table pose
+            # and take marker defaults from the current shipped layout.
+            ids=('marker_station','cos_marker_docked')
+            defaults={x['id']:x for x in load_layout(default_layout_path())['scene_objects']}
+            entries={x['id']:x for x in layout.get('scene_objects',[])}
+            layout['scene_objects']=[entries.get(name,defaults[name]) for name in ids]
+        current=instances(layout)
         # Resolve/validate every asset before modifying any displayed entity.
         descriptions=[(item,model_sdf(item)) for item in current]
-        ok,scene=self.transport.request('/world/uwa_lab/scene/info',Empty(),Empty,Scene,3000)
+        ok,scene=self.transport.request(f'/world/{self.world}/scene/info',Empty(),Empty,Scene,3000)
         if not ok:raise RuntimeError('Gazebo scene unavailable')
         existing={model.name for model in scene.model}
         for item,sdf in descriptions:
@@ -108,21 +123,30 @@ class SceneAssets(Node):
 def main():
     if os.environ.get('ROS_DOMAIN_ID')!='64' or os.environ.get('GZ_PARTITION')!='uwa_cell_sim':
         raise RuntimeError('Use the cell env: domain64 / uwa_cell_sim')
-    lock=Path(f'/tmp/uwa-scene-assets-{os.getuid()}-uwa_cell_sim.lock').open('w')
-    try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
-    except BlockingIOError:
-        print('Scene assets are already managed in this cell.',flush=True);return
-    rclpy.init();node=None
-    try:node=SceneAssets();rclpy.spin(node)
+    rclpy.init()
+    node=None
+    owns_world=False
+    lock=None
+    try:
+        node=SceneAssets()
+        world_suffix='' if node.world=='uwa_lab' else '-'+node.world
+        lock=Path(f'/tmp/uwa-scene-assets-{os.getuid()}-uwa_cell_sim{world_suffix}.lock').open('a')
+        try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except BlockingIOError:
+            print('Scene assets are already managed in this world.',flush=True);return
+        owns_world=True
+        node.load_initial_assets()
+        rclpy.spin(node)
     except (KeyboardInterrupt,ExternalShutdownException):pass
     finally:
         if node:
-            if rclpy.ok():node.close()
-            else:
-                for name in list(node.owned):node.remove(name)
+            if owns_world:
+                if rclpy.ok():node.close()
+                else:
+                    for name in list(node.owned):node.remove(name)
             node.destroy_node()
         if rclpy.ok():rclpy.shutdown()
-        lock.close()
+        if lock:lock.close()
 
 
 if __name__=='__main__':main()

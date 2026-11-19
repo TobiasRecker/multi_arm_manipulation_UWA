@@ -5,10 +5,12 @@ import xml.etree.ElementTree as ET
 import yaml
 import numpy as np
 from scipy.spatial.transform import Rotation
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument,OpaqueFunction,ExecuteProcess,RegisterEventHandler,EmitEvent
+from launch.actions import DeclareLaunchArgument,OpaqueFunction,ExecuteProcess,RegisterEventHandler,EmitEvent,IncludeLaunchDescription
 from launch.event_handlers import OnProcessExit
 from launch.events import Shutdown
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from uwa_cell_description.configuration import default_layout_path,load_layout,controller_names
@@ -62,6 +64,11 @@ def setup(context):
         Node(package='uwa_cell_tasks',executable='cell_task',namespace=ns,
             arguments=['camera','--namespace',ns,'--scene',str(directory)],output='screen')]
     sequence=[spawn,carton]
+    visuals=Path(get_package_share_directory('uwa_cell_gazebo'))/'launch/grasp_visuals.launch.py'
+    actions.append(RegisterEventHandler(OnProcessExit(target_action=carton,on_exit=lambda event,ctx:
+        [IncludeLaunchDescription(PythonLaunchDescriptionSource(str(visuals)),
+            launch_arguments={'namespace':ns,'layout':layout_file,
+                'rviz':LaunchConfiguration('rviz')}.items())] if event.returncode==0 else [])))
     for name in controller_names(layout)+['rigid_object_controller']:
         inactive=name=='rigid_object_controller'
         sequence.append(Node(package='controller_manager',executable='spawner',namespace=ns,
@@ -78,4 +85,5 @@ def setup(context):
 def generate_launch_description():
     return LaunchDescription([DeclareLaunchArgument('scene'),
         DeclareLaunchArgument('namespace',default_value='/uwa_grasp_validation'),
+        DeclareLaunchArgument('rviz',default_value='false',choices=['true','false']),
         DeclareLaunchArgument('layout',default_value=str(default_layout_path())),OpaqueFunction(function=setup)])

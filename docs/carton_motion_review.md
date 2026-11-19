@@ -31,6 +31,76 @@ bekannte Bereichsfreigabe.
    Änderungen am Tempo verwerfen offene Freigaben und entziehen einer aktiven
    Ausführung die bisherige Freigabe.
 
+## Programmbibliothek im Browser
+
+**UWA Robot Power → Program library** öffnet die englische Übersicht im
+Browser auf ROSmini. Die App startet den Server lokal beim Öffnen. In
+**Supported carton grasp → Open program** stehen die Phasen und Startoptionen.
+**Run offline demo** führt die vorhandene analytische OAK4-Registrierung am
+archivierten Standardbild aus, plant Anfahrt und Einfahrt aus gespeicherten
+Gelenkdaten und prüft den sichtbaren Kartonrand in zwei separaten
+Wrist-Aufnahmen. Fortschritt, Ergebnisse und die drei Bildvorschauen erscheinen
+im Laufstatus. Die Wrist-Aufnahmen gehören zu einem früheren Vorgriff.
+
+Die Bibliothek lässt sich auch ohne Power-Fenster vom Workspace starten.
+`http://127.0.0.1:8780` ist dann die Adresse auf ROSmini.
+
+```bash
+python3 src/multi_arm_manipulation_UWA/scripts/skill_library_server.py
+```
+
+Im Offline-Webtest vom 19.11.2026 wurde die verschobene Kartonlage aus einem
+echten OAK-Bild neu registriert. Die 16 sichtbaren Board-Ecken bestätigten die
+Kamerareferenz. Der Planer fand für beide Phasen eine gemeinsame Bahn,
+44,0 s nominelle Armfahrt. Registrierung, Planung und Wrist-Auswertung
+zusammen liefen in diesem Test in 38,4 s. Der vordere Wrist-Prüfpunkt lag
+außerhalb des Bilds, hinten war die gelbe Kante messbar. Die Wrist-Auswertung
+fordert deshalb eine Sichtprüfung an. [Webtest und Ergebnis](../../../setup/tasks/uwa_program_library_check_20261119/verified.json)
+
+### Ablauf an der realen Zelle
+
+**Start program** verwendet den vorhandenen N100-Runner, sobald der passende
+Quellstand am N100 übernommen und die lokale Optikkonfiguration aktiviert ist.
+Der Start erfasst ein aktuelles OAK4-Standardfoto, schickt Bild und Metadaten
+an den Runner und wartet auf **Motion review**. Nach bestätigter offener
+Einfahrt erfasst er ein zweites aktuelles Foto und reicht es zur
+Kontaktfreigabe ein. Der Bediener bewertet beide Anfragen in UWA Robot Power.
+Ein abgelehnter oder abgebrochener Lauf endet am betreffenden Schritt.
+
+Der erwartete lokale Konfigurationspfad ist `setup/skill_library/live-carton.json`.
+Dieses Beispiel zeigt die Felder für die dokumentierte rechte Kartonlage.
+`enabled` bei der Betriebsübernahme auf `true` setzen. Bildausschnitte beziehen
+sich auf das native 8000×6000-Standardbild. Der Fokus kommt aus der verknüpften
+Intrinsics-Datei. Die Kamerareferenz ist optional und braucht ihren
+zugehörigen `registration.json`-Nachweis im selben Verzeichnis.
+
+```json
+{
+  "enabled": false,
+  "intrinsics": "../calibration/oak_capture_proposal_20261118/calibration_candidate_v1/oak_pose_candidate.json",
+  "roi": [2400, 2850, 5000, 5050],
+  "face_roi": [2450, 3980, 5000, 5000],
+  "camera_reference_pose": "../tasks/carton_grasp_20261119/registration/object-pose.json",
+  "planar_texture": true
+}
+```
+
+Der Runner prüft die Versionen von Rezept, Registrierung, Programm und
+Fahrprofil auf dem N100 sowie das Texturmodell `setup/tracking/models/carton_avocado_v1/reference.npz`.
+Der laufende Pilot verlangt eine aktuelle Arbeitsbereichsfreigabe und
+betriebsbereite Arme. Die Diagnose des Live-Pfads wurde mit simulierten
+Start- und Abbruchsabläufen geprüft. Die echte Übernahme steht aus.
+
+FoundationPose ist ein separater RGB-D-Archivpfad mit Startmaske. Der
+Weblauf verwendet die vorhandene analytische Registrierung. Das
+Wrist-Skript `tools/check_carton_wrist.py` passt per Farbmaske eine Linie an
+den gelben Rand an und vergleicht sie mit einem projizierten Zielpunkt. Für
+eine automatische Kontaktentscheidung fehlen unter anderem sichtbare
+Griffmitten und Backen. Die modellierte Sicht an der bereits gemessenen
+offenen Einfahrt spricht dafür, die Kameraposition oder die Prüfpose zuerst
+an der Zelle zu prüfen. Der reale Aufruf verwendet zur Kontaktentscheidung
+das frische OAK-Einfahrbild. [Wrist-Sichtnachweis](../../../setup/tasks/uwa_program_library_check_20261119/wrist-entry-fov.json) · [FoundationPose-Datenpfad](foundationpose_titanpc.md)
+
 ## Gespeichertes Kartonprogramm
 
 `carton-supported-v1` speichert das Griffdesign für denselben Avocado-Karton

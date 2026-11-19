@@ -5,6 +5,15 @@ const timestamp = new Intl.DateTimeFormat("en-AU", {
   hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
   timeZone: "Australia/Perth",
 });
+const workflowPhase = {
+  oak_capture: "capture",
+  oak_registration: "registration",
+  offline_plan: "planning",
+  n100_approach: "planning",
+  wrist_diagnostic: "wrist",
+  oak_entry_capture: "wrist",
+  n100_contact: "contact_review",
+};
 const state = {
   programs: [], catalogError: "", loading: true, run: null, pending: "", actionError: "",
   connectionError: "", timer: null,
@@ -91,7 +100,7 @@ function workflow(program) {
     const body = element("div", "step-body");
     body.append(element("h3", "", stage.title), element("p", "", stage.description));
     item.dataset.phase = stage.id;
-    if (activeRun?.phase === stage.id && activeRun.state === "running") {
+    if (activeRun?.state === "running" && stage.id === (workflowPhase[activeRun.phase] || activeRun.phase)) {
       item.setAttribute("aria-current", "step");
     }
     item.append(body);
@@ -126,7 +135,7 @@ function actions(program) {
   section.append(buttons);
   const message = element("p", "feedback");
   message.id = "action-feedback";
-  message.setAttribute("role", "alert");
+  message.setAttribute("role", "status");
   section.append(message);
   return section;
 }
@@ -146,14 +155,78 @@ function localTime(value) {
 
 function phaseTitle(run, phase) {
   const program = state.programs.find(candidate => candidate.id === run.program);
-  const title = program?.stages.find(stage => stage.id === phase)?.title;
+  if (phase === "oak_entry_capture") return "Capture the open entry";
+  const title = program?.stages.find(stage => stage.id === (workflowPhase[phase] || phase))?.title;
   if (title) return title;
   return (phase || "").replaceAll("_", " ").replaceAll("-", " ");
 }
 
 function runState(run) {
-  const label = { running: "RUNNING", succeeded: "COMPLETE", failed: "FAILED" }[run.state] || "UNKNOWN";
+  const waiting = run.mode === "live" && run.state === "running" &&
+    ["motion_review", "contact_review"].includes(run.phase);
+  const label = waiting ? "REVIEW REQUIRED" :
+    ({ running: "RUNNING", succeeded: "COMPLETE", failed: "FAILED" }[run.state] || "UNKNOWN");
   return `${run.mode === "live" ? "CELL" : "OFFLINE DEMO"} · ${label}`;
+}
+
+function verdict(code) {
+  return {
+    REVIEW_REQUIRED: "Review required",
+    INVALID_INPUT: "Input unavailable",
+    EXPECTED_RIM_OUT_OF_FRAME: "Projected rim out of frame",
+    RIM_NOT_FOUND: "Rim not found",
+    RIM_NOT_VISIBLE_AT_TARGET: "Rim not visible at the target",
+    RIM_UNCERTAIN: "Rim detection uncertain",
+    RIM_MEASURED: "Rim measured",
+  }[code] || code;
+}
+
+function summarizeResult(result) {
+  const evidence = element("dl", "evidence");
+  const rows = [
+    ["Carton pose", result.pose],
+    ["Motion plan", result.plan],
+    ["Contact", result.contact],
+    ["Wrist check", result.wrist],
+  ];
+  for (const [label, value] of rows) {
+    if (typeof value === "string" && value) {
+      evidence.append(element("dt", "", label), element("dd", "", value));
+    } else if (label === "Wrist check" && value?.status) {
+      const text = [verdict(value.status), value.reason].filter(Boolean).join(". ");
+      const description = element("dd", "", text);
+      const arms = element("ul", "arm-evidence");
+      for (const [arm, record] of Object.entries(value.arms || {})) {
+        const name = { right_front: "Right front", right_rear: "Right rear" }[arm] || arm;
+        const offset = Number.isFinite(record.signed_image_offset_px)
+          ? ` · ${record.signed_image_offset_px.toFixed(1)} px rim offset` : "";
+        arms.append(element("li", "", `${name} · ${verdict(record.status)}${offset}`));
+      }
+      if (arms.childElementCount) description.append(arms);
+      evidence.append(element("dt", "", label), description);
+    }
+  }
+  return evidence.childElementCount ? evidence : null;
+}
+
+function artifactLinks(run) {
+  if (run.mode !== "demo" || run.state === "running" || !run.result?.artifacts) return null;
+  const list = element("ul", "artifact-links");
+  list.setAttribute("aria-label", "Saved camera previews");
+  for (const [key, label] of [
+    ["oak_preview", "OAK4 pose preview"],
+    ["right_front_preview", "Right front wrist"],
+    ["right_rear_preview", "Right rear wrist"],
+  ]) {
+    if (!run.result.artifacts[key]) continue;
+    const item = element("li");
+    const image = link(`/api/runs/${encodeURIComponent(run.id)}/artifacts/${key}`, "text-link", label);
+    image.target = "_blank";
+    image.rel = "noopener";
+    item.append(image);
+    list.append(item);
+  }
+  return list.childElementCount ? list : null;
 }
 
 function eventList(run) {
@@ -189,6 +262,10 @@ function updateStatus() {
   if (state.connectionError) summary.append(element("p", "feedback", state.connectionError));
 
   const next = [title, summary];
+  const evidence = run.result && summarizeResult(run.result);
+  if (evidence) next.push(evidence);
+  const artifacts = artifactLinks(run);
+  if (artifacts) next.push(artifacts);
   if (run.events?.length) next.push(eventList(run));
   if (program && selectedProgram()?.id !== program.id) {
     next.push(link(programRoute(program.id), "text-link", "Open this program"));
@@ -196,7 +273,8 @@ function updateStatus() {
   if (panel.textContent !== next.map(node => node.textContent).join("")) panel.replaceChildren(...next);
 
   for (const step of document.querySelectorAll(".steps li")) {
-    if (selectedProgram()?.id === run.program && run.state === "running" && step.dataset.phase === run.phase) {
+    if (selectedProgram()?.id === run.program && run.state === "running" &&
+        step.dataset.phase === (workflowPhase[run.phase] || run.phase)) {
       step.setAttribute("aria-current", "step");
     } else {
       step.removeAttribute("aria-current");
@@ -211,13 +289,15 @@ function updateActions() {
     button.disabled = blocked || !program[`${button.dataset.mode}_available`];
   }
   const feedback = document.querySelector("#action-feedback");
-  if (feedback) feedback.textContent = state.actionError || (state.pending ? "Sending start request…" : "");
+  if (feedback) {
+    feedback.classList.toggle("pending", Boolean(state.pending) && !state.actionError);
+    feedback.textContent = state.actionError || (state.pending ? "Sending start request…" : "");
+  }
 }
 
 function render() {
   const program = selectedProgram();
-  navigation.toggleAttribute("aria-current", !program);
-  if (!program) navigation.setAttribute("aria-current", "page");
+  navigation.setAttribute("aria-current", program ? "location" : "page");
   document.title = `${program?.title || "Program library"} · UWA Robot Power`;
   if (program) {
     const intro = heading(program.title, program.description);
@@ -259,17 +339,12 @@ function render() {
   updateStatus();
 }
 
-function saveRun(run) {
-  state.run = run;
-  if (run) sessionStorage.setItem("uwa-program-run", run.id);
-}
-
 async function poll() {
   clearTimeout(state.timer);
   const run = state.run;
   if (!run || run.state !== "running") return;
   try {
-    saveRun(await request(`/api/runs/${encodeURIComponent(run.id)}`));
+    state.run = await request(`/api/runs/${encodeURIComponent(run.id)}`);
     state.connectionError = "";
   } catch (error) {
     state.connectionError = `Run status unavailable. Retrying. ${error.message}`;
@@ -285,12 +360,12 @@ async function start(program, mode) {
   state.pending = mode;
   updateActions();
   try {
-    const run = await request("/api/runs", {
+    state.run = await request("/api/runs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ program: program.id, mode }),
     });
-    saveRun(run);
+    state.connectionError = "";
     updateStatus();
     poll();
   } catch (error) {
@@ -308,18 +383,7 @@ async function loadCatalog() {
   try {
     const catalog = await request("/api/catalog");
     state.programs = catalog.programs;
-    if (catalog.active_run) {
-      saveRun(catalog.active_run);
-    } else {
-      const lastId = sessionStorage.getItem("uwa-program-run");
-      if (lastId) {
-        try {
-          saveRun(await request(`/api/runs/${encodeURIComponent(lastId)}`));
-        } catch {
-          sessionStorage.removeItem("uwa-program-run");
-        }
-      }
-    }
+    state.run = catalog.active_run;
   } catch (error) {
     state.catalogError = `Could not load the library. ${error.message}`;
   } finally {

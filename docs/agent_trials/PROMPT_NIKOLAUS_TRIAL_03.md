@@ -14,15 +14,15 @@ Koordinaten in mm im zentrierten Kartonframe, in der Unterseitenebene
 E=(0,40). Zeichne A→B→C→E→D→C→A→D→B. Eine Pause an einer Ecke ist
 zulässig, ein Abheben oder weiterer Strich innerhalb des Hauses nicht.
 
-Erweitere den Offline-Piloten in der separaten Quellkopie. Verwende die
-vorhandene Flächenpräsentation, Grifftransformationen und Kollisionsprüfungen.
+Verwende den vorhandenen Oberflächenpfad in der separaten Quellkopie.
+Verwende die vorhandene Flächenpräsentation, Grifftransformationen und Kollisionsprüfungen.
 Behalte die Grenze 0,1 rad/s bei. Die virtuelle Stiftspitze muss die
 Hauskanten in der wirklichen Modellbahn abfahren. Eine Zeichnung als
 zusätzliche Grafik im Viewer erfüllt den Auftrag nicht. Übernimm keine
 alten Ergebnisdateien. Erzeuge den Lauf aus der angegebenen Modellquelle
 und deinem neuen Aufgabenprogramm. Der Versuch bleibt im Dateimodell.
 
-Liefere neuen Viewer, gespeicherte Gelenkinterpolanten, einen separaten
-FK-/Zeitaudit mit Prüfung aller acht Kanten und `report.md`. Alte
-Kreisläufe müssen weiterhin prüfbar sein. Lege deinen Quelldiff,
-Entwicklungszeiten, Befehlsausgaben und Fehlversuche im Trialordner ab.
+Liefere neuen Viewer und gespeicherte Gelenkinterpolanten. Verwende für
+Audit, Quelldiff und Bericht den Prüf- und Abgabeaufruf aus dem
+Startprompt. Alte Kreisläufe müssen weiterhin prüfbar sein. Erfasse
+Entwicklungszeiten, Befehlsausgaben und Fehlversuche im Trialordner.

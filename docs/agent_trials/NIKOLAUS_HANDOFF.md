@@ -19,6 +19,7 @@ benötigen weder einen ROS-Knoten noch Gazebo oder echte Geräte.
 |---|---|
 | `docs/box_drawing_pilot.md` | CLI, `present_surface`, Zwischenvorschau, Ergebnisformat und Greifbezug |
 | `tools/box_drawing_pilot.py` | Einstiegs-CLI |
+| `docs/examples/nikolaus_surface_path.json` | Geprüfte Punktfolge für `--tool-paths` auf `z_min` |
 | `uwa_cell_tasks/uwa_cell_tasks/box_drawing.py` | Zeichenbahn, Anfahrt, Prüfung und gemeinsamer Rückweg |
 | `tools/check_nikolaus_trial.py RUN` | Vorhandener FK-/Zeitaudit für die Hausaufgabe |
 | `tools/agent_trial.py`, `docs/agent_trials/TRACE_PROTOCOL.md` | Stufenprotokoll und Rohdaten |
@@ -38,12 +39,12 @@ und einen `segment` wie im Original. Markiere nur Striche als
 Kanten sind zulässig. Der Viewer soll die Form aus den Modellpunkten
 auf dem Karton anzeigen. Alte Kreisprogramme bleiben lauffähig.
 
-1. `agent_trial.py init --repo REPO --task box-nikolaus-03` mit dem
-   absoluten Trialpfad starten. Die vorhandenen Logger-Stufen
-   `orient`, `adapt`, `plan`, `verify`, `deliver` nutzen.
+1. Verwende den vorbereiteten Logger. Falls die IDE-Variante ihn noch
+   braucht, initialisiere ihn mit `--task box-nikolaus-03`. Die Stufen
+   `orient`, `adapt` und `plan` nutzen.
 2. Lauf und Viewer in einen neuen Ordner unter `TRIAL/artifacts/`
-   schreiben. Den vorhandenen Audit ausführen. Fehlversuche und sichtbare
+   schreiben. Fehlversuche und sichtbare
    Berechtigungsabfragen mit Auswirkungen auf den Ablauf dokumentieren.
-3. Quelldiff als `TRIAL/changes.patch` und Ergebnis als `TRIAL/report.md`
-   ablegen. Liste geänderte Stellen, Prüfungen, ungelöste Fehler,
-   Modellenlaufzeit und Hilfe von außen. Danach Protokoll abschließen.
+3. Schließe die Planungsstufe und führe den Prüf- und Abgabeaufruf aus
+   dem Startprompt aus. Er führt die vorhandenen Audits und bei
+   Codeänderungen die betroffenen Tests aus und schreibt Patch und Bericht.

@@ -30,13 +30,13 @@ AI-Studio-API-Projekts gehören stattdessen zum API-Zugang.
    ./agy
    ```
 
-2. Mit `./agy models` den Namen eines verfügbaren Gemini-Flash-Modells
-   prüfen. Beim Starter nach Wunsch `--model MODELLSLUG` anhängen.
-   Ohne Vorgabe nutzt der Client sein aktuell gewähltes Modell.
+2. Der Starter verwendet Gemini 4 Hydrogen (High). Für einen anderen
+   Modellvergleich `--model MODELLSLUG` anhängen. `./agy models` listet
+   die für das Konto verfügbaren Modelle.
    [CLI-Referenz](https://antigravity.google/docs/cli/reference/)
 
-3. Den vorbereiteten Test starten. Der Starter öffnet im Zell-Repo eine
-   neue CLI-Unterhaltung mit dem Prompt und einem eindeutigen Trialpfad.
+3. Den vorbereiteten Test starten. Der Starter öffnet in einer separaten
+   Quellkopie eine neue CLI-Unterhaltung mit eindeutigem Trialpfad.
    Toolabfragen im normalen Berechtigungsmodus einzeln prüfen und im
    Aufgabenumfang freigeben. Wenn ein Tool blockiert, die Meldung als
    Testbefund festhalten. Nach der Abschlussmeldung die CLI verlassen,
@@ -56,10 +56,9 @@ in die aufgezeichnete Sitzung.
 ## Alternative mit VS-Code-Erweiterung
 
 Die offizielle Erweiterung **Google Antigravity** von Google ist im
-Marketplace verfügbar. Installieren, anmelden, das Zell-Repo öffnen und
-eine neue Unterhaltung mit Gemini Flash wählen. Den Starter mit
-`--prepare-only` ausführen und den vollständigen Inhalt des ausgegebenen
-`prompt.md` einfügen. Der Pfad im Prompt ist für diesen Lauf eindeutig.
+Marketplace verfügbar. Den Starter mit `--prepare-only` ausführen,
+das ausgegebene Repo öffnen und in einer neuen Unterhaltung das Modell
+aus dem Prompt wählen. Den vollständigen Inhalt von `prompt.md` einfügen.
 Beim Test in der Erweiterung steht der Terminalmitschnitt des Starters
 nicht zur Verfügung. Den sichtbaren Chat bei Bedarf separat exportieren.
 [Offizielle VS-Code-Anleitung](https://antigravity.google/docs/ide/extensions/vscode/)
@@ -77,8 +76,8 @@ nicht zur Verfügung. Den sichtbaren Chat bei Bedarf separat exportieren.
   Schließen der CLI. Sichtbare Ausgabe kann Kontoangaben enthalten. Beim
   Weitergeben nur die dafür geeigneten Dateien oder eine bereinigte Kopie
   verwenden.
-- Unter `trial/` entstehen Bericht, Stufenzeiten, Befehlsausgaben und
-  Modellartefakte. Die Sitzung ab CLI-Start und die gemessenen Agentenstufen
+- Die gebündelte Abgabe liegt unter `trial/verification/`. Stufenzeiten,
+  Befehlsausgaben und Modellartefakte liegen im Trial. CLI-Sitzung und Agentenstufen
   überlappen. Falls Gemini keine Stufen erfasst, bleibt die Sitzungszeit
   belegt und der fehlende Teil ein Testbefund. Modelllaufzeit separat lesen.
 - Für die Auswertung den ausgegebenen Ordner verwenden. Relevant sind

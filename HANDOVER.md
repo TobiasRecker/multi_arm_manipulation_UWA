@@ -1,5 +1,72 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Aktuell: Parallelprüfer reservefrei, Programmstart getrennt,19.11.2026
+
+- Nutzerklarstellung beantwortet: Der korrigierte Motion-review-Parallelprüfer
+  ist bereits im Einsatz. In beiden attempt15-Gruppen (hoch und Einfahrt)
+  `geometric_only`, für jedes geprüfte Paar zusätzlicher Stoppaufschlag0,0m.
+ 40mm Modellabstand und bestehende Laufzeitstopps bleiben wie vereinbart.
+- Reiner Bereitschaftsschritt14 war tatsächlich PASS, danach verlor jedoch
+  RF/LR um17:31:40 die UR-Reverse-Verbindung. Driverjournal belegt zeitgleiche
+  Disconnects; keine Brems-/Latenzreserve als Ursache behaupten. attempt15
+  wurde operatorbewilligt, stoppte vor jedem Armziel an nicht laufendem
+  RF-Programm. Empfänger lebte, kein Receiverfehler. Rechte Greifer offen,
+  keine weitere Bewegung/kein Griff. Tatsächliche Parallelfahrt noch offen.
+- Fremder Diagnose-Guardwechsel laut seinem Arbeitsstand bereits17:14:28;
+  aktueller Dienst NRestarts0. Dies nicht als Neustart um17:31 oder belegte
+  Ursache der späteren Reverse-Abbrüche darstellen. Bestehenden Guard erhalten.
+- attempt16 verwendet denselben geprüften Parallelweg nach erneutem frischem
+  Startvergleich und vollständigem Sweep-/Timingcheck. Regulärer ROS-Start
+  nach komplettem Graphaufbau vor jeder unbeladenen Fahrphase explizit Teil
+  der neuen Reviewrevision. Nur falls nötig und unter frisch bestätigten
+  vier offenen/unbeladenen/stationären Holds; keine Power-/Brake-/native
+  Sicherheitsquittierung und keine Wiederholung nach Kontakt/Fehler.
+- Das ist eine getrennte Betriebsanbindung, keine Rückkehr dynamischer
+  räumlicher Reserven. Neue GUI-Revision erforderlich, keine alte Freigabe
+  verwenden. Nachweise und Arbeitsstand weiterhin im Karton-Taskordner.
+
+## Klarstellung zur Parallelprüfung,19.11.2026
+
+- Nutzer fragt nach, ob mit „neuem Prüfer“ ein weiterer noch nicht verwendeter
+  Baustein gemeint war und ob entfernte Brems-/Latenzreserven wieder greifen.
+  Gemeint ist der inzwischen korrigierte Motion-review-Prüfer, bereits auf
+  N100 eingesetzt. Keine erneute Einführung dieser Zusatzreserven beauftragt.
+- Aktuell `geometric_only`: zusätzliche Brems-, Datenalter-/Abtast-, Reaktions-
+  und Latenzaufschläge wirksam null, auch für gleichzeitig bewegte Paare.
+  attempt15/high zeigt für alle fünf geprüften Paare ausdrücklich
+  `stop_allowance_in_clearance_bound_m: 0.0`.40mm Modellpuffer, vollständige
+  Geometrie-/Fortschrittsprüfung und bestehende Laufzeitstopps bleiben.
+  Die Parameter für `enforce` dürfen bestehen, greifen hier aber nicht.
+- Empfangsrückstau und Reihenfolge der Zielbestätigungen waren separate
+  Ausführungsfehler. Ein geometrischer Parallelprüfer löst sie nicht mit;
+  Korrekturen und Nachweise getrennt dokumentieren. Vollständige tatsächliche
+  Parallelfahrt nicht mit bestandenem Modellnachweis gleichsetzen.
+- Reiner Bereitschaftsschritt14 tatsächlich operatorbewilligt und PASS:
+  alle vier Programme RUNNING/Normal, Ressourcenholds/Latches bestätigt,
+  keine Arm-/Fingerziele,8s Livevergleich maximal0,001919rad konservativ.
+  Nun attempt15: vorhandene Geometrie nur nach frischem Startvergleich
+  weiterverwendet (maximale Abweichung0,000081rad bei0,0005rad Starttoleranz),
+  Quellen und vollständige zeitparametrierte Sweeps neu geprüft. Kein
+  automatisches Play in dieser Fahrrevision, Programme bereits bereit.
+
+## Gazebo-Wiedergabe und Offline-Planprüfung, 19.11.2026
+
+- Nutzerentscheidung für Gazebo. Bewegungsbahnen offline prüfen, die
+  Simulation für die Wiedergabe und physische Kontakte verwenden.
+  Laufzeitwächter für Kollision, Frische, Schlupf, Stillstand und Gelenke
+  einschließlich passiver Finger samt Gazebo-Störfalltests entfernt.
+- Der normale Zellstart, die Kontaktwelt und die Kalibrierung verwenden
+  reguläre Controlleraktionen. Die Greifpads schalten die simulierte
+  Greifvorspannung. Die Schutzkette für echte URs bleibt getrennt.
+- Haus-/Bohr-Demo mit 0,1 rad/s im Ordner `setup/tasks/house_drill_gazebo_playback_20261119_01/`.
+  Alte Versuchswelt beendet und ursprüngliche Artefakte erhalten.
+  Neue Kontaktwelt mit nativer Gazebo-Ansicht. 44 Phasen mit 19.594
+  Modellzuständen und 390,11 s geplanter Simulationszeit ab Hub offline
+  geprüft. Die Bewegungsphasen stehen in `run01/state.json`.
+- Lyrical-Build für fünf Pakete erfolgreich. 135 gezielte Offline-Tests
+  bestanden. Zwei Alt-Fixtures mit abweichendem Basisursprung bzw. Modellhash
+  zeigen denselben Fehler in der Ausgangsversion. Details im Laufordner.
+
 ## Aktuell: Empfangs-FIFO korrigiert, 19.11.2026
 
 - attempt13 wurde in der echten GUI vom Operator freigegeben, noch bevor eine
@@ -23,6 +90,35 @@
   Freigaben nicht wiederverwenden. Physischer Start zuletzt wie nachattempt11,
   vor weiterer Fahrt wieder frisch prüfen. Tasknachweise unverändert unter
   `setup/tasks/carton_motion_review_20261119/`.
+
+## UWA-Programmbibliothek und Bildauswertung, 19.11.2026
+
+- Nutzer wünscht eine lokale Webbibliothek mit Übersicht, Detailansicht und
+  Programmstart neben UWA Robot Power. Der eingerichtete Kartonlauf soll die
+  Pose- und Vorgrifferkennung selbst aufrufen können. Desktop-Fenster startet
+  den Loopback-Server auf ROSmini, **Program library** öffnet dessen Adresse.
+- HTTP-Test aus dem Qt-Mock startete den Archivlauf, prüfte Phasenstatus,
+  Laufabschluss und alle drei JPEG-Vorschauen. Der neu registrierte
+  Kartonursprung lag bei x=0,614 m, y=−0,166 m und z=0,900 m. 16 im Bild
+  sichtbare Board-Ecken bestätigten die Kamerareferenz.
+  Beide Phasen parallel, 44,0 s nominelle Armfahrt. 38,4 s Testwandzeit.
+  Ein gleichzeitiger zweiter Start und Anfragen von anderer Herkunft wurden
+  abgewiesen. 53 gezielte Tests bestanden. Der Browserzugriff für eine
+  visuelle Prüfung war nicht verfügbar.
+  Nachweis `setup/tasks/uwa_program_library_check_20261119/verified.json`.
+- In den separaten echten Vorgriffaufnahmen lag der vordere Prüfpunkt bei
+  y=2236 px und 1944 px Bildhöhe außerhalb des Bilds. RR gelbe Randlinie gemessen,
+  Line-Fit-RMS 4,84 px und 50,16 px Bildabstand zum angenommenen Prüfpunkt.
+  Beide Backen und Griffmitte waren damit nicht belegt. Aggregatstatus
+  `REVIEW_REQUIRED`. Die im Modell aus der real gemessenen offenen Einfahrt
+  projizierten Prüfstellen liegen an beiden Wrists außerhalb der Bildfelder.
+  Nachweis `setup/tasks/uwa_program_library_check_20261119/wrist-entry-fov.json`.
+- Live-Brücke lokal vorbereitet und mit simulierten Erfolgs- und Abbruchfällen
+  geprüft. Sie verwendet die vorhandene OAK-Registrierung auf N100, fordert
+  Motion review an und reicht nach offener Einfahrt ein aktuelles OAK-Foto
+  zur Kontaktfreigabe ein. Keine reale Übernahme, Aufnahme oder Fahrt in
+  dieser Arbeit. FoundationPose bleibt der dokumentierte RGB-D-Archivpfad.
+  [Bedienung und Konfiguration](docs/carton_motion_review.md#programmbibliothek-im-browser)
 
 ## Aktuell: gemeinsamer Start korrigiert, 19.11.2026
 
@@ -721,6 +817,27 @@
   danach keine erneuten Startschleifen. Frische-/Stoppgrenzen unverändert.
   `carton_grasp_20261118_recalc_plan01`, `recalc_checked01`, `recalc_real01`.
 
+## Marker und Tischaufnahme in Gazebo/RViz, 2026-11-19
+
+- Nutzer bestätigt den CAD-Entwurf und möchte Stift, Adapter und
+  Aufnahme in der aktuellen Szene. Zwei visuelle DAE-Assets aus
+  dem akzeptierten STEP plus angenähertem Markerprofil. Anker
+  `left_table_top` bei (−0,270; −0,400) m, vorläufig. TF-Ursprung
+  `asset/cos_marker_docked` an der nominellen Stiftspitze.
+- Standardzelle lädt beide Assets über `scene_objects`. Die getrennte
+  Haus-/Bohrwelt `uwa_grasp_lab` lädt nur die beiden Marker-Props
+  zusätzlich. In der bereits laufenden Welt sind sie seit 17:44 AWST
+  sichtbar. RViz für `/uwa_grasp_house` läuft als eigene View-Sitzung
+  `uwa-grasp-house-marker-view.service`; originale Gazebo-PID blieb.
+- Drei Lyrical-Pakete gebaut. Live-Szenenabfrage bestätigt beide
+  Meshes und gleiche Posen in Gazebo und RViz, einen RViz-Abonnenten
+  und vorhandenen physischen Karton. Fünf Asset-Tests bestanden.
+  Der ältere Test zur Position des Kartons scheitert auch mit dem
+  Ausgangslayout (32,55 statt maximal 30 mm X-Abweichung).
+- Visual-only. Stiftaufnahme und Rückgabe als Kontakte, physische
+  Kollisionsmodelle und Marker-TCP bleiben spätere Arbeit. Details und
+  Startbefehl in [der Marker-Anleitung](hardware/marker_tool/README.md).
+
 ## COS-Marker und Robotiq-Tischaufnahme, 2026-11-19
 
 - Nutzermaße näherungsweise Ø20 mm bei 10 mm und Ø19 mm bei 35 mm
@@ -1364,8 +1481,27 @@
   abgelehnt. Vollständiger Offline-Probelauf in separater Kopie: 13,70 s für
   Prüfung und Abgabe, 15 vorhandene Tests bestanden, `trial_end=complete`.
   Export in frischer Kopie angewandt und fünf Dateien einschließlich
-  gestagter, ungestagter und neuer Datei bytegleich geprüft. Laufzeit der
-  nächsten vollständigen Gemini-Sitzung steht aus.
+  gestagter, ungestagter und neuer Datei bytegleich geprüft.
+- Nutzer-Folgetest mit gebündelter Prüfung und Abgabe: Antigravity CLI
+  1.5.12, Hydrogen High, Modus `auto`, Sitzung `session-04xvx0m0` unter
+  `setup/agent_trials/house_drill_gemini_20261119/`. Separater Checkout auf
+  `0d45594` wie bei `session-4eu3n4pm`, gleicher Hash der Aufgaben-JSON,
+  Modellquelle und Modell-Signatur. Die gemeinsam genutzte Datei
+  `configuration.py` hatte einen neueren Quellhash.
+- Terminalstart bis erste Modellbahn 799,37 s (alt 792,39 s), bis Abgabe
+  899,95 s (alt 1333,54 s). Erste Bahn bis dokumentierter Abschluss
+  100,58 s (alt 541,15 s). Beide Läufe enthalten je eine vollständige
+  Modellplanung. Neuer Einzelaufruf für Prüfung und Abgabe 14,97 s,
+  vollständiger alter `verify`- und `deliver`-Stufenaufwand 450,26 s.
+  Einmalige manuelle Bestätigung für Logger-Stufenende in `orient`,
+  50,00 s Freigabewartezeit im neuen Lauf, 0 s im alten. Die Gesamtzeit
+  enthält diese Wartezeit. Unterschiedliche Agentenaktionen bleiben
+  Teil des Einzelvergleichs.
+- Zwei Audits, Viewer-Abgleich und 15 vorhandene Regressionstests PASS.
+  Beide Bahnen haben 46 Phasen und rund 503,81 s Modellzeit. Keine
+  Test-/Audit-Änderungen in der neuen Agentenabgabe. Patch umfasst exakt
+  die vier geänderten Dateien gegen den Startcommit. Report unter
+  `trial/verification/run01-0b91c207/report.md` der neuen Sitzung.
 
 ## Haus- und Lochkreis in Gazebo, 2026-11-19
 

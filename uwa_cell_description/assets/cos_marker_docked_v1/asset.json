@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "asset_id": "cos_marker_docked_v1",
+  "units": "m",
+  "up_axis": "Z",
+  "visual_mesh": "model.dae",
+  "dimensions_m": [
+    0.037200000000000004,
+    0.031,
+    0.128
+  ],
+  "triangle_count": 5150,
+  "reference_pose": {
+    "frame": "left_table_top",
+    "T_frame_object": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        -0.27
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        -0.4
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        0.0105
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ]
+  },
+  "quality": {
+    "status": "cad_with_provisional_tabletop_placement",
+    "measured_accuracy_validated": false
+  },
+  "use": "visual_only",
+  "provenance": {
+    "source": "hardware/marker_tool/marker-werkzeug.step",
+    "source_sha256": "d0c0e8de04b7a5086f316aba24cdc8f16b878945f1f651cfc870ab9153edea93",
+    "marker_body": "Approximate profile from 125 mm overall, 20/19 mm barrel measurements"
+  },
+  "files": {
+    "model.dae": "dd74fab490d967ac1417a65f18a52ed1ce2f20093474f3bd449ced9e44f72ff3"
+  }
+}

@@ -61,7 +61,7 @@ Der erzeugte Startprompt enthält den Aufruf für Prüfung und Abgabe.
 Beispiel aus dem UWA-Workspace nach Ende der Planungsstufe:
 
 ```bash
-python3 src/multi_arm_manipulation_UWA/tools/finish_house_drill_trial.py PFAD_ZUR_SITZUNG run01
+python3 src/multi_arm_manipulation_UWA/tools/finish_gemini_trial.py PFAD_ZUR_SITZUNG run01
 ```
 
 Der Aufruf verwendet die beiden Prüfer aus dem Hauptrepo. Der

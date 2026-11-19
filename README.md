@@ -7,6 +7,9 @@ The operator can try the archived task in a local mock session. See the
 The saved program `carton-supported-v1` takes the measured carton pose and arm
 start as inputs. The guide includes an offline comparison for a 50 mm shift
 using the same program and a mock RViz preview for each pose.
+**UWA Robot Power → Program library** opens the local catalog in a browser.
+The supported carton program includes an offline OAK4 registration, checked
+approach and wrist-camera diagnostic. [Program library guide](docs/carton_motion_review.md#programmbibliothek-im-browser)
 
 All four grippers now have shared ROS actions, status services and Python/CLI
 helpers for opening, closing with an explicit raw-force setting and relative
@@ -571,6 +574,9 @@ The [Nikolaus house trial](docs/agent_trials/NIKOLAUS_TRIAL_03.md) adds a new
 stroke in a separate checkout and checks its shape from joint trajectories.
 The [fourth Gemini trial](docs/agent_trials/HOUSE_DRILL_TRIAL_04.md) extends
 the task with an axial hole pattern and a trace driven by workpiece motion.
+New Gemini trials start in a separate checkout with Hydrogen High by default.
+The [trace protocol](docs/agent_trials/TRACE_PROTOCOL.md#abschluss-und-rückgabe)
+describes the combined verification and delivery step for each task.
 The latest [500g force and speed tests](docs/carton_dynamic_validation_2026-11-16.md)
 include two complete10mm/s Home cycles and three loaded stop cases with retained
 grip using exactly the same version-bound profile. The report preserves earlier

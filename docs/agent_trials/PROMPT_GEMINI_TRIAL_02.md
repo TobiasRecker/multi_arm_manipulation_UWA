@@ -14,11 +14,12 @@ Fehlermeldung. Die Testumgebung umfasst gespeicherte Modelldaten und die
 vorhandene Offline-CLI. Gazebo, Gerätekontakte und Dienste gehören nicht
 zum Lauf. Änderungen am gemeinsamen Quellcode sind außerhalb dieses Tests.
 
-Liefere Viewer, Modellergebnis, unabhängigen FK-/Zeitaudit und
-`report.md`. Erkläre im Bericht in zwei bis drei Sätzen, welche Geometrie
-der Viewer für die Haltearme zeigt und welche Daten für den tatsächlichen
-Padabstand zur Kartonwand nötig wären. Übernimm keinen pauschalen
-Höhenkorrekturwert in die Bahn.
+Liefere Viewer und Modellergebnis. Erkläre in einer Trace-Notiz und in der
+Schlussmeldung in zwei bis drei Sätzen, welche Geometrie der Viewer für
+die Haltearme zeigt und welche Daten für den tatsächlichen Padabstand zur
+Kartonwand nötig wären. Übernimm keinen pauschalen Höhenkorrekturwert in
+die Bahn.
 
 Erfasse Entwicklungsschritte, Ausgaben, Fehler und Hilfen mit
-`tools/agent_trial.py`. Schließe das Protokoll erst nach dem Bericht ab.
+`tools/agent_trial.py`. Verwende anschließend den gebündelten Prüf- und
+Abgabeaufruf aus dem Startprompt.

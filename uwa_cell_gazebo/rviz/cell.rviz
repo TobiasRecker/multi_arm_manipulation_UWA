@@ -71,7 +71,7 @@ Visualization Manager:
         Durability Policy: Transient Local
         Depth: 1
     - Class: rviz_default_plugins/MarkerArray
-      Name: Reconstructed objects - photo textures (approximate)
+      Name: Tabletop props and reconstructions
       Enabled: true
       Topic:
         Value: /uwa_cell/scene_assets/markers

@@ -84,3 +84,38 @@ Mit der vorhandenen OpenCascade-Umgebung neue Varianten erzeugen:
 STEP zeigt den montierten Adapter ohne Schrauben und Marker als drei
 CAD-Körper. Die Vorschau zeigt die angenäherte Stiftkontur im Schnitt.
 Die drei STL-Dateien sind einzeln in Drucklage und in Millimetern.
+
+## Gazebo und RViz
+
+Die Zelle zeigt `marker_station` und `cos_marker_docked` als zwei
+getrennte, statische Ansichtsobjekte. Die Meshes der Aufnahme und des
+Adapters stammen aus der STEP-Baugruppe. Der Stiftschaft ist aus den
+gemessenen Maßen angenähert. Beide Objekte liegen auf dem linken Tisch,
+270 mm links und 400 mm nach vorne ab Tischplattenmitte. Die Lage ist
+ein Vorschlag im Modell. Der Ursprung von `asset/cos_marker_docked`
+liegt an der nominellen Stiftspitze, 10,5 mm über der Tischplatte.
+
+- Die normale **UWA Cell Simulation** lädt beide Objekte über
+  `scene_objects` im gemeinsamen Zelllayout. In RViz erscheinen sie
+  unter **Tabletop props and reconstructions**.
+- Die Haus-/Bohr-Kontaktwelt lädt das Dock und den Stift als eigene
+  Props. Ihre physische Kartonentität ist davon unabhängig.
+  `rviz:=true` bei `grasp.launch.py` öffnet den passenden Viewer.
+- Für eine bereits laufende Kontaktwelt lässt sich der Viewer
+  separat starten. Namespace und Layout aus deren Startkommando übernehmen.
+
+```bash
+source src/multi_arm_manipulation_UWA/scripts/env.bash
+ros2 launch uwa_cell_gazebo grasp_visuals.launch.py \
+  namespace:=/uwa_grasp_house \
+  layout:="$PWD/setup/tasks/house_drill_gazebo_live_20261119_01/layout.yaml"
+```
+
+Die Darstellung ist visuell. Für ein späteres Pick-and-place sind
+Greifpose und reale TCP-Messung sowie getrennte Kontakt- und
+Kollisionsgeometrien für Stift und Aufnahme nötig. Die bestehende
+virtuelle Zeichenwerkzeugpose bleibt im jeweiligen Aufgabenmodell.
+
+Bei geändertem Hardware-CAD die beiden DAE-Assets mit
+`.venvs/oak-model/bin/python src/multi_arm_manipulation_UWA/tools/export_marker_scene.py`
+erneuern, dann `uwa_cell_description` in die Lyrical-Installation bauen.

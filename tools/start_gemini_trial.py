@@ -23,6 +23,7 @@ REPO = Path(__file__).resolve().parents[1]
 WORKSPACE = REPO.parents[1]
 DOCS = REPO / "docs/agent_trials"
 DEFAULT_AGY = WORKSPACE / "setup/agent_tools/antigravity/agy"
+DEFAULT_MODEL = "gemini-4-hydrogen-high"
 TRIALS = WORKSPACE / "setup/agent_trials"
 CIRCLES_CONTEXT = (
     DOCS / "PROMPT_GEMINI_TRIAL_02.md",
@@ -45,12 +46,12 @@ PROCESS_CONTEXT = (
     *CIRCLES_CONTEXT[2:],
 )
 CASES = {
-    "circles": ("box_gemini_20261119", CIRCLES_CONTEXT),
-    "nikolaus": ("nikolaus_gemini_20261119", HOUSE_CONTEXT),
-    "house-drill": ("house_drill_gemini_20261119", PROCESS_CONTEXT),
+    "circles": ("box_gemini_20261119", "box-gemini-02", CIRCLES_CONTEXT),
+    "nikolaus": ("nikolaus_gemini_20261119", "box-nikolaus-03", HOUSE_CONTEXT),
+    "house-drill": ("house_drill_gemini_20261119", "box-house-drill-04", PROCESS_CONTEXT),
 }
 BASELINE_CONTEXT_FILES = {"AGENTS.md", "box_drawing_pilot.md", "TRACE_PROTOCOL.md", "workpiece_paths.md"}
-HOUSE_DRILL_FIXTURE = WORKSPACE / "setup/research/offline-carton-sides-20261117/standard/smoothed/result.json"
+BOX_FIXTURE = WORKSPACE / "setup/research/offline-carton-sides-20261117/standard/smoothed/result.json"
 
 
 def perth_time():
@@ -73,7 +74,7 @@ def auto_mode_warning(version):
     return None
 
 
-def configure_house_drill_cli(agent_repo, session, trace):
+def configure_trial_cli(agent_repo, session, trace):
     # --settings replaces the permissions object for this invocation. Carry
     # over explicit review/deny rules without importing broad global allows.
     user_settings = Path.home() / ".gemini/antigravity-cli/settings.json"
@@ -81,7 +82,7 @@ def configure_house_drill_cli(agent_repo, session, trace):
     hooks = agent_repo / ".agents/hooks.json"
     settings = session / "antigravity-settings.json"
     settings.write_text(json.dumps({"permissions": {
-        "allow": [f"read_file({HOUSE_DRILL_FIXTURE})"],
+        "allow": [f"read_file({BOX_FIXTURE})"],
         "ask": permissions.get("ask", []),
         "deny": [*permissions.get("deny", []), f"write_file({hooks})", f"write_file({settings})"],
     }}, indent=2) + "\n")
@@ -105,11 +106,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--prepare-only", action="store_true", help="Save a prompt for a fresh IDE session")
     parser.add_argument("--agy", type=Path, default=DEFAULT_AGY, help="Path to the local Antigravity CLI")
-    parser.add_argument("--model", help="Gemini model slug from agy models")
+    parser.add_argument("--model", default=DEFAULT_MODEL,
+                        help=f"Gemini model slug from agy models (default: {DEFAULT_MODEL})")
     parser.add_argument("--mode", choices=("auto", "accept-edits", "plan"),
                         help="Antigravity execution mode for this CLI session")
     parser.add_argument("--case", choices=CASES, default="circles",
-                        help="The two house tests open a separate checkout of the current commit")
+                        help="Task to run in a separate checkout of the current commit")
     args = parser.parse_args()
     if args.prepare_only and args.mode:
         parser.error("--mode applies to CLI sessions; choose the mode in the IDE for --prepare-only")
@@ -130,38 +132,34 @@ def main():
     if warning:
         print(f"WARNING: {warning}", file=sys.stderr, flush=True)
 
-    isolated = args.case != "circles"
-    folder, context = CASES[args.case]
+    folder, task, context = CASES[args.case]
     trial_root = TRIALS / folder
     trial_root.mkdir(parents=True, exist_ok=True)
     session = Path(tempfile.mkdtemp(prefix="session-", dir=trial_root))
     trace = session / "trial"
-    agent_repo = REPO
-    if isolated:
-        agent_repo = session / "repo"
-        subprocess.run(["git", "clone", "--quiet", "--no-local", "--single-branch",
-                        "--depth", "1", "--no-tags", str(REPO), str(agent_repo)], check=True)
-        subprocess.run(["git", "-C", str(agent_repo), "remote", "remove", "origin"], check=True)
+    agent_repo = session / "repo"
+    subprocess.run(["git", "clone", "--quiet", "--no-local", "--single-branch",
+                    "--depth", "1", "--no-tags", str(REPO), str(agent_repo)], check=True)
+    subprocess.run(["git", "-C", str(agent_repo), "remote", "remove", "origin"], check=True)
+    client = "Google Antigravity for VS Code" if args.prepare_only else f"Antigravity CLI {version}"
     settings = None
-    if args.case == "house-drill" and not args.prepare_only and args.mode != "plan":
-        settings = configure_house_drill_cli(agent_repo, session, trace)
-        Trial(trace).init(agent_repo, "box-house-drill-04", f"Antigravity CLI {version}")
+    if not args.prepare_only and args.mode != "plan":
+        settings = configure_trial_cli(agent_repo, session, trace)
+        Trial(trace).init(agent_repo, task, f"{client}; model requested: {args.model}")
         (trace / "artifacts").mkdir()
     revision = subprocess.check_output(["git", "-C", str(agent_repo), "rev-parse", "HEAD"], text=True).strip()
     source_prompt = context[0].read_text().rstrip()
-    client = "Google Antigravity for VS Code" if args.prepare_only else f"Antigravity CLI {version}"
     prompt = (f"{source_prompt}\n\n"
               f"Dein Arbeits-Repo ist {agent_repo}.\n"
               f"Dein absoluter Trial-Pfad ist {trace}.\n"
-              f"Client laut Start: {client}. Modellvorgabe: {args.model or 'keine, tatsächliches Modell erfassen falls sichtbar'}.\n"
+              f"Client laut Start: {client}. Modellvorgabe: {args.model}.\n"
               "Nutze die vorhandenen Tests. Entwickle, ergänze oder ändere keine eigenen Tests.\n")
-    if args.case == 'house-drill':
-        finish = shlex.join([PYTHON, str(REPO/'tools/finish_house_drill_trial.py'), str(session), 'run01'])
-        prompt += ("\nSchließe die Planungsstufe im Logger ab. Für Prüfung und Abgabe führe dann diesen "
-                   "Aufruf aus und setze bei Bedarf statt run01 den tatsächlichen Ergebnisordnernamen ein.\n"
-                   f"```bash\n{finish}\n```\n"
-                   "Der Aufruf protokolliert die Prüfstufe und schließt den Trial bei PASS ab. "
-                   "Verwende den ausgegebenen Bericht. Bei FAIL lies nur die benannte Fundstelle.\n")
+    finish = shlex.join([PYTHON, str(REPO/'tools/finish_gemini_trial.py'), str(session), 'run01'])
+    prompt += ("\nSchließe die Planungsstufe im Logger ab. Für Prüfung und Abgabe führe dann diesen "
+               "Aufruf aus und setze bei Bedarf statt run01 den tatsächlichen Ergebnisordnernamen ein.\n"
+               f"```bash\n{finish}\n```\n"
+               "Der Aufruf protokolliert die Prüfstufe und schließt den Trial bei PASS ab. "
+               "Verwende den ausgegebenen Bericht. Bei FAIL lies nur die benannte Fundstelle.\n")
     if settings:
         logger = shlex.join(trace_command(trace))
         prompt += ("\nDer Logger sowie der Ordner trial/artifacts sind bereits vorbereitet. "
@@ -178,7 +176,7 @@ def main():
     hashes = {}
     for file in context:
         relative = file.relative_to(REPO)
-        if isolated and file.name in BASELINE_CONTEXT_FILES:
+        if file.name in BASELINE_CONTEXT_FILES:
             file = agent_repo / relative
         data = file.read_bytes()
         (snapshots / file.name).write_bytes(data)
@@ -203,13 +201,9 @@ def main():
     if args.prepare_only:
         return 0
 
-    command = [str(agy), "-i", prompt]
-    if isolated:
-        command.extend(["--add-dir", str(session)])
+    command = [str(agy), "-i", prompt, "--add-dir", str(session), "--model", args.model]
     if settings:
         command.extend(["--settings", str(settings), "--log-file", metadata["antigravity_log"]])
-    if args.model:
-        command.extend(["--model", args.model])
     if args.mode:
         command.append(f"--mode={args.mode}")
     metadata["terminal_started_at"] = perth_time()

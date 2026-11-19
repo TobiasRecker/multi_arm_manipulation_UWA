@@ -69,6 +69,11 @@
   Entnahme und Einführschräge für die Rückgabe. Verdrehung sowohl
   im Greifer als auch in der Ablage berücksichtigen. CAD unter
   `hardware/marker_tool/`. Reale Stiftspitze nach Montage einmessen.
+- In Gazebo/RViz stehen zwei eigene visuelle Assets auf dem linken
+  Tisch bereit: `marker_station` und `cos_marker_docked`. Deren Pose
+  ist provisorisch. Für Handhabungsaufgaben Kontakt-/Kollisionsmodelle,
+  Greifpose und TCP bewusst abgleichen; eine sichtbare Entität ist
+  noch kein physisch greifbares Werkzeug.
 
 ## Zweite Übersichtskamera links (2026-11-19)
 
@@ -110,6 +115,12 @@
 
 ## Programmierpipeline mit Demonstrationen und Sprache (2026-11-17)
 
+- Für agentenfreie Wiederholung wünscht der Nutzer am 19.11. eine lokale
+  Webbibliothek auf ROSmini, die mit UWA Robot Power startet. Programme in
+  Übersicht und Detailansicht zeigen und vom Detail starten. Im Programm den passenden Pose-Algorithmus
+  und die Prüfung der tatsächlichen Ausrichtung vorsehen. Kameradiagnose,
+  Bedienentscheid und nachgewiesene automatische Freigabe klar benennen.
+  Den vorhandenen N100-Ausführungspfad und die Zellfreigaben benutzen.
 - Nutzerziel vom 19.11.: bewährte Abläufe als benannte Programme speichern.
   Neue Posen desselben Werkstücks sind Eingaben für das bestehende Programm.
   Griffpunkte, Phasen und aufgabenbezogene Konfiguration wiederverwenden. Aus
@@ -196,12 +207,14 @@
   direkten Vergleich dieselbe Aufgabe mit Hydrogen und Neon jeweils auf
   `High` verwenden. Zeitpunkt der ersten gültigen Modellbahn und der
   fertigen Abgabe getrennt erfassen.
-- Nutzerauftrag19.11.: Gemini soll vorhandene Tests verwenden und keine
-  eigenen Tests entwickeln, ergänzen oder ändern. Beim Haus-und-Lochkreis-
-  Versuch beide vorhandenen Bahnaudits, Viewer-Prüfung und Abgabe über
-  `tools/finish_house_drill_trial.py` bündeln. Bei Python-Änderungen gezielte
-  bestehende Tests ausführen. Die vollständige Regression gehört zur
-  Übernahme in das gemeinsame Toolkit.
+- Nutzerauftrag19.11.: gebündelte Prüfung und Abgabe als Standard für neue
+  Gemini-Aufgaben. Isolierte Quellkopie mit `tools/start_gemini_trial.py`,
+  Hydrogen High als Modellvorgabe und Abschluss über
+  `tools/finish_gemini_trial.py` mit passendem Aufgabenaudit, Viewer-Prüfung,
+  Bericht und vollständigem Patch. Gemini verwendet vorhandene Tests und
+  entwickelt, ergänzt oder ändert keine eigenen. Bei Python-Änderungen
+  gezielt prüfen. Die vollständige Regression gehört zur Übernahme in das
+  gemeinsame Toolkit. Neue Fälle erhalten ihre eigenen Prüfkriterien.
 - Nutzerpräzisierung19.11. für Haus-/Bohrdemo: Ablauf zuerst mit
   Gazebo-Nachweis beurteilen, bevor der Nutzer der Übertragung auf die
   reale Zelle vertraut. Offline-FK/Ansicht, Kontaktphysik mit getragenem

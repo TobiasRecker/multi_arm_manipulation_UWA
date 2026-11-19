@@ -1,5 +1,30 @@
 # Reale Übernahme Motion review,19.11.2026
 
+## Aktuell: Parallelprüfer reservefrei, Programmstart getrennt,19.11.2026
+
+- Nutzerklarstellung beantwortet: Der korrigierte Motion-review-Parallelprüfer
+  ist bereits im Einsatz. In beiden attempt15-Gruppen (hoch und Einfahrt)
+  `geometric_only`, für jedes geprüfte Paar zusätzlicher Stoppaufschlag0,0m.
+ 40mm Modellabstand und bestehende Laufzeitstopps bleiben wie vereinbart.
+- Reiner Bereitschaftsschritt14 war tatsächlich PASS, danach verlor jedoch
+  RF/LR um17:31:40 die UR-Reverse-Verbindung. Driverjournal belegt zeitgleiche
+  Disconnects; keine Brems-/Latenzreserve als Ursache behaupten. attempt15
+  wurde operatorbewilligt, stoppte vor jedem Armziel an nicht laufendem
+  RF-Programm. Empfänger lebte, kein Receiverfehler. Rechte Greifer offen,
+  keine weitere Bewegung/kein Griff. Tatsächliche Parallelfahrt noch offen.
+- Fremder Diagnose-Guardwechsel laut seinem Arbeitsstand bereits17:14:28;
+  aktueller Dienst NRestarts0. Dies nicht als Neustart um17:31 oder belegte
+  Ursache der späteren Reverse-Abbrüche darstellen. Bestehenden Guard erhalten.
+- attempt16 verwendet denselben geprüften Parallelweg nach erneutem frischem
+  Startvergleich und vollständigem Sweep-/Timingcheck. Regulärer ROS-Start
+  nach komplettem Graphaufbau vor jeder unbeladenen Fahrphase explizit Teil
+  der neuen Reviewrevision. Nur falls nötig und unter frisch bestätigten
+  vier offenen/unbeladenen/stationären Holds; keine Power-/Brake-/native
+  Sicherheitsquittierung und keine Wiederholung nach Kontakt/Fehler.
+- Das ist eine getrennte Betriebsanbindung, keine Rückkehr dynamischer
+  räumlicher Reserven. Neue GUI-Revision erforderlich, keine alte Freigabe
+  verwenden. Nachweise und Arbeitsstand weiterhin im Karton-Taskordner.
+
 ## Aktuell: Empfangs-FIFO korrigiert, 19.11.2026
 
 - attempt13 wurde in der echten GUI vom Operator freigegeben, noch bevor eine
@@ -423,3 +448,28 @@
  40,9719s, Vorbereitungszeit122,678s. Ticketc2dfde11df75406a9f66f104a65f4d4e,
   Versionb4f798dfcc68ce0069e5aef5fa87f8946006a6401924e5cd397494d724fd3a03.
   Storependingbestätigt, neue tatsächlicheGUI-Entscheidung angefragt.
+
+## Klarstellung zur Parallelprüfung,19.11.2026
+
+- Nutzer fragt nach, ob mit „neuem Prüfer“ ein weiterer noch nicht verwendeter
+  Baustein gemeint war und ob entfernte Brems-/Latenzreserven wieder greifen.
+  Gemeint ist der inzwischen korrigierte Motion-review-Prüfer, bereits auf
+  N100 eingesetzt. Keine erneute Einführung dieser Zusatzreserven beauftragt.
+- Aktuell `geometric_only`: zusätzliche Brems-, Datenalter-/Abtast-, Reaktions-
+  und Latenzaufschläge wirksam null, auch für gleichzeitig bewegte Paare.
+  attempt15/high zeigt für alle fünf geprüften Paare ausdrücklich
+  `stop_allowance_in_clearance_bound_m: 0.0`.40mm Modellpuffer, vollständige
+  Geometrie-/Fortschrittsprüfung und bestehende Laufzeitstopps bleiben.
+  Die Parameter für `enforce` dürfen bestehen, greifen hier aber nicht.
+- Empfangsrückstau und Reihenfolge der Zielbestätigungen waren separate
+  Ausführungsfehler. Ein geometrischer Parallelprüfer löst sie nicht mit;
+  Korrekturen und Nachweise getrennt dokumentieren. Vollständige tatsächliche
+  Parallelfahrt nicht mit bestandenem Modellnachweis gleichsetzen.
+- Reiner Bereitschaftsschritt14 tatsächlich operatorbewilligt und PASS:
+  alle vier Programme RUNNING/Normal, Ressourcenholds/Latches bestätigt,
+  keine Arm-/Fingerziele,8s Livevergleich maximal0,001919rad konservativ.
+  Nun attempt15: vorhandene Geometrie nur nach frischem Startvergleich
+  weiterverwendet (maximale Abweichung0,000081rad bei0,0005rad Starttoleranz),
+  Quellen und vollständige zeitparametrierte Sweeps neu geprüft. Kein
+  automatisches Play in dieser Fahrrevision, Programme bereits bereit.
+
