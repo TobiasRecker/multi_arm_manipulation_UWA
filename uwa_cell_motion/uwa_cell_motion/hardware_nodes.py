@@ -160,7 +160,7 @@ class HardwareSupervisor(MotionNode):
         self.directory=tempfile.TemporaryDirectory(prefix='uwa-hardware-supervisor-');self.problem=HardwareProblem(self.directory.name,cfg,inventory,layout)
         self.cfg,self.mode,self.armed=cfg,mode,armed;self.signature=signature(self.problem,mode)
         self.instance=str(uuid.uuid4());self.sequence=0;self.guard=Peer();self.witness=Peer();self.lock=threading.RLock();self.group=ReentrantCallbackGroup()
-        self.core=Interlock(cfg['heartbeat_timeout_s']);self.stopping_since={};self.ports={r:StopPort(self,p,cfg,mode,self.group) for r,p in self.problem.profiles.items()}
+        self.core=Interlock(cfg['heartbeat_timeout_s']);self.reset_lock=threading.Lock();self.stopping_since={};self.ports={r:StopPort(self,p,cfg,mode,self.group) for r,p in self.problem.profiles.items()}
         self.publisher=self.create_publisher(String,'/uwa_cell/collision_supervisor/status',1)
         self.markers=self.create_publisher(MarkerArray,'/uwa_cell/collision_supervisor/markers',1)
         self.geometry_markers=self.create_publisher(MarkerArray,'/uwa_cell/collision_guard/markers',1)
@@ -170,6 +170,7 @@ class HardwareSupervisor(MotionNode):
         self.create_subscription(String,'/uwa_cell/hardware_watchdog/status',self.receive_witness,1,callback_group=self.group)
         self.create_service(Trigger,'/uwa_cell/collision_supervisor/reset',self.reset,callback_group=self.group)
         for rid in ROBOT_IDS:self.create_service(Trigger,'/uwa_cell/collision_supervisor/'+rid+'/stop',lambda request,response,r=rid:self.stop(r,response),callback_group=self.group)
+        for rid in ROBOT_IDS:self.create_service(Trigger,'/uwa_cell/collision_supervisor/'+rid+'/reset',lambda request,response,r=rid:self.reset(request,response,arms={r}),callback_group=self.group)
         self.wall_clock=Clock(clock_type=ClockType.STEADY_TIME);self.create_timer(.02,self.tick,clock=self.wall_clock)
     def receive(self,msg):
         value=decode(msg)
@@ -188,23 +189,29 @@ class HardwareSupervisor(MotionNode):
         if not event.wait(3.):raise RuntimeError('Reset peer timed out')
         if not future.result().success:raise RuntimeError(future.result().message)
         return future.result()
-    def reset(self,request,response):
+    def reset(self,request,response,arms=None):
+        if not self.reset_lock.acquire(blocking=False):
+            response.success=False;response.message='Another explicit reset is already in progress';return response
         try:
             with self.lock:
                 now=time.monotonic()
                 if not self.guard.fresh(now,self.cfg['heartbeat_timeout_s']) or not self.witness.fresh(now,self.cfg['heartbeat_timeout_s']):raise RuntimeError('Supervision unavailable')
-            if self.armed and not any(p.verified and p.hardware_verified and time.monotonic()-p.received<=.25 and time.monotonic()-p.hardware_received<=.25 for p in self.ports.values()):raise RuntimeError('No provisioned fresh matching manager available')
+            if self.armed:
+                candidates=self.ports.values() if arms is None else [self.ports[r] for r in arms]
+                ready=[p.verified and p.hardware_verified and time.monotonic()-p.received<=.25 and time.monotonic()-p.hardware_received<=.25 for p in candidates]
+                if not (any(ready) if arms is None else all(ready)):raise RuntimeError('No provisioned fresh matching manager available for requested release')
             self.request(self.reset_witness)
             end=time.monotonic()+1.
             while self.witness.value.get('tripped',True):
                 if time.monotonic()>end:raise RuntimeError('Watchdog reset status unavailable')
                 time.sleep(.005)
             with self.lock:
-                if not self.core.request_reset(time.monotonic()):raise RuntimeError('Guard reset not eligible')
-            answer=self.request(self.reset_guard);response.success=True;response.message=answer.message+'; no trajectory/program activated'
+                if not self.core.request_reset(time.monotonic(),arms=arms):raise RuntimeError('Guard reset not eligible')
+            answer=self.request(self.reset_guard);response.success=True;response.message=answer.message+'; supervisor release limited to '+(', '.join(sorted(arms)) if arms is not None else 'all eligible arms')+'; no trajectory/program activated'
         except Exception as error:
             with self.lock:self.core.pending_reset=None
             response.success=False;response.message=str(error)
+        finally:self.reset_lock.release()
         return response
     def tick(self):
         with self.lock:
@@ -261,7 +268,8 @@ class HardwareWatchdog(MotionNode):
         if response.success:self.tripped=False;self.publish()
         response.message='Watchdog reset; program/motion remains inactive' if response.success else 'Supervisor unavailable';return response
     def publish(self):
-        self.sequence+=1;self.publisher.publish(String(data=json.dumps(packet(self.signature,self.armed,self.instance,self.sequence,tripped=self.tripped))))
+        pending=[r for r,p in self.ports.items() if p.native_thread is not None and p.native_thread.is_alive()]
+        self.sequence+=1;self.publisher.publish(String(data=json.dumps(packet(self.signature,self.armed,self.instance,self.sequence,tripped=self.tripped,native_stop_pending=pending))))
     def tick(self):
         if time.monotonic()-self.began>self.cfg['heartbeat_timeout_s'] and not self.peer.fresh(time.monotonic(),self.cfg['heartbeat_timeout_s']):self.tripped=True
         if self.tripped and self.armed:

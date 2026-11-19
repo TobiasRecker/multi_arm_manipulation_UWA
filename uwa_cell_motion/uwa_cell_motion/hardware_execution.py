@@ -188,6 +188,19 @@ class HardwareClient(MotionClient):
         except BaseException as error:
             trusted=False;errors.append('ROS stop confirmation failed: '+str(error))
         confirmed=trusted and held==arms and latched==arms
+        # Failure evidence only, not another admission/monitoring gate. Keep
+        # the actual verification flags so an abort is diagnosable in one run.
+        failure_diagnostics=None
+        if not confirmed:
+            try:
+                now=time.monotonic();snapshot=self.supervisor or {}
+                failure_diagnostics=dict(observed_monotonic_s=now,
+                    supervisor_received_age_s=None if not np.isfinite(getattr(self,'supervisor_received',-float('inf'))) else now-self.supervisor_received,
+                    supervisor_evaluation_age_s=None if 'evaluated_monotonic_s' not in snapshot else now-snapshot['evaluated_monotonic_s'],
+                    armed=snapshot.get('armed'),witness_available=snapshot.get('witness_available'),
+                    blocked_arms=snapshot.get('blocked_arms'),ports={r:snapshot.get('ports',{}).get(r,{}) for r in sorted(arms)},
+                    stop_request_count=len(requests))
+            except BaseException as error:failure_diagnostics=dict(snapshot_error=str(error))
         fallback=set() if confirmed else arms
         native_result={};native_requested=None
         if fallback:
@@ -200,7 +213,7 @@ class HardwareClient(MotionClient):
             errors.extend(r+': verified hold/latch unconfirmed; native STOP attempted' for r in sorted(fallback))
         return dict(resource_holds_confirmed=trusted and held==arms,latches_confirmed=trusted and latched==arms,
                     native_stop_requested_for=sorted(fallback),native_stop_requested_monotonic_s=native_requested,
-                    native_stop_result=native_result,standstill_confirmed=False,errors=errors)
+                    native_stop_result=native_result,standstill_confirmed=False,errors=errors,failure_diagnostics=failure_diagnostics)
 
 
 def execute(plan,output,mode):

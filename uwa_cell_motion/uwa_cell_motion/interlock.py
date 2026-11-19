@@ -58,6 +58,9 @@ class Interlock:
         if (self.pending_reset and self.pending_reset[0]==decision['instance'] and
                 decision['reset_sequence']>self.pending_reset[1]):
             released=decision.get('reset_arms',list(ROBOT_IDS) if not decision['blocked_arms'] else [])
+            # A targeted reset keeps every unrelated resource hold latched,
+            # even when the guard's geometric acknowledgement covers all arms.
+            released=set(released)&self.pending_reset[2]
             self.blocked.difference_update(set(released)-set(decision['blocked_arms']))
             self.pending_reset=None; self.reason='CLEAR' if not self.blocked else 'PARTIAL RESET: remaining holds latched'
         if decision['blocked_arms']:self.reason=decision['state']
@@ -68,8 +71,10 @@ class Interlock:
             self.blocked.update(ROBOT_IDS); self.pending_reset=None; self.reason='GUARD LOST'
         return set(self.blocked)
 
-    def request_reset(self, now):
+    def request_reset(self, now, arms=None):
+        selected=set(ROBOT_IDS) if arms is None else set(arms)
+        if not selected or not selected<=set(ROBOT_IDS):return False
         if self.last is None or now-self.received>self.timeout:
             return False
-        self.pending_reset=(self.last['instance'],self.last['reset_sequence'])
+        self.pending_reset=(self.last['instance'],self.last['reset_sequence'],selected)
         return True

@@ -229,6 +229,29 @@ def test_partial_reset_preserves_other_interlocks():
     assert core.blocked=={'left_front','right_front','left_rear'}
 
 
+def test_targeted_reset_does_not_toggle_unrelated_holds_on_global_guard_ack():
+    core=Interlock(.4);core.receive(decision(),1)
+    assert core.request_reset(1,arms={'right_front'})
+    value=decision(2,reset=1);value['reset_arms']=list(ROBOT_IDS)
+    core.receive(value,1.1)
+    assert core.blocked==set(ROBOT_IDS)-{'right_front'}
+    assert core.request_reset(1.1,arms={'right_rear'})
+    core.receive(dict(value,sequence=3,reset_sequence=2),1.2)
+    assert core.blocked=={'left_front','left_rear'}
+
+
+def test_targeted_reset_cannot_release_a_faulted_arm_or_override_new_stop():
+    core=Interlock(.4);core.receive(decision(),1)
+    assert not core.request_reset(1,arms=set())
+    assert not core.request_reset(1,arms={'unknown'})
+    assert core.request_reset(1,arms={'right_front'})
+    value=decision(2,blocked=['right_front'],reset=1);value['reset_arms']=list(ROBOT_IDS)
+    core.receive(value,1.1);assert core.blocked==set(ROBOT_IDS)
+    assert core.request_reset(1.1,arms={'right_front'})
+    core.pending_reset=None  # existing STOP callback cancels pending release
+    core.receive(decision(3,reset=2),1.2);assert core.blocked==set(ROBOT_IDS)
+
+
 def test_command_entrypoint_refuses_other_domains(monkeypatch):
     monkeypatch.setenv('ROS_DOMAIN_ID','66');monkeypatch.setenv('GZ_PARTITION','uwa_cell_sim')
     with pytest.raises(RuntimeError):simulation_only()

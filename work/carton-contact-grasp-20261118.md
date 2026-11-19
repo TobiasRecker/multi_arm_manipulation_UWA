@@ -1,6 +1,6 @@
 # Reale Karton-Kontaktaufnahme18.11.2026
 
-- Status: **aktuelle Pose/Ziele neu berechnet, Fahrvorprüfung vom Schutzdienst abgebrochen; Greifen nicht versucht**. Hauptagent Kartongriff. Nutzer beauftragt Greifversuch und
+- Status: **Software offline vorbereitet; Hardwareversuch auf Nutzerwunsch beendet, Realtest für19.11. ausstehend**. Hauptagent Kartongriff. Nutzer beauftragt Greifversuch und
   fragt ausdrücklich nach mittiger Ausrichtung durch Wristkameras. Bisher nur
   OAK/FK-Bildabgleich; dies offen erklärt. Jetzt zunächst zwei native Wristfotos
   im gehaltenen150mm-Vor-Greifstand, keine Arm-/Fingerbewegung dabei.
@@ -189,3 +189,52 @@
   EigenerMonitor-Greiferdienstwar199MBresident/149MBausgelagert; ebenfalls
   runtimeMemoryLow256MiB/SwapMax0/CPUWeight500gesetztundMONITOR ONLYneu
   verbunden. Anschließend erneuter einmaligerWitnessresetnurbeiLivequorum.
+
+- Um17:56 gleichzeitigSIGTERM/beendeteROS-Kontexte in Simulation, Overlay,
+  HardwareGuard/Witness/Supervisor, Grippern und allen vier UR-Treibern.
+  Dashboardnachweisalle4NORMAL/STOPPED, keineReverseListenermehr. Nutzer
+  erläutertspäter, UWA Robot Power fürTestsgehaltenundbeendet zuhaben.
+  CodecloseEventbeendetnurStatusprozess, nichtdauerhafteTreiber; breite
+  Signalbeendigungdamitnichtabschließendkausalzugeordnet. KeineFremdprozesse
+  vonunsdafürbeendet. NurHardwareanbindung/MonitorAPI/Schutzdiensterestauriert
+  undneueinaktiveHoldcontrollerprovisioniert. Alle4Holds/Stationarität belegt.
+- AktuelleWiederherstellung: WitnessnachliveQuorumeinmalzurückgesetzt,
+  Programmstartall4READY. ErsterFahrvorcheck(real04) nochvorReset/Zielabgebrochen,
+  weilLRnachStartnochkeine0,5sGuardruhehatte. Runnerwartetjetztbis3s auf
+  exaktbestehendesRuhekriteriumbeiweiterfail-fastHealth, stattsofortabzubrechen.
+  KeinerleiGrenzlockerung. NutzerwunschkeineweitereTestreihefestgehalten.
+  VorhandeneKorrekturbahnwirdnunmitbereitslaufendenProgrammen ohnePlay erneut
+  ausgeführt(real05), keineNeuplanung.
+
+## Offline-Abschluss nach ausdrücklichem Hardwarestopp
+
+- Nutzer18.11.: Hardware heute stoppen, Software fertigstellen, morgen testen.
+  Eigene Schutz-/Greiferdienste kontrolliert beendet (Schutzdienstinactive/dead),
+  nur abschließender nativer STOP über existierende Nachbehandlung. Danach keine
+  weiteren Geräte-/Fahr-/Fingerzugriffe. Tatsächlicher letzter hoher Armstand
+  bleibt go_real01; Board-Korrekturen, Einfahrt und Fingeraktionen NICHT ausgeführt.
+- Armweise Freigabe fertig: Interlock bestätigt nur angefragte Mitglieder aus
+  der unverändert geometrisch/zeitlich geprüften Guard-Antwort. Andere Holds
+  bleiben aktiv; neue STOPs und Guardneustarts gewinnen. Supervisor-Resetaufrufe
+  serialisiert. Runner übernehmen vorhandene andere Holds statt sie nach
+  globalem Release erneut perRPC anzufordern. Reale Bestätigung morgen offen.
+- Expliziter Programmstart unter freien hohen/all4gehaltenen Armen setzt nur
+  den bestehenden Softwarewitness einmal zurück und wartet dessen bereits
+  ausgegebene native STOP-IO ab. Kein Safetyack/Retryloop. Andere RPCs persistent.
+  Fehlerberichte enthalten bestehende Hold-/Frischeflags, keine weitere Gateebene.
+- Bausteine: prepare_carton_recipe.py, register_carton_from_oak.py, hohe Anfahrt,
+  offene Einfahrt, carton_gripper_phase.py prepare/close. Statischer Schluss
+  minimumFOR0/SPE16; anschließend nur HOLD und eingefrorene virtuelle Gruppe,
+  kein unabhängiges Armziel/kein Hub. NativeOBJ2 ist kein4-Pad-/Kraftnachweis.
+- Neue Rezeptdaten direkt aus versioniertem Asset statt inzwischen entferntem
+  historischen16.11.-Simulationsordner. Neue vollständigeOfflinekette liegt in
+  setup/tasks/carton_grasp_20261118_offline_finish/: recipe-v2, registration-v2,
+  high-plan-v2, entry-plan-v2, entry-recheck-v2. Nur archiviertes Foto/alte
+  Gelenkmessung und geplanter zukünftiger Hochpunkt, keine aktuelle Morgenpose.
+- Offline: aktuelle Bildregistrierung reproduziert, hohe Zukunftsziele und
+  offeneEinführung ohnejedeArm/Karton-Kollisionsausnahme geometrisch gültig,
+  kompletterEinfahr-ReplayPASS. ZentraleStopp-/Reset-/Zeit-/Statuslogik mit
+  gezieltenSoftwarechecks geprüft; keine reale neueQualifikation daraus ableiten.
+  Bedienung docs/carton_supported_grasp.md; Fahrprofil hardware_carton_supported.yaml
+  unverändert0,1rad/s/geometric_only/40mm. BLAS1 und Schutz gegenSwap nur für
+  eigene Hardware-/Greiferdienste in Startskripten; keine fremden Dienste geändert.

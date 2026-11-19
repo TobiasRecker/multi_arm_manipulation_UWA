@@ -11,6 +11,7 @@ case "$gripper_action" in
    systemctl --user stop uwa-grippers.service
   fi
   systemd-run --user --unit=uwa-grippers --collect --property=KillSignal=SIGINT \
+   --property=MemoryLow=256M --property=MemorySwapMax=0 --property=CPUWeight=500 \
    --property=KillMode=mixed --property=TimeoutStopSec=45 \
    /usr/bin/bash "$gripper_script_dir/start_grippers.sh" "$gripper_action" "$@"
   ;;

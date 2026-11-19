@@ -5,11 +5,12 @@ from pathlib import Path
 import numpy as np
 from std_srvs.srv import Trigger
 REPO=Path(__file__).resolve().parents[1];sys.path.insert(0,str(REPO/'uwa_cell_tasks'))
-from uwa_cell_tasks.hardware_carton_approach import unloaded_open_status,unloaded_guard_ready
+from uwa_cell_tasks.hardware_carton_approach import unloaded_open_status,unloaded_guard_ready,retained_holds
 from uwa_cell_tasks.hardware_preparation import OUTPUT_FIELDS,OUTPUT_TYPES,decode_arm_output
 from uwa_cell_control.capture_rtde import OutputReader
 from uwa_cell_motion.common import joint_names,dump,ROBOT_IDS
 from uwa_cell_motion.hardware_model import HardwareProblem
+from uwa_cell_motion.hardware_state import signature
 from uwa_cell_motion.carton_paths import evaluate
 from uwa_cell_motion.execution import motion_context
 from uwa_cell_motion.single_execution import follow
@@ -91,7 +92,7 @@ def main():
     for path,digest in plan['inputs'].items():
         if hashlib.sha256(Path(path).read_bytes()).hexdigest()!=digest:raise ValueError('Entry source changed: '+path)
     evidence_path=next(Path(p)for p in plan['inputs']if p.endswith('/evidence.json'));e=json.loads(evidence_path.read_text());binding=json.loads(Path(e['inputs']['object_pose']['path']).read_text());scene=json.loads(Path(e['inputs']['contact_scene']['path']).read_text());out=args.output.resolve();out.mkdir(parents=True,exist_ok=False);p=EntryProblem(out/'model',e['configuration'],args.inventory);assert p.signature==plan['base_signature'];models={a:open_model(p,binding,scene,a,out/('open-'+a))for a in ['right_front','right_rear']}
-    report=dict(success=False,phase='OFFLINE',arm_commands=[],finger_commands=[],loaded_motion=False,command_velocity_rad_s=.1,segments=[],plan=str(args.plan.resolve()),plan_sha256=hashlib.sha256(args.plan.read_bytes()).hexdigest(),wrench_scope='Native wrench DELTA10N/1.5Nm abort; not jaw-force metrology')
+    report=dict(hardware_signature=signature(p,'hardware'),model_signature=p.signature,supervision_limits={k:p.cfg[k] for k in ('state_timeout_s','heartbeat_timeout_s','standstill_velocity_rad_s')},success=False,phase='OFFLINE',arm_commands=[],finger_commands=[],loaded_motion=False,command_velocity_rad_s=.1,segments=[],plan=str(args.plan.resolve()),plan_sha256=hashlib.sha256(args.plan.read_bytes()).hexdigest(),wrench_scope='Native wrench DELTA10N/1.5Nm abort; not jaw-force metrology')
     def save():dump(out/'result.json',report)
     # Recheck every complete segment before explicit program startup/activation.
     for s in plan['segments']:
@@ -117,9 +118,9 @@ def main():
                 if not unloaded_guard_ready(client.guard):raise ValueError('Current clear physical stationarity required')
                 baseline=dict(client.positions);expected=next(s for s in plan['segments']if s['arm']==arm)['request']['start']
                 if any(abs(baseline[j]-expected[j])>.0005 for n in p.names.values()for j in n):raise ValueError('Entry live start changed')
-                answer=client.service(Trigger,'/uwa_cell/collision_supervisor/reset',Trigger.Request());record['reset_response']=dict(success=answer.success,message=answer.message);save()
+                answer=client.service(Trigger,'/uwa_cell/collision_supervisor/'+arm+'/reset',Trigger.Request());record['reset_response']=dict(success=answer.success,message=answer.message);save()
                 if not answer.success:raise RuntimeError(answer.message)
-                client.wait(lambda:not client.guard['blocked_arms'] and not client.supervisor['blocked_arms'],3.,health=True);record['other_holds']=client.stop(set(ROBOT_IDS)-{arm});save()
+                client.wait(lambda:arm not in client.guard['blocked_arms'] and arm not in client.supervisor['blocked_arms'],3.,health=True);client.health();record['other_holds']=retained_holds(client.supervisor,set(ROBOT_IDS)-{arm});save()
                 if not all(record['other_holds'][k]for k in ['resource_holds_confirmed','latches_confirmed']):raise RuntimeError('Other holds unconfirmed')
                 client.force_reference=np.median([r['force']for r in ob.snapshot()[-12:]],axis=0);client.monitor_open=True
                 for s in [s for s in plan['segments']if s['arm']==arm]:

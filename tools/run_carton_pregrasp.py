@@ -3,7 +3,7 @@
 
 Default: verify/model-check saved geometric evidence only. --execute plus
 --reset-unloaded permits one stationary reset per arm, with all four grippers
-confirmed open and all other arms re-held before each individual arm goal.
+confirmed open and all other resource holds retained across each scoped arm release.
 """
 import argparse
 import json
@@ -14,16 +14,17 @@ import time
 import numpy as np
 from scipy.spatial.transform import Rotation
 from std_srvs.srv import Trigger
+from std_msgs.msg import String
 from controller_manager_msgs.srv import ListControllers,SwitchController,ListHardwareComponents
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO/'uwa_cell_tasks'))
-from uwa_cell_tasks.hardware_carton_approach import checked_problem, unloaded_open_status, unloaded_guard_ready, wait_service_spinning, unloaded_program_start_ready
+from uwa_cell_tasks.hardware_carton_approach import checked_problem, unloaded_open_status, unloaded_guard_ready, wait_service_spinning, unloaded_program_start_ready, retained_holds
 from uwa_cell_motion.common import ROBOT_IDS, joint_names, dump,arm_velocity_limit
 from uwa_cell_motion.execution import motion_context
 from uwa_cell_motion.hardware_execution import HardwareClient
 from uwa_cell_motion.single_execution import follow
-from uwa_cell_motion.hardware_state import require_domain
+from uwa_cell_motion.hardware_state import require_domain,signature,Peer
 from uwa_cell_gripper_control.client import GripperClient
 from uwa_cell_gazebo.charuco_views import Chain
 from hardware_stop_probe import Observer,quiet_window
@@ -33,15 +34,20 @@ class ApproachClient(HardwareClient):
     def __init__(self,problem,arm,observer):
         self.observer=observer
         super().__init__(problem,'hardware',[arm])
+        self.witness_peer=Peer();self.witness=None
+        self.create_subscription(String,'/uwa_cell/hardware_watchdog/status',self.witness_message,1)
         # RMW entity creation/destruction can block independently of service
         # discovery. Provision persistent RPCs before collecting driver history,
         # and destroy them only with the node after its final resource hold.
         self.rpc_clients={};self.service_timings=[]
-        for kind,name in [(Trigger,'/uwa_cell/collision_supervisor/reset')]+[
+        for kind,name in [(Trigger,'/uwa_cell/collision_supervisor/'+arm+'/reset'),(Trigger,'/uwa_cell/hardware_watchdog/reset')]+[
             (kind,problem.profiles[arm]['namespace']+'/controller_manager/'+endpoint)
             for kind,endpoint in [(ListHardwareComponents,'list_hardware_components'),
                                   (ListControllers,'list_controllers'),(SwitchController,'switch_controller')]]:
             self.rpc_clients[(kind,name)]=self.create_client(kind,name)
+    def witness_message(self,msg):
+        value=self.accept(self.witness_peer,msg)
+        if value is not None:self.witness=value
     def spin_once(self,timeout_sec=.01):
         super().spin_once(timeout_sec=timeout_sec)
         rows=self.observer.snapshot()
@@ -62,15 +68,25 @@ def start_ros_programs_held(client, root, problem, segment, save):
     # once only, with all four open/unloaded and resource-held.
     # Spin telemetry while the existing dashboard CLI runs.
     client.connect(guard=False)
+    client.wait(lambda:client.witness is not None,timeout=5.)
     for _ in range(20):client.spin_once(timeout_sec=.005)
     now=time.monotonic()
     if (not client.state_peer.fresh(now,problem.cfg['state_timeout_s']) or
         any(max(now-r['received'],now-r['source_stamp'])>problem.cfg['state_timeout_s'] for r in client.records.values()) or
         not client.guard_peer.fresh(now,problem.cfg['heartbeat_timeout_s']) or
         not client.supervisor_peer.fresh(now,problem.cfg['heartbeat_timeout_s']) or
+        not client.witness_peer.fresh(now,problem.cfg['heartbeat_timeout_s']) or
         not unloaded_program_start_ready(client.guard,client.supervisor,client.records,client.owned)):
         raise RuntimeError('Explicit program start requires fresh all-four unloaded holds and native quiet/normal state')
     segment['program_start_eligible_under_all_holds']=True;save()
+    # The existing independent witness can latch during service startup.
+    # Reset only that software witness under the proven unloaded holds; wait
+    # for its already-issued native STOP calls to finish BEFORE pressing Play.
+    answer=client.service(Trigger,'/uwa_cell/hardware_watchdog/reset',Trigger.Request())
+    segment['startup_witness_reset']=dict(success=answer.success,message=answer.message);save()
+    if not answer.success:raise RuntimeError('Startup witness reset refused; no program start')
+    client.wait(lambda:client.witness_peer.fresh(time.monotonic(),problem.cfg['heartbeat_timeout_s']) and
+                not client.witness.get('tripped',True) and client.witness.get('native_stop_pending')==[],timeout=3.)
     import subprocess
     from concurrent.futures import ThreadPoolExecutor
     with (root/'program-start.json').open('w') as program_log, ThreadPoolExecutor(max_workers=1) as pool:
@@ -128,7 +144,7 @@ def main():
         if (np.linalg.norm(actual[:3,3]-wanted[:3,3])>1e-4 or
             Rotation.from_matrix(actual[:3,:3]@wanted[:3,:3].T).magnitude()>1e-4):
             raise ValueError('Saved joint endpoint does not match the high pregrasp frame')
-    report = dict(success=False, phase='OFFLINE_CHECK', arm_commands=[], finger_commands=[],
+    report = dict(hardware_signature=signature(problem,'hardware'),supervision_limits={k:problem.cfg[k] for k in ('state_timeout_s','heartbeat_timeout_s','standstill_velocity_rad_s')},success=False, phase='OFFLINE_CHECK', arm_commands=[], finger_commands=[],
                   loaded_motion=False, command_velocity_rad_s=args.command_velocity,
                   monitored_velocity_rad_s={r:arm_velocity_limit(problem.cfg,r) for r in selected}, segments=[],
                   base_guard_signature=problem.signature, supplemental_object_signature=problem.supplemental_signature)
@@ -180,17 +196,19 @@ def main():
                 # deliberately false in CLEAR even when all arms are quiet.
                 # Reset eligibility needs fresh per-arm physical evidence.
                 segment['stationary_arms_before_reset']=client.guard.get('stationary_arms',[])
-                if not unloaded_guard_ready(client.guard):
-                    raise ValueError('Stationary clear guard required before explicit unloaded reset')
+                # Program reconnect may precede the guard's existing0.5s
+                # physical quiet window. Wait for that unchanged criterion;
+                # health remains fail-fast and no controller is activated.
+                client.wait(lambda:unloaded_guard_ready(client.guard),timeout=3.,health=True)
                 # Preserve all old causes in the report; reset is a separate
                 # explicit operation, never failure recovery or loaded resume.
                 segment['guard_before_reset'] = client.guard; segment['supervisor_before_reset'] = client.supervisor; save()
                 answer = client.service(Trigger, '/uwa_cell/collision_supervisor/reset', Trigger.Request())
                 segment['reset_response'] = dict(success=answer.success, message=answer.message); save()
                 if not answer.success: raise RuntimeError(answer.message)
-                client.wait(lambda:not client.guard['blocked_arms'] and not client.supervisor['blocked_arms'], timeout=3., health=True)
+                client.wait(lambda:arm not in client.guard['blocked_arms'] and arm not in client.supervisor['blocked_arms'], timeout=3., health=True)
                 others = set(ROBOT_IDS)-{arm}
-                segment['other_arm_holds'] = client.stop(others); save()
+                client.health();segment['other_arm_holds'] = retained_holds(client.supervisor,others); save()
                 if not all(segment['other_arm_holds'][key] for key in ('resource_holds_confirmed','latches_confirmed')):
                     raise RuntimeError('Other arm holds unconfirmed')
                 client.health(); baseline = dict(client.positions)

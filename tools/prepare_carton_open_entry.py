@@ -2,9 +2,9 @@
 """Offline open-finger entry diagnostic. Never sends device commands.
 
 Keep the primary whole-opening cell/interarm model and its40mm neighbor margin.
-A second exact-open tool model checks a conservative hollow carton per moving
-arm's fixed camera/base binding. Other arms are stationary, checked separately
-against their own carton binding; primary interarm checks always include all.
+A second exact-open tool model checks one conservative hollow carton bound
+to the same fixed board for both arms. Every arm/carton pair is checked;
+there are no arm/carton collision exemptions.
 """
 import argparse,json,sys,hashlib,xml.etree.ElementTree as ET
 from pathlib import Path
@@ -39,17 +39,17 @@ def open_model(problem,binding,scene,arm,directory):
     collision=CollisionModel(ET.tostring(root,encoding='unicode'),directory)
     base_srdf=ET.fromstring((problem.directory/'moveit/robot.srdf').read_text())
     for allowed in base_srdf.findall('disable_collisions'):collision.scene.allowed_collision_matrix.set_entry(allowed.get('link1'),allowed.get('link2'),True)
-    # Each held member has a different nominal display representation of the
-    # SAME object. Validate its physical carton clearance in its own model;
-    # never move/remove another arm from the primary interarm checker.
-    for link in root.findall('link'):
-        if any(link.get('name').startswith(other+'_') for other in problem.names if other!=arm):
-            collision.scene.allowed_collision_matrix.set_entry(link.get('name'),'entry_carton',True)
+    if not all(np.allclose(T,other,atol=1e-8,rtol=0) for other in binding['world_object_by_arm'].values()):
+        raise ValueError('Open entry requires one common object pose from the same fixed board; no counterfactual carton exemptions')
     return collision
 
 
 def prepare(args):
-    out=args.output.resolve();out.mkdir(parents=True,exist_ok=False);e=json.loads((args.evidence/'evidence.json').read_text());run=json.loads(args.approach.read_text());binding=json.loads(Path(e['inputs']['object_pose']['path']).read_text());scene=json.loads(Path(e['inputs']['contact_scene']['path']).read_text());p=HardwareProblem(out/'base',e['configuration'],args.inventory);p.chains={r:Chain(p.original_description,'world',r+'_tool0') for r in p.names};start=dict(run['segments'][-1]['final_positions']);report=dict(inputs={str(path.resolve()):hashlib.sha256(path.read_bytes()).hexdigest() for path in [args.evidence/'evidence.json',args.approach,Path(e['inputs']['object_pose']['path']),Path(e['inputs']['contact_scene']['path']),Path(__file__)]},success=False,executable=False,finger_commands=[],arm_commands=[],loaded_motion=False,base_signature=p.signature,shell_boxes=shell_boxes(scene),segments=[],limits=['35mm short-wall normal envelope and5mm rim expansion are conservative DESIGN assumptions, not measured bounds.','Actual open jaw state and independent visual agreement required before any execution.','Primary full-opening/interarm/table model and40mm neighbor margin retained.','No contact exemptions for moving arm/carton in exact-open model.'])
+    out=args.output.resolve();out.mkdir(parents=True,exist_ok=False);e=json.loads((args.evidence/'evidence.json').read_text());run=json.loads(args.approach.read_text())
+    if args.planned_start:
+        if run.get('planned_only') is not True:raise ValueError('Explicit planned-only high start required')
+    elif not run.get('success') or run.get('phase')!='AT_HIGH_PREGRASP_HELD_NO_CONTACT':raise ValueError('Actual successful high approach required, or explicit --planned-start for offline preparation')
+    binding=json.loads(Path(e['inputs']['object_pose']['path']).read_text());scene=json.loads(Path(e['inputs']['contact_scene']['path']).read_text());p=HardwareProblem(out/'base',e['configuration'],args.inventory);p.chains={r:Chain(p.original_description,'world',r+'_tool0') for r in p.names};start=dict(run['segments'][-1]['final_positions']);report=dict(start_kind='PLANNED_HIGH_TARGET_NOT_CURRENT' if args.planned_start else 'MEASURED_HELD_HIGH',inputs={str(path.resolve()):hashlib.sha256(path.read_bytes()).hexdigest() for path in [args.evidence/'evidence.json',args.approach,Path(e['inputs']['object_pose']['path']),Path(e['inputs']['contact_scene']['path']),Path(__file__)]},success=False,executable=False,finger_commands=[],arm_commands=[],loaded_motion=False,base_signature=p.signature,shell_boxes=shell_boxes(scene),segments=[],limits=['35mm short-wall normal envelope and5mm rim expansion are conservative DESIGN assumptions, not measured bounds.','Actual open jaw state and independent visual agreement required before any execution.','Primary full-opening/interarm/table model and40mm neighbor margin retained.','No arm/carton contact exemptions in exact-open model; shared board/object frame required.'])
     dump(out/'result.json',report)
     try:
         for arm in ['right_front','right_rear']:
@@ -76,4 +76,4 @@ def prepare(args):
 
 
 if __name__=='__main__':
-    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--evidence',type=Path,required=True);ap.add_argument('--approach',type=Path,required=True);ap.add_argument('--output',type=Path,required=True);ap.add_argument('--inventory',type=Path,default=REPO/'config/hardware_inventory.yaml');raise SystemExit(prepare(ap.parse_args()))
+    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--evidence',type=Path,required=True);ap.add_argument('--approach',type=Path,required=True);ap.add_argument('--output',type=Path,required=True);ap.add_argument('--planned-start',action='store_true',help='Offline future high target, not claimed as current; execution still requires actual start match');ap.add_argument('--inventory',type=Path,default=REPO/'config/hardware_inventory.yaml');raise SystemExit(prepare(ap.parse_args()))

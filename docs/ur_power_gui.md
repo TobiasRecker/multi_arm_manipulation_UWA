@@ -1,7 +1,10 @@
 # UWA Robot Power
 
 Open **UWA Robot Power** from the Linux application menu. Opening the app only
-reads the four arms; it does not switch them on or off.
+reads the four arms; it does not switch them on or off. This is the normal
+operating interface, not a test panel. Closing its window leaves the persistent
+ROS drivers running. Standby stops the robot program and drives; local driver
+processes can remain available for the next Start + ROS.
 
 | Button | What happens |
 | --- | --- |

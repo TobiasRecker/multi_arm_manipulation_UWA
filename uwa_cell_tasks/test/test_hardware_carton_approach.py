@@ -87,3 +87,14 @@ def test_generated_visual_paths_are_irrelevant_but_collision_geometry_is_bound()
     xml = '<robot name="a"><link name="arm"><visual><geometry><mesh filename="/output1/board.dae"/></geometry></visual><collision><geometry><sphere radius=".1"/></geometry></collision></link></robot>'
     assert canonical_base(xml) == canonical_base(xml.replace('/output1/', '/output2/'))
     assert canonical_base(xml) != canonical_base(xml.replace('radius=".1"','radius=".2"'))
+
+
+def test_scoped_release_can_reuse_other_holds_without_any_rpc():
+    from uwa_cell_tasks.hardware_carton_approach import retained_holds
+    arms={'left_front','left_rear','right_rear'}
+    supervisor=dict(armed=True,witness_available=True,held_arms=list(arms),blocked_arms=list(arms),
+        ports={r:{k:True for k in ('manager_fresh','hardware_mode_verified','hold_config_verified','held')}for r in arms})
+    answer=retained_holds(supervisor,arms)
+    assert answer['resource_holds_confirmed'] and answer['latches_confirmed']
+    supervisor['ports']['left_rear']['held']=False
+    assert not retained_holds(supervisor,arms)['resource_holds_confirmed']

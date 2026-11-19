@@ -18,6 +18,7 @@ case "$hardware_motion_action" in
   hardware_motion_armed=0
   if [[ "$hardware_motion_action" == arm ]]; then hardware_motion_armed=1; fi
   systemd-run --user --unit="$hardware_motion_unit" --collect \
+   --property=MemoryLow=1G --property=MemorySwapMax=0 --property=CPUWeight=1000 \
    --setenv=UWA_MOTION_ARMED="$hardware_motion_armed" \
    --property="ExecStopPost=/usr/bin/bash $hardware_motion_dir/stop_hardware_motion.sh" \
    --property=KillSignal=SIGINT --property=KillMode=mixed --property=TimeoutStopSec=20 \

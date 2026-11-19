@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+"""Supported static carton gripper phases over the shared ROS API.
+
+Default read-only. prepare: activate/open only at confirmed high pregrasp.
+close: both arms already inserted, held and visually checked; rawFOR0/SPE16.
+No arm goals, reset, program/power action, auto opening, lift or loaded motion.
+"""
+import argparse,hashlib,json,sys,time
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+import numpy as np
+import rclpy
+from std_msgs.msg import String
+REPO=Path(__file__).resolve().parents[1];sys.path.insert(0,str(REPO/'uwa_cell_tasks'))
+from uwa_cell_gripper_control.client import GripperClient
+from uwa_cell_tasks.hardware_carton_approach import unloaded_open_status
+from uwa_cell_motion.common import ROBOT_IDS,joint_names,dump
+from uwa_cell_motion.hardware_state import Peer,require_domain
+
+
+def held_error(values,now,expected,limits,positions):
+    """Reuse current arm freshness, mode, geometry and held-state requirements."""
+    if set(values)!={'guard','supervisor','state','witness'}:return 'Waiting for existing hardware state/holds'
+    for name,(value,received) in values.items():
+        timeout=limits['state_timeout_s'] if name=='state' else limits['heartbeat_timeout_s']
+        if value.get('hardware_signature')!=expected or value.get('armed') is not True:return 'Hardware signature/mode differs'
+        if not 0<=now-received<=timeout or not 0<=now-value['evaluated_monotonic_s']<=timeout:return name+': stale packet'
+    g,s,state,w=[values[k][0]for k in ('guard','supervisor','state','witness')]
+    if w.get('tripped') or not s.get('witness_available'):return 'Existing hardware witness unavailable/tripped'
+    if g.get('faults') or not g.get('model_match') or set(g.get('stationary_arms',[]))!=set(ROBOT_IDS):return 'Arms not confirmed quiet/model-valid'
+    if set(s.get('held_arms',[]))!=set(ROBOT_IDS):return 'Arms not all resource-held'
+    if any(s.get('ports',{}).get(r,{}).get(k) is not True for r in ROBOT_IDS for k in ('held','manager_fresh','hardware_mode_verified','hold_config_verified')):return 'Existing controller/hold verification unavailable'
+    if set(state.get('records',{}))!=set(ROBOT_IDS):return 'Native arm state incomplete'
+    for arm,record in state['records'].items():
+        if max(now-record['source_stamp'],now-record['received'])>limits['state_timeout_s']:return arm+': native state stale'
+        if not np.isfinite(record['q']+record['v']).all() or max(abs(v)for v in record['v'])>limits['standstill_velocity_rad_s']:return arm+': moving/nonfinite'
+        status=record['status']
+        if arm in ('right_front','right_rear') and (status['robot_mode']!=7 or status['runtime_state']!=2 or status['safety_mode'] not in (1,2)):return arm+': native program/safety state not ready'
+        if max(abs(q-positions[j])for j,q in zip(joint_names(arm),record['q']))>.0005:return arm+': pose changed since entry/pregrasp'
+    return None
+
+
+def closing_contact(status):
+    r=status.get('registers',{})
+    return (status.get('observed') is True and status.get('busy') is False and
+            all(r.get(k)==v for k,v in dict(ACT=1,STA=3,OBJ=2,FLT=0,PRE=255,FOR=0,SPE=16).items()) and
+            8<r.get('POS',255)<248)
+
+
+class HeldMonitor:
+    def __init__(self,expected,limits,positions):
+        self.expected,self.limits,self.positions=expected,limits,positions;self.node=rclpy.create_node('supported_carton_gripper_phase');self.values={};self.peers={k:Peer()for k in ['guard','supervisor','state','witness']}
+        for key,topic in [('guard','/uwa_cell/collision_guard/decision'),('supervisor','/uwa_cell/collision_supervisor/status'),('state','/uwa_cell/hardware_state'),('witness','/uwa_cell/hardware_watchdog/status')]:self.node.create_subscription(String,topic,lambda m,k=key:self.receive(m,k),1)
+    def receive(self,msg,key):
+        try:
+            value=json.loads(msg.data);now=time.monotonic()
+            if self.peers[key].receive(value,now,self.expected,True):self.values[key]=(value,now)
+        except (ValueError,TypeError,KeyError):pass
+    def spin(self):rclpy.spin_once(self.node,timeout_sec=.005)
+    def error(self):return held_error(self.values,time.monotonic(),self.expected,self.limits,self.positions)
+    def connect(self):
+        end=time.monotonic()+10.
+        while True:
+            self.spin();error=self.error()
+            if error is None:return
+            if time.monotonic()>end:raise RuntimeError(error)
+
+
+def freeze_group(state_path,state,monitor,contacts):
+    from uwa_cell_gazebo.charuco_views import Chain
+    plan=json.loads(Path(state['plan']).read_text());evidence=next(Path(p)for p in plan['inputs']if p.endswith('/evidence.json'));e=json.loads(evidence.read_text());binding=json.loads(Path(e['inputs']['object_pose']['path']).read_text());obj=np.array(binding['T_world_object_candidate']);description=(state_path.parent/'model/moveit/robot.urdf').read_text();q=monitor.values['state'][0]['model_state'];offsets={}
+    for arm in contacts:
+        tcp=Chain(description,'world',arm+'_robotiq_85_base_link').forward(q);tcp=tcp@np.array([[1,0,0,0],[0,1,0,0],[0,0,1,.145],[0,0,0,1]])
+        offsets[arm]=(np.linalg.inv(obj)@tcp).tolist()
+    return dict(members=contacts,T_world_virtual_object=obj.tolist(),T_object_tcp=offsets,reference_kind='Frozen virtual frame at held arm poses; not a post-clamp object measurement',allowed_next_action='HOLD',independent_arm_motion_allowed=False,loaded_motion_enabled=False,object_supported=True)
+
+
+def main():
+    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('phase',choices=['prepare','close']);ap.add_argument('--state',type=Path,required=True);ap.add_argument('--output',type=Path,required=True);ap.add_argument('--execute',action='store_true');ap.add_argument('--visual-confirmed',action='store_true',help='Agent has inspected the open-jaw entry photograph; no operator approval prompt')
+    args=ap.parse_args();state=json.loads(args.state.read_text());wanted='AT_HIGH_PREGRASP_HELD_NO_CONTACT' if args.phase=='prepare' else 'BOTH_OPEN_AT_WALL_HELD_NO_CLOSE'
+    if not state.get('success') or state.get('phase')!=wanted:raise ValueError('Confirmed '+wanted+' result required')
+    if args.phase=='close' and args.execute and not args.visual_confirmed:ap.error('Inspect actual open-jaw entry before using --visual-confirmed')
+    expected=state['hardware_signature'];limits=state['supervision_limits'];positions=state['segments'][-1]['final_positions'];out=args.output.resolve();out.mkdir(parents=True,exist_ok=False);report=dict(success=False,phase=args.phase.upper(),arm_commands=[],finger_commands=[],loaded_motion=False,force_raw=0,speed_raw=16,nominal_force_note='Minimum raw setting, not measured jaw force',state=str(args.state.resolve()),state_sha256=hashlib.sha256(args.state.read_bytes()).hexdigest(),visual_confirmed=args.visual_confirmed,results={});require_domain('hardware');rclpy.init();clients={};monitor=None
+    def save():dump(out/'result.json',report)
+    save()
+    try:
+        for arm in ('right_front','right_rear'):
+            g=clients[arm]=GripperClient(arm);status=g.status();report.setdefault('before',{})[arm]=status
+            if not unloaded_open_status(status):raise ValueError(arm+': not open/unloaded')
+            r=status['registers']
+            if args.phase=='close' and (r['ACT']!=1 or r['STA']!=3 or r['FOR']!=0 or r['SPE']!=16):raise ValueError(arm+': prepare active open minimal-force gripper first')
+        monitor=HeldMonitor(expected,limits,positions);monitor.connect();report['holds_before']={k:v[0]for k,v in monitor.values.items()};save()
+        if not args.execute:report.update(success=True,phase='READ_ONLY_READY_NO_COMMANDS');save();return 0
+        def action(arm):
+            g=clients[arm];records=[]
+            if args.phase=='prepare':
+                if report['before'][arm]['registers']['ACT']==0:records.append(dict(operation='activate',result=g.activate()))
+                records.append(dict(operation='open',result=g.open(force_raw=0,speed_raw=16)))
+            else:records.append(dict(operation='close',result=g.close_gripper(force_raw=0,speed_raw=16)))
+            return records
+        # Do not retry/cancel/open after accepted goals. If health is lost, the
+        # existing arm holds/watchdogs remain authoritative; retain grip targets.
+        monitor.connect()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures={arm:pool.submit(action,arm)for arm in clients};report['finger_commands']=[dict(arm=a,operation=args.phase,force_raw=0,speed_raw=16)for a in clients];save()
+            while not all(f.done()for f in futures.values()):
+                monitor.spin();error=monitor.error()
+                if error:report.setdefault('hardware_fault',error);save()
+            for arm,future in futures.items():
+                try:report['results'][arm]=future.result()
+                except BaseException as error:report.setdefault('errors',{})[arm]=str(error)
+        monitor.spin();error=monitor.error()
+        if error:report.setdefault('hardware_fault',error)
+        for arm,g in clients.items():
+            try:report.setdefault('after',{})[arm]=g.status()
+            except BaseException as error:report.setdefault('errors',{})[arm]=str(error)
+        monitor.connect();save()
+        if args.phase=='prepare':
+            report['success']=not report.get('errors') and not report.get('hardware_fault') and all(unloaded_open_status(r) and r['registers']['ACT']==1 and r['registers']['SPE']==16 and r['registers']['FOR']==0 for r in report.get('after',{}).values()) and len(report.get('after',{}))==2
+            report['phase']='ACTIVE_OPEN_HELD' if report['success'] else 'HELD_PREPARE_UNCONFIRMED'
+        else:
+            contacts=[a for a,r in report.get('after',{}).items()if closing_contact(r)]
+            report['confirmed_contact_members']=contacts;save();report['group']=freeze_group(args.state.resolve(),state,monitor,contacts);report['success']=len(contacts)==2 and not report.get('errors') and not report.get('hardware_fault');report['phase']='SUPPORTED_TWO_ARM_CONTACT_HELD' if report['success'] else 'HELD_CONTACT_UNCONFIRMED';report['contact_scope']='OBJ2 supports object contact, not four-pad contact/holding strength/50N jaw-limit proof; no lift'
+        save();return 0 if report['success']else 1
+    except BaseException as error:report.update(error=str(error),phase='HELD_NO_AUTOMATIC_RECOVERY');save();return 1
+    finally:
+        for g in clients.values():g.close()
+        if monitor is not None:monitor.node.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__=='__main__':raise SystemExit(main())

@@ -12,6 +12,18 @@ def preview(directory):
     if state.get('error'):parts.append('<p><strong>FAILED: '+escape(state['error'])+'</strong></p>')
     if 'stop' in state:
         parts.append('<p><strong>HOLDS '+('CONFIRMED' if state['stop'].get('confirmed') else 'NOT CONFIRMED')+'</strong></p>')
+    rendered = {
+        'gazebo-rendered-hub/01-vor-dem-abheben-inspection.jpg': 'Before lift-off · carton supported',
+        'gazebo-rendered-hub/02-angehoben-im-halt-inspection.jpg': 'At confirmed stop · carton lifted 132.4 mm',
+    }
+    if all((directory/name).is_file() for name in rendered):
+        parts.append('<h2>Gazebo camera renderings of the lift</h2>'
+                     '<p>Rendered after the run from the recorded Gazebo states, using the same simulated OAK camera.</p>')
+        for name, caption in rendered.items():
+            parts.append('<figure><figcaption>'+escape(caption)+'</figcaption>'
+                         '<img src="'+escape(name)+'" alt="'+escape(caption)+'"></figure>')
+    else:
+        rendered = {}
     if (directory/'lift-replay.html').is_file():
         parts.append('<p><a style="color:#ffe76b" href="lift-replay.html">'
                      'Play recorded Gazebo lift</a> · recorded joints and carton pose</p>')
@@ -40,6 +52,8 @@ def preview(directory):
         path=directory/name
         if path.exists():parts.append('<details><summary>'+escape(name)+' — complete evidence</summary><pre>'+escape(json.dumps(json.loads(path.read_text()),indent=2))+'</pre></details>')
     for image in sorted(directory.glob('**/*inspection.jpg')):
+        if image.relative_to(directory).as_posix() in rendered:
+            continue
         parts.append('<figure><figcaption>'+html.escape(str(image.relative_to(directory)))+'</figcaption><img src="'+html.escape(str(image.relative_to(directory)),quote=True)+'"></figure>')
     page='<!doctype html><html lang="en"><meta charset="utf-8"><title>UWA task review</title><style>body{background:#101820;color:#fff;font:18px system-ui;max-width:1200px;margin:30px auto}pre,code{background:#000;padding:20px;white-space:pre-wrap;overflow-wrap:anywhere}img{max-width:100%}h1,h2{color:#ffe76b}figure{border:3px solid #fff;padding:12px}td,th{border:2px solid #fff;padding:10px;text-align:left}table{border-collapse:collapse}summary{cursor:pointer;padding:15px;font-weight:bold}</style><h1>UWA task review — SIMULATION</h1>'+''.join(parts)+'</html>'
     path=directory/'review.html';path.write_text(page);return str(path.resolve())

@@ -42,6 +42,21 @@ def unloaded_guard_ready(guard):
             {'left_front','left_rear','right_front','right_rear'} and not guard.get('faults'))
 
 
+def retained_holds(supervisor, arms):
+    """Confirm existing holds after a scoped release; send no redundant STOPs.
+
+    Caller checks current packet freshness through HardwareClient.health().
+    """
+    arms=set(arms);ports=supervisor.get('ports',{})
+    trusted=(supervisor.get('armed') is True and supervisor.get('witness_available') is True and
+             all(ports.get(r,{}).get(k) is True for r in arms for k in
+                 ('manager_fresh','hardware_mode_verified','hold_config_verified')))
+    return dict(resource_holds_confirmed=trusted and arms<=set(supervisor.get('held_arms',[])) and
+                all(ports.get(r,{}).get('held') is True for r in arms),
+                latches_confirmed=trusted and arms<=set(supervisor.get('blocked_arms',[])),
+                source='Existing supervisor holds retained; no stop RPC sent')
+
+
 def unloaded_program_start_ready(guard, supervisor, records, owned):
     """Eligibility for an explicit unloaded ROS-program start, never a reset.
 

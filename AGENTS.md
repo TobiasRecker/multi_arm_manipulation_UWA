@@ -97,6 +97,18 @@
   docs/programming_pipeline_lbd_review_2026-11-17.md.
   Präzisierter Entwurf: docs/interactive_code_policy_learning.md.
 
+## Reale Bedienabläufe ohne Diagnosekaskaden (2026-11-18)
+
+- Nutzer empfindet die Zahl der Test-/Diagnoseläufe im laufenden realen Griff
+  als zu hoch. Bereits geprüfte Pläne in den kurzen Ausführungspfad übernehmen;
+  keine zusätzliche Testreihe oder neue Überwachung allein vor jedem Start.
+  Bei technischem Abbruch den konkreten Blocker nennen und gezielt beheben.
+  Bestehende native Sicherheit, Kollisions-/Frische-/Haltprüfungen erhalten.
+- Betriebsanbindung und Testwerkzeuge in Erklärungen klar unterscheiden.
+  UWA Robot Power bedient Start + ROS/Standby; reines Fensterschließen soll
+  laut aktuellem Code keine dauerhaften Treiber beenden. Breite ROS-Signal-
+  beendigung nicht ohne Nachweis dem Schließen dieses Fensters zuschreiben.
+
 ## Geschwindigkeiten: dauerhafte Nutzervorgabe (2026-11-18)
 
 - **Keine weitere Geschwindigkeitsreduktion ohne ausdrückliche Aufforderung

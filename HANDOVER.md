@@ -1,5 +1,46 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Aktueller Kartonstand: Hardware beendet, Software für19.11. vorbereitet
+
+- Expliziter Nutzerstopp18.11.: heute keine weiteren Fahr-/Greifziele, Software
+  offline fertigstellen, realer Versuch morgen. Eigene Hardware-Schutz-/Greifer-
+  Dienste kontrolliert geschlossen; abschließender nativer STOP über vorhandene
+  Dienst-Nachbehandlung. Keine automatische Wiederaufnahme am nächsten Tag.
+- Zuletzt tatsächlich erreichte Armstellungen: beide hohen Vorpositionen aus
+  `carton_grasp_20261118_go_real01`. Die spätere direkte Board-Korrektur wurde
+  NICHT ausgeführt. Keine Fingeraktivierung/Schließung, kein Kontakt/Hub heute.
+  Das ist der aktuelle Stand; ältere Inspektionsposenbeschreibungen sind historisch.
+- Software jetzt mit armweisem Supervisor-Reset: nur gewähltes Mitglied freigeben,
+  andere Haltezustände behalten, keine globale Freigabe plus erneutes Stoppen.
+  Guard-Geometrie/Frische/UR-Sicherheit unverändert. Parallel-Resets werden
+  serialisiert, neue STOPs gewinnen. RPC-Clients bleiben über den Ablauf erhalten.
+  Diese Umstellung ist offline geprüft, real noch zu bestätigen.
+- Wiederverwendbare Schritte: kanonisches Geometrierezept, aktuelle Board-/Bild-
+  Registrierung, hohe Anfahrt, offene Einfahrt, minimale statische Greiferphase.
+  Details [kurzer normaler Ablauf](docs/carton_supported_grasp.md). Keine separate
+  Diagnose-/Simulationskampagne als normaler Start. Schließen endet bei HOLD,
+  mit eingefrorenem gemeinsamem virtuellen Objektframe; kein tragender Hubmaster.
+- Historischer Simulationspfad `carton_preload_home_20261116_02/case00` inzwischen
+  nicht mehr vorhanden. Neue Rezeptdaten werden aus dem versionierten Asset
+  erzeugt; alte Hashbindungen nicht fälschen/reparieren. Vollständiger neuer
+  Offline-Stand unter `setup/tasks/carton_grasp_20261118_offline_finish/`.
+  Dessen `READY.json` trennt Softwarebereitschaft von noch ausstehender realer
+  Bestätigung; Aufnahme/Hochstart sind historische bzw. geplante Daten.
+- Um17:56 breite ROS-Signalbeendigung einschließlich Treibern/Simulation/Schutz-
+  und Greiferknoten beobachtet; Benutzer erläutert Beenden von UWA Robot Power.
+  Reines Fensterschließen soll laut Code Treiber nicht beenden, deshalb keine
+  abschließende kausale Zuordnung. Normale Anbindung wurde zwischendurch wieder
+  hergestellt, danach auf jüngsten Nutzerstopp beendet. VorlagekeineFahrfreigabe.
+
+
+> Ergebnisarchiv18.11.: ältere abgeschlossene Workspace-Versuche und Logs
+> liegen jetzt auf dem N100, Originalpfade im Archiv erhalten. Einstieg
+> **UWA Archiv (N100)** / http://127.0.0.1:8767; gezielt zurückholen mit
+> `python3 ~/UWA_ws/setup/archive_n100/archive.py restore GRUPPEN-ID`.
+> Heutige Versuche, Kalibrierung, Forschung und Quellprojekte bleiben lokal.
+> Ältere Ergebnisordner enthalten ARCHIV_AUF_N100.txt mit dem konkreten Befehl.
+> Prüfstand und Ablage im Workspace-HANDOVER; keine Hardwaredienste verändert.
+
 ## Kartongriff: Wrist-Abgleich und aktuelle Neuberechnung, 2026-11-18
 
 - Nutzer beauftragt Greifen und fragt nach Wrist-Zentrierung. Vorherige
@@ -381,6 +422,10 @@
   0,2 rad/s Grenze. Drei Arm-Holds bestätigt, vier Kontakte erhalten,
   Box ohne Tischauflage. Kein Lösen oder automatischer Reset. Eigene Welt
   bleibt im Halt, Hauptwelt läuft. 40 fokussierte Quelltests bestanden.
+- Run04 enthält nun auch OAK-Kamerabilder vor dem Abheben und bei
+  132,38 mm Hub im bestätigten Halt. Nachträglich in Gazebo/Ogre2 aus
+  der aufgezeichneten Telemetrie gerendert. Oben in `run04/review.html`
+  verlinkt und als nachträgliche Renderings gekennzeichnet.
 - Hubwiedergabe aus 432 aufgezeichneten Gazebo-Gelenk-/Kartonzuständen
   in `run04/lift-replay.html`, auch in `run04/review.html` verlinkt.
   Zeitachse in Simulationssekunden, 132,38 mm Spitze und bestätigter Halt

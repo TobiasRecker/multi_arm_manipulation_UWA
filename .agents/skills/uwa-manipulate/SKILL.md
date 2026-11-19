@@ -1,6 +1,6 @@
 ---
 name: uwa-manipulate
-description: Compose and review object-led manipulation tasks in the UWA digital robot cell, including two-arm carton grasps and rigid cooperative handling. Uses the simulation task harness; physical robot execution is not implemented.
+description: Compose and review object-led manipulation tasks in the UWA digital robot cell, including two-arm carton grasps and rigid cooperative handling. Uses the simulation harness and explicit supported hardware staging; loaded hardware object motion is not implemented.
 ---
 
 Read the repository AGENTS.md and current manipulation section in HANDOVER.md.
@@ -148,3 +148,22 @@ a physical-quiet flag; require fresh stationary_arms for all four before reset.
 Keep useful camera settings when requested, retaining the matching intrinsics.
 The common object reference core remains transport-free. A loaded coupled
 command-delivery/stop/grip backend and real loaded operation are still open.
+
+
+Hardware continuation after18November user stop: do not resume automatically.
+Read docs/carton_supported_grasp.md. The limited supported pipeline is now
+prepare_carton_recipe.py → register_carton_from_oak.py → high pregrasp →
+carton_gripper_phase.py prepare → open entry → visually checked static close.
+Use the versioned hardware_carton_supported.yaml0.1rad/s profile. High/entry
+runners use scoped per-arm reset and retain other holds; they do not globally
+release/reacquire all four. Do not make a separate regression/simulation campaign
+part of normal operation. Current new reset/entry/close software is offline
+checked, not yet qualified by the deferred real test. Contact closes to HOLD only,
+with frozen common virtual object/TCP offsets; never send independent loaded
+arm trajectories. Historical simulation geometry folders may have been removed;
+freeze fresh geometry from the canonical asset rather than rewriting old hashes.
+
+The current supported-entry recipe requires one shared object pose derived from
+the CURRENT fixed right board and adopted base↔board chains. The older union of
+inconsistent global-fit representations was an unloaded pregrasp diagnostic;
+do not use it for insertion or exempt another arm from carton collisions.
