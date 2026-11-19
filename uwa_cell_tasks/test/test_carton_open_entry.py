@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'tools'))
-from run_carton_open_entry import timed_primitive
+from run_carton_open_entry import timed_primitive,timed_sequence
 from prepare_carton_open_entry import shell_boxes
 
 @pytest.mark.parametrize('delta',[.001,.5])
@@ -28,6 +28,18 @@ def test_wall_envelope_contains_both_original_end_walls_and_rims():
         p=np.array(shape['vertices']);assert np.all(np.array(box['lo'])<=p.min(0));assert np.all(np.array(box['hi'])>=p.max(0))
         assert box['hi'][0]-box['lo'][0]==pytest.approx(.035)
         assert box['hi'][2]>=.135
+
+
+def test_one_arm_sequence_preserves_primitive_timing_and_junction():
+    a=dict(kind='JOINT',knots=[0.,1.],positions=[[0.]*6,[.01]*6])
+    b=dict(kind='JOINT',knots=[0.,1.],positions=[[.01]*6,[.1]*6])
+    first=timed_primitive(a,[.0001]*6);second=timed_primitive(b,[.01]*6)
+    combined=timed_sequence([a,b],[.0001]*6)
+    assert combined['duration_s']==pytest.approx(first['duration_s']+second['duration_s'])
+    assert combined['points'][:len(first['points'])]==first['points']
+    assert all(y['time']>x['time']for x,y in zip(combined['points'],combined['points'][1:]))
+    assert combined['points'][-1]['positions']==second['points'][-1]['positions']
+    with pytest.raises(ValueError,match='junction'):timed_sequence([a,a],[0.]*6)
 
 def test_rpc_lifetime_cannot_interrupt_activation_telemetry():
     from types import SimpleNamespace

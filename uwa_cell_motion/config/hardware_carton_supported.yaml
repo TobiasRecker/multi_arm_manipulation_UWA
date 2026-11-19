@@ -1,4 +1,5 @@
-rate_hz: 10.0
+# Publish each20Hz native-state update without an extra100ms guard-cycle wait.
+rate_hz: 20.0
 state_timeout_s: 0.2
 heartbeat_timeout_s: 0.25
 stop_latency_s: 1.0

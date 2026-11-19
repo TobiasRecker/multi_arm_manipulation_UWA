@@ -15,10 +15,13 @@ hardware at the retained0.1rad/s command limit, with open grippers and confirmed
 final holds. No grasp or lift was attempted. See the
 [current evidence and photo](work/carton-pregrasp-20261118.md).
 
-The supported carton-grasp software is prepared for the next real session.
-Today's hardware session has ended at the user's request. The later board-based
-correction, open entry and closing have not been executed on hardware. See the
-[short operating workflow and current limits](docs/carton_supported_grasp.md).
+On19November the corrected pregrasp and open entry passed on hardware. Both
+right grippers then reported carton contact at FOR0/SPE16. The rear-right
+standstill monitor stopped its UR program during closing; the overall grasp
+run did not pass its final validation. All four arms are held and stationary,
+and the carton remains supported on the table. Keep this contact group in
+HOLD; no independent arm motion, automatic reset/play/opening or lift. See the
+[operating workflow and current held-contact limits](docs/carton_supported_grasp.md).
 
 Open **UWA Robot Power** from the application menu for all four arms.
 **Standby** stops ROS on the robots and switches off the drives; **Start + ROS**
@@ -544,6 +547,8 @@ For an independent agent trial, use the [short handoff](docs/agent_trials/BOX_DR
 The first [completed trial review](docs/agent_trials/REVIEW_AWAY_FACE_2026-11-18.md)
 confirms three model circles, identifies the search and logging bottlenecks,
 and adds explicit stdin capture for reproducible editing commands.
+The [second trial](docs/agent_trials/GEMINI_TRIAL_02.md) prepares a fresh Gemini
+session with a new circle radius and a check of the stated grasp geometry.
 The latest [500g force and speed tests](docs/carton_dynamic_validation_2026-11-16.md)
 include two complete10mm/s Home cycles and three loaded stop cases with retained
 grip using exactly the same version-bound profile. The report preserves earlier

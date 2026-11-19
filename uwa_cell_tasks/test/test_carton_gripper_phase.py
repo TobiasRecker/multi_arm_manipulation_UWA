@@ -2,7 +2,8 @@
 import copy,sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'tools'))
-from carton_gripper_phase import held_error,closing_contact
+from carton_gripper_phase import held_error,closing_contact,ready_for_open_preparation
+from uwa_cell_tasks.hardware_carton_approach import unloaded_open_status
 from uwa_cell_motion.common import ROBOT_IDS,joint_names
 
 
@@ -34,9 +35,53 @@ def test_object_contact_is_not_an_empty_endpoint_or_wrong_force_setting():
         changed=copy.deepcopy(status);changed['registers'][key]=value;assert not closing_contact(changed)
 
 
+def test_activated_boot_state_only_allows_high_open_preparation():
+    status=dict(observed=True,busy=False,registers=dict(ACT=1,STA=3,OBJ=0,FLT=0,PRE=0,POS=3,COU=0))
+    assert ready_for_open_preparation(status)
+    assert not unloaded_open_status(status)
+    assert not closing_contact(status)
+    for key,value in [('POS',9),('COU',1),('FLT',9),('PRE',255),('STA',1)]:
+        changed=copy.deepcopy(status);changed['registers'][key]=value
+        assert not ready_for_open_preparation(changed)
+
+
 def test_stationary_held_left_program_need_not_run_for_static_right_grippers():
     values,positions,limits=packets()
     values["state"][0]["records"]["left_front"]["status"]["runtime_state"]=1
     assert held_error(values,1.1,"expected",limits,positions)is None
     values["state"][0]["records"]["right_front"]["status"]["runtime_state"]=1
     assert held_error(values,1.1,"expected",limits,positions)
+
+
+def test_contact_members_remain_recorded_when_final_native_readiness_fails(tmp_path,monkeypatch):
+    import json
+    from types import SimpleNamespace
+    import carton_gripper_phase as phase
+    commands=[]
+    class Gripper:
+        def __init__(self,arm):self.arm=arm;self.closed=False
+        def status(self):
+            return dict(observed=True,busy=False,registers=dict(ACT=1,STA=3,OBJ=2 if self.closed else 3,
+                FLT=0,PRE=255 if self.closed else 0,POS=204 if self.closed else 3,FOR=0,SPE=16))
+        def close_gripper(self,**kwargs):self.closed=True;commands.append(self.arm);return dict(success=True)
+        def close(self):pass
+    class Monitor:
+        def __init__(self,*args):self.calls=0;self.values={};self.node=SimpleNamespace(destroy_node=lambda:None)
+        def connect(self):
+            self.calls+=1
+            if self.calls==3:raise RuntimeError('right_rear: native program/safety state not ready')
+        def spin(self):pass
+        def error(self):return None
+    state=tmp_path/'entry.json';out=tmp_path/'out'
+    state.write_text(json.dumps(dict(success=True,phase='BOTH_OPEN_AT_WALL_HELD_NO_CLOSE',
+        hardware_signature='expected',supervision_limits={},segments=[dict(final_positions={})])))
+    monkeypatch.setattr(phase,'GripperClient',Gripper);monkeypatch.setattr(phase,'HeldMonitor',Monitor)
+    monkeypatch.setattr(phase,'require_domain',lambda mode:None)
+    monkeypatch.setattr(phase.rclpy,'init',lambda:None);monkeypatch.setattr(phase.rclpy,'shutdown',lambda:None)
+    monkeypatch.setattr(sys,'argv',['phase','close','--state',str(state),'--output',str(out),'--execute','--visual-confirmed'])
+    assert phase.main()==1
+    result=json.loads((out/'result.json').read_text())
+    assert result['confirmed_contact_members']==['right_front','right_rear']
+    assert result['group']['independent_arm_motion_allowed'] is False
+    assert result['group']['allowed_next_action']=='HOLD'
+    assert result['arm_commands']==[] and len(commands)==2

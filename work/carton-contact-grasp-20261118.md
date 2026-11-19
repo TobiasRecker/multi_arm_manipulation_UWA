@@ -1,9 +1,7 @@
 # Reale Karton-Kontaktaufnahme18.11.2026
 
-- Status: **Software offline vorbereitet; Hardwareversuch auf Nutzerwunsch beendet, Realtest für19.11. ausstehend**. Hauptagent Kartongriff. Nutzer beauftragt Greifversuch und
-  fragt ausdrücklich nach mittiger Ausrichtung durch Wristkameras. Bisher nur
-  OAK/FK-Bildabgleich; dies offen erklärt. Jetzt zunächst zwei native Wristfotos
-  im gehaltenen150mm-Vor-Greifstand, keine Arm-/Fingerbewegung dabei.
+- Status: **19.11.2026 abgeschlossen mit gehaltenen beidseitigen Kontakten; Gesamtablauf beim Abschluss-Ruhecheck abgebrochen.** Hauptagent Kartongriff. Beide rechten Greifer am aufliegenden Karton; RR-Programm STOPPED, alle4Arme aktuell gehalten/stationär. Kein Reset/Play/Öffnen oder unabhängiges Armziel nach Kontakt. Aktuell maßgeblich ist der letzte Abschnitt; frühere Tageszustände sind historische Belege.
+
 - Auftrag: Greifen, zunächstkeinHub/Transport. AbKontakt keineunabhängigen
   Armbewegungen; tragendergekoppelterHardwaremaster bleibtseparat.
 - Profil0,1rad/s/0,2rad/s²beibehalten,keineTemposenkung. Greiferbisheroffen
@@ -238,3 +236,54 @@
   Bedienung docs/carton_supported_grasp.md; Fahrprofil hardware_carton_supported.yaml
   unverändert0,1rad/s/geometric_only/40mm. BLAS1 und Schutz gegenSwap nur für
   eigene Hardware-/Greiferdienste in Startskripten; keine fremden Dienste geändert.
+
+## Fortsetzung19.11.2026
+
+- Nutzer sagt ausdrücklich „okay, wir können weitermachen“; gestriger Stopp damit für diese Aufgabe aufgehoben. Normalen gestützten Greifablauf fortsetzen, keine zusätzliche Testkampagne. Unverändert0,1rad/s, zunächst kein Hub/Transport.
+- Erste reine Dashboardabfrage: alle4 erreichbar, POWER_OFF/NORMAL/STOPPED. Regulärer bereits freigegebener Bringup läuft; noch keine Fahr-/Fingerziele. Aktuelles Foto über vorhandenen Dienst/Fokus107 angefordert. Daten in `setup/tasks/carton_grasp_20261119/`. Eigene Schutz-/Greiferdienste für normalen Ablauf erneut bereitstellen; fremde Prozesse erhalten.
+
+- Aktuelles OAK-Foto10:30:39/Fokus107: Board68Ecken/1,562px; Textur44/47/27Inlier, drei Supportfits3,201/3,115/3,107px; interne Streuung0,319mm/0,060°, keine absolute Genauigkeitsbehauptung. Overlay visuell passend. Pendantbestätigungen vom Nutzer erledigt.
+- Regulärer Bringup scheitert an den seit18.11.18:00 weiterlaufenden vier Treibern: alle ros2_control_node exakt1024FD bei Softlimit1024, Logs „Too many open files“, Manager ohne Antwort/Reverse nicht verbunden. Eigene Dienste waren beendet, persistente Treiber blieben bestehen. Gezielter nativer STOP und Ersatz nur dieser4Dienste; keine Änderung an Sicherheits-/Frische-/Geschwindigkeitsgrenzen. Erste Offline-Planerstellung mit noch POWER_OFF-LR-Snapshot korrekt abgelehnt; nach Bringup neue Messung/Plan erforderlich.
+
+- Frische Treiber/Betriebsanbindung und alle4Messzustände RUNNING/NORMAL bestätigt; inaktive Holds provisioniert, eigener Schutz-/Greiferdienst bereitgestellt. Erste hohe Ausführung `high/` vor jedem Ziel korrekt abgebrochen: ein im vorbereiteten Runner übersehener Aufruf nutzte noch globalen Supervisorreset, während RPC-Vorprovisionierung/Entry bereits armweise waren. Nichtselektierte Latches dadurch nicht bestätigt. Fehlerhold bestätigt alle4 Ressourcen/Latches, arm_commands[]/finger_commands[]. Eine Zeile auf `collision_supervisor/<arm>/reset` korrigiert, Syntax geprüft; neuer Lauf `high-scoped/`. Keine Grenzänderung, keine eigene weitere Testkampagne.
+
+- `high-scoped/`: armweiser Reset erfolgreich, übrige3Ressourcen/Latches erhalten. Goal akzeptiert, aber noch vor nennenswerter Bewegung Datenalterfehler LR im Ablaufmonitor. RF-Nativepeak0,000445rad/s und Gesamtänderung<0,04mrad, kein Greiferbefehl. NativeSTOPalle4 bestätigt; anschließende vollständige Live-Lesung bestätigt alle4Holds/frischeManager, Guard ohne aktuelle Faults, Witness nicht getrippt. Keine reale Vorpose erreicht.
+- Enger Befund: voller zusätzlicher FCL-Check nur3,47ms, Guard-Auswertung12,21ms/100msBudget/0Overruns, Schutzprozess0Swap, System69%idle. Kein belastbarer Hardware-/Netzwerkfehler daraus abgeleitet. Bestehende20Hz native Daten wurden nur10Hz weitergegeben; Aufgabeprofil auf20Hz gesetzt, um diesen zusätzlichen bis100msPublikationsanteil zu verkürzen. Keine Frischegrenze/Abstände/Tempolimits geändert, keine neue Prüffunktion. Eigener Schutzdienst gezielt neu geladen; neue evidenzgebundene Anfahrt erforderlich.
+
+- `high-20hz/result.json` tatsächlicher PASS: beide korrigierten Hochpositionen erreicht, je1akzeptierte/gefahrenePhase,0Guardstopps, Endholds und beide Stillstandsnachweise bestanden. BahnrestfehlerRF0,123/RR0,234mrad. Jetzt Greiferprepare an den hohen freien Positionen und offene Einfahrplanung, noch kein Greifschluss/Hub.
+
+- Erste Aktivierung gelang, Öffnungsparameterbestätigung scheiterte vor POS/GTO: SPE0, RR-FOR16 statt0 trotz ACK. Arme unverändert hoch gehalten. Transport setzt nun FOR mit bestätigtem Readback vor SPE (zuvor beide SETs direkt nacheinander); keine automatische Wiederholung, unveränderte Parametergrenzen.10gezielte vorhandene Transporttests PASS. Öffnungs-prepare akzeptiert aktivierten Bootzustand OBJ0/POS≤8/COU0 ausschließlich für Öffnen an hoher gehaltenenPose, niemals für Einfahrt/Schließen;4gezielte Tests PASS. Lokaler HeldMonitor leert vorhandene Callbackqueue vor identischer Altersprüfung.
+- `grippers-open-parameters/result.json` tatsächlicher PASS: beideACT1/STA3/OBJ3/POS3/PRE0/SPE16/FOR0/FLT0/COU0; ACTIVE_OPEN_HELD, kein Hardwarefault. Keine erneute Aktivierung, kein Kontakt/Hub. Offene Einfahrgeometrie `entry-plan/` PASS ohne Arm/Karton-Touchausnahmen. Aktuelles Hoch-/Offenbild vor Einfahrt angefordert.
+
+- Hoch-/Offenfoto10:47:38 visuell geprüft: beide freien Backenpaare über den vorgesehenen kurzen Wänden, Karton auf Tisch. Planinputs unverändert/hashgeprüft. Vor Erst-Einfahrt weiteren deterministischen Übergabefehler verhindert: zwei follow()-Aufrufe hätten zwischen ALIGN/ENTRY erneut refresh_after_validation unter bereits eigenem aktivenController verlangt. Identische geprüfte Primitiven deshalb proArm in einer Action mit unveränderten Einzelzeitgesetzen/Null-v/a-Verbindung übertragen, keine zusätzliche Halte-/Resetfolge oder Streckung.5gezielte Tests PASS; realer Einfahrversuch `entry/` jetzt gestartet.
+
+- Reale offene Einfahrt `entry/result.json` PASS: BOTH_OPEN_AT_WALL_HELD_NO_CLOSE, beideEndholds/Stillstände bestätigt,0Guardstopps; RF/RRRestfehler0,122/0,196mrad. NativeSpitzen0,10327/0,10180rad/s innerhalb bestehender5%Monitortoleranz; keine Wrench-Deltaabschaltung. Keine Backenkraftmessung daraus ableiten.
+- Aktuelles OAK-Einfahrfoto10:50:29 (`20261119-105029-standard-65334fd8`) und Nahbild `entry-jaws.jpg` visuell geprüft: je ein Backenpaar beidseits der jeweiligen kurzen Wand, Karton unterstützt auf Tisch, kein sichtbarer unerwünschter Kontakt. Dies ist OAK-Sichtprüfung, keine neue Wrist-Zentrierbehauptung. Statischer minimaler Greifschluss jetzt explizit ausgeführt; nach Kontakt nurHOLD, keine unabhängigen Armziele.
+
+## Abschluss19.11.2026: Kontakt vorhanden, nurHOLD
+
+- `grasp/` schließt beide Greifer tatsächlich mitFOR0/SPE16. Beide Aktionen melden
+  Erfolg/Objektkontakt: ACT1/STA3/FLT0/OBJ2/PRE255, RF-POS204/RR-POS202.
+- Gesamtablauf bewusst nicht PASS: während Schließen RR-Ruhebeleg länger als1s
+  verletzt. Native qd-Spitzen bis0,005016rad/s gegenüber bestehend0,001;
+  Positionsspanne maximal0,000313rad. Supervisor sendet10:51:24 nativenRR-STOP,
+  Guard verriegelt betroffene Paare wegen PROGRAM INTERRUPTED. Kein Kollisions-
+  oder50N-Verletzungsnachweis daraus ableiten. Keine Schwelle geändert oder
+  Wiederaufnahme versucht; Greiferziele erhalten. Original `grasp/result.json`
+  mit HELD_NO_AUTOMATIC_RECOVERY und Native-Readinessfehler bleibt erhalten.
+- Rein lesende Nachaufnahme `grasp/final-held-state.json`: frische4Quellen,
+  alle4Holds/Manager bestätigt, alle4nativstationär, SafetyNORMAL. RR STOPPED,
+  übrige3PLAYING. Beide Kontaktmitglieder mit gemeinsamem virtuellem Objektframe
+  und festen Objekt→TCP-Offsets gesichert; ausschließlichHOLD, keine unabhängigen
+  Armziele/geladenen Bewegungen freigegeben. Quelle ist kein Post-Clamp-Posefit.
+- Abschlussfoto10:52:24 `setup/oak4/photos/20261119-105224-standard-949b772a/`,
+  Vorschau/Nahbild `setup/tasks/carton_grasp_20261119/grasp-{preview,jaws}.jpg`:
+  beide Backenpaare sichtbar an den kurzen Wänden, Karton weiter auf Tisch,
+  keine offensichtliche Beschädigung. Keine Tragfähigkeit/Backenkraft qualifiziert.
+- Softwarefehler im Fehlerpfad korrigiert: bestätigte Kontaktmitglieder und
+  HOLD-only-Gruppe sofort nach Statusreadback speichern, BEVOR abschließende
+  Armprüfung eventuell fehlschlägt. Gezielter Offline-Fehlerpfadtest bestätigt,
+  dass Native-Readinessfehler keinen geklemmten Karton als unbeladen hinterlässt;
+  `contact-retention-check.log`:5PASS. Keine reale Wiederholung zum Testen.
+- Nächste physische Aktion muss ausdrücklich den vorhandenen Kontaktzustand
+  berücksichtigen. Keine normale unbeladene Vorpose/Programmerholung ausführen.

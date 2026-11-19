@@ -33,3 +33,12 @@ For agents: `scripts/ur_cell_power.py status` emits one JSON event per arm
 and a final event. The explicit `standby` and `start` CLI modes act on
 physical hardware, share the bringup lock, and return nonzero on an incomplete
 action. They are never run by a read-only refresh or app startup.
+
+## N100 driver host
+
+The window runs on ROSmini in both modes. `scripts/ur_power_gui.py --n100`
+uses the N100 Ethernet SSH profile to run the same Power backend and displays
+**N100 driver host**. A lost SSH response reports the status as unknown until
+it can be read again. Close the current application window before changing
+hosts. See the [N100 setup and cutover](../../../setup/n100/ur-runtime/README.md)
+for the hardware handoff and how to set the application menu to the N100.

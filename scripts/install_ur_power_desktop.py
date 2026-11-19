@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Install the UWA Robot Power launcher for the current desktop user."""
 
+import argparse
 import os
 from pathlib import Path
 import shutil
@@ -8,6 +9,9 @@ import subprocess
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--n100', action='store_true', help='Set the desktop launcher to the N100 driver host')
+    args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     data = Path(os.environ.get('XDG_DATA_HOME') or Path.home()/'.local/share')
     applications = data/'applications'
@@ -20,9 +24,10 @@ def main():
     # Percent is reserved for Desktop Entry field codes.
     script = script.replace('%', '%%')
     entry = applications/'uwa-robot-power.desktop'
+    host_option = ' --n100' if args.n100 else ''
     entry.write_text('[Desktop Entry]\nType=Application\nName=UWA Robot Power\n'
                      'Comment=Put the four UR arms into standby or prepare them for ROS\n'
-                     f'Exec=/usr/bin/python3 "{script}"\n'
+                     f'Exec=/usr/bin/python3 "{script}"{host_option}\n'
                      'Icon=uwa-robot-power\nTerminal=false\nCategories=Utility;\n'
                      'StartupNotify=true\nStartupWMClass=uwa-robot-power\n')
     if shutil.which('desktop-file-validate'):

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Small local operator window for the four physical UWA arms."""
 
+import argparse
 import errno
 import json
 import os
@@ -12,6 +13,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 
 ROOT = Path(__file__).resolve().parents[1]
+N100_SSH_CONFIG = ROOT.parents[1]/'setup/n100/ssh_config'
 LABELS = {'left_front': 'Left front', 'left_rear': 'Left rear',
           'right_front': 'Right front', 'right_rear': 'Right rear'}
 GUIDANCE = {
@@ -65,9 +67,17 @@ def present(row):
 
 
 class Window(QtWidgets.QWidget):
-    def __init__(self, backend=None):
+    def __init__(self, backend=None, *, n100=False):
         super().__init__()
-        self.backend = backend or [sys.executable, str(ROOT/'scripts/ur_cell_power.py')]
+        self.n100 = n100
+        if backend is not None:
+            self.backend = backend
+        elif n100:
+            self.backend = ['/usr/bin/ssh', '-F', str(N100_SSH_CONFIG),
+                            '-o', 'ConnectTimeout=5', '-o', 'BatchMode=yes',
+                            'uwa-n100-robot-lan', 'bash ~/uwa-ur-runtime/power.sh']
+        else:
+            self.backend = [sys.executable, str(ROOT/'scripts/ur_cell_power.py')]
         self.setWindowTitle('UWA Robot Power')
         self.setWindowIcon(QtGui.QIcon(str(ROOT/'assets/uwa-robot-power.svg')))
         self.setMinimumWidth(555)
@@ -101,7 +111,8 @@ class Window(QtWidgets.QWidget):
         header.addWidget(icon)
         words = QtWidgets.QVBoxLayout()
         title = QtWidgets.QLabel('UWA Robot Power', objectName='title')
-        intro = QtWidgets.QLabel('Four arms · Control boxes stay online', objectName='intro')
+        intro_text = 'Four arms · N100 driver host' if n100 else 'Four arms · Control boxes stay online'
+        intro = QtWidgets.QLabel(intro_text, objectName='intro')
         words.addWidget(title)
         words.addWidget(intro)
         words.setSpacing(0)
@@ -235,7 +246,10 @@ class Window(QtWidgets.QWidget):
         elif event == 'error':
             self.completed = True
             self.have_result = True
-            self.feedback.setText('Action unavailable. Another operation may be running; refresh and try again.')
+            if self.n100:
+                self.feedback.setText('N100 action unavailable. Check the runtime status and refresh.')
+            else:
+                self.feedback.setText('Action unavailable. Another operation may be running; refresh and try again.')
             for rid in set(self.rows)-self.changed:
                 self.set_arm(rid, 'UNKNOWN', 'warn', 'No current status available.')
 
@@ -243,7 +257,10 @@ class Window(QtWidgets.QWidget):
         self.read_output()
         if not self.completed:
             self.have_result = True
-            self.feedback.setText('Status update ended early. Refresh before retrying.')
+            if self.n100:
+                self.feedback.setText('N100 connection or response lost. Refresh to check the arm states before retrying.')
+            else:
+                self.feedback.setText('Status update ended early. Refresh before retrying.')
             for rid in set(self.rows)-self.changed:
                 self.set_arm(rid, 'UNKNOWN', 'warn', 'No current status available.')
         self.process.readAllStandardError()
@@ -271,14 +288,18 @@ class Window(QtWidgets.QWidget):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--n100', action='store_true', help='Use the N100 driver host over Ethernet SSH')
+    args, qt_args = parser.parse_known_args()
     if os.environ.get('GTK_PATH', '').startswith('/snap/'):
         os.environ.pop('GTK_PATH')
-    app = QtWidgets.QApplication(sys.argv)
+    app = QtWidgets.QApplication([sys.argv[0], *qt_args])
     app.setDesktopFileName('uwa-robot-power')
     app.setApplicationName('uwa-robot-power')
     app.setApplicationDisplayName('UWA Robot Power')
     # An abstract Unix socket is released by the kernel when the app exits.
     address = f'\0uwa-robot-power-{os.getuid()}'
+    requested_host = b'n100' if args.n100 else b'local'
     peer = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
     try:
         peer.bind(address)
@@ -287,18 +308,20 @@ def main():
             raise
         with peer:
             peer.settimeout(.3)
-            peer.sendto(b'raise', address)
+            peer.sendto(requested_host, address)
         return 0
     peer.setblocking(False)
-    window = Window()
+    window = Window(n100=args.n100)
     notifier = QtCore.QSocketNotifier(peer.fileno(), QtCore.QSocketNotifier.Type.Read, window)
 
     def activate(*_):
         while True:
             try:
-                peer.recv(64)
+                host = peer.recv(64)
             except BlockingIOError:
                 break
+            if host in (b'n100', b'local') and host != requested_host and window.mode not in ACTIONS:
+                window.feedback.setText('Close this window before opening UWA Robot Power for the other driver host.')
         window.raise_window()
 
     notifier.activated.connect(activate)

@@ -1,10 +1,15 @@
 # Karton greifen: kurzer realer Ablauf
 
-Stand18.11.2026: Software für einen **gestützten, statischen Griff** vorbereitet.
-Heute wurden hohe Vorpositionen erreicht; die neu am Tischboard korrigierten
-Positionen und der Greifschluss wurden noch nicht real ausgeführt. Der Nutzer
-hat die Hardware für heute gestoppt und den nächsten Versuch auf19.11. gelegt.
-Kein automatischer Start am nächsten Tag.
+Stand19.11.2026: **beide rechten Greifer am aufliegenden Karton geschlossen**.
+Hohe Anfahrt und offene Einfahrt real bestanden. Beide Greifer meldenOBJ2 bei
+FOR0/SPE16; beim Schließen stoppt der bestehende Ruhewächter das hintere rechte
+UR-Programm. Alle4Arme anschließend frisch gehalten/stationär bestätigt.
+Gesamtablauf deshalb kein vollständiger PASS. **NurHOLD, kein Hub/Transport;
+keine automatische Programmerholung oder unabhängige Armfahrt.** Aktueller
+Nachweis `setup/tasks/carton_grasp_20261119/grasp/final-held-state.json`, Foto
+`setup/tasks/carton_grasp_20261119/grasp-jaws.jpg`; Details in HANDOVER.md.
+Der folgende Ablauf beschreibt einen neuen unbeladenen Start, nicht die
+Fortsetzung aus diesem Kontaktzustand.
 
 ## Normaler Bedienablauf
 
@@ -27,8 +32,9 @@ Es gehört keine separate Simulations-, Kraftmess- oder Diagnosereihe in diesen
 Bedienablauf. Bei einem technischen Abbruch bleiben die Arme gestoppt und die
 Greiferziele erhalten. Es gibt keine automatische Neustart-/Öffnen-/Rückfahrserie.
 Die vorhandene Kollisions-, Datenfrische-, Halte- und native UR-Sicherheit bleibt
-aktiv. Der neue armweise Freigabeweg und die reale offene Einfahrt sind morgen
-im eigentlichen Greifversuch noch praktisch zu bestätigen.
+aktiv. Armweise Freigabe und reale offene Einfahrt sind seit19.11. praktisch
+bestätigt. Der RR-Ruhecheck während realem Greifschluss bleibt offen; keine
+Tragfähigkeits-/Kraftqualifikation oder geladene Hardwarebewegung.
 
 ## Bausteine für Agenten
 
@@ -91,3 +97,15 @@ Objekt→TCP-Offsets der bestätigten Mitglieder gespeichert. Erlaubte nächste
 Aktion ist ausschließlich **HOLD**. Der tragende gekoppelte Hardwareexecutor
 für spätere Objektbewegungen bleibt separate Arbeit; der unabhängige PTP-Runner
 wird dafür nicht verwendet.
+
+## Eng begrenzte Softwarekorrekturen19.11.
+
+- Bestehende20Hz-Nativdaten werden im Aufgabeprofil20Hz statt10Hz weitergegeben;
+  alle Alters-/Kollisions-/Stoppgrenzen und0,1rad/s bleiben erhalten.
+- FOR vor SPE einzeln rückbestätigen, erst danach POS/GTO. Aktiviertes OBJ0 mit
+  POS≤8/COU0 nur für Öffnen an hoher gehaltenenPose akzeptieren; Einfahrt und
+  Schließen verlangen weiterhin bestätigten offenenOBJ3-Zustand.
+- ALIGN und ENTRY proArm in einer Action mit unveränderten Einzelzeitgesetzen,
+  ohne erneute Geometrie-/Controllerübergabe während eigener Aktivierung.
+- Kontaktmitglieder vor letzter Armprüfung speichern: ein Programmstopp macht
+  einen real geklemmten Karton nicht wieder zu einem unbeladenen Fehlerzustand.

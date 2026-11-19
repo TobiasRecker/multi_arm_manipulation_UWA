@@ -4,6 +4,18 @@ description: Compose and review object-led manipulation tasks in the UWA digital
 ---
 
 Read the repository AGENTS.md and current manipulation section in HANDOVER.md.
+Latest real state19November overrides the historical18November state below:
+both right grippers have confirmed OBJ2 contact on the supported carton at
+FOR0/SPE16. Corrected high approach and open entry passed on hardware. During
+closing the existing RR standstill monitor stopped its native program, so the
+complete grasp run did NOT pass final validation. All four holds/standstill
+were subsequently confirmed. Keep the contact members as a rigid HOLD-only
+group: no independent trajectories, reset/play/opening or service migration
+as automatic recovery. Current virtual-object/TCP references and raw state:
+setup/tasks/carton_grasp_20261119/grasp/final-held-state.json. No lift occurred.
+Read current HANDOVER before commands. Contact membership must be persisted
+before a final native-readiness check that may fail.
+
 Use [the task interface](../../../docs/manipulation_pipeline.md) and
 `ros2 run uwa_cell_tasks cell_task skills` for current contracts and commands.
 Source `scripts/env.bash` from the cell repository (Lyrical, domain64).
@@ -157,8 +169,9 @@ carton_gripper_phase.py prepare → open entry → visually checked static close
 Use the versioned hardware_carton_supported.yaml0.1rad/s profile. High/entry
 runners use scoped per-arm reset and retain other holds; they do not globally
 release/reacquire all four. Do not make a separate regression/simulation campaign
-part of normal operation. Current new reset/entry/close software is offline
-checked, not yet qualified by the deferred real test. Contact closes to HOLD only,
+part of normal operation.19November reset/entry passed in the actual run;
+closing produced contact but its final standstill/readiness validation failed.
+Contact closes to HOLD only,
 with frozen common virtual object/TCP offsets; never send independent loaded
 arm trajectories. Historical simulation geometry folders may have been removed;
 freeze fresh geometry from the canonical asset rather than rewriting old hashes.

@@ -1,6 +1,99 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
-## Aktueller Kartonstand: Hardware beendet, Software für19.11. vorbereitet
+## N100 als möglicher UR-Steuerrechner, 2026-11-19
+
+- Anschlussauftrag19.11.: N100 vorbereiten und für RT-Kernel neu starten.
+  Ubuntu `7.0.0-43-realtime` gebootet, `PREEMPT_RT=y`, N100 per Ethernet
+  erreichbar, SSH-/Benutzermanagergrenzen 99/unlimited geprüft. Isolierter
+  Lyrical-Overlay `~/uwa-ur-runtime`, GUI-Option `--n100` auf ROSmini.
+  Der Desktop-Eintrag steht bis zur späteren Betriebsübergabe auf lokal.
+- N100-Lasttest mit USB-OAK und Archivleselast abgeschlossen. Vier
+  Mock-JointState-Quellen, passende Kinematiken sowie Guard, Supervisor und
+  Watchdog im Monitorbetrieb bestätigt. Gelenk-, kartesische und
+  CollisionHold-Controller auf allen vier Mock-Managern inaktiv konfiguriert.
+  FIFO-Priorität 50 im Managerlog. Kurzstichprobe 30 s mit 179 µs maximaler
+  Scheduler-Aufwecklatenz, ca. 1,64 GiB Cgroup-RAM und 2,20 logischen
+  CPU-Kernen. Mockzyklus 100 Hz. N100-Runtime und Prüfnachweise in
+  `setup/n100/ur-runtime/`. Realer Wechsel des External-Control-Hosts und
+  Leistungs-/Stoppnachweis mit realen Regelkreisen stehen aus.
+- Abschluss der Vorbereitung: 18 Pakete inklusive `mur_control` für den
+  bestehenden kartesischen Controller und `match_cooperative_handling`
+  für Aufgabenmathematik. Drei aktuelle Karton-/Greifer-CLI-Imports und
+  16 vorhandene Softwaretests auf dem N100 bestanden. Lokale 29
+  Power-/Bringup-Tests und simulierter N100-GUI-Ablauf bestanden. Der
+  gebaute Quellstand ist vor dem echten Umschalten mit paralleler
+  Zellarbeit abzugleichen.
+- Nutzer ergänzt, dass die Roboter bei weiterlaufenden Treibern aus waren.
+  Das ist der beobachtete Kontext für die FD-Diagnose. Die genaue Ursache
+  des Socket-Wachstums und die Dauerstabilität bei ausgeschalteten URs
+  bleiben offen.
+- Nutzer erwägt, die Echtzeitausführung hinter **UWA Robot Power** vom
+  simulations- und planungsbelasteten ROSmini auf den N100 zu verlagern.
+  Präzisierung19.11.: GUI auf ROSmini, betriebsbezogene Berechnung und
+  Überwachung auf dem N100.
+  SSH-Bestandsaufnahme bestätigt vier Kerne, 5.954 MiB verfügbaren RAM im
+  Leerlauf, Lyrical und kabelgebundenes Zellnetz. Die Bestandsaufnahme wurde
+  vor der oben dokumentierten Echtzeitinstallation durchgeführt.
+- Auf ROSmini erreichten alle vier alten `ros2_control_node` jeweils 1.024
+  offene Dateideskriptoren am Softlimit, davon je 997 Sockets. Die Journale
+  meldeten fortlaufend `Too many open files` an den Script-Sender-Ports.
+  Die vier laufenden Dienste beanspruchten in Fehlerstichproben etwa
+  6,2–7,2 logische CPU-Kerne und 5,6 GiB Prozessspeicher (PSS), vieles im
+  Launch-Prozess. Ursache der Socket-Ansammlung offen. Nach unabhängigem
+  Neustart durch den parallel bearbeiteten Karton-Bringup zeigten alle
+  vier Manager je 52 FDs. Die Dienste lagen bei zusammen 1,8 GiB PSS und
+  0,82 logischen CPU-Kernen in einer kurzen Vergleichsmessung. Der
+  Wächterdienst war inaktiv. Dauerbetrieb und Last auf dem N100 offen.
+- Empfehlung zur Prüfung: GUI, Simulation und Offlineplanung auf ROSmini.
+  UR-Treiber, Live-Guard, Supervisor, Watchdog und Ausführung auf einem
+  Host (N100), weil die heutige Frischeprüfung gemeinsame monotone
+  Zeitstempel voraussetzt. Eine getrennte Runtime braucht kontrollierte
+  Auftrags-/Statuswege und pro UR genau einen aktiven Treiberhost. Die
+  Anwenderpräferenz für die GUI ist bestätigt. Der Umschaltablauf steht
+  in der [N100-Anleitung](../../setup/n100/ur-runtime/README.md).
+  [Messwerte, Quellen und Prüfplan](work/n100-ur-runtime-20261119.md).
+
+## Aktueller realer Kartongriff,19.11.2026: Kontakt gehalten, RR-Programm gestoppt
+
+- **Beide rechten Greifer geschlossen am aufliegenden Karton. Keine unabhängigen
+  Armfahrten, kein Reset/Play/Öffnen oder Dienstwechsel als automatische Erholung.**
+  Nur HOLD; kein Hub/Transport. Direkter Nutzerauftrag zur Fortsetzung erledigte
+  hohe Anfahrt, Aktivierung/Öffnen, offene Einfahrt und tatsächlichen Greifschluss.
+- Aktuelle OAK-Registrierung über sichtbares festes rechtes Board; Basisbindungen
+  unverändert. Hohe Anfahrt `setup/tasks/carton_grasp_20261119/high-20hz/` und
+  offene Einfahrt `entry/` tatsächlich PASS, beide Endholds/Stillstände bestätigt,
+  keine Guardstopps in diesen Fahrten. Unverändert0,1rad/s/0,2rad/s²/40mmMargin.
+- OAK-Einfahrbild10:50:29 visuell geprüft, beide Backenpaare straddeln die kurzen
+  Wände. Minimales Schließen FOR0/SPE16: beide ACT1/STA3/FLT0/OBJ2/PRE255,
+  RF-POS204/RR-POS202. Beide ROS-Greiferaktionen erfolgreich, keine Öffnung danach.
+- **Abschlussprüfung des Gesamtablaufs abgebrochen**, nicht als vollständigen
+  qualifizierten Grifflauf ausgeben: während Schließen meldet RR Ruhewächter
+  länger als1s keine Ruhe. Spitzen bis0,005016rad/s bei Positionsspannen nur
+  etwa0,00031rad überschreiten bestehende0,001rad/s-Ruheschwelle. Supervisor
+  stoppt RR-Programm10:51:24; anschließend Guard-Latch PROGRAM INTERRUPTED.
+  Ursache ist hier Reaktionsbewegung/Stillstandskriterium, kein nachgewiesener
+  Kollisions-/Kraftüberschreitungsfall. Grenzen nicht verändert, kein Neustart.
+- Nachfolgend rein lesend bestätigt: frische alle4Pakete, alle4Ressourcenholds
+  und native Ruhe. Native Safety NORMAL an allen4; RR STOPPED, übrige PLAYING.
+  `grasp/result.json` bleibt negativer Originalnachweis. Kontaktmitglieder und
+  gemeinsamer virtueller Objektframe/feste Objekt→TCP-Offsets separat unter
+  `grasp/final-held-state.json`; allowed_next_action HOLD, loaded_motion_enabled
+  false. Kein Tragfähigkeits-/Backenkraftnachweis. Foto10:52:24 und Nahbild
+  `setup/tasks/carton_grasp_20261119/grasp-jaws.jpg` zeigen beide Wandgriffe,
+  Karton auf Tisch, keine offensichtliche Beschädigung.
+- Startprobleme gezielt behandelt: vier alte Treiber bei1024FD erschöpft,
+  nach nativenSTOPs ersetzt; übersehener globaler Hochrunner-Reset auf armweisen
+  Endpoint korrigiert. Bestehende Zustandsweitergabe passend zur nativen20Hz-Rate
+  auf20Hz gestellt, Frische-/Stopplimits unverändert. FOR vor SPE einzeln
+  rückbestätigt; aktive Bootstellung nur für Öffnen hoch zugelassen. ALIGN/ENTRY
+  proArm in einer Action, identische Einzelzeitgesetze. Kontaktmitglieder auch
+  bei abschließendem Native-Readinessfehler vorab erhalten. Eng begrenzte lokale
+  Prüfungen bestanden, Details `work/carton-contact-grasp-20261118.md`.
+- Vor weiterer echter Bewegung zuerst den gehaltenen Kontaktzustand behandeln;
+  der tragende gekoppelte Hardwareexecutor bleibt separate offene Arbeit.
+
+
+## Historischer Sitzungsabschluss18.11.: Software für19.11. vorbereitet
 
 - Expliziter Nutzerstopp18.11.: heute keine weiteren Fahr-/Greifziele, Software
   offline fertigstellen, realer Versuch morgen. Eigene Hardware-Schutz-/Greifer-
@@ -432,6 +525,56 @@
   sichtbar. Wiedergabe der Telemetrie als 3D-Ansicht ohne Kameravideo.
 - Protokolle und Review im Workspace unter
   `setup/tasks/box_drawing_gazebo_live_20261118_01/`.
+
+## Greifhöhe im HTML-Piloten und in der Kontaktgeometrie, 2026-11-19
+
+- Nutzer weist auf den unterschiedlichen Abstand zwischen Greifern und
+  Karton in HTML, Gazebo und realer Zelle hin. Im ursprünglichen
+  Boxzeichnungs-Viewer sieht man Kollisionshüllen und einen angenommenen
+  starren Griff mit nominell offenen Fingern. Die Kontakt-Neuplanung
+  verwendet die profilgebundene Gazebo-Geometrie und die beim Vier-Pad-Griff
+  aus Werkzeug-FK und Bildpose bestimmten Objekt→Tool0-Transforms.
+- Abgleich im kartonfesten Zentrumframe mit gleicher nominaler Oberkante.
+  `present_surface_20261118/reference02/result.json` nutzt einen virtuellen
+  TCP 158,5 mm entlang Tool0+Z. Nach Rückrechnung auf Tool0 beträgt die
+  Höhe über der nominalen Oberkante rechts vorne/hinten je 143,5 mm.
+  In `box_drawing_gazebo_replan_20261118_01/result.json` sind es 91,4/88,5 mm.
+  Das entspricht 52,1/55,0 mm tieferer Werkzeugpose. Die Zahlen beschreiben
+  die gespeicherten Modellreferenzen, keinen gemessenen Padspalt.
+- Das nominale Rezept für den gestützten Realgriff
+  (`carton_grasp_20261118_offline_finish/recipe-v2/contacts.json`) zielt
+  auf 95,8/93,0 mm über dem Kartonboden. Die nominellen TCP-Ziele des
+  HTML-Piloten liegen bei 148,3 mm. Die Wristaufnahmen zeigen den
+  verstärkten mehrlagigen Rand; realer Padabstand und Mittigkeit sind durch
+  diese Zahlen und Bilder nicht bestätigt. Siehe
+  [Kontaktaufnahme und Bildabgleich](work/carton-contact-grasp-20261118.md).
+- Auf Nutzerwunsch als dauerhafte Übergaberegel in AGENTS.md und
+  docs/box_drawing_pilot.md verankert. Gemeinsamer Kartonframe, Werkzeug-
+  und Padbezug, Fingerstellung und Wandgeometrie vor dem Übertragen prüfen.
+  Die fallbezogene Werkzeughöhendifferenz bleibt ein Vergleichsbefund.
+
+## Zweiter Agententest mit Gemini vorbereitet, 2026-11-19
+
+- Nutzer möchte die Toolchain mit einem frischen Agenten eines anderen
+  Anbieters testen. Aufgabe: derselbe Drei-Flächen-Ablauf im Dateimodell
+  mit 22 mm Radius und Prüfung der Einordnung von HTML-Greifgeometrie.
+  Die vorhandene Flächen-CLI ist Bestandteil des Tests. Der erste
+  Agententest erforderte dagegen eine Erweiterung des Modellcodes.
+- Antigravity CLI 1.5.12 lokal unter `setup/agent_tools/antigravity/agy`
+  aus Googles Linux-Release abgelegt, Manifest-SHA512 und Versionsaufruf
+  geprüft. Anmeldung über das Nutzerkonto steht aus. Die Bedienanleitung
+  unterscheidet Konto-Kontingent und API-Projekt sowie CLI/VS-Code.
+- [Start und Auswertung](docs/agent_trials/GEMINI_TRIAL_02.md),
+  [Testprompt](docs/agent_trials/PROMPT_GEMINI_TRIAL_02.md) und
+  [Agentenübergabe](docs/agent_trials/GEMINI_HANDOFF.md).
+  Starter `tools/start_gemini_trial.py` legt Prompt, Eingangssnapshots und
+  sichtbaren Terminalmitschnitt mit Zeitmarken neben dem Aufgaben-Trace ab.
+- Vorabprüfung ohne Gemini: eigener Offline-Drei-Flächen-Lauf mit 22 mm
+  bestand den separaten FK-/Zeitaudit, Modellzeit 395,080 s,
+  Spitzengeschwindigkeit 0,096583 rad/s. Starter in lokalem Terminaltest
+  mit simuliertem Client geprüft, einschließlich Exitcode-Erhalt,
+  sichtbarer Ausgabe, Timing und IDE-Vorbereitung. Der echte
+  Kompatibilitäts- und Zeitvergleich steht noch aus.
 
 ## Neuplanung des Gazebo-Drei-Kreis-Ablaufs, 2026-11-18
 

@@ -34,6 +34,25 @@ def timed_primitive(segment,actual_start,velocity=.1,acceleration=.2):
     return dict(duration_s=duration,waypoints=values(np.linspace(0,1,257))[0].tolist(),points=[dict(time=float(t),positions=x.tolist(),velocities=y.tolist(),accelerations=z.tolist())for t,x,y,z in zip(times,q,v/duration,a/duration**2)])
 
 
+def timed_sequence(segments,actual_start):
+    """Deliver the checked ALIGN/ENTRY primitives as one action per arm.
+
+    Preserve each time law and its zero velocity/acceleration junction. This
+    avoids recompiling/reconnecting a second follow() while already owning
+    the active controller. No extra hold, reset or time dilation is inserted.
+    """
+    points=[];waypoints=[];duration=0.;start=actual_start
+    for index,segment in enumerate(segments):
+        if index and not np.allclose(start,segment['positions'][0],atol=1e-10,rtol=0):
+            raise ValueError('Entry primitive junction changed')
+        part=timed_primitive(segment,start)
+        for point in part['points'][1 if index else 0:]:
+            points.append(dict(point,time=point['time']+duration))
+        waypoints.extend(part['waypoints'][1 if index else 0:])
+        duration+=part['duration_s'];start=part['points'][-1]['positions']
+    return dict(duration_s=duration,waypoints=waypoints,points=points)
+
+
 class ForceObserver(Observer):
     def __init__(self,host):
         self.reader=OutputReader.__new__(OutputReader);self.reader.socket=socket.create_connection((host,30004),timeout=1.);self.reader.socket.settimeout(2.)
@@ -65,8 +84,9 @@ class EntryProblem(HardwareProblem):
         return super().check(request,q,margin=margin) and self.current_open.check(self.state(request,q))[0]
     def time_parameterize(self,request,path):
         arm=self.current_arm;segment=self.current_primitive;start=[request['start'][j]for j in joint_names(arm)]
-        if np.max(abs(np.array(request['target'])-segment['positions'][-1]))>1e-8:raise ValueError('Entry endpoint mismatch')
-        trajectory=timed_primitive(segment,start)
+        segments=segment if isinstance(segment,list) else [segment]
+        if np.max(abs(np.array(request['target'])-segments[-1]['positions'][-1]))>1e-8:raise ValueError('Entry endpoint mismatch')
+        trajectory=timed_sequence(segments,start)
         for q in trajectory['waypoints']:
             if not self.check(request,q):raise ValueError('Measured-start entry recheck failed')
         return trajectory
@@ -123,10 +143,15 @@ def main():
                 client.wait(lambda:arm not in client.guard['blocked_arms'] and arm not in client.supervisor['blocked_arms'],3.,health=True);client.health();record['other_holds']=retained_holds(client.supervisor,set(ROBOT_IDS)-{arm});save()
                 if not all(record['other_holds'][k]for k in ['resource_holds_confirmed','latches_confirmed']):raise RuntimeError('Other holds unconfirmed')
                 client.force_reference=np.median([r['force']for r in ob.snapshot()[-12:]],axis=0);client.monitor_open=True
-                for s in [s for s in plan['segments']if s['arm']==arm]:
-                    p.current_primitive=s['primitive'];request=p.normalize(dict(start=dict(client.positions),goals={arm:s['primitive']['positions'][-1]}));execution=dict(stage='OPEN_'+s['name']+'_'+arm,record_path=str(out/(arm+'-'+s['name']+'.json')),phase_count=0,guard_stops=0);report['phase']=execution['stage'];report['arm_commands'].append(dict(arm=arm,phase=s['name'],goal=request['goals'][arm]));save();completed=follow(p,client,dict(request=request,trajectory=dict(waypoints=s['primitive']['positions'])),execution);dump(execution['record_path'],execution)
-                    if not completed:raise RuntimeError('Entry phase not executed; no continuation')
-                    if execution.get('stopped_arms'):raise RuntimeError('Entry interlock stopped arm')
+                parts=[s for s in plan['segments']if s['arm']==arm]
+                p.current_primitive=[s['primitive']for s in parts]
+                request=p.normalize(dict(start=dict(client.positions),goals={arm:parts[-1]['primitive']['positions'][-1]}))
+                execution=dict(stage='OPEN_ALIGN_ENTRY_'+arm,record_path=str(out/(arm+'-ALIGN-ENTRY.json')),phase_count=0,guard_stops=0)
+                report['phase']=execution['stage'];report['arm_commands'].append(dict(arm=arm,phases=[s['name']for s in parts],goal=request['goals'][arm]));save()
+                completed=follow(p,client,dict(request=request,trajectory=dict(waypoints=[q for s in parts for q in s['primitive']['positions']])),execution)
+                dump(execution['record_path'],execution)
+                if not completed:raise RuntimeError('Entry phase not executed; no continuation')
+                if execution.get('stopped_arms'):raise RuntimeError('Entry interlock stopped arm')
                 record['hold_after']=client.stop([arm]);save()
                 if not all(record['hold_after'][k]for k in ['resource_holds_confirmed','latches_confirmed']):raise RuntimeError('Entry hold unconfirmed')
                 client.wait(lambda:arm in client.guard['stationary_arms'] and quiet_window(ob.snapshot()[-12:]),5.,health=True);record.update(executed=True,final_positions=dict(client.positions));save()

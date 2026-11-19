@@ -75,6 +75,16 @@ Kinematikpiloten mit seinem festen Greifzustand und virtuellem Marker.
 
 ## Gegenüberliegende Längswand
 
+Beim Vergleich mit Kontaktphysik dieselben Karton- und Werkzeugframes
+verwenden. Die HTML-Hüllen zeigen den angenommenen Griff mit offenen
+Fingern. Der Gazebo-Kontaktgriff aus dem Vier-Pad-Lauf platziert Tool0
+relativ zur nominalen Kartonoberkante rechts vorne 52 mm und rechts hinten
+55 mm tiefer. Das ist der Unterschied dieser beiden gespeicherten
+Werkzeugposen. Der Padabstand erfordert Padflächen, tatsächliche
+Fingerstellungen und die beobachtete Wandgeometrie. Für eine Übertragung
+den passenden Griff binden und die Bahn erneut prüfen.
+[Quellen und Bezugsframes](../HANDOVER.md#greifhöhe-im-html-piloten-und-in-der-kontaktgeometrie-2026-11-19)
+
 Mit `--variant away_face` zeichnet `left_front` je einen Kreis mit 25 mm
 Radius auf `y_max`, `z_min` und `y_min`. Beide rechten Arme halten den
 Karton mit den festen Objekt-TCP-Transforms. Bis zum Rückzug von der

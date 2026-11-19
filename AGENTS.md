@@ -1,5 +1,11 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+- Nach Greifschluss bestätigte Kontaktmitglieder auch dann vorab als HOLD-only-
+  Gruppe festhalten, wenn die abschließende Arm-/Programmprüfung fehlschlägt.
+  Fehlerzustand nicht als unbeladen behandeln; kein automatisches Öffnen,
+  Reset/Play oder unabhängiges Armziel. Aktueller realer Kontaktstand19.11.
+  steht ganz oben in HANDOVER.md.
+
 ## Zweite Übersichtskamera links (2026-11-18)
 
 - Nutzer wünscht die USB-OAK am N100 hoch gegenüber der Ethernet-OAK4;
@@ -91,6 +97,16 @@
   Halteposensuche im Toolkit nutzen. Vorläufige Transferansicht und vollständig
   geprüften Modelllauf unterscheidbar anzeigen. Ablehnungsstufe und lokale
   Ursache erhalten. Bedienung in docs/box_drawing_pilot.md.
+- Nutzerauftrag19.11. zur Greifhöhe: Beim Übertragen vom HTML-Piloten nach
+  Gazebo oder auf reale Arme die Greifgeometrie im selben Kartonframe
+  vergleichen. Bezugspunkt (Tool0, virtueller TCP oder Padfläche),
+  Fingerstellung, Wand/Rand und Quelle der Grifftransforms dokumentieren.
+  Vertikale Werkzeughöhe und kleinsten Abstand Pad→Karton gesondert
+  prüfen. Hüllen in der HTML-Vorschau sind Visualisierung von
+  Modellgeometrie. Für die Kontaktplanung den zur jeweiligen Umgebung
+  gebundenen Griff verwenden und die Bahn damit neu prüfen. Die
+  52/55 mm aus dem ersten Vergleich sind ein Fallbefund und kein
+  universeller Korrekturwert. Nachweis in HANDOVER.md.
 - Piloteinstieg ist bestätigt; weitere Architekturvarianten bleiben Empfehlungen,
   keine pauschale Hardwarefreigabe. Erster file-only Modellstand/Bedienung:
   docs/box_drawing_pilot.md. Forschungsbericht:
@@ -332,6 +348,10 @@
 
 ## Startmenü-App UWA Robot Power (2026-11-16)
 
+- Nutzerpräzisierung19.11. für den erwogenen N100-Umbau: **UWA Robot Power**
+  bleibt als GUI auf ROSmini. Betriebsbezogene Berechnung und Überwachung
+  der echten Roboter sollen auf dem N100 laufen. Statusanzeigen und
+  explizite Aktionen sollen weiter über die lokale GUI bedienbar sein.
 - Kurze Pausen: [UWA Robot Power](docs/ur_power_gui.md). **Standby** stoppt
   das konfigurierte `ros.urp` und schaltet die Antriebe ab; **Start + ROS**
   nutzt den bestehenden UR-Startablauf. Sichtbare Einzelresultate, englische

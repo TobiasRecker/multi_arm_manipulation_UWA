@@ -92,6 +92,8 @@ class Robotiq:
         # Configure and verify limits before changing POS: GTO may already be
         # latched from an earlier move, so a new POS can itself start motion.
         self._set([('FOR', force)])
+        self._wait(lambda r:r['ACT']==1 and r['STA']==3 and r['FOR']==force,
+                   deadline, feedback)
         self._set([('SPE', speed)])
         self._wait(lambda r:r['ACT']==1 and r['STA']==3 and r['SPE']==speed and r['FOR']==force,
                    deadline, feedback)

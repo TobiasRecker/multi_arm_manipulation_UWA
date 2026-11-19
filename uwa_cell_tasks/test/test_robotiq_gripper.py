@@ -72,4 +72,6 @@ def test_unconfirmed_speed_or_force_never_changes_position_or_starts_motion(monk
     clock=iter([0.,0.,.1,2.1])
     monkeypatch.setattr('uwa_cell_tasks.robotiq_gripper.time.monotonic',lambda:next(clock))
     with pytest.raises(TimeoutError):device.command(1,128,10,0,2.)
-    assert device.writes==[{'FOR':0},{'SPE':10}]
+    # Do not queue another parameter until the preceding force write is read
+    # back; in particular never reach POS/GTO after an ACK-only outcome.
+    assert device.writes==[{'FOR':0}]

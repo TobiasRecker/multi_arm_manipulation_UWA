@@ -203,7 +203,7 @@ def main():
                 # Preserve all old causes in the report; reset is a separate
                 # explicit operation, never failure recovery or loaded resume.
                 segment['guard_before_reset'] = client.guard; segment['supervisor_before_reset'] = client.supervisor; save()
-                answer = client.service(Trigger, '/uwa_cell/collision_supervisor/reset', Trigger.Request())
+                answer = client.service(Trigger, '/uwa_cell/collision_supervisor/'+arm+'/reset', Trigger.Request())
                 segment['reset_response'] = dict(success=answer.success, message=answer.message); save()
                 if not answer.success: raise RuntimeError(answer.message)
                 client.wait(lambda:arm not in client.guard['blocked_arms'] and arm not in client.supervisor['blocked_arms'], timeout=3., health=True)

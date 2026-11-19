@@ -47,6 +47,19 @@ def closing_contact(status):
             8<r.get('POS',255)<248)
 
 
+def ready_for_open_preparation(status):
+    """Allow an activated, near-open boot state ONLY to command opening high.
+
+    OBJ0 after activation is not a completed opening and must not authorize
+    arm entry or closing. Those phases continue to require OBJ3/open readback.
+    """
+    if unloaded_open_status(status):return True
+    r=status.get('registers',{})
+    return (status.get('observed') is True and status.get('busy') is False and
+            all(r.get(k)==v for k,v in dict(ACT=1,STA=3,OBJ=0,FLT=0,PRE=0,COU=0).items()) and
+            0<=r.get('POS',256)<=8)
+
+
 class HeldMonitor:
     def __init__(self,expected,limits,positions):
         self.expected,self.limits,self.positions=expected,limits,positions;self.node=rclpy.create_node('supported_carton_gripper_phase');self.values={};self.peers={k:Peer()for k in ['guard','supervisor','state','witness']}
@@ -57,7 +70,11 @@ class HeldMonitor:
             if self.peers[key].receive(value,now,self.expected,True):self.values[key]=(value,now)
         except (ValueError,TypeError,KeyError):pass
     def spin(self):rclpy.spin_once(self.node,timeout_sec=.005)
-    def error(self):return held_error(self.values,time.monotonic(),self.expected,self.limits,self.positions)
+    def error(self):
+        # Process already queued status callbacks before evaluating their source
+        # ages, as HardwareClient.health does. Never widen the age limits.
+        for _ in range(20):rclpy.spin_once(self.node,timeout_sec=0.)
+        return held_error(self.values,time.monotonic(),self.expected,self.limits,self.positions)
     def connect(self):
         end=time.monotonic()+10.
         while True:
@@ -86,7 +103,8 @@ def main():
     try:
         for arm in ('right_front','right_rear'):
             g=clients[arm]=GripperClient(arm);status=g.status();report.setdefault('before',{})[arm]=status
-            if not unloaded_open_status(status):raise ValueError(arm+': not open/unloaded')
+            ready=ready_for_open_preparation(status) if args.phase=='prepare' else unloaded_open_status(status)
+            if not ready:raise ValueError(arm+': not open/unloaded')
             r=status['registers']
             if args.phase=='close' and (r['ACT']!=1 or r['STA']!=3 or r['FOR']!=0 or r['SPE']!=16):raise ValueError(arm+': prepare active open minimal-force gripper first')
         monitor=HeldMonitor(expected,limits,positions);monitor.connect();report['holds_before']={k:v[0]for k,v in monitor.values.items()};save()
@@ -114,6 +132,16 @@ def main():
         for arm,g in clients.items():
             try:report.setdefault('after',{})[arm]=g.status()
             except BaseException as error:report.setdefault('errors',{})[arm]=str(error)
+        # Contact is physical state even when the subsequent arm validation
+        # fails. Preserve group membership/no-independent-motion immediately;
+        # never leave a clamped object looking like an unloaded failure.
+        if args.phase=='close':
+            contacts=[a for a,r in report.get('after',{}).items()if closing_contact(r)]
+            report['confirmed_contact_members']=contacts
+            report['group']=dict(members=contacts,allowed_next_action='HOLD',
+                independent_arm_motion_allowed=False,loaded_motion_enabled=False,
+                object_supported=True,reference_pending=True)
+            save()
         monitor.connect();save()
         if args.phase=='prepare':
             report['success']=not report.get('errors') and not report.get('hardware_fault') and all(unloaded_open_status(r) and r['registers']['ACT']==1 and r['registers']['SPE']==16 and r['registers']['FOR']==0 for r in report.get('after',{}).values()) and len(report.get('after',{}))==2
