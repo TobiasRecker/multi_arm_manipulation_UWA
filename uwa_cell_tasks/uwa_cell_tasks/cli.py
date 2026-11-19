@@ -12,6 +12,7 @@ def main():
     sub.add_parser('skills')
     for command in ('prepare','plan'):
         p=sub.add_parser(command);p.add_argument('--output',type=Path,required=True);p.add_argument('--config',type=Path);p.add_argument('--layout',type=Path)
+        if command=='prepare':p.add_argument('--drawing-recipe',type=Path,help='Drawing reference; selects the fast Gazebo profile by default')
         if command=='plan':p.add_argument('--scene',type=Path,required=True);p.add_argument('--snapshot',type=Path,required=True);p.add_argument('--observation',type=Path,required=True)
     for command in ('status','stop','preview'):
         p=sub.add_parser(command);p.add_argument('run',type=Path)
@@ -28,7 +29,7 @@ def main():
         from uwa_cell_description.configuration import load_layout
         from .scene import prepare_scene
         if args.command=='prepare':
-            result=prepare_scene(load_layout(args.layout),configuration(args.config),args.output)
+            result=prepare_scene(load_layout(args.layout),configuration(args.config,drawing_recipe=args.drawing_recipe),args.output)
         else:
             from .planning import TaskProblem,grasp_candidates,plan_approach
             scene=verify(json.loads((args.scene/'scene.json').read_text()))

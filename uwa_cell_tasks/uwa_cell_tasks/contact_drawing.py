@@ -102,6 +102,7 @@ class ContactDrawing:
             raise ValueError('Fresh grasp starts outside the reviewed pickup corridor')
         park = np.array([start[j] for j in worker])
         cfg = problem.scene_record['cfg']
+        limits = (cfg['joint_velocity_rad_s'], cfg['joint_acceleration_rad_s2'], cfg['joint_jerk_rad_s3'])
         phases = self.connectors[:2] + self.reference['phases'] + self.connectors[2:]
         state = dict(start)
         inv = np.linalg.inv(new_offsets[ARMS[0]])
@@ -141,16 +142,19 @@ class ContactDrawing:
                 rows.append([state[j] for j in names])
             duration_ref = phase['duration_s']
             law = plan_segment(dict(kind='CARTESIAN_LINE' if len(rows)>2 else 'JOINT',
-                knots=knots.tolist(),positions=rows,check={}),velocity=.1,
-                acceleration=cfg['joint_acceleration_rad_s2'],jerk=cfg['joint_jerk_rad_s3'])
+                knots=knots.tolist(),positions=rows,check={}),
+                velocity=limits[0],acceleration=limits[1],jerk=limits[2])
             duration = law['time_law']['duration_s']
-            times = np.linspace(0,duration,max(3,int(np.ceil(duration/.04))+1))
+            # Keep the previous 4 mrad maximum travel between controller
+            # points, so speeding up preserves the spatial sweep resolution.
+            point_period = min(.04, .004 / law['smooth_bounds']['velocity_rad_s'])
+            times = np.linspace(0,duration,max(3,int(np.ceil(duration/point_period))+1))
             values = np.stack([sample_segment(law,times,k) for k in (0,1,2)], axis=1)
             # The controller uses exactly these quintics. Check its coefficients
             # conservatively in Bernstein form and sample its realized geometry.
             spline = BPoly.from_derivatives(times, values)
             controller_scale = 1.
-            for k, limit in enumerate((.1,cfg['joint_acceleration_rad_s2'],cfg['joint_jerk_rad_s3']),1):
+            for k, limit in enumerate(limits,1):
                 poly = PPoly.from_bernstein_basis(spline.derivative(k))
                 widths = np.diff(times)
                 power = np.arange(len(poly.c)-1,-1,-1)

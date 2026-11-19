@@ -15,6 +15,16 @@ Kartonpilot auf dem N100: Bei optionalem regulärem Programmstart unmittelbar vo
   Aktionsstornierung und reguläre Controllerantworten gehören zur Bedienung.
   Die getrennte reale UR-Schutzkette nur nach ihrer eigenen Freigabe ändern.
 
+- Keine weiteren Wächter oder Tests ohne vorherige ausdrückliche Einwilligung
+  des Nutzers hinzufügen. Bestehende Offline-Planprüfung weiterverwenden.
+- Für Bewegungen immer das höchste aktuell zulässige und für die Aufgabe
+  genehmigte Tempo nutzen. Keine zusätzliche Streckung zur besseren
+  Beobachtbarkeit. Wenn ein anderer gebundener Grenzwert den Weg bestimmt,
+  den konkreten Grenzwert nennen.
+- Gazebo darf mit bis zu **1 rad/s je Armgelenk** geplant und abgespielt
+  werden. Diese Freigabe gilt für die Simulation. Für echte URs gelten ihre
+  separaten Freigaben und Geschwindigkeitsprofile.
+
 ## Aufgabenbezogene Freigabe im Kartonpiloten, 19.11.2026
 
 - Bestätigte Korrektur19.11.: Auch der Parallelprüfer muss die aktive

@@ -63,11 +63,14 @@ def write_json(path, value):
     temporary.replace(path)
 
 
-def configuration(path=None):
+def configuration(path=None, *, drawing_recipe=None):
     if path is None:
         from ament_index_python.packages import get_package_share_directory
-        path = Path(get_package_share_directory('uwa_cell_tasks')) / 'config/carton.yaml'
+        filename = 'carton_drawing_fast.yaml' if drawing_recipe is not None else 'carton.yaml'
+        path = Path(get_package_share_directory('uwa_cell_tasks')) / 'config' / filename
     cfg = yaml.safe_load(Path(path).read_text())
+    if drawing_recipe is not None:
+        cfg['drawing_recipe'] = str(Path(drawing_recipe).resolve())
     cfg.setdefault('simulation_real_time_factor',.7)
     cfg.setdefault('force_observation',False)
     cfg.setdefault('exploration_mode',False)
@@ -88,8 +91,8 @@ def configuration(path=None):
             raise ValueError('Drawing recipe must be an absolute file path')
         if not (cfg['exploration_mode'] and cfg['simulation_stop_reserve_mode']=='observe'):
             raise ValueError('Drawing contact playback requires the exploratory offline reserve mode')
-        if cfg['joint_velocity_rad_s'] != .1 or cfg.get('roll_long_axis'):
-            raise ValueError('Drawing requires the 0.1 rad/s profile and one recipe')
+        if cfg.get('roll_long_axis'):
+            raise ValueError('Choose one drawing or roll recipe')
     for key, value in cfg.items():
         if key in ('schema_version', 'arms', 'object_id', 'simulation_assumptions','gripper_transmission','physics_engine','force_observation','exploration_mode','roll_long_axis','placement_table','force_comparison_lift','joint_velocity_overrides_rad_s','simulation_stop_reserve_mode','drawing_recipe'): continue
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
