@@ -7,9 +7,9 @@ REPO=Path(__file__).resolve().parents[1]
 
 
 def main():
-    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--output',type=Path,required=True);ap.add_argument('--execute',action='store_true');ap.add_argument('--close-after-review',action='store_true');ap.add_argument('--visual-confirmed',action='store_true')
+    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--output',type=Path,required=True);ap.add_argument('--execute',action='store_true');ap.add_argument('--close-after-review',action='store_true');ap.add_argument('--visual-confirmed',action='store_true');ap.add_argument('--start-ros-programs',action='store_true',help='Explicit unloaded regular startup under confirmed holds; no safety acknowledgement')
     for name in ['image','metadata','intrinsics','recipe']:ap.add_argument('--'+name,type=Path)
-    ap.add_argument('--config',type=Path,default=REPO/'uwa_cell_motion/config/hardware_carton_supported.yaml')
+    ap.add_argument('--config',type=Path,default=REPO/'uwa_cell_motion/config/hardware_carton_supported_trend.yaml')
     a=ap.parse_args();out=a.output.resolve();record=out/'workflow.json';env=dict(os.environ,OPENBLAS_NUM_THREADS='1',OMP_NUM_THREADS='1')
     if a.close_after_review:
         if not a.execute or not a.visual_confirmed:ap.error('Explicit --execute --visual-confirmed required after actual entry image review')
@@ -44,7 +44,7 @@ def main():
             # Decide that the chosen branches can complete the task BEFORE
             # spending a real approach on a merely valid isolated high pose.
             phase('plan_entry','prepare_carton_open_entry.py','--evidence',out/'high-plan','--approach',out/'planned-high.json','--planned-start','--output',out/'entry-plan')
-            phase('high','run_carton_pregrasp.py','--evidence',out/'high-plan','--output',out/'high','--command-velocity','.1','--execute','--reset-unloaded')
+            phase('high','run_carton_pregrasp.py','--evidence',out/'high-plan','--output',out/'high','--command-velocity','.1','--execute','--reset-unloaded',*(['--start-ros-programs']if a.start_ros_programs else []))
             # Already activated/open from release: read readiness, don't send
             # another opening or activation merely to repeat the same state.
             phase('open_readiness','carton_gripper_phase.py','prepare','--state',out/'high/result.json','--output',out/'open-readiness')

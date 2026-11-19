@@ -33,6 +33,19 @@ HOUSE_CONTEXT = (
     DOCS / "NIKOLAUS_HANDOFF.md",
     *CIRCLES_CONTEXT[2:],
 )
+PROCESS_CONTEXT = (
+    DOCS / "PROMPT_HOUSE_DRILL_TRIAL_04.md",
+    DOCS / "HOUSE_DRILL_HANDOFF.md",
+    DOCS / "house_drill_spec.json",
+    REPO / "docs/workpiece_paths.md",
+    *CIRCLES_CONTEXT[2:],
+)
+CASES = {
+    "circles": ("box_gemini_20261119", CIRCLES_CONTEXT),
+    "nikolaus": ("nikolaus_gemini_20261119", HOUSE_CONTEXT),
+    "house-drill": ("house_drill_gemini_20261119", PROCESS_CONTEXT),
+}
+BASELINE_CONTEXT_FILES = {"AGENTS.md", "box_drawing_pilot.md", "TRACE_PROTOCOL.md", "workpiece_paths.md"}
 
 
 def perth_time():
@@ -46,8 +59,8 @@ def main():
     parser.add_argument("--model", help="Gemini model slug from agy models")
     parser.add_argument("--mode", choices=("auto", "accept-edits", "plan"),
                         help="Antigravity execution mode for this CLI session")
-    parser.add_argument("--case", choices=("circles", "nikolaus"), default="circles",
-                        help="The Nikolaus test opens a separate checkout of the current commit")
+    parser.add_argument("--case", choices=CASES, default="circles",
+                        help="The two house tests open a separate checkout of the current commit")
     args = parser.parse_args()
     if args.prepare_only and args.mode:
         parser.error("--mode applies to CLI sessions; choose the mode in the IDE for --prepare-only")
@@ -65,19 +78,19 @@ def main():
         except (OSError, subprocess.SubprocessError) as error:
             parser.error(f"Antigravity version check failed: {error}")
 
-    house = args.case == "nikolaus"
-    trial_root = TRIALS / ("nikolaus_gemini_20261119" if house else "box_gemini_20261119")
+    isolated = args.case != "circles"
+    folder, context = CASES[args.case]
+    trial_root = TRIALS / folder
     trial_root.mkdir(parents=True, exist_ok=True)
     session = Path(tempfile.mkdtemp(prefix="session-", dir=trial_root))
     trace = session / "trial"
     agent_repo = REPO
-    if house:
+    if isolated:
         agent_repo = session / "repo"
         subprocess.run(["git", "clone", "--quiet", "--no-local", "--single-branch",
                         "--depth", "1", "--no-tags", str(REPO), str(agent_repo)], check=True)
         subprocess.run(["git", "-C", str(agent_repo), "remote", "remove", "origin"], check=True)
     revision = subprocess.check_output(["git", "-C", str(agent_repo), "rev-parse", "HEAD"], text=True).strip()
-    context = HOUSE_CONTEXT if house else CIRCLES_CONTEXT
     source_prompt = context[0].read_text().rstrip()
     client = "Google Antigravity for VS Code" if args.prepare_only else f"Antigravity CLI {version}"
     prompt = (f"{source_prompt}\n\n"
@@ -90,7 +103,7 @@ def main():
     hashes = {}
     for file in context:
         relative = file.relative_to(REPO)
-        if house and file.name in ("AGENTS.md", "box_drawing_pilot.md", "TRACE_PROTOCOL.md"):
+        if isolated and file.name in BASELINE_CONTEXT_FILES:
             file = agent_repo / relative
         data = file.read_bytes()
         (snapshots / file.name).write_bytes(data)
@@ -112,7 +125,7 @@ def main():
         return 0
 
     command = [str(agy), "-i", prompt]
-    if house:
+    if isolated:
         command.extend(["--add-dir", str(session)])
     if args.model:
         command.extend(["--model", args.model])

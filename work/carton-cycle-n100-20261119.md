@@ -37,3 +37,10 @@
 - Auto-Review lehnte dauerhafteTrendprofil-StandardumstellungmehrererWerkzeugeab (FreigabenuraktuellerKartontest). Nichtumgangen: lokaleDefaultänderungenzurückgenommen, N100Standardsunverändert, aktuellerZyklusnutztgenehmigtesProfilnurexplizitvia--config. PhysischeAufgabeimzulässigenUmfangweitergeführt.
 
 - ErweiterteNutzerfreigabe: „Du kannst das Ruheprofil auch in Zukunft verwenden ... auch noch etwas laxer machen.“ DauerhafteNutzungundfachlichbegründeteweitereRuheanpassungdamitgenehmigt; keineimpliziteFreigabeandererGrenzen. AktuellerAbbruchcycle02betrifftSupervisor-/Watchdogherzschlag, nichtRuheprofil; getrennteUrsachenprüfungstattblindRuheweiterlockern.
+
+- 12:42: N100-Guard mit vorprovisionierten Cancel-Clients/RR20 aktiv; Scheduler
+  tatsächlich geprüft. Aktuell alle4 frische Holds, keine Guardfehler, nur
+  Start-Witnesslatch. Keine Frischegrenzen gelockert. Neuer cycle03 mit frischem
+  OAK-Foto12:42:12 gestartet, Taskprozess mit1CPU-Quota getrennt von Treibern/
+  Guard; .1rad/s unverändert. Trendprofil nun genehmigter Karton-Toolstandard,
+  ältere Auto-Review-Blockade durch neue ausdrückliche Nutzerfreigabe aufgelöst.

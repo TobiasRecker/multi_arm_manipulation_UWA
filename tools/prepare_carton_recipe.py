@@ -33,4 +33,4 @@ def prepare(asset,output,config_path,inventory):
 
 
 if __name__=='__main__':
-    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--asset',type=Path,default=REPO/'uwa_cell_description/assets/carton_avocado_v1');ap.add_argument('--output',type=Path,required=True);ap.add_argument('--config',type=Path,default=REPO/'uwa_cell_motion/config/hardware_carton_supported.yaml');ap.add_argument('--inventory',type=Path,default=REPO/'config/hardware_inventory.yaml');a=ap.parse_args();prepare(a.asset,a.output,a.config,a.inventory)
+    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--asset',type=Path,default=REPO/'uwa_cell_description/assets/carton_avocado_v1');ap.add_argument('--output',type=Path,required=True);ap.add_argument('--config',type=Path,default=REPO/'uwa_cell_motion/config/hardware_carton_supported_trend.yaml');ap.add_argument('--inventory',type=Path,default=REPO/'config/hardware_inventory.yaml');a=ap.parse_args();prepare(a.asset,a.output,a.config,a.inventory)

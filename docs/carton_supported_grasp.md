@@ -1,14 +1,13 @@
 # Karton greifen: kurzer realer Ablauf
 
-Aktuell19.11.2026: Nach Nutzerbestätigung des ersten korrekten Griffs wurde der
-Karton ausdrücklich losgelassen, beide rechten URs über den N100 hoch-/Home
-gefahren und der Wiederholungsversuch begonnen. Beide Greifer weiterhin offen.
-Dieser Zeitversuch wählte für RF einen ungeeigneten Ellenbogen-unten-Zweig;
-seine Absenkbahn wurde abgelehnt. RR-Hochpose ist vom Nutzer als gut bestätigt.
-Korrekte RF-Konfiguration samt kompletter Einfahrt inzwischen offline geprüft,
-aber real noch nicht korrigiert: Ruhewächter stoppte vor neuem Armziel. Alle
-Arme gehalten, keine neue Schließung. Aktueller Stand im HANDOVER und
-`work/carton-cycle-n100-20261119.md`. Kandidaten-Ruheprofil noch NICHT aktiv.
+Aktuell19.11.2026: Der erste korrekte Griff wurde vom Nutzer bestätigt. Auf
+seinen Auftrag wurde der Karton losgelassen, beide rechten Arme zurück nach
+Home gefahren und die Betriebsanbindung auf N100 umgestellt. Nach korrigierter
+RF-Ellenbogenkonfiguration läuft ein neuer gemessener Versuch (`cycle03`).
+Letzter bestätigter Zustand davor: beide offen in Home, kein Kontakt.
+Das positionsbasierte Ruheprofil ist aktiv und auch für künftige Kartonabläufe
+vom Nutzer freigegeben. Aktuelles Ergebnis vor Folgeaktionen im HANDOVER und
+`work/carton-cycle-n100-20261119.md` prüfen.
 
 UR-Treiber/Guard/Greifer/Executor jetzt auf N100 `~/uwa-ur-runtime`, Domain66/
 LOCALHOST; GUI auf ROSmini mit`--n100`. Keine parallelen ROSmini-Hardwaredienste.
@@ -21,7 +20,10 @@ LOCALHOST; GUI auf ROSmini mit`--n100`. Keine parallelen ROSmini-Hardwaredienste
 2. Ein aktuelles OAK-Foto und einen aktuellen Armzustand aufnehmen. Die Kartonpose
    direkt über das sichtbare feste rechte Tischboard bestimmen. Vorhandene
    Basisanbindungen und globale Kameraprofile bleiben unverändert.
-3. Die hohen Vorpositionen mit **0,1rad/s** anfahren. Nur der jeweils fahrende
+3. Vor der Realanfahrt auch die gesamte folgende Einfahrt am geplanten hohen
+   Zustand prüfen. Aufgabengerechte Konfiguration wählen (RF hier mit negativem
+   physischem Ellbogen); Referenzseeds dienen frischer IK, nicht dem Replay.
+   Die hohen Vorpositionen mit **0,1rad/s** anfahren. Nur der jeweils fahrende
    Arm wird freigegeben; die anderen behalten ihre Haltezustände. Greifer an
    diesen freien hohen Positionen aktivieren und offen bestätigen.
 4. Mit offenen Backen ausrichten und in die Greifstelle einfahren. Die
@@ -41,7 +43,7 @@ Tragfähigkeits-/Kraftqualifikation oder geladene Hardwarebewegung.
 ## Bausteine für Agenten
 
 Aus dem Workspace zunächst `source src/multi_arm_manipulation_UWA/scripts/control_env.bash`.
-Das feste Fahrprofil ist `uwa_cell_motion/config/hardware_carton_supported.yaml`;
+Das feste Fahrprofil ist `uwa_cell_motion/config/hardware_carton_supported_trend.yaml`;
 keine alten Langsamprofile übernehmen.
 
 | Aufgabe | Werkzeug | Vorgabe |

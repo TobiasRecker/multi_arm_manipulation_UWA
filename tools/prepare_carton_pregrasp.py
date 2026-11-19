@@ -256,7 +256,7 @@ if __name__ == '__main__':
     for name in ('observations','object-pose','contact-design','contact-scene','output'):
         parser.add_argument('--'+name, type=Path, required=True)
     parser.add_argument('--inventory', type=Path, default=REPO/'config/hardware_inventory.yaml')
-    parser.add_argument('--config', type=Path, default=REPO/'uwa_cell_motion/config/hardware_commissioning.yaml')
+    parser.add_argument('--config', type=Path, default=REPO/'uwa_cell_motion/config/hardware_carton_supported_trend.yaml')
     parser.add_argument('--path-budget-s',type=float,help='Offline path-search budget per candidate only; no operating/safety/profile change')
     parser.add_argument('--layout', type=Path)
     parser.add_argument('--pregrasp-m', type=float, default=.08)

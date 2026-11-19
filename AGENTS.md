@@ -20,6 +20,14 @@
   Reset/Play oder unabhängiges Armziel. Aktueller realer Kontaktstand19.11.
   steht ganz oben in HANDOVER.md.
 
+## Physisches Zeichenwerkzeug (2026-11-19)
+
+- Nutzer wünscht einen Greifadapter am COS-Whiteboardmarker für den
+  Robotiq 2F-85 und eine Tischaufnahme mit Spitze nach unten, vertikaler
+  Entnahme und Einführschräge für die Rückgabe. Verdrehung sowohl
+  im Greifer als auch in der Ablage berücksichtigen. CAD unter
+  `hardware/marker_tool/`. Reale Stiftspitze nach Montage einmessen.
+
 ## Zweite Übersichtskamera links (2026-11-19)
 
 - Nutzer wünscht die USB-OAK am N100 hoch gegenüber der Ethernet-OAK4.

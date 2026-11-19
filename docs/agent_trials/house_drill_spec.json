@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "task": "box-house-drill-04",
+  "units": "m",
+  "face_order": ["y_max", "z_min", "y_min"],
+  "joint_speed_rad_s": 0.1,
+  "entry_circle": {
+    "face": "y_max",
+    "radius_m": 0.022
+  },
+  "house": {
+    "face": "z_min",
+    "frame": "surface_uv",
+    "kind": "surface_polyline",
+    "points_uv_m": [
+      [-0.040, 0.040],
+      [0.040, 0.040],
+      [0.040, -0.040],
+      [0.000, -0.080],
+      [-0.040, -0.040],
+      [0.040, -0.040],
+      [-0.040, 0.040],
+      [-0.040, -0.040],
+      [0.040, 0.040]
+    ]
+  },
+  "axial_pattern": {
+    "face": "z_min",
+    "frame": "surface_uv",
+    "center_uv_m": [0.0, -0.020],
+    "diameter_m": 0.150,
+    "count": 6,
+    "first_angle_deg": 30,
+    "step_angle_deg": 60,
+    "clearance_m": 0.015,
+    "reference_depth_m": 0.003
+  },
+  "final_circle": {
+    "face": "y_min",
+    "radius_m": 0.022,
+    "driver": "moving_workpiece",
+    "tool_frame": "world",
+    "allow_reported_partial_fallback": true
+  }
+}

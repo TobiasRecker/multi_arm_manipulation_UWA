@@ -27,8 +27,8 @@ def require(condition, message):
         raise ValueError(message)
 
 
-def house_edges(points):
-    targets = VERTICES[[ord(name) - ord("A") for name in STROKE]]
+def house_edges(points, vertices=VERTICES):
+    targets = vertices[[ord(name) - ord("A") for name in STROKE]]
     require(np.linalg.norm(points[0] - targets[0]) <= TOLERANCE, "House does not start at A")
     edge_records = []
     first = 0

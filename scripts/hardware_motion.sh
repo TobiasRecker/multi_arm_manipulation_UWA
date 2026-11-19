@@ -17,8 +17,16 @@ case "$hardware_motion_action" in
   fi
   hardware_motion_armed=0
   if [[ "$hardware_motion_action" == arm ]]; then hardware_motion_armed=1; fi
+  hardware_motion_scheduling=()
+  if [[ -n "${UWA_MOTION_RR_PRIORITY:-}" ]]; then
+   if [[ ! "$UWA_MOTION_RR_PRIORITY" =~ ^[0-9]+$ ]] || ((UWA_MOTION_RR_PRIORITY<1 || UWA_MOTION_RR_PRIORITY>=50)); then
+    echo 'UWA_MOTION_RR_PRIORITY must be1..49, below the UR control-loop priority50' >&2;exit 2
+   fi
+   hardware_motion_scheduling+=(--property=CPUSchedulingPolicy=rr --property="CPUSchedulingPriority=$UWA_MOTION_RR_PRIORITY")
+  fi
   systemd-run --user --unit="$hardware_motion_unit" --collect \
    --property=MemoryLow=1G --property=MemorySwapMax=0 --property=CPUWeight=1000 \
+   "${hardware_motion_scheduling[@]}" \
    --setenv=UWA_MOTION_ARMED="$hardware_motion_armed" \
    --property="ExecStopPost=/usr/bin/bash $hardware_motion_dir/stop_hardware_motion.sh" \
    --property=KillSignal=SIGINT --property=KillMode=mixed --property=TimeoutStopSec=20 \

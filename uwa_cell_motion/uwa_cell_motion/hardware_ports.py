@@ -80,6 +80,13 @@ class StopPort:
         self.error=None;self.native_error=None;self.native_ack=False;self.native_thread=None;self.native_sent=-float('inf')
         self.native_stop_events=[]
         self.cancels={};self.was_blocked=False
+        # RMW entity allocation may block. Provision the known cancellation
+        # endpoints before the armed timer starts, never inside its stop path.
+        for name in (*MOTION,HOLD):
+            path=ns+'/'+name+'/follow_joint_trajectory/_action/cancel_goal'
+            self.cancels[path]=node.create_client(CancelGoal,path,callback_group=group)
+        path=ns+'/ur_robot_state_helper/set_mode/_action/cancel_goal'
+        self.cancels[path]=node.create_client(CancelGoal,path,callback_group=group)
     def native_stop(self,reason='Explicit native-stop fallback'):
         if self.mode=='mock':self.native_ack=True;return
         if self.native_thread and self.native_thread.is_alive():return

@@ -102,5 +102,5 @@ def prepare(a):
 if __name__=='__main__':
     ap=argparse.ArgumentParser(description=__doc__)
     for name in ['observations','object-pose','contact-scene','output']:ap.add_argument('--'+name,type=Path,required=True)
-    ap.add_argument('--operation',choices=['retreat','home'],required=True);ap.add_argument('--after-retreat',type=Path,help='Explicit planned future high start for offline Home preparation; runner still requires matching real start');ap.add_argument('--config',type=Path,default=REPO/'uwa_cell_motion/config/hardware_carton_supported.yaml');ap.add_argument('--inventory',type=Path,default=REPO/'config/hardware_inventory.yaml')
+    ap.add_argument('--operation',choices=['retreat','home'],required=True);ap.add_argument('--after-retreat',type=Path,help='Explicit planned future high start for offline Home preparation; runner still requires matching real start');ap.add_argument('--config',type=Path,default=REPO/'uwa_cell_motion/config/hardware_carton_supported_trend.yaml');ap.add_argument('--inventory',type=Path,default=REPO/'config/hardware_inventory.yaml')
     raise SystemExit(prepare(ap.parse_args()))

@@ -34,7 +34,7 @@ class HardwareClient(MotionClient):
         self.positions={};self.velocities={};self.live_signature=None;self.minimum_clearance=float('inf')
         self.handles={};self.pending={};self.owned=set();self.clock_reversed=False
         self.standstill_velocity={j:(self.cfg['standstill_velocity_rad_s'] if j in joint_names(r) else 0.) for r,n in self.names.items() for j in n}
-        self.actions={r:ActionClient(self,FollowJointTrajectory,p['namespace']+'/'+('joint_trajectory_controller' if mode=='mock' else 'scaled_joint_trajectory_controller')+'/follow_joint_trajectory') for r,p in problem.profiles.items()}
+        self.actions={r:ActionClient(self,FollowJointTrajectory,p['namespace']+'/'+('joint_trajectory_controller' if mode=='mock' else 'scaled_joint_trajectory_controller')+'/follow_joint_trajectory') for r,p in problem.profiles.items() if r in self.selected}
         self.stop_clients={r:self.create_client(Trigger,'/uwa_cell/collision_supervisor/'+r+'/stop') for r in ROBOT_IDS}
         self.create_subscription(String,'/uwa_cell/hardware_state',self.state,1)
         self.create_subscription(String,'/uwa_cell/collision_guard/decision',self.guard_message,1)

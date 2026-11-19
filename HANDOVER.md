@@ -1,5 +1,32 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Aktueller Kartonzyklus auf N100,19.11.2026 (12:42)
+
+- Nach zuvor bestätigtem Griff vom Nutzer beauftragt: lösen, hoch, Home und
+  erneut greifen, Gesamtdauer messen. Lösen, Rückzug und Home auf N100 erfolgt.
+  Beide rechten Arme zuletzt offen in Home, kein aktueller Kartonkontakt.
+- RF-Konfiguration nach Nutzerkorrektur tatsächlich mit negativem physischen
+  Ellbogen korrigiert (`rf-trend-correction/` PASS), danach für neuen Zeitlauf
+  beide offen Home (`clean-home/` PASS). Ältere Kontakt-/Wartestände unten sind
+  historische Nachweise und keine aktuelle Bedienanweisung.
+- cycle01 scheiterte vor Einfahrt an ungeeigneter RF-Konfiguration; cycle02 vor
+  Armzielen an Manager-/Herzschlagfrische. Keine vollständigen Griffzeiten.
+- Dauerhafte Nutzung des Ruheprofils und fachlich begründete großzügigere
+  Ruhebewertung nun ausdrücklich genehmigt. Vier Karton-Prepare/Cycle-Werkzeuge
+  verwenden `hardware_carton_supported_trend.yaml` als Standard; N100 aktiv.
+  Keine zusätzliche Toleranzweitung notwendig vorgenommen. Frühere Auto-Review-
+  Ablehnung der dauerhaften Nutzung wurde durch diese neue Freigabe aufgelöst.
+- Konkrete Laufzeitkorrektur: bekannte ROS-Cancel-Clients vor den bewaffneten
+  Timern provisionieren, Aktionsclients nur für gewählte Arme. Gezielte5Tests
+  bestanden. Guarddienst RR20 unter UR-Regelpriorität50, tatsächlich geprüft;
+  kein Nachweis einer maximalen Reaktions-/Bremszeit. Frische-/Kollisions-/
+  Geschwindigkeitsgrenzen unverändert. Start-Latch bei frischen ruhigen Holds
+  über vorhandenen ausdrücklichen unbeladenen Startpfad behandeln.
+- Frisches Foto12:42:12, neuer Versuch `cycle03/` mit korrigierten Referenzseeds,
+  vollständiger Einfahrtplanung vor Realanfahrt und visueller Prüfung vor
+  Schließen. Laufstatus vor weiteren Befehlen lesen; Erfolg noch nicht behauptet.
+
+
 ## CPU-/GPU-Container für Offlinearbeit, 2026-11-19
 
 - Nutzer bevorzugt titanpc für rechenintensive GPU- und längere CPU-Läufe,
@@ -252,6 +279,21 @@
   gesendet. Reguläres RR-Play unmittelbar zuvor erfolgte unter geprüften Holds;
   danach keine erneuten Startschleifen. Frische-/Stoppgrenzen unverändert.
   `carton_grasp_20261118_recalc_plan01`, `recalc_checked01`, `recalc_real01`.
+
+## COS-Marker und Robotiq-Tischaufnahme, 2026-11-19
+
+- Nutzermaße näherungsweise Ø20 mm bei 10 mm und Ø19 mm bei 35 mm
+  vom hinteren Ende, 125 mm Länge offen. Konstruktion in
+  [hardware/marker_tool](hardware/marker_tool/README.md).
+- Zweiteiliger, mit vier M3-Schrauben geklemmter Stiftadapter mit
+  34 mm Greifweite und Führungsleisten für die angenommenen
+  22-mm-Standardpads. Asymmetrischer Zapfen mit Trichterablage,
+  vertikale Entnahme, nominal 5 mm Luft unter der Spitze.
+- Baugruppe als STEP, drei druckorientierte und geschlossen geprüfte
+  STLs, Schnittbild und parametrischer Export abgelegt. Nominelle
+  Einsteckgeometrie und Sperre gegen 180° verdrehte Ablage im CAD
+  geprüft. Reale Passung, Drehfestigkeit, Greifhöhe und Spitze/TCP
+  stehen aus. Keine Roboteraktion ausgeführt.
 
 ## Linke USB-Übersichtskamera und Rohrhalter, 2026-11-19
 
@@ -743,6 +785,30 @@
   Vergleiche und Referenzdaten in `setup/tasks/workpiece_paths_20261119/`.
   Keine Hardwareaktionen. Der offene Linienzug hält vorerst den
   Standoff-Wiederanschluss ein, den der bestehende Fallback voraussetzt.
+
+## Gemini-Test für doppeltes Haus, Lochkreis und festen Stift, 2026-11-19
+
+- Nutzer wünscht geometrisch doppeltes Nikolaushaus auf der Unterseite,
+  sechs gleichmäßig verteilte Bohrstellen auf Ø150 mm und möglichst den
+  letzten Kreis durch Kartonbewegung an festem Stift. Testinterpretation:
+  vollständiger Kreis mit 60° Abstand um die Mitte der Hausabmessungen,
+  Modell-Zustellung 3 mm und Vorabstand 15 mm. Alle Punkte passen auf
+  den Karton; Lochmittelpunkte mindestens 15 mm von der Hausspur entfernt.
+- `tools/start_gemini_trial.py --case house-drill --mode=auto` nutzt
+  die separate Quellkopie. Starter und Kontext-Hashes im CLI-Probelauf
+  geprüft. Prompt, Übergabe und Geometrie stehen unter docs/agent_trials/.
+  Der vierte Versuch testet Axialintegration und Rollenwechsel beim
+  Kreis im Werkstückframe. Gemini soll die Lösung selbst erstellen.
+- Doppeltes Haus im isolierten Checkout mit dem vorhandenen Bahnplaner
+  einzeln geprüft: acht Kanten und Rückkehr PASS, 0,097281 rad/s Peak.
+  129 Punkte der Gegenwand-Kreisreferenz mit festem Werkzeug und
+  bewegtem Karton bestanden den punktweisen Modellcheck; Anfahrt,
+  Rückzug und zeitparametrierter Gesamtweg dort noch nicht belegt.
+- Unabhängiger `check_house_drill_trial.py` für sechs Zustellzyklen,
+  Haus, Kreise, feste Haltergriffe, Rückkehr und unveränderten Stiftarm.
+  Geometrietests bestanden, alter Lauf mit bewegtem Stift korrekt
+  abgelehnt. Echte Agentenbearbeitung steht aus. Keine Geräteaktionen.
+  [Testanleitung](docs/agent_trials/HOUSE_DRILL_TRIAL_04.md).
 
 ## Neuplanung des Gazebo-Drei-Kreis-Ablaufs, 2026-11-18
 
