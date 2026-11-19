@@ -332,6 +332,15 @@ def run_bundle(problem, bundle, args, output, report, *, client_type, observer_t
             if needs_hold or client.owned:
                 _cancel_late(client)
                 report['stop_result'] = client.stop(ROBOT_IDS)
+            # Persist the evidence behind a comparison stop after requesting
+            # holds; recording must never delay the protective action.
+            report['state_alignment']=dict(getattr(client,'alignment_diagnostics',{}))
+            report['alignment_evidence']=dict(
+                clock_fault_events=list(getattr(client,'clock_fault_events',[])),
+                native_epoch_baseline=dict(getattr(client,'epochs',{})),
+                native_records=dict(getattr(client,'records',{})),
+                driver_latest=dict(getattr(client,'driver',{})),
+                driver_history={arm:list(rows)for arm,rows in getattr(client,'driver_history',{}).items()})
             return 1
         finally:
             for arm, observer in observers.items():

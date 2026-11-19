@@ -84,8 +84,14 @@ class GuardState:
                         source_age_s=source_now-record['stamp'],source_advance_age_s=now-self.last_source_advance.get(rid,now))
                 faults.append(dict(arms=[a, b], reason='STATE STALE',state_detail=detail))
         for pair in pairs:
-            if not np.isfinite([pair['clearance_m'], pair['threshold_m']]).all() or pair['clearance_m'] <= pair['threshold_m']:
-                faults.append(dict(arms=pair['arms'], reason='DISTANCE'))
+            clearance, threshold = pair['clearance_m'], pair['threshold_m']
+            if not np.isfinite([clearance, threshold]).all() or clearance <= threshold:
+                fault = dict(arms=pair['arms'], reason='DISTANCE',
+                             clearance_m=float(clearance) if np.isfinite(clearance) else None,
+                             threshold_m=float(threshold) if np.isfinite(threshold) else None)
+                if 'links' in pair:
+                    fault['links'] = list(pair['links'])
+                faults.append(fault)
         self.last_faults = faults
         for fault in faults:
             if not any(c['arms']==fault['arms'] and c['reason']==fault['reason'] for c in self.causes):

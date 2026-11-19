@@ -1,5 +1,49 @@
 # Reale Übernahme Motion review,19.11.2026
 
+## Aktuell19.11.2026: Uhrmessung korrigiert, neue Reviewvorbereitung
+
+- Operatorfreigegebeneattempt10 brach vor jedem Arm-/Greiferziel am Clockflag
+  ab. Keine neueBewegung/keinKontakt. FrischerStartsnapshotattempt11 bestätigt
+  alle4 nativRUNNING/Normal, ProgrammeSTOPPED/runtime1 undTrendruhe; rechte
+  Greifer weiteroffen. RF-Teilpose seitattempt09 bleibt aktuellerStart.
+- KonkreterSoftwarefehler imHost-Uhrvergleich korrigiert: ungeklammerte
+  Wall-/Monotonic-Abfragen können Schedulingpause alsZeitsprung deuten.
+  NeueAbfrage mit≤200µsPaarspanne/max3unmittelbarenVersuchen; unsichererRead
+  liefertkeinenfrischenDriverSample. Messunsicherheit verbraucht zusätzlich
+  vorhandene0,005radVergleichstoleranz.20msClockjump-/Header-/NativeEpoch-
+  Stopps,200msFrische,0,1rad/s/40mm unverändert. KeineSchwellenlockerung.
+-12Clock-/Alignment- und30Hardware-/ReviewmockprüfungenPASS. N100Passivlauf
+  ohneClockFault; nachersten100Discoveryvergleichen maximal0,000101radraw,
+ 0,000963radkonservativ/25,99msDriverabstand/110,93msQuellalter. Anfangs alte
+  Discoverydaten bis380mswurden nichtalsgültigerFahrstartverwendet; normale
+  Connect-/Frischebedingungen bleiben erforderlich. Softwarebug belegt,
+  vollständigeErklärung beiderRealabbrüche weiterunbewiesen.
+- attempt11 neuekompletteReviewversion ausfrischemIststart inVorbereitung,
+  gleicheSHA-geprüfteaktuelleZwei-Bild-Registrierung. KeinePower-/Play-/Reset-/
+  Arm-/Greiferaktion bisneuer tatsächlicherGUI-Entscheidung. Kontext/Restunsicherheit
+  imReviewgrundtext; keinealteFreigabewiederverwenden.
+- Daten setup/tasks/carton_motion_review_20261119/; Arbeitsstand imZellrepo
+  work/carton-motion-review-real-20261119.md.
+
+## Aktuell19.11.2026: zweites Review vor Fahrziel abgebrochen
+
+- OperatorApprove für neueMotionrevision8f5bf4ac92c04c9995302bcb6452857a
+  tatsächlich aufN100 angekommen. attempt10 startete reguläreROS-Programme
+  unter unbeladenenHolds, aber **kein Arm-/Greiferziel**: noch im Preflight
+  Abbruch `Device epoch changed; regenerate the hardware plan`. Keine weitere
+  Bewegung seit RF-Teilanfahrt ausattempt09, kein Kontakt/Karton weiterhinfrei.
+- NeueFehlerdaten zeigen alle4 nativenEpochen0 undnativeRuhe. Sammelfehler
+  kann auch Host-Wall/Monotonic-Abgleich oder Driver-Zeitstempel bedeuten;
+  keinen echtenUR-Neustart daraus ableiten. Je rechterJointState genau1Publisher
+  reinlesendgeprüft, keinNachweis doppelterPublisher. WeitereZeitdiagnose nur
+  passiv, keine neueReview-/Fahrwiederholung bis Ursache eingegrenzt.
+- AlleGrenzen/Stopps/Tempo unverändert. BestehendeClock-Faults jetzt mitgenauer
+  Ursache und Zeitpaar-Dauer protokolliert; kein automatisches Reset/Play.
+  Endzustand nachdiesemAbbruch vorweitererFahrt erneutfrischbestätigen.
+- Nachweise setup/tasks/carton_motion_review_20261119/attempt10/high/result.json
+  und alignment-with-model-clock-events.log aufN100; Arbeitsstand imZellrepo
+  work/carton-motion-review-real-20261119.md.
+
 ## Aktuell19.11.2026: freigegebene Hochanfahrt gestoppt, kein Griff
 
 - Operator hat Motionrevisionf252b03840344e83a5dea047c5f1cade tatsächlich in
@@ -178,3 +222,41 @@
   davonSnapshot3,17/hohePlanung46,01/Einfahrt62,87/Reviewhoch95,60/Reviewentry57,75s.
   Kein sauberer End-to-End-Vergleich mit früheren Zyklen wegen Entwicklung,
   Foto-/Startproblemen und Nutzerwartezeiten.
+
+- Read-only-Zeitvergleich nach Stopp:2393Driver-/100NativeSamples, maximale
+  Rohabweichung0,0000967rad, maximaleInterpolationunsicherheit0,000874rad,
+  maximalerDriverabstand24,0ms. Mit passiverFCL-Arbeit:940Vergleiche,
+  Rohabweichung0,0001115rad, konservativerMaximalvergleich0,002538rad,
+  Driverabstand48,0ms/FCL17,6ms. Der tatsächliche>0,005rad-Abbruch wurde
+  damit NICHT reproduziert; Ursache nicht als behoben ausgeben. Keine Bewegung.
+- Reviewed-Abbruchpfad speichert nun nach Schutz-Halteanforderung dieselben
+  alignment_diagnostics plus nativeRecords/Driverlatest/-history. Keine
+  Grenz-/Stoppänderung.8isolierte Mock-AusführungenPASS, darunter Ablehnung,
+  fehlendeAntwort, Widerruf, Greifer-/Wrenchfehler. Erster Sandboxlauf nur an
+  verbotenenUnixSockets gescheitert; EskalationslaufPASS.
+- attempt10 neu vorbereitet aus echtergestoppterPose, weiterhin mittleresRisiko
+  undbedienpflichtig. Grundtext nennt vorherigenAbbruch und ungeklärteUrsache;
+  kein automatischesReplay/Reset/Play vor neuer echterGUI-Entscheidung.
+
+- attempt10 WAITING_FOR_MOTION_REVIEW, Ticket8f5bf4ac92c04c9995302bcb6452857a,
+  Version99488b56d809d74cdc10edde73d08c17f6a48b9bc62c8878af6cca88bf0c8820.
+  83,397snominal/seriell,33⅓% unverändert. NeuerVorbereitungsdurchlauf166,515s,
+  Herkunft/ungeklärteUrsache imGUI-Grundtextoffengelegt. OperatorApprove erneut
+  angefragt; vorherigeMotionfreigabefailed, keinautomatischesReplay.
+
+- Erweiterter30sPassivlauf:3911Vergleiche, keineClockFaultEvents, maximale
+  Rohabweichung0,000113rad, konservativ0,001805rad. Kein Abbruch reproduziert.
+- Im alten Host-Abgleich konkreter Implementierungsfehler gefunden: zwei
+  ungeklammerte Uhrabfragen behandeln eine Prozessunterbrechung dazwischen
+  als Offset-/Epochenwechsel. Synthetischer30msUnterbrechungsfall reproduziert
+  das Fehlverhalten. Neuer Hostclock-Sampler klammertWallClock mitMonotonic,
+  verlangt≤200µsPaarspanne (max3unmittelbareVersuche); unsicheresPaar zählt
+  nicht alsfrischerDriverSample, normale200msFrische bleibt. Messunsicherheit
+  wird zusätzlich von vorhandener0,005radPositionsvergleichstoleranz abgezogen.
+  Echte20msOffsetänderungen/Header-/NativeEpochenstopps bleiben erhalten und
+  erhalten konkreteUrsachenlogs. KeineFreigabe andererGrenzen/Tempo.
+-12Clock-/Alignmenttests und30Hardware-/ReviewmocktestsPASS. Erster isolierter
+  Hardwaretestlauf nur amSandboxverbot lokalerFake-Sockets gescheitert;
+  gezielter Eskalationslauf30PASS. Source aufN100, keineDienstneustarts.
+  Nachweis des konkreten altenMessfehlers ist noch keinNachweis, dass beide
+  realenAbbrüche dadurch erklärt sind. PassiverN100Abgleich mitFix inArbeit.

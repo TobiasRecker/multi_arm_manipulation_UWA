@@ -15,7 +15,7 @@ from control_msgs.action import FollowJointTrajectory
 from controller_manager_msgs.srv import ListControllers,SwitchController,ListHardwareComponents
 from .node import MotionNode
 from .common import ROBOT_IDS,joint_names,dump,joint_velocity_limits,SPEED_TOLERANCE
-from .state_alignment import aligned_driver
+from .state_alignment import aligned_driver,host_clock_sample
 from .execution import MotionClient,motion_context,_follow
 from .hardware_model import HardwareProblem
 from .hardware_state import require_domain,signature,Peer
@@ -29,10 +29,10 @@ class HardwareClient(MotionClient):
         self.problem,self.cfg,self.mode=problem,problem.cfg,mode;self.selected=list(selected);self.names=problem.names
         self.expected=signature(problem,mode);self.state_peer=Peer();self.guard_peer=Peer();self.supervisor_peer=Peer()
         self.guard=None;self.supervisor=None;self.records={};self.epochs={};self.driver={};self.state_received=-float('inf')
-        self.driver_history={};self.alignment_diagnostics={};self.driver_clock_offset=None
+        self.driver_history={};self.alignment_diagnostics={};self.driver_clock_offset=None;self.driver_clock_uncertainty_s=0.
         self.guard_received=self.supervisor_received=self.received=self.source_advanced=-float('inf');self.stamp=-float('inf')
         self.positions={};self.velocities={};self.live_signature=None;self.minimum_clearance=float('inf')
-        self.handles={};self.pending={};self.owned=set();self.clock_reversed=False
+        self.handles={};self.pending={};self.owned=set();self.clock_reversed=False;self.clock_fault_events=[]
         self.standstill_velocity={j:(self.cfg['standstill_velocity_rad_s'] if j in joint_names(r) else 0.) for r,n in self.names.items() for j in n}
         self.actions={r:ActionClient(self,FollowJointTrajectory,p['namespace']+'/'+('joint_trajectory_controller' if mode=='mock' else 'scaled_joint_trajectory_controller')+'/follow_joint_trajectory') for r,p in problem.profiles.items() if r in self.selected}
         self.stop_clients={r:self.create_client(Trigger,'/uwa_cell/collision_supervisor/'+r+'/stop') for r in ROBOT_IDS}
@@ -42,6 +42,10 @@ class HardwareClient(MotionClient):
         for rid in self.selected:
             self.create_subscription(JointState,problem.profiles[rid]['namespace']+'/joint_states',lambda msg,r=rid:self.driver_state(r,msg),qos_profile_sensor_data)
         self.event_executor=SingleThreadedExecutor();self.event_executor.add_node(self)
+    def clock_fault(self,reason,**details):
+        self.clock_reversed=True
+        self.clock_fault_events.append(dict(reason=reason,observed_monotonic_s=time.monotonic(),**details))
+        self.clock_fault_events=self.clock_fault_events[-20:]
     def accept(self,peer,msg):
         try:
             value=json.loads(msg.data)
@@ -57,7 +61,7 @@ class HardwareClient(MotionClient):
             if rid not in self.records:continue
             record=self.records[rid];self.velocities.update(zip(names[:6],record['v']))
             if len(names)>6:self.velocities[names[6]]=0.
-            if rid in self.epochs and self.epochs[rid]!=record['epoch']:self.clock_reversed=True
+            if rid in self.epochs and self.epochs[rid]!=record['epoch']:self.clock_fault('native_device_epoch_changed',arm=rid,previous=self.epochs[rid],current=record['epoch'])
             self.epochs[rid]=record['epoch']
         self.received=self.state_received=time.monotonic();self.stamp=value['assembled_wall_time_s'];self.live_signature=value['model_signature']
     def guard_message(self,msg):
@@ -72,22 +76,26 @@ class HardwareClient(MotionClient):
         q=dict(zip(msg.name,msg.position));v=dict(zip(msg.name,msg.velocity));names=joint_names(rid)
         if all(j in q and j in v for j in names) and np.isfinite([q[j] for j in names]+[v[j] for j in names]).all():
             stamp=msg.header.stamp.sec+msg.header.stamp.nanosec/1e9;old=self.driver.get(rid)
-            now=time.monotonic();offset=time.time()-now;source=stamp-offset
-            if self.driver_clock_offset is not None and abs(offset-self.driver_clock_offset)>.02:self.clock_reversed=True
-            self.driver_clock_offset=offset
-            if old is not None and stamp<old['stamp']:self.clock_reversed=True
+            try:clock=host_clock_sample()
+            except ValueError:return  # Uncertain clock read is not a fresh driver sample.
+            now=clock['received_monotonic_s'];offset=clock['offset_s'];source=stamp-offset
+            if (self.driver_clock_offset is not None and
+                    abs(offset-self.driver_clock_offset)+clock['uncertainty_s']+self.driver_clock_uncertainty_s>.02):
+                self.clock_fault('host_wall_monotonic_offset_changed',arm=rid,previous_offset=self.driver_clock_offset,current_offset=offset,pair_duration_s=clock['pair_duration_s'])
+            self.driver_clock_offset=offset;self.driver_clock_uncertainty_s=clock['uncertainty_s']
+            if old is not None and stamp<old['stamp']:self.clock_fault('driver_header_regressed',arm=rid,previous_stamp=old['stamp'],current_stamp=stamp)
             if not np.isfinite(source) or not -.02<=now-source<=self.cfg['state_timeout_s']:return
             advanced=now if old is None or stamp>old['stamp'] else old['advanced']
             values=[q[j] for j in names]
-            self.driver[rid]=dict(q=values,stamp=stamp,source_stamp=source,received=now,advanced=advanced)
+            self.driver[rid]=dict(q=values,stamp=stamp,source_stamp=source,received=now,advanced=advanced,clock_uncertainty_s=clock['uncertainty_s'])
             if old is None or stamp>old['stamp']:
                 history=self.driver_history.setdefault(rid,deque(maxlen=2000))
-                if history and source<=history[-1][0]:self.clock_reversed=True
-                else:history.append((source,values))
+                if history and source<=history[-1][0]:self.clock_fault('driver_source_time_regressed',arm=rid,previous_source=history[-1][0],current_source=source,pair_duration_s=clock['pair_duration_s'])
+                else:history.append((source,values,clock['uncertainty_s']))
     def health(self):
         for _ in range(20):self.spin_once(timeout_sec=0.)
         now=time.monotonic();timeout=self.cfg['state_timeout_s']
-        if self.clock_reversed:raise RuntimeError('Device epoch changed; regenerate the hardware plan')
+        if self.clock_reversed:raise RuntimeError('Device epoch changed; regenerate the hardware plan: '+str(self.clock_fault_events[-1]if self.clock_fault_events else 'cause not recorded'))
         if not self.state_peer.fresh(now,timeout) or set(self.records)!=set(ROBOT_IDS):raise RuntimeError('HARDWARE STATE STALE')
         for rid,record in self.records.items():
             if max(now-record['received'],now-record['source_stamp'])>timeout:raise RuntimeError(rid+': DEVICE STATE STALE')

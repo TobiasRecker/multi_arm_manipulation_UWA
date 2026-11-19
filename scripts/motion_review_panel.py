@@ -39,6 +39,8 @@ def speed_text(percent):
 
 class ReviewPanel(QtWidgets.QWidget):
     attention = QtCore.Signal(str)
+    faultNotice = QtCore.Signal(str)
+    audit = QtCore.Signal(str, object)
     safeToQuit = QtCore.Signal()
 
     def __init__(self, backend, *, remote=False, parent=None):
@@ -58,6 +60,8 @@ class ReviewPanel(QtWidgets.QWidget):
         self.revoking = False
         self.ignore_reply = False
         self.unseen = set()
+        self.history_loaded = False
+        self.latest_history_id = None
         self.speed_draft = None
         self.photo = QtGui.QPixmap()
         self.photo_dialog = None
@@ -244,6 +248,7 @@ class ReviewPanel(QtWidgets.QWidget):
                 self.render_status(data)
                 self.feedback.setText('Decision recorded.')
         except (ValueError, TypeError, KeyError, IndexError) as exc:
+            self.audit.emit('review connection' if verb == 'status' else 'review error', str(exc)[:700])
             if verb == 'status':
                 self.status = None
                 self.session.setText('CONNECTION LOST · Work area status unknown')
@@ -296,6 +301,10 @@ class ReviewPanel(QtWidgets.QWidget):
 
     def render_status(self, data):
         settings, items = data['settings'], data['pending']
+        self.audit.emit('review connection', 'connected')
+        self.audit.emit('review state', {'area_released': data['area_released'], 'settings': settings,
+                                        'requests': [(row['id'], row['status']) for row in items],
+                                        'latest': (data.get('history') or [None])[0]})
         previous = (self.status or {}).get('settings', {})
         reconnect = self.status is None
         self.status = data
@@ -327,15 +336,18 @@ class ReviewPanel(QtWidgets.QWidget):
         self.select()
         if fresh:
             self.attention.emit(fresh[0]['summary'])
-        if not items and data.get('history'):
-            recent = data['history'][0]
+        recent = next(iter(data.get('history') or []), None)
+        if recent and not items:
             self.details.setText('Last request · ' + recent['status'].upper()
                                  + (' · ' + recent['reason'] if recent.get('reason') else ''))
             if recent['status'] in ('blocked', 'failed', 'interrupted'):
                 self.summary.setText('CARTON PILOT · ' + recent['status'].upper())
-                if recent['id'] != getattr(self, 'last_fault_id', None):
-                    self.last_fault_id = recent['id']
-                    self.attention.emit(recent.get('reason') or 'Carton execution interrupted')
+        if recent:
+            if (self.history_loaded and recent['id'] != self.latest_history_id
+                    and recent['status'] in ('blocked', 'failed', 'interrupted')):
+                self.faultNotice.emit(recent.get('reason') or 'Carton execution interrupted')
+            self.latest_history_id = recent['id']
+        self.history_loaded = True
         if reconnect or self.feedback.text().startswith('Decision recorded.'):
             self.feedback.setText('Motion review connected.' if reconnect else 'Decision recorded.')
         self.controls()

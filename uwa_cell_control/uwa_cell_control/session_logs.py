@@ -30,7 +30,7 @@ def active_ros_logs(root,namespace):
 
 
 class SessionLogs:
-    def __init__(self,workspace,*,ros_root=None,namespace='/uwa_hardware'):
+    def __init__(self,workspace,*,ros_root=None,namespace='/uwa_hardware',include_host_logs=True):
         self.root=Path(workspace)/'setup/logs/uwa-control'
         self.started=time.time();self.namespace=namespace
         self.id=datetime.now().strftime('%Y%m%d_%H%M%S')+f'_{os.getpid()}_'+uuid.uuid4().hex[:8]
@@ -38,7 +38,8 @@ class SessionLogs:
         self.directory.mkdir(parents=True,exist_ok=False)
         self.gui_log=self.directory/'gui.log';self.gui_log.touch()
         self.ros_root=Path(ros_root or os.environ.get('ROS_LOG_DIR',self.root/'ros')).resolve()
-        self.inherited=active_ros_logs(self.ros_root,namespace)
+        self.include_host_logs=include_host_logs
+        self.inherited=active_ros_logs(self.ros_root,namespace) if include_host_logs else set()
         self.process_count=0
 
     def note(self,line):
@@ -62,8 +63,8 @@ class SessionLogs:
         for file in self.directory.rglob('*'):
             if file.is_file() and not file.is_symlink():
                 sources['session/'+str(file.relative_to(self.directory))]=file
-        inherited=self.inherited|active_ros_logs(self.ros_root,self.namespace)
-        if self.ros_root.is_dir():
+        if self.include_host_logs and self.ros_root.is_dir():
+            inherited=self.inherited|active_ros_logs(self.ros_root,self.namespace)
             for file in self.ros_root.rglob('*'):
                 try:
                     if file.is_symlink() or not file.is_file():continue
@@ -74,7 +75,7 @@ class SessionLogs:
         # Compatibility context for drivers started by the pre-session GUI.
         # Deliberately labelled as inherited history, not this window's own log.
         legacy=self.root/'gui.log'
-        if legacy.is_file() and not legacy.is_symlink():
+        if self.include_host_logs and legacy.is_file() and not legacy.is_symlink():
             sources['inherited_context/legacy_gui.log']=legacy
         manifest={'session_id':self.id,'session_started':datetime.fromtimestamp(
             self.started,timezone.utc).isoformat(),'exported_at':datetime.now(timezone.utc).isoformat(),

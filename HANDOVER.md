@@ -1,5 +1,49 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Aktuell19.11.2026: Uhrmessung korrigiert, neue Reviewvorbereitung
+
+- Operatorfreigegebeneattempt10 brach vor jedem Arm-/Greiferziel am Clockflag
+  ab. Keine neueBewegung/keinKontakt. FrischerStartsnapshotattempt11 bestätigt
+  alle4 nativRUNNING/Normal, ProgrammeSTOPPED/runtime1 undTrendruhe; rechte
+  Greifer weiteroffen. RF-Teilpose seitattempt09 bleibt aktuellerStart.
+- KonkreterSoftwarefehler imHost-Uhrvergleich korrigiert: ungeklammerte
+  Wall-/Monotonic-Abfragen können Schedulingpause alsZeitsprung deuten.
+  NeueAbfrage mit≤200µsPaarspanne/max3unmittelbarenVersuchen; unsichererRead
+  liefertkeinenfrischenDriverSample. Messunsicherheit verbraucht zusätzlich
+  vorhandene0,005radVergleichstoleranz.20msClockjump-/Header-/NativeEpoch-
+  Stopps,200msFrische,0,1rad/s/40mm unverändert. KeineSchwellenlockerung.
+-12Clock-/Alignment- und30Hardware-/ReviewmockprüfungenPASS. N100Passivlauf
+  ohneClockFault; nachersten100Discoveryvergleichen maximal0,000101radraw,
+ 0,000963radkonservativ/25,99msDriverabstand/110,93msQuellalter. Anfangs alte
+  Discoverydaten bis380mswurden nichtalsgültigerFahrstartverwendet; normale
+  Connect-/Frischebedingungen bleiben erforderlich. Softwarebug belegt,
+  vollständigeErklärung beiderRealabbrüche weiterunbewiesen.
+- attempt11 neuekompletteReviewversion ausfrischemIststart inVorbereitung,
+  gleicheSHA-geprüfteaktuelleZwei-Bild-Registrierung. KeinePower-/Play-/Reset-/
+  Arm-/Greiferaktion bisneuer tatsächlicherGUI-Entscheidung. Kontext/Restunsicherheit
+  imReviewgrundtext; keinealteFreigabewiederverwenden.
+- Daten setup/tasks/carton_motion_review_20261119/; Arbeitsstand imZellrepo
+  work/carton-motion-review-real-20261119.md.
+
+## Aktuell19.11.2026: zweites Review vor Fahrziel abgebrochen
+
+- OperatorApprove für neueMotionrevision8f5bf4ac92c04c9995302bcb6452857a
+  tatsächlich aufN100 angekommen. attempt10 startete reguläreROS-Programme
+  unter unbeladenenHolds, aber **kein Arm-/Greiferziel**: noch im Preflight
+  Abbruch `Device epoch changed; regenerate the hardware plan`. Keine weitere
+  Bewegung seit RF-Teilanfahrt ausattempt09, kein Kontakt/Karton weiterhinfrei.
+- NeueFehlerdaten zeigen alle4 nativenEpochen0 undnativeRuhe. Sammelfehler
+  kann auch Host-Wall/Monotonic-Abgleich oder Driver-Zeitstempel bedeuten;
+  keinen echtenUR-Neustart daraus ableiten. Je rechterJointState genau1Publisher
+  reinlesendgeprüft, keinNachweis doppelterPublisher. WeitereZeitdiagnose nur
+  passiv, keine neueReview-/Fahrwiederholung bis Ursache eingegrenzt.
+- AlleGrenzen/Stopps/Tempo unverändert. BestehendeClock-Faults jetzt mitgenauer
+  Ursache und Zeitpaar-Dauer protokolliert; kein automatisches Reset/Play.
+  Endzustand nachdiesemAbbruch vorweitererFahrt erneutfrischbestätigen.
+- Nachweise setup/tasks/carton_motion_review_20261119/attempt10/high/result.json
+  und alignment-with-model-clock-events.log aufN100; Arbeitsstand imZellrepo
+  work/carton-motion-review-real-20261119.md.
+
 ## Aktuell19.11.2026: freigegebene Hochanfahrt gestoppt, kein Griff
 
 - Operator hat Motionrevisionf252b03840344e83a5dea047c5f1cade tatsächlich in
@@ -20,6 +64,15 @@
   Stillstand separat. Ursache des Zeitabgleichabbruchs noch offen; Werte im
   neuen Reviewed-Fehlerbericht fehlen. Read-only-Zeitdiagnose in Arbeit,
   keine Grenze gelockert. NativeStopps des Schutzdiensts ebenfalls erhalten.
+- Passive Diagnose mit und ohne FCL reproduziert den Vergleichsabbruch nicht:
+  maximale Rohabweichung0,0001115rad, konservativ0,002538rad bei unveränderter
+ 0,005rad-Schwelle. Ursache weiterhin ungeklärt. Reviewed-Fehlerbericht um
+  tatsächliche Vergleichs-/Zeitreihendaten ergänzt;8Mock-AusführungenPASS.
+  attempt10 aus frischem Stoppstart vollständig vorbereitet, aktuell
+  WAITING_FOR_MOTION_REVIEW. NeuesTicket8f5bf4ac92c04c9995302bcb6452857a,
+  Version99488b56d809d74cdc10edde73d08c17f6a48b9bc62c8878af6cca88bf0c8820,
+  nominell83,397s seriell. NeueBedienentscheidung angefragt; frühere Freigabe
+  gilt nicht für dieseRevision. Noch keine weitere Fahrt.
 - Daten setup/tasks/carton_motion_review_20261119/attempt09/high/ sowie
   after-reviewed-stop/ auf N100; Arbeitsstand im Zellrepo
   work/carton-motion-review-real-20261119.md. Vor weiterer Bewegung neuen
@@ -1038,7 +1091,8 @@
   besteht. Ursache ist die Antigravity-Erkennung bei aktiver AppArmor-
   Richtlinie. Starter warnt jetzt in diesem bekannten Fall und protokolliert
   die Warnung. Praktischer Weg im laufenden Test: `accept-edits` und
-  gezielte Freigaben für diese Unterhaltung. Host-Richtlinie unverändert.
+  gezielte Freigaben für diese Unterhaltung. In diesem ersten Lauf blieb
+  die Host-Richtlinie bei `1`.
 
 - Nutzer wünscht geometrisch doppeltes Nikolaushaus auf der Unterseite,
   sechs gleichmäßig verteilte Bohrstellen auf Ø150 mm und möglichst den
@@ -1075,8 +1129,27 @@
   `mkdir` in `trial/artifacts` ab. Ask-/Deny-Einträge übernommen,
   globale Allow-Einträge durch die Sitzungsregeln ersetzt. Tests gegen
   den Starter, 15 Positiv-/Negativfälle und Laden in CLI 1.5.12 bestanden.
-  Neuer vollständiger Gemini-Lauf steht aus. `antigravity.log` liegt nun
-  direkt in der Sitzung. [Testanleitung](docs/agent_trials/HOUSE_DRILL_TRIAL_04.md).
+  `antigravity.log` liegt direkt in der Sitzung.
+- Nutzer-Wiederholung `setup/agent_trials/house_drill_gemini_20261119/session-x6z3i06d`
+  mit gleicher JSON-Spezifikation, aktualisiertem Checkout und Host-Wert `0`.
+  Kurzzeitiger CLI-Fallback beim Initialisieren, ab 14:23:59 tatsächlich
+  `auto`. Einmalige Workspace-Vertrauensabfrage, kein manuell bestätigter
+  Toolaufruf im Log. Der Hook wurde geladen. Das Transkript enthält
+  23 von 29 Shell-Aufrufen mit angefordertem `BypassSandbox`. Das belegt
+  weder eine komplett in der Sandbox ausgeführte Sitzung noch den isolierten
+  Effekt des Hooks. Den Host-Wert `0` nach der Wiederholung beobachtet.
+- Wiederholung bis erste vollständige Modellsequenz 16:28 min (vorher
+  25:25 min), bis Abgabe 28:21 min (vorher 35:30 min). Gegenüber den
+  18:59 min des ersten Laufs ohne Freigabewartezeit bleiben 9:22 min mehr
+  Wandzeit. Zweite Implementierungsrunde plus zweiter Planlauf rund 4:32 min
+  in ihren benannten Stufen, Modellrechenzeiten 93,72 und 92,83 s; alter Lauf
+  einmal 98,19 s. Unterschiedliche Abläufe und zwei gleichzeitig geänderte
+  Freigabebedingungen verhindern eine isolierte Effizienzschätzung.
+- Hauptrepo-Prüfer besteht für `run01` und finale Abgabe `run02`. `run02`
+  hat 45 Phasen, 498,13 s Modellzeit, 0,097973 rad/s Peak, acht Hauskanten,
+  sechs axiale Zustellungen, zwei Kreise und unveränderten Stiftarm beim
+  Gegenwandkreis. `run01` kommt ohne geplanten früheren Rückweg auf 519,87 s.
+  [Testanleitung](docs/agent_trials/HOUSE_DRILL_TRIAL_04.md).
 
 ## Neuplanung des Gazebo-Drei-Kreis-Ablaufs, 2026-11-18
 

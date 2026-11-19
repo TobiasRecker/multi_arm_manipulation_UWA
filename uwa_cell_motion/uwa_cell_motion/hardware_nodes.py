@@ -37,6 +37,48 @@ def decode(message):
     except (ValueError,TypeError):return {}
 
 
+class GuardJournal:
+    """Report a newly latched arm separately from another fault during its hold."""
+    def __init__(self):
+        self.blocked = set()
+        self.seen = set()
+
+    @staticmethod
+    def key(cause):
+        return frozenset(cause['arms']), cause.get('check', cause['reason'])
+
+    def events(self, status, now, armed):
+        blocked = set(status['blocked_arms'])
+        newly_blocked = blocked - self.blocked
+        self.blocked = blocked
+        self.seen = {key for key in self.seen if key[0] & blocked}
+        # CLOCK RESET can latch in the receive callback between evaluations.
+        # Other current faults supply the values measured on this tick, even
+        # if a partial reset retained an older latched cause with the same key.
+        causes = {self.key(cause): cause for cause in status['latched_causes']}
+        active = {}
+        for fault in status['faults']:
+            key = self.key(fault)
+            active[key] = dict(fault, source_time_s=now)
+        causes.update(active)
+        stops, held = [], []
+        for key, cause in causes.items():
+            arms, _ = key
+            if not (arms & blocked):
+                continue
+            new_latch = bool(arms & newly_blocked)
+            if key in self.seen and not (key in active and new_latch):
+                continue
+            (stops if new_latch else held).append(cause)
+            self.seen.add(key)
+        events = []
+        if stops:
+            events.append(('STOP LATCHED' if armed else 'MONITOR WOULD STOP', stops))
+        if held:
+            events.append(('HELD CONDITION' if armed else 'MONITOR HELD CONDITION', held))
+        return events
+
+
 class HardwareGuard(MotionNode):
     show=CollisionGuard.show
     def __init__(self,cfg,inventory,layout=None,mode='mock',armed=False,source=None):
@@ -56,7 +98,7 @@ class HardwareGuard(MotionNode):
         self.last_tick_start=None;self.last_tick_duration_s=None;self.tick_overruns=0
         self.positions={};self.pairs=[];self.records={};self.playing={};self.supervisor_status={};self.supervisor=Peer();self.model_match={r:False for r in ROBOT_IDS}
         self.source=source or (RtdeStates(self.problem.profiles,cfg['state_timeout_s']) if mode=='hardware' else DeviceStates())
-        self.last_source={};self.epochs={};self.source_faults=[];self.previous_blocked=set()
+        self.last_source={};self.epochs={};self.source_faults=[];self.journal=GuardJournal()
         self.publisher=self.create_publisher(String,'/uwa_cell/collision_guard/decision',1)
         self.state_pub=self.create_publisher(String,'/uwa_cell/hardware_state',1)
         self.joints_pub=self.create_publisher(JointState,'/uwa_cell/joint_states',qos_profile_sensor_data)
@@ -126,11 +168,10 @@ class HardwareGuard(MotionNode):
                     status = self.core.evaluate(self.pairs,now,now)
         except Exception as error:
             self.core.latched.update(ROBOT_IDS);world={};available=False
-            status=dict(state='STATE STALE',blocked_arms=list(ROBOT_IDS),faults=[dict(arms=list(ROBOT_IDS),reason=str(error))],latched_causes=[],reset_sequence=self.core.reset_sequence,reset_arms=[])
+            status=dict(state='STATE STALE',blocked_arms=list(ROBOT_IDS),faults=[dict(arms=list(ROBOT_IDS),
+                reason=str(error) or type(error).__name__,check='GUARD EVALUATION ERROR: '+type(error).__name__)],
+                latched_causes=[],reset_sequence=self.core.reset_sequence,reset_arms=[])
         if not available:status['state']='STOP ADAPTER LOST'
-        blocked=set(status['blocked_arms'])
-        if blocked-self.previous_blocked:self.get_logger().error(('STOP LATCHED: ' if self.armed else 'MONITOR WOULD STOP: ')+json.dumps(status.get('latched_causes',status['faults'])))
-        self.previous_blocked=blocked
         self.sequence+=1
         status.update(packet(self.hardware_signature,self.armed,self.instance,self.sequence),evaluated_monotonic_s=now,pairs=self.pairs,
             pilot=pilot_status,
@@ -145,6 +186,11 @@ class HardwareGuard(MotionNode):
                 ('\nStop-reserve:OFF (GEOMETRIC ONLY)' if self.cfg.get('stopping_reserve_policy')=='geometric_only' else '\nStop-reserve:UNMEASURED')+'\nTool:opening-envelope',
             model_uncertainty='World/table anchors provisional; hardware stop reserve unmeasured; gripper opening unobserved')
         self.publisher.publish(String(data=json.dumps(status,allow_nan=False)))
+        try:
+            for event, causes in self.journal.events(status, now, self.armed):
+                self.get_logger().error(event + ': ' + json.dumps(causes))
+        except Exception:
+            pass  # Unexpected diagnostic fields or logger errors must not interrupt supervision.
         state=packet(self.hardware_signature,self.armed,self.instance,self.sequence,records=self.records,model_state=self.positions,
             model_signature=self.signature,hardware_binding=self.problem.binding,tool_policy='all_openings_envelope_no_gripper_command',
             assembled_wall_time_s=self.get_clock().now().nanoseconds/1e9)

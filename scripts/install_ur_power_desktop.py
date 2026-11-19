@@ -29,7 +29,9 @@ def main():
                      'Comment=Put the four UR arms into standby or prepare them for ROS\n'
                      f'Exec=/usr/bin/python3 "{script}"{host_option}\n'
                      'Icon=uwa-robot-power\nTerminal=false\nCategories=Utility;\n'
-                     'StartupNotify=true\nStartupWMClass=uwa-robot-power\n')
+                     'StartupNotify=true\nStartupWMClass=uwa-robot-power\nActions=SafetyLog;\n\n'
+                     '[Desktop Action SafetyLog]\nName=Safety log\n'
+                     f'Exec=/usr/bin/python3 "{script}"{host_option} --safety-log\n')
     if shutil.which('desktop-file-validate'):
         subprocess.run(['desktop-file-validate', str(entry)], check=True)
     if shutil.which('update-desktop-database'):

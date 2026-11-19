@@ -2,6 +2,7 @@
 """Small local operator window for the four physical UWA arms."""
 
 import argparse
+from datetime import datetime, timezone
 import errno
 import json
 import os
@@ -11,6 +12,7 @@ import sys
 
 from PySide6 import QtCore, QtGui, QtWidgets
 from motion_review_panel import ReviewPanel, use_host_desktop_libraries
+from power_log_view import SafetyLogDialog, power_session, report_command
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -75,6 +77,14 @@ class Window(QtWidgets.QWidget):
         self.exiting = False
         self.tray = None
         self.review = None
+        self.log_view = None
+        self.log_command = report_command(n100, review_mock)
+        self.logged = {}
+        try:
+            self.log_session = power_session()
+        except OSError:
+            self.log_session = None
+        self.record('window', 'Mock review' if self.mock else 'N100' if n100 else 'Local')
         if backend is not None:
             self.backend = backend
         elif n100:
@@ -125,6 +135,9 @@ class Window(QtWidgets.QWidget):
         self.refresh = QtWidgets.QPushButton('Refresh')
         self.refresh.clicked.connect(self.refresh_all)
         header.addWidget(self.refresh)
+        self.log_button = QtWidgets.QPushButton('Safety log')
+        self.log_button.clicked.connect(self.show_logs)
+        header.addWidget(self.log_button)
         page.addLayout(header)
 
         power = QtWidgets.QWidget()
@@ -181,7 +194,9 @@ class Window(QtWidgets.QWidget):
                 intro.setText('MOCK · Local review store')
                 self.setWindowTitle('UWA Robot Power · Mock review')
             self.review = ReviewPanel(review_backend, remote=n100, parent=self)
+            self.review.audit.connect(self.record)
             self.review.attention.connect(self.show_review)
+            self.review.faultNotice.connect(self.show_fault)
             self.review.safeToQuit.connect(self.finish_quit)
             self.tabs.addTab(self.review, 'Motion review')
             page.addWidget(self.tabs)
@@ -211,6 +226,29 @@ class Window(QtWidgets.QWidget):
         for item in (self.start, self.standby, self.refresh):
             item.setEnabled(self.mode is None)
 
+    def record(self, kind, value, *, repeat=False):
+        if not self.log_session or (not repeat and self.logged.get(kind) == value):
+            return
+        try:
+            entry = {'at': datetime.now(timezone.utc).isoformat(), 'event': kind, 'value': value}
+            self.log_session.note(json.dumps(entry, ensure_ascii=False))
+            self.logged[kind] = value
+        except OSError:
+            pass  # Diagnostic storage cannot interrupt the control or review windows.
+
+    def show_logs(self):
+        if self.log_view is None:
+            if self.log_session is None:
+                try:
+                    self.log_session = power_session()
+                except OSError as exc:
+                    QtWidgets.QMessageBox.warning(self, 'Safety log', f'Could not create the local log directory.\n{exc}')
+                    return
+            self.log_view = SafetyLogDialog(self.log_session, self.log_command, self)
+        self.log_view.showNormal()
+        self.log_view.raise_()
+        self.log_view.activateWindow()
+
     def set_arm(self, rid, title, style, detail):
         if rid not in self.rows:
             return
@@ -229,6 +267,7 @@ class Window(QtWidgets.QWidget):
         self.stdout.clear()
         self.controls()
         if mode != 'status':
+            self.record('power request', mode, repeat=True)
             self.last_issues.clear()
             self.feedback.setText(f'{ACTIONS[mode]} in progress…')
             for rid in self.rows:
@@ -253,6 +292,7 @@ class Window(QtWidgets.QWidget):
         elif event == 'arm':
             row = packet['result']
             rid = row['arm']
+            self.record(f'{self.mode} · {rid}', row, repeat=self.mode in ACTIONS)
             self.changed.add(rid)
             title, style, detail = present(row)
             if self.mode in ACTIONS:
@@ -269,10 +309,12 @@ class Window(QtWidgets.QWidget):
                 if not self.have_result:
                     self.feedback.setText('Select Standby or Start + ROS.')
             else:
+                self.record('power result', packet, repeat=True)
                 self.have_result = True
                 self.feedback.setText(f'{ACTIONS[self.mode]} complete for all four arms.'
                     if packet['success'] else f'{ACTIONS[self.mode]} incomplete. Check the arm messages above.')
         elif event == 'error':
+            self.record(f'{self.mode} error', packet, repeat=self.mode in ACTIONS)
             self.completed = True
             self.have_result = True
             if self.n100:
@@ -282,8 +324,11 @@ class Window(QtWidgets.QWidget):
             for rid in set(self.rows)-self.changed:
                 self.set_arm(rid, 'UNKNOWN', 'warn', 'No current status available.')
 
-    def finished(self, *_):
+    def finished(self, code=None, *_):
         self.read_output()
+        stderr = bytes(self.process.readAllStandardError()).decode(errors='replace').strip()
+        self.record(f'{self.mode} transport', {'exit_code': code, 'complete': self.completed,
+                                               'stderr': stderr[-2000:]})
         if not self.completed:
             self.have_result = True
             if self.n100:
@@ -292,7 +337,6 @@ class Window(QtWidgets.QWidget):
                 self.feedback.setText('Status update ended early. Refresh before retrying.')
             for rid in set(self.rows)-self.changed:
                 self.set_arm(rid, 'UNKNOWN', 'warn', 'No current status available.')
-        self.process.readAllStandardError()
         self.mode = None
         self.controls()
 
@@ -320,6 +364,13 @@ class Window(QtWidgets.QWidget):
         if message and self.tray and self.tray.supportsMessages():
             self.tray.showMessage('UWA · Decision required', message,
                                   QtWidgets.QSystemTrayIcon.MessageIcon.Information)
+
+    def show_fault(self, message):
+        if self.tray and self.tray.supportsMessages():
+            self.tray.showMessage('UWA · Carton task interrupted', message,
+                                  QtWidgets.QSystemTrayIcon.MessageIcon.Warning)
+        else:
+            QtWidgets.QApplication.alert(self)
 
     def install_tray(self):
         if not QtWidgets.QSystemTrayIcon.isSystemTrayAvailable():
@@ -356,6 +407,8 @@ class Window(QtWidgets.QWidget):
             return
         if self.review:
             self.review.shutdown()
+        if self.log_view:
+            self.log_view.shutdown()
         if self.tray:
             self.tray.hide()
         if self.process.state() != QtCore.QProcess.ProcessState.NotRunning:
@@ -370,12 +423,21 @@ def main():
     host.add_argument('--n100', action='store_true', help='Use the N100 driver host over Ethernet SSH')
     host.add_argument('--review-mock', type=Path, metavar='DIRECTORY',
                       help='Review a local mock store. No power or robot connection.')
+    parser.add_argument('--safety-log', action='store_true',
+                        help='Open only the read-only safety log, alongside an existing window.')
     args, qt_args = parser.parse_known_args()
     use_host_desktop_libraries()
     app = QtWidgets.QApplication([sys.argv[0], *qt_args])
     app.setDesktopFileName('uwa-robot-power')
     app.setApplicationName('uwa-robot-power')
     app.setApplicationDisplayName('UWA Robot Power')
+    if args.safety_log:
+        dialog = SafetyLogDialog(power_session(), report_command(args.n100, args.review_mock))
+        dialog.show()
+        try:
+            return app.exec()
+        finally:
+            dialog.shutdown()
     if args.review_mock is not None:
         window = Window(review_mock=args.review_mock)
         window.show()

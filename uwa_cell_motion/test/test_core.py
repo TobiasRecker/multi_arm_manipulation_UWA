@@ -46,10 +46,22 @@ def test_nearest_markers_use_surface_points_with_the_reported_gap():
 def test_guard_stops_only_violating_pair_and_latches(cfg):
     core=GuardState(cfg);fresh(core,1)
     p=pairs();p[0]['clearance_m']=.05
+    p[0]['links']=['left_front_tool0','right_front_wrist_3_link']
     status=core.evaluate(p,1,1)
     assert set(status['blocked_arms'])==set(PAIRS[0])
+    cause, = status['latched_causes']
+    assert (cause['clearance_m'],cause['threshold_m'],cause['links']) == (.05,.1,p[0]['links'])
     fresh(core,1.05)
     assert set(core.evaluate(pairs(),1.05,1.05)['blocked_arms'])==set(PAIRS[0])
+
+
+def test_guard_keeps_nonfinite_distance_blocked_and_reports_missing_measurement(cfg):
+    core=GuardState(cfg);fresh(core,1)
+    p=pairs();p[0]['clearance_m']=float('nan')
+    status=core.evaluate(p,1,1)
+    assert set(status['blocked_arms'])==set(PAIRS[0])
+    assert status['faults'][0]['clearance_m'] is None
+    assert status['faults'][0]['threshold_m'] == .1
 
 
 def test_multiple_faults_union_endpoints(cfg):

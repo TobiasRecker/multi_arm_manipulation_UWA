@@ -178,6 +178,8 @@
 
 ## Reale Bedienabläufe ohne Diagnosekaskaden (2026-11-18)
 
+- Nutzerwunsch vom 19.11.2026: Die Ursache wiederkehrender Sperren in **UWA Robot Power** sichtbar machen. Bei der Auswertung Zeitpunkt, betroffene Arme, Auswirkung und vorhandene Messwerte zur Schwelle heranziehen. Mehrere Meldungen desselben Vorfalls und eigenständige Auslösungen unterscheiden.
+
 - Nutzer empfindet die Zahl der Test-/Diagnoseläufe im laufenden realen Griff
   als zu hoch. Bereits geprüfte Pläne in den kurzen Ausführungspfad übernehmen;
   keine zusätzliche Testreihe oder neue Überwachung allein vor jedem Start.
