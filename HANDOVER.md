@@ -22,6 +22,44 @@
   nicht durch Entfernen räumlicher Reserven umgehen. Aktuell keine aktive
   Freigabe oder nächste Fahrwiederholung zugesagt.
 
+## OAK-Texturabbruch im Weblauf behoben, 19.11.2026
+
+- Weblauf `a266d02976094ab09d965be515332c22` brach um 18:20:57 AWST bei
+  der Registrierung ab. Rezept und lesender Gelenksnapshot bestanden.
+  16 rechte Board-Ecken bestätigten die Kamerareferenz mit 1,970 px RMS
+  bei einer Grenze von 2 px. Alle 36 Texturnachweise scheiterten am planaren
+  Konsens. Der Karton lag im Ausschnitt. Keine Planung, keine Zielsendung.
+- Wenn `--planar-texture` zu wenige gültige Fits liefert, prüft der
+  Registrierer den Ausschnitt der bedruckten Seite nach lokaler Kontrastanpassung
+  (CLAHE). Die bisherigen Geometrie-, Reprojektions-, Auflage- und
+  Übereinstimmungsgrenzen gelten. Bei zwei Fotos muss jedes einen eigenen
+  gültigen Fit beitragen. Erfolgreiche Rohbild-Fits gehen in den Vergleich ein.
+- Dasselbe Originalbild bestand lokal und auf dem N100 mit 25 und 24
+  übereinstimmenden Texturpunkten. Auflagefehler 2,97 und 3,11 px bei jeweils
+  6,375 px Grenze. Streuung zwischen den Posen 0,227 mm und 0,058°. Der alte
+  erfolgreiche Fotofall vom 13:24-Lauf war numerisch identisch ohne CLAHE.
+  Die lokale Offline-Planung aus dem Snapshot des abgebrochenen Weblaufs
+  ergab zwei gemeinsame rechte Gruppen mit nominell 32,21 s und 8,78 s.
+- Registrierer auf den N100 übernommen. Vorgänger gesichert in
+  `~/uwa-ur-runtime/review-candidates/carton-vision.G23jmlMj/previous.py`.
+  Sechs Web-Prüfsummen stimmen, Katalog meldet Live verfügbar. Kein neuer
+  Echtlauf ausgelöst. Nachweise `setup/tasks/carton_web_registration_20261119/`.
+
+## Live-Starttaste am Arbeitsplatz wieder verfügbar, 19.11.2026
+
+- Nutzer meldete den deaktivierten Webstart und fragte nach Play. Gemeint war
+  der Status des laufenden UR-Programms `ros.urp` mit External Control in der
+  vorherigen Messung. Die Webtaste folgt der Konfiguration der Serverinstanz.
+- Die auf Port 8780 tatsächlich benutzte Standalone-Instanz war ohne
+  `--live-config` gestartet. `GET /api/catalog` meldete `live_available:
+  false`, obwohl die Optikdatei vorhanden war. Eine abgeschlossene Demo war
+  der letzte Lauf.
+- Umgestellt auf dieselbe Loopback-Adresse mit `--live-config` und der
+  transienten Benutzereinheit `uwa-program-library.service`. Verifiziertes
+  `GET /api/catalog` meldet `live_available: true`. Vorhandene Browserseite
+  neu laden. Kein Kartonlauf ausgelöst. Nachweis
+  `setup/tasks/uwa_program_library_live_button_20261119/verified.json`.
+
 ## N100 für den benannten Webstart eingerichtet, 19.11.2026
 
 - Nutzer beauftragte nach dem Versionsabbruch die Übernahme. Installiert
@@ -129,6 +167,11 @@ Die bedarfsabhängige Play-Freigabe ist im aktiven N100-Kartonrunner installiert
 - Offline auf dem archivierten Griff kompiliert. 44 Phasen, 23.464
   Zustände, 80,36 s Simulationszeit ab Hub statt 390,11 s. Rückdrehung
   15,55 s statt 107,53 s. Planstützstellen bis 0,999992 rad/s.
+
+- Schnelle Gazebo-Wiedergabe run02 abgeschlossen: 44 Phasen,
+  162,68 mm Hub, vollständige Haus-/Werkzeugfolge und Öffnen.
+  Wandzeit ab Hub bis Öffnen 2:38 min statt 26:35 min.
+  Schräglage an der Tischkante im nativen Endbild weiter sichtbar.
 
 ## Gazebo-Wiedergabe und Offline-Planprüfung, 19.11.2026
 

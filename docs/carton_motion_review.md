@@ -43,11 +43,17 @@ Wrist-Aufnahmen. Fortschritt, Ergebnisse und die drei Bildvorschauen erscheinen
 im Laufstatus. Die Wrist-Aufnahmen gehören zu einem früheren Vorgriff.
 
 Die Bibliothek lässt sich auch ohne Power-Fenster vom Workspace starten.
+Für den eingerichteten N100-Livepfad die aktive Optikdatei übergeben.
 `http://127.0.0.1:8780` ist dann die Adresse auf ROSmini.
 
 ```bash
-python3 src/multi_arm_manipulation_UWA/scripts/skill_library_server.py
+python3 src/multi_arm_manipulation_UWA/scripts/skill_library_server.py \
+    --live-config setup/skill_library/live-carton.json
 ```
+
+Für eine reine Offline-Bibliothek den Parameter `--live-config` weglassen.
+Nach einem Wechsel des Servermodus die Browserseite neu laden. Die
+Schaltfläche **Start program** folgt der Live-Konfiguration dieser Instanz.
 
 Im Offline-Webtest vom 19.11.2026 wurde die verschobene Kartonlage aus einem
 echten OAK-Bild neu registriert. Die 16 sichtbaren Board-Ecken bestätigten die
@@ -87,6 +93,11 @@ zugehörigen `registration.json`-Nachweis im selben Verzeichnis.
 
 Der Runner prüft die Versionen von Rezept, Registrierung, Programm und
 Fahrprofil auf dem N100 sowie das Texturmodell `setup/tracking/models/carton_avocado_v1/reference.npz`.
+Bei zu wenigen gültigen Textur-Fits versucht die planare Registrierung
+denselben Ausschnitt mit lokaler Kontrastanpassung. Der Vergleich prüft
+weiterhin die Bildpunkte, Tischauflage und Posenübereinstimmung.
+Das ursprüngliche Fehlerfoto vom 19.11.2026 wurde damit offline auf N100
+erfolgreich registriert. [Registrierungsnachweis](../../../setup/tasks/carton_web_registration_20261119/contrast-fallback/registration.json)
 Der laufende Pilot verlangt eine aktuelle Arbeitsbereichsfreigabe und
 betriebsbereite Arme. **Start + ROS** ist die getrennte Bedienaktion für
 die Programmbereitschaft. Nach der Übernahme bestanden der lesende Web-

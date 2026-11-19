@@ -417,6 +417,21 @@ actual images and the current artifacts remain part of the agent review.
 
 ## Contact model and limits
 
+The fast drawing profile uses `grip_contact_friction: 1.0` as an effective
+coefficient for contacts between the four right grip pads and the carton.
+The rest of the contact model uses the original surface values. The carton
+remains a rigid shell. This approximates extra resistance to sliding from
+grip indentation. It models no change in wall geometry or mechanical
+interlocking. The virtual gripper motor still supplies the normal load.
+
+The friction system uses Gazebo's contact surface customization event during
+physics contact resolution. It only changes the two friction directions of
+the matched material pair. A profile without `grip_contact_friction` uses
+the original Gazebo contact law. The configured base friction, solver setup
+and optional grip-friction library are bound to the prepared scene.
+[Gazebo contact property interface](https://gazebosim.org/api/physics/6/structgz_1_1physics_1_1SetContactPropertiesCallbackFeature_1_1ContactSurfaceParams.html)
+
+
 The original visual-only carton and ordinary cell launch remain available.
 The opt-in scene extrudes the asset's outer skin triangles into convex thin
 prisms, preserving the open interior and observed upper cutouts. A vertical

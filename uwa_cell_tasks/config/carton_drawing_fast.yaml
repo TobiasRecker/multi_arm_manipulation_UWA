@@ -9,6 +9,8 @@ finger_joint_damping_nm_s: 0.08
 finger_velocity_limit_rad_s: 0.2
 force_observation: false
 friction: 0.6
+# Effective Coulomb coefficient for right grip-pad/carton pairs only.
+grip_contact_friction: 1.0
 grasp_entry_min_duration_s: 0.1
 gripper_coarse_velocity_rad_s: 0.1
 gripper_fine_start_rad: 0.65

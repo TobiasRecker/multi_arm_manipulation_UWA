@@ -217,7 +217,8 @@ def fingertip_contact_primitives(root):
 
 def contact_description(description, controllers_path, finger_damping=.04,coarse=.02,fine=.004,fine_start=.65,geometry_metadata=None,
                         gear_stiffness=10.,motor_stiffness=10.,transmission='native_gear',
-                        arm_velocity=.05,arm_acceleration=.5,finger_velocity_limit=.05,motor_torque_limit=.35, motion_arms=ARMS):
+                        arm_velocity=.05,arm_acceleration=.5,finger_velocity_limit=.05,motor_torque_limit=.35, motion_arms=ARMS,
+                        grip_contact_friction=None):
     """Opt-in profile; default cell description/controllers stay unchanged.
 
     Contact fingers are force servos with measured independent joints. URDF
@@ -267,6 +268,11 @@ def contact_description(description, controllers_path, finger_damping=.04,coarse
     ET.SubElement(ET.SubElement(root,'gazebo'),'plugin',filename=str(servo_library),name='uwa_cell_tasks::ContactServoSystem')
     telemetry=ET.SubElement(ET.SubElement(root,'gazebo'),'plugin',filename=str(servo_library),name='uwa_cell_tasks::TaskTelemetry')
     ET.SubElement(telemetry,'ros_namespace').text='/uwa_cell'
+    if grip_contact_friction is not None:
+        plugin = ET.SubElement(ET.SubElement(root,'gazebo'),'plugin',
+                               filename=str(servo_library.with_name('libgrip_friction.so')),
+                               name='uwa_cell_tasks::GripFriction')
+        ET.SubElement(plugin,'coefficient').text=str(grip_contact_friction)
     return ET.tostring(root, encoding='unicode')
 
 
@@ -361,7 +367,8 @@ def prepare_scene(layout, cfg, directory):
         cfg['gripper_coarse_velocity_rad_s'],cfg['gripper_fine_velocity_rad_s'],cfg['gripper_fine_start_rad'],finger_geometry,
         cfg['gripper_gear_stiffness_nm_rad'],cfg['gripper_motor_stiffness_nm_rad'],cfg['gripper_transmission'],
         max([cfg['joint_velocity_rad_s']]+list(cfg.get('joint_velocity_overrides_rad_s',{}).values())),cfg.get('braking_acceleration_rad_s2',.5),cfg.get('finger_velocity_limit_rad_s',.05),
-        cfg.get('gripper_motor_torque_limit_nm',.35), motion_arms=motion_arms)
+        cfg.get('gripper_motor_torque_limit_nm',.35), motion_arms=motion_arms,
+        grip_contact_friction=cfg.get('grip_contact_friction'))
     if cfg.get('drawing_recipe'):
         description = add_virtual_marker_visual(description)
     (directory/'robot.urdf').write_text(description)
@@ -404,6 +411,8 @@ def prepare_scene(layout, cfg, directory):
     sources=set(Path(__file__).resolve().parent.glob('*.py'))
     sources.add(Path(rigid_object.__file__).resolve())
     sources.add(Path(motion_node.__file__).resolve())
+    if 'grip_contact_friction' in cfg:
+        sources.add(backend.with_name('libgrip_friction.so').resolve())
     if cfg.get('drawing_recipe'):
         sources.add(Path(cfg['drawing_recipe']).resolve())
     # Bind the local dependencies used by offline planning and playback.

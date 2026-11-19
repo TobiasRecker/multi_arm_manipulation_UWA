@@ -37,7 +37,8 @@ def planar_texture_candidates(tracker,image,K,D,stretches):
     scale=min(1.,tracker.width/image.shape[1]);results=[]
     for stretch in stretches:
         small=cv2.resize(image,None,fx=scale,fy=scale*stretch,interpolation=cv2.INTER_LINEAR)
-        keypoints,descriptors=tracker.detector.detectAndCompute(cv2.cvtColor(small,cv2.COLOR_BGR2GRAY),None)
+        gray=cv2.cvtColor(small,cv2.COLOR_BGR2GRAY) if small.ndim==3 else small
+        keypoints,descriptors=tracker.detector.detectAndCompute(gray,None)
         if descriptors is None:continue
         for surface in np.unique(tracker.surfaces):
             mask=tracker.surfaces==surface;model=tracker.points[mask];chosen={}
@@ -130,6 +131,27 @@ def register(a):
             T=Tcw@world(v);return (cv2.projectPoints(points,cv2.Rodrigues(T[:3,:3])[0],T[:3,3],K,D)[0].reshape(-1,2)-pixels).ravel()
         fit=least_squares(fun,v0,loss='soft_l1',f_scale=3.,xtol=1e-12,ftol=1e-12,gtol=1e-12,max_nfev=200);rms=float(np.sqrt(np.mean(np.sum(fun(fit.x).reshape(-1,2)**2,axis=1))));threshold=4./min(1.,width/(x1-x0));item.update(support_fit_rms_px=rms,registration_threshold_px=threshold,support_fit_pass=rms<=threshold)
         if item['support_fit_pass']:fits.append(world(fit.x))
+
+    def add_contrast_hypotheses(current, verification_path=None):
+        # Enhance the printed face before resampling. Pixel coordinates and
+        # reprojection, table support and pose agreement checks stay the same.
+        x0, y0, x1, y1 = a.face_roi
+        gray = cv2.cvtColor(current[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY)
+        k = K.copy()
+        k[0, 2] -= x0
+        k[1, 2] -= y0
+        width = 1600
+        tracker = TexturePose(a.reference, width=width)
+        for grid in ((8, 8), (12, 6)):
+            enhanced = cv2.createCLAHE(clipLimit=2., tileGridSize=grid).apply(gray)
+            for result, method in planar_texture_candidates(tracker, enhanced, k, D, [1., 1.4, 1.5, 1.6]):
+                method.update(preprocessing='clahe', clahe_clip_limit=2., clahe_tile_grid=list(grid))
+                if verification_path is not None:
+                    method['verification_image'] = str(verification_path)
+                accept_supported(result, method, a.face_roi, width)
+
+    verification_path = getattr(a, 'verification_image', None)
+    contrast_fallback = photo_reference is None and getattr(a, 'planar_texture', False)
     for roi,width in [(a.roi,1600),(a.face_roi,1200),(a.face_roi,1600)]:
         x0,y0,x1,y1=roi
         if not 0<=x0<x1<=image.shape[1] or not 0<=y0<y1<=image.shape[0]:raise ValueError('Search ROI outside native image')
@@ -143,8 +165,10 @@ def register(a):
                 r,method=track_photo_points(old,image,points,pixels,roi,width,K,D,window)
                 candidates.append((r,method))
         for r,method in candidates:accept_supported(r,method,roi,width)
+    if contrast_fallback and len(fits) < (1 if verification_path else 2):
+        add_contrast_hypotheses(image)
     first_observation_fits=len(fits)
-    if getattr(a,'verification_image',None):
+    if verification_path:
         verification=cv2.imread(str(a.verification_image));meta=json.loads(a.verification_metadata.read_text())
         if (verification is None or verification.shape!=image.shape or not meta.get('success') or meta.get('mode')!='standard' or meta['standard']['lens_position']!=focus):raise ValueError('Additional current observation optics differ')
         vc,vi,_=cv2.aruco.ArucoDetector(board.getDictionary(),params).detectMarkers(verification);vo=[];vp=[]
@@ -164,6 +188,8 @@ def register(a):
             for r,method in candidates:
                 method['verification_image']=str(a.verification_image)
                 accept_supported(r,method,roi,width)
+        if contrast_fallback and len(fits) == first_observation_fits:
+            add_contrast_hypotheses(verification, verification_path)
     report=dict(success=False,device_commands=[],board_corners=len(obj),board_rms_px=brms,board_camera_mode=board_mode,camera_reference_pose=str(getattr(a,'camera_reference_pose',None)),reference_check=reference_check,attempts=attempts,support_prior='Carton visibly upright/supported on fixed right table; bottom at table plane; x/y/yaw fitted to current image',absolute_accuracy_validated=False,manipulation_approved=False)
     if getattr(a,'verification_image',None) and not (first_observation_fits and len(fits)>first_observation_fits):report['error']='Each current observation requires its own valid supported image-pose hypothesis'
     elif len(fits)<2:report['error']='Fewer than two valid supported image-pose hypotheses'
