@@ -345,8 +345,7 @@ def prepare_scene(layout, cfg, directory):
     description, controllers = render_description(layout, directory/'model')
     params = yaml.safe_load(controllers.read_text())
     params['/uwa_cell/controller_manager']['ros__parameters']['update_rate']=1000
-    # Publish at the measurement cadence, not once per physics substep with
-    # repeated cached states. This keeps geometry/watchdog callbacks responsive.
+    # Publish telemetry at the measurement cadence.
     params.setdefault('/uwa_cell/joint_state_broadcaster',{}).setdefault('ros__parameters',{})['update_rate']=100
     motion_arms = (*ARMS, 'left_front') if cfg.get('drawing_recipe') else ARMS
     group_name = 'rigid_object_controller'
@@ -355,7 +354,7 @@ def prepare_scene(layout, cfg, directory):
         joints=[j for a in motion_arms for j in joint_names(a)], command_interfaces=['position','velocity'],
         state_interfaces=['position','velocity'], allow_partial_joints_goal=False,
         action_monitor_rate=50., state_publish_rate=100.,
-        constraints=dict(stopped_velocity_tolerance=.003, goal_time=2.0), use_sim_time=True)}
+        constraints=dict(stopped_velocity_tolerance=0., goal_time=2.0), use_sim_time=True)}
     controllers.write_text(yaml.safe_dump(params))
     finger_geometry=[]
     description = contact_description(description, controllers, cfg['finger_joint_damping_nm_s'],
@@ -407,11 +406,10 @@ def prepare_scene(layout, cfg, directory):
     sources.add(Path(motion_node.__file__).resolve())
     if cfg.get('drawing_recipe'):
         sources.add(Path(cfg['drawing_recipe']).resolve())
-    # These local planning/watchdog dependencies can change independently in
-    # the shared workspace. Bind them as well as the task adapter itself.
+    # Bind the local dependencies used by offline planning and playback.
     import uwa_cell_control,uwa_cell_calibration,uwa_cell_gazebo,uwa_cell_description
     dependency_groups=[(Path(motion_node.__file__).resolve().parent,
-        ('common.py','geometry.py','planning.py','guard_core.py','interlock.py','supervisor.py','status_markers.py')),
+        ('common.py','geometry.py','planning.py','simulation_goals.py')),
         (Path(uwa_cell_control.__file__).resolve().parent,
          ('scan_separation.py','view_geometry.py','parallel_scan.py','parking.py')),
         (Path(uwa_cell_calibration.__file__).resolve().parent,('model.py',)),
@@ -420,7 +418,6 @@ def prepare_scene(layout, cfg, directory):
     for base,files in dependency_groups:
         sources.update(base/name for name in files)
     motion_prefix=Path(get_package_prefix('uwa_cell_motion'))
-    sources.add((motion_prefix/'lib/libcollision_hold.so').resolve())
     sources.add((motion_prefix/'lib/uwa_cell_motion/rrt_worker').resolve())
     sources.add((Path(get_package_share_directory('uwa_cell_motion'))/'config/motion.yaml').resolve())
     sources.add((Path(get_package_share_directory('uwa_cell_tasks'))/'launch/grasp.launch.py').resolve())

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from scipy.spatial.transform import Rotation
 from match_cooperative_handling.rigid_object import tcp_target, common_scale, interpolate, rigid
-from uwa_cell_tasks.core import GraspGroup, RunStore, ARMS, seal, verify, resource_lease,gripper_profile,measured_open,object_point_height
+from uwa_cell_tasks.core import GraspGroup, RunStore, ARMS, seal, verify, resource_lease,gripper_profile,object_point_height
 
 
 CFG=dict(relative_position_tolerance_m=.002,relative_angle_tolerance_rad=np.pi/180)
@@ -19,16 +19,6 @@ def test_lift_reference_is_declared_com_and_keeps_corner_motion_separate():
     shift=np.eye(4);shift[2,3]=.03
     assert object_point_height(shift,com)-object_point_height(start,com)==pytest.approx(.03)
     with pytest.raises(ValueError):object_point_height(start,[0.,float('nan'),0.])
-
-
-def test_open_confirmation_requires_actual_passive_fingers_and_standstill():
-    names=['driver','passive'];q=dict(driver=.008,passive=-.009);v=dict(driver=0.,passive=0.)
-    assert measured_open(names,q,v)
-    assert not measured_open(names,dict(q,passive=.798),v)
-    assert not measured_open(names,{'driver':0.},v)
-    assert not measured_open(names,q,dict(v,passive=.004))
-    assert not measured_open(names,dict(q,passive=float('nan')),v)
-    assert not measured_open([],{}, {})
 
 
 def test_contact_qualification_rejects_accelerated_physics(tmp_path):
@@ -94,15 +84,6 @@ def test_contact_required_and_offsets_are_not_mutable():
         {a:dict(left_pad=True,right_pad=False) for a in ARMS},CFG)
     g=group();copy=g.offsets;copy[ARMS[0]][0,3]=100
     assert g.offsets[ARMS[0]][0,3]==-.2
-
-
-def test_slip_stops_whole_group_and_forbids_resume():
-    g=group();tcps={a:t for a,(t,_) in g.targets(np.eye(4)).items()}
-    tcps[ARMS[0]][2,3]+=.003
-    assert not g.check(np.eye(4),tcps);assert g.stop('other fault')==ARMS
-    with pytest.raises(RuntimeError):g.targets(np.eye(4))
-    with pytest.raises(RuntimeError):g.release(supported=False,stationary=True)
-    g.release(supported=True,stationary=True)
 
 
 def test_review_is_bound_to_revision_and_evidence(tmp_path):

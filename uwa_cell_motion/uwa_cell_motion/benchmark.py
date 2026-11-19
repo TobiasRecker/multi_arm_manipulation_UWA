@@ -100,7 +100,7 @@ def benchmark(problem,suite,output,limit=None,seeds=5,execute=False):
                 else:result=problem.plan(request,method,seed,normalized=True)
                 result.update(case_id=case['id'],category=case['category'],expected_unreachable=case['expected_unreachable'])
                 if execute and result['success'] and 'execution' not in result:
-                    from .execution import execute as run
+                    from .simulation_execution import execute as run
                     result['execution']=run(result,str(path.with_suffix('.execution.json')),restore_start=True)
                 dump(path,result);results.append(result)
                 summary=summarize(results);summary.update(elapsed_wall_s=time.monotonic()-started,completed=len(results),expected=len(suite['cases'][:limit])*seeds*2,
@@ -137,7 +137,7 @@ def _replay_comparison(directory,limit=None):
     Seeds test planning variability. Exact duplicate geometric/timed requests
     share an execution record rather than counting one physical run repeatedly.
     """
-    from .execution import execute
+    from .simulation_execution import execute
     directory=Path(directory);groups={};records=[]
     if not json.loads((directory/'summary.json').read_text()).get('complete'):
         raise ValueError('Complete offline comparison required before replay')
@@ -170,4 +170,4 @@ def _replay_comparison(directory,limit=None):
         dump(directory/'summary.json',summary)
         print(f"EXECUTED {completed}/{len(groups)} {members[0][1]['case_id']}: {result['success']} {result.get('error','')}",flush=True)
         if newly_executed and not result['success']:
-            raise RuntimeError('Execution failed; batch stopped and latch retained. Inspect result before an explicit reset/new invocation.')
+            raise RuntimeError('Gazebo playback failed; inspect the execution record.')

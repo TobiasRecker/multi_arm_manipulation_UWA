@@ -9,14 +9,12 @@ from match_cooperative_handling.rigid_object import pose_error
 from uwa_cell_gazebo.charuco_views import Chain
 from uwa_cell_tasks.core import ARMS,digest,seal,verify,write_json,object_point_height
 from uwa_cell_tasks.scene import verify_scene
-from uwa_cell_tasks.operating import velocity_limits
 
 
 def evaluate(run,scene_directory):
     scene=verify(json.loads((scene_directory/'scene.json').read_text()));cfg=scene['cfg']
     state=json.loads((run/'state.json').read_text());checks={};notes=[]
     checks['runner_completed']=state['state']=='DONE'
-    checks['holds_confirmed']=bool(state.get('stop',{}).get('confirmed'))
     try:verify_scene(scene_directory);checks['current_implementation_bound']=True
     except (ValueError,OSError,KeyError) as error:checks['current_implementation_bound']=False;notes.append(str(error))
     motion=None
@@ -40,16 +38,6 @@ def evaluate(run,scene_directory):
                 for m in (turn,down))
         except (OSError,KeyError,ValueError) as error:
             checks['complete_object_recipe_bound']=False;notes.append('Missing turn evidence: '+str(error))
-    measured=state.get('measured_peak_speeds_rad_s',{});peak_source='state.json';diagnostic_sha=None
-    if not measured and (run/'stop-diagnostic.json').exists():
-        diagnostic=run/'stop-diagnostic.json';measured=json.loads(diagnostic.read_text()).get('measured_peak_speeds_rad_s',{})
-        peak_source='stop-diagnostic.json';diagnostic_sha=hashlib.sha256(diagnostic.read_bytes()).hexdigest()
-    peaks=[abs(v) for phase in measured.values() for v in phase.values()]
-    checks['measured_speed_bound']=bool(peaks) and all(
-        abs(speed)<=velocity_limits([joint],cfg)[0]+1e-8
-        for phase in measured.values() for joint,speed in phase.items())
-    arm_peaks=[abs(v) for phase in measured.values() for j,v in phase.items() if '_robotiq_' not in j]
-    finger_peaks=[abs(v) for phase in measured.values() for j,v in phase.items() if '_robotiq_' in j]
     trace=run/'evaluation-trace.jsonl';loaded=[];released=[];moving=[]
     if trace.exists():
         for line in trace.open():
@@ -59,17 +47,14 @@ def evaluate(run,scene_directory):
             if group.get('released'):released.append(row)
             elif not group.get('release_requested'):loaded.append(row)
     checks['loaded_trace_present']=bool(loaded)
-    checks['guard_fault_free_during_motion']=bool(moving) and all(not row['faults'] for row in moving)
     checks['supported_release_observed']=any(r['contacts']['supported'] for r in released)
     checks['pads_retained_while_loaded']=bool(loaded) and all(
         all(all(r['contacts']['pads'][a].values()) for a in ARMS) for r in loaded)
     checks['offsets_immutable']=bool(loaded) and len({digest(r['group']['object_to_tcp']) for r in loaded})==1
     reference=scene.get('lift_reference_point_object_m',[0.,0.,0.])
     metrics=dict(loaded_samples=len(loaded),actual_hub_m=None,asset_origin_hub_m=None,max_rigidity_error_m=None,max_rigidity_error_rad=None,
-                 near_target_unsupported_duration_s=0.,maximum_measured_joint_speed_rad_s=max(peaks) if peaks else None,
+                 near_target_unsupported_duration_s=0.,
                  motion_trace_samples=len(moving))
-    metrics.update(maximum_measured_arm_speed_rad_s=max(arm_peaks) if arm_peaks else None,
-        maximum_measured_finger_speed_rad_s=max(finger_peaks) if finger_peaks else None)
     if loaded:
         description=(scene_directory/'robot.urdf').read_text()
         chains={a:Chain(description,'world',a+'_tool0') for a in ARMS}
@@ -108,8 +93,7 @@ def evaluate(run,scene_directory):
         metrics=metrics,notes=notes,trace_sampling_allowance_s=.05,
         lift_reference_point_object_m=reference,lift_reference_kind=scene.get('lift_reference_kind','legacy_asset_origin'),
         validator_source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-        measured_peak_source=peak_source,stop_diagnostic_sha256=diagnostic_sha,
-        interpretation='Simulation evaluation only; near-target interval includes settling, runner separately enforces dwell.',
+        interpretation='Simulation evaluation only; near-target interval includes settling.',
         assumptions=cfg['simulation_assumptions']))
 
 

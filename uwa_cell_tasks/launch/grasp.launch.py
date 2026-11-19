@@ -11,8 +11,7 @@ from launch.event_handlers import OnProcessExit
 from launch.events import Shutdown
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from uwa_cell_description.configuration import default_layout_path,load_layout,controller_names,joint_names,gripper_joint
-from uwa_cell_tasks.guard import supervisor_remaps
+from uwa_cell_description.configuration import default_layout_path,load_layout,controller_names
 from uwa_cell_tasks.scene import verify_scene,physics_description
 
 
@@ -24,10 +23,10 @@ def setup(context):
     layout_file=LaunchConfiguration('layout').perform(context);layout=load_layout(layout_file)
     params=yaml.safe_load((directory/'model/controllers.yaml').read_text())
     params={key.replace('/uwa_cell',ns,1):value for key,value in params.items()}
-    manager=params[ns+'/controller_manager']['ros__parameters']
-    for arm in layout['robots']:
-        name=arm+'_collision_hold_controller';manager[name]={'type':'uwa_cell_motion/CollisionHold'}
-        params[ns+'/'+name]={'ros__parameters':dict(joints=joint_names(arm)+[gripper_joint(arm)],deceleration=json.loads((directory/'scene.json').read_text())['cfg'].get('braking_acceleration_rad_s2',.5),use_sim_time=True)}
+    for value in params.values():
+        constraints=value['ros__parameters'].get('constraints')
+        if constraints:
+            constraints['stopped_velocity_tolerance']=0.
     param_file=directory/'controllers.live.yaml';param_file.write_text(yaml.safe_dump(params))
     description=(directory/'robot.urdf').read_text().replace('/uwa_cell/',ns+'/')
     root=ET.fromstring(description)
@@ -62,20 +61,15 @@ def setup(context):
         Node(package='uwa_cell_tasks',executable='cell_task',namespace=ns,
             arguments=['camera','--namespace',ns,'--scene',str(directory)],output='screen')]
     sequence=[spawn,carton]
-    for name in controller_names(layout)+['rigid_object_controller']+[a+'_collision_hold_controller' for a in layout['robots']]:
-        inactive=name=='rigid_object_controller' or name.endswith('_collision_hold_controller')
+    for name in controller_names(layout)+['rigid_object_controller']:
+        inactive=name=='rigid_object_controller'
         sequence.append(Node(package='controller_manager',executable='spawner',namespace=ns,
             arguments=[name,'-c',ns+'/controller_manager','--controller-manager-timeout','90','--param-file',str(param_file)]+(['--inactive'] if inactive else []),output='screen'))
-    guard_topics=['joint_states','tasks/object_truth','tasks/contacts','tasks/heartbeat','tasks/group','collision_supervisor/status']
-    remaps=clock+[('/uwa_cell/'+t,ns+'/'+t) for t in guard_topics]
-    guard=Node(package='uwa_cell_tasks',executable='cell_task',namespace=ns,name='collision_guard',
-        arguments=['guard','--scene',str(directory),'--layout',layout_file],remappings=remaps,output='screen')
-    supervisor=Node(package='uwa_cell_tasks',executable='cell_task',namespace=ns,name='collision_supervisor',
-        arguments=['supervisor','--layout',layout_file,'--scene',str(directory)],remappings=supervisor_remaps(ns),output='screen')
     for previous,following in zip(sequence,sequence[1:]):
         actions.append(RegisterEventHandler(OnProcessExit(target_action=previous,
             on_exit=lambda event,ctx,n=following:[n] if event.returncode==0 else [EmitEvent(event=Shutdown(reason='Own grasp startup failed'))])))
-    actions.append(RegisterEventHandler(OnProcessExit(target_action=sequence[-1],on_exit=lambda event,ctx:[guard,supervisor] if event.returncode==0 else [])))
+    actions.append(RegisterEventHandler(OnProcessExit(target_action=sequence[-1],on_exit=lambda event,ctx:
+        [] if event.returncode==0 else [EmitEvent(event=Shutdown(reason='Own grasp startup failed'))])))
     actions.append(spawn)
     return actions
 

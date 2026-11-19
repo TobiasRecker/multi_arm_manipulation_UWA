@@ -1,5 +1,35 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Aktuell: gemeinsamer Start korrigiert, 19.11.2026
+
+- Operator hat attempt12 tatsächlich freigegeben. Die vorbereiteten Phasen
+  waren beide parallel (RF/RR, nominell40,972s). Beide Armtargets wurden mit
+  gemeinsamer Startzeit versandt; Versandabstand33,46ms. Abbruch noch in der
+  Zielannahme: `Missing timely group acceptance before the common trajectory
+  start`. Native Aufzeichnungen zeigen für beide Arme keine Bewegung über
+  0,003rad/s. Kein Griff, keine Fingerziele, Karton weiter frei.
+- Abschluss des Abbruchs bestätigte Ressourcenholds und Latches aller vier;
+  kein nativer Fallback nötig. Frischer attempt13-Start: alle vier stationär,
+  RUNNING/Normal, Programme laufen/runtime2. RF etwa [0,13699;−1,53424;
+  −0,81925;−1,48620;0,68677;−0,65051]rad. Neue Freigabe war nur für attempt12;
+  nicht auf eine veränderte Ausführung übertragen.
+- Konkreter Reihenfolgefehler korrigiert: Der Ausführer wertete vor den
+  Zielantworten bereits volle FCL-Geometrie aus und prüfte den Timeout vor
+  den Antwortfutures. Antworten jetzt vor blockierender Geometrie auswerten.
+  Fehlende oder erst verspätet beobachtete Antwort stoppt weiterhin bei100ms,
+  gemeinsame Startvorlaufzeit bleibt200ms. Während Annahme Startpose,
+  Quellfrische, Korridor, ruhende Arme, Greifer/Kraft und unabhängigen Guard
+  weiter prüfen; volle Geometrie vorab und nach gemeinsamer Annahme.
+-10 gezielte Ausführungsprüfungen PASS, darunter130ms langsame Geometrie erst
+  nach beiden rechtzeitigen Annahmen, fehlende/zu späte Antwort, Widerruf,
+  Greifer- und Wrenchfehler. Kein Zeitfenster, Tempo oder Stopp gelockert.
+  Die vorher fehlenden Antwortzeitstempel werden künftig mitprotokolliert;
+  tatsächlich rechtzeitige Controllerantworten für attempt12 sind dadurch
+  rückwirkend nicht nachgewiesen.
+- attempt13 wird als neue vollständige Parallelrevision vorbereitet; noch
+  keine Freigabeanfrage und keine weitere Fahrt. Nachweise im Taskordner
+  `setup/tasks/carton_motion_review_20261119/` auf N100/ROSmini.
+
 ## Aktuell: Parallelkorrektur vorbereitet, 19.11.2026
 
 - Nutzer hat die besprochene Korrektur mit „approved“ bestätigt. Seine vorherige
@@ -290,6 +320,8 @@
 
 
 ## Sicherheitsprotokoll in UWA Robot Power, 19.11.2026
+
+- Aktueller Übernahmestand: explizit beauftragt. Der N100-Kandidat `~/uwa-ur-runtime/review-candidates/guard-log.EOr0jTmD` besteht alle 40 isolierten Tests. Beim Abgleich lief der bisherige Dienst seit 14:20:59 AWST, Versuch 12 war beendet, Versuch 13 wurde vorbereitet. Wartungsfenster angefragt. Der neue Guard gilt bis zum eingetragenen Neustart- und Laufnachweis als inaktiv.
 
 - Noch offen: Beim nächsten regulären Betriebswechsel des N100-Wächters übernimmt der betreuende Agent die zusätzlichen Journalmeldungen und dokumentiert hier den geprüften Laufstand. Ein Termin ist bisher nicht vereinbart. [Übernahme und Nachweis](../../setup/n100/ur-runtime/README.md#guard-protokoll-beim-nächsten-betriebswechsel)
 

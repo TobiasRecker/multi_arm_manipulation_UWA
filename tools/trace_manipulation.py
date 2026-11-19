@@ -20,7 +20,7 @@ def main():
     parser.add_argument('--namespace',default='/uwa_grasp_validation')
     parser.add_argument('--timeout',type=float,default=900.)
     parser.add_argument('--prepare',action='store_true',help='Create an unused CREATED run before ROS discovery; start recorder before runner')
-    parser.add_argument('--terminal-tail-s',type=float,default=0.,help='Read-only wall-time recording after terminal state, for loaded-stop evaluation')
+    parser.add_argument('--terminal-tail-s',type=float,default=0.,help='Read-only wall-time recording after terminal state')
     args=parser.parse_args();simulation_only()
     if args.prepare:
         if args.run.exists():parser.error('--prepare requires a new run directory')
@@ -39,12 +39,9 @@ def main():
                     phase=current_phase,forces=value))+'\n');force_rows+=1
                 if force_rows%100==0:force_stream.flush()
         return receive
-    for key,topic in [('object','tasks/object_truth'),('contacts','tasks/contacts'),
-                      ('forces','tasks/forces'),
-                      ('guard','collision_guard/decision'),('supervisor','collision_supervisor/status')]:
+    for key,topic in [('object','tasks/object_truth'),('contacts','tasks/contacts'),('forces','tasks/forces')]:
         node.create_subscription(String,args.namespace+'/'+topic,message(key),
-            QoSProfile(depth=50,reliability=ReliabilityPolicy.BEST_EFFORT) if key=='forces'
-            else qos_profile_sensor_data if key in ('object','contacts') else 10)
+            QoSProfile(depth=50,reliability=ReliabilityPolicy.BEST_EFFORT) if key=='forces' else qos_profile_sensor_data)
     node.create_subscription(String,args.namespace+'/tasks/group',message('group'),
         QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL))
     def joints(msg):
@@ -58,17 +55,11 @@ def main():
             while time.monotonic()-origin<args.timeout:
                 rclpy.spin_once(node,timeout_sec=.02)
                 now=time.monotonic()
-                if now-last_saved<.05 or not all(k in data for k in ('object','contacts','joints','guard','supervisor')):continue
+                if now-last_saved<.05 or not all(k in data for k in ('object','contacts','joints')):continue
                 state=json.loads((args.run/'state.json').read_text());terminal=state['state'];current_phase=state['phase']
                 row=dict(evaluation_only=True,elapsed_wall_s=now-origin,phase=state['phase'],
                     state=terminal,object=data['object'],contacts={k:data['contacts'][k] for k in ('stamp','pads','supported')},
-                    joints=data['joints'],group=data.get('group'),
-                    blocked_arms=data['supervisor']['blocked_arms'],held_arms=data['supervisor']['held_arms'],
-                    faults=data['guard']['latched_causes'],forces=data.get('forces'),
-                    stopping_reserve=dict(mode=data['guard'].get('simulation_stop_reserve_mode','enforce'),
-                        pairs=[{k:p.get(k) for k in ('arms','clearance_m','threshold_m',
-                            'modeled_stopping_threshold_m','modeled_stopping_reserve_violated')}
-                            for p in data['guard'].get('pairs',[])]))
+                    joints=data['joints'],group=data.get('group'),forces=data.get('forces'))
                 output.write(json.dumps(row)+'\n');rows+=1;last_saved=now
                 if rows%20==0:output.flush()
                 if terminal in ('DONE','FAILED'):

@@ -63,22 +63,6 @@ Visualization Manager:
       Name: Mount and robot frames
       Enabled: false
     - Class: rviz_default_plugins/MarkerArray
-      Name: COLLISION GUARD - SIMULATION spheres / distance / state
-      Enabled: true
-      Topic:
-        Value: /uwa_cell/collision_guard/markers
-        Reliability Policy: Reliable
-        Durability Policy: Volatile
-        Depth: 1
-    - Class: rviz_default_plugins/MarkerArray
-      Name: INDEPENDENT COLLISION INTERLOCK - loss / resource holds
-      Enabled: true
-      Topic:
-        Value: /uwa_cell/collision_supervisor/markers
-        Reliability Policy: Reliable
-        Durability Policy: Volatile
-        Depth: 1
-    - Class: rviz_default_plugins/MarkerArray
       Name: OAK overview camera and frustum
       Enabled: true
       Topic:

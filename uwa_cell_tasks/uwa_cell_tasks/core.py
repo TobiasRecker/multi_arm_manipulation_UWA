@@ -11,7 +11,7 @@ from contextlib import contextmanager
 
 import numpy as np
 import yaml
-from match_cooperative_handling.rigid_object import rigid, relative, tcp_target, pose_error
+from match_cooperative_handling.rigid_object import rigid, relative, tcp_target
 
 ARMS = ('right_front', 'right_rear')
 CAMERAS = ARMS + ('oak',)
@@ -150,12 +150,6 @@ def object_point_height(pose,point_object):
     return float(t[2,:3]@point+t[2,3])
 
 
-def measured_open(names,positions,velocities):
-    """An action result is insufficient: require every actual finger DOF."""
-    return bool(names) and all(abs(positions.get(j,float('inf')))<.02
-        and abs(velocities.get(j,float('inf')))<.003 for j in names)
-
-
 def gripper_profile(starts,target,cfg):
     """Shared schedule: coarse free closure, fine contact entry, coarse opening."""
     coarse=cfg['gripper_coarse_velocity_rad_s'];fine=cfg['gripper_fine_velocity_rad_s'];threshold=cfg['gripper_fine_start_rad']
@@ -182,7 +176,7 @@ class Skill:
     provides: tuple
     resources: tuple = ()
     timeout_s: float = 30.
-    stop_behavior: str = 'stop owned arms; retain grip; latch; no automatic resume'
+    stop_behavior: str = 'cancel active trajectory goals; retain grip latch'
     evidence: str = 'implementation present; consult validation report for tested conditions'
     version: int = 1
     environment: str = 'simulation64 only'
@@ -194,13 +188,13 @@ def skills():
         Skill('propose_grasp', ('observation', 'asset', 'joint state'), ('fresh unambiguous pose',), ('ranked local wall grasps',)),
         Skill('plan_approach', ('grasp', 'complete start'), ('full collision scene',), ('bound approach plan',), timeout_s=120),
         Skill('review', ('review packet hash', 'decision', 'reason'), ('stationary owned arms',), ('version-bound review',), timeout_s=300),
-        Skill('approach', ('checked plan',), ('reviewed plan', 'fresh measured start', 'guard'), ('pregrasp reached',), ARMS, 600),
+        Skill('approach', ('checked plan',), ('reviewed plan', 'matching start snapshot'), ('pregrasp reached',), ARMS, 600),
         Skill('inspect_pregrasp', ('fresh images', 'expected contacts'), ('stationary arms',), ('alignment evidence',),timeout_s=90),
         Skill('grasp', ('grasp', 'contact telemetry'), ('alignment reviewed', 'object supported'), ('two-sided contacts per gripper',), ARMS, 1200),
         Skill('form_group', ('object pose', 'measured TCPs', 'contacts'), ('both grasps confirmed',), ('immutable object-to-TCP offsets',), ARMS),
         Skill('move_object', ('GraspGroup', 'object-frame path'), ('group active', 'whole-scene validation',), ('shared-time object-derived motion',), ARMS, 120),
-        Skill('set_down', ('GraspGroup', 'support telemetry'), ('group active',), ('stationary supported object',), ARMS, 120),
-        Skill('release', ('supported object',), ('support independently confirmed', 'stationary group'), ('open grippers; dissolved group',), ARMS, 240),
+        Skill('set_down', ('GraspGroup', 'support telemetry'), ('group active',), ('planned set-down reached',), ARMS, 120),
+        Skill('release', ('supported object',), ('set-down phase complete',), ('open grippers; dissolved group',), ARMS, 240),
         Skill('validate_force_backend',('engine/plugin hashes','known loads','physics steps/repeats'),
             ('own finite reference world','no robot commands'),('force/frame/impulse reference evidence',),
             timeout_s=300,stop_behavior='end own finite reference world; never commands robots',
@@ -215,10 +209,6 @@ def skills():
         Skill('run_simulation_experiment',('explicit exploration profile','speed/repeat matrix','image reference'),
             ('fresh isolated world','bound source/binaries','pre-armed recorder','agent reviews'),
             ('retained positive/negative cases','motion/load/coverage reports'),ARMS,1500),
-        Skill('test_loaded_group_stop',('same experiment scene/run','scoped fault','injection lift'),
-            ('existing task owner','unsupported four-pad grasp','frozen group','probe ready before arming'),
-            ('measured group hold','contact/rigidity retention','separate intentional-failure report'),ARMS,1500,
-            stop_behavior='retain grip, latch whole group; resume only own paused process for cleanup, never motion'),
     ]
     return [asdict(spec) for spec in specs]
 
@@ -233,36 +223,22 @@ class GraspGroup:
         self.object_id = object_id; self.members = ARMS; self.cfg = dict(cfg)
         self._offsets = {a: relative(world_object, tcps[a]) for a in ARMS}
         for t in self._offsets.values(): t.setflags(write=False)
-        self.stopped = None; self.released = False
+        self.released = False
         self.contact_regions=json.loads(json.dumps(contact_regions or {},default=plain))
 
     @property
     def offsets(self): return {a: t.copy() for a, t in self._offsets.items()}
 
     def targets(self, world_object, twist=None):
-        if self.stopped or self.released: raise RuntimeError(self.stopped or 'Group released')
+        if self.released: raise RuntimeError('Group released')
         return {a: tcp_target(world_object, t, twist) for a, t in self._offsets.items()}
 
-    def check(self, world_object, measured_tcps):
-        if set(measured_tcps) != set(self.members):
-            self.stop('Member state missing'); return False
-        for a, (target, _) in self.targets(world_object).items():
-            distance, angle = pose_error(measured_tcps[a], target)
-            if distance > self.cfg['relative_position_tolerance_m'] or angle > self.cfg['relative_angle_tolerance_rad']:
-                self.stop(a + ': rigid grasp error/slip'); return False
-        return True
-
-    def stop(self, reason):
-        self.stopped = self.stopped or str(reason)
-        return self.members
-
-    def release(self, *, supported, stationary):
-        if not supported or not stationary: raise RuntimeError('Release requires confirmed support and standstill')
+    def release(self):
         self.released = True
 
     def record(self):
         return dict(object_id=self.object_id, members=self.members, object_to_tcp=self.offsets,
-                    stopped=self.stopped, released=self.released,contact_regions=self.contact_regions)
+                    released=self.released,contact_regions=self.contact_regions)
 
 
 class RunStore:

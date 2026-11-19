@@ -22,8 +22,6 @@ def main():
     p.add_argument('--reference',type=Path,required=True)
     p=sub.add_parser('bridge');p.add_argument('--namespace',required=True);p.add_argument('--world',required=True)
     p=sub.add_parser('camera');p.add_argument('--namespace',required=True);p.add_argument('--scene',type=Path,required=True)
-    p=sub.add_parser('guard');p.add_argument('--scene',type=Path,required=True);p.add_argument('--layout',type=Path,required=True)
-    p=sub.add_parser('supervisor');p.add_argument('--layout',type=Path,required=True);p.add_argument('--scene',type=Path)
     args,ros_args=parser.parse_known_args()
     if args.command=='skills':print(json.dumps(skills(),indent=2));return
     if args.command in ('prepare','plan'):
@@ -66,19 +64,16 @@ def main():
         if not (args.run/'state.json').is_file():parser.error('Existing task run with state.json required')
         RunStore(args.run).submit_review(args.sha256,args.decision,args.reason);print('REVIEW RECEIVED');return
     if args.command=='stop':
-        # Runner observes this and latches holds. An unavailable runner is
-        # independently stopped by its heartbeat watchdog.
         if not (args.run/'state.json').is_file():parser.error('Existing task run with state.json required')
         (args.run/'STOP').write_text('STOP REQUESTED\n')
-        print('STOP REQUESTED; inspect status for confirmed standstill');return
+        print('STOP REQUESTED; inspect run status for cancellation');return
     from uwa_cell_motion.common import simulation_only
     simulation_only()
     import rclpy
     from uwa_cell_description.configuration import default_layout_path
     layout=str(getattr(args,'layout',None) or default_layout_path())
-    if args.command in ('run','supervisor'):
-        # Keep the supervisor's ROS context alive until its executor workers
-        # have joined; native signal shutdown can race pending controller RPCs.
+    if args.command=='run':
+        # Keep ROS alive for cancellation when the operator interrupts.
         import signal
         from rclpy.signals import SignalHandlerOptions
         rclpy.init(args=ros_args,signal_handler_options=SignalHandlerOptions.NO)
@@ -96,22 +91,6 @@ def main():
         elif args.command=='camera':
             from .snapshot_camera import SnapshotCamera
             node=SnapshotCamera(args.namespace,args.scene);rclpy.spin(node)
-        elif args.command=='guard':
-            from .guard import TaskGuard
-            node=TaskGuard(args.scene,layout);rclpy.spin(node)
-        elif args.command=='supervisor':
-            from uwa_cell_motion.supervisor import Supervisor
-            from uwa_cell_motion.common import config
-            from rclpy.executors import MultiThreadedExecutor
-            cfg=config()
-            if args.scene:
-                from .scene import verify_scene
-                from .operating import motion_configuration
-                cfg=motion_configuration(verify_scene(args.scene)['cfg'])
-            node=Supervisor(cfg,layout,prepare=False)
-            executor=MultiThreadedExecutor(num_threads=4);executor.add_node(node)
-            try:executor.spin()
-            finally:executor.shutdown()
     except KeyboardInterrupt:pass
     finally:
         if node:

@@ -33,16 +33,6 @@ def test_monitor_does_not_claim_a_stop_or_resource_hold():
     assert all(word not in text for word in ('STOPPED','STOPPING','Holds:','HOLD-PENDING'))
 
 
-def test_geometry_node_latches_missing_backend_without_reusing_old_clear_state():
-    from types import SimpleNamespace
-    from uwa_cell_motion.guard_node import CollisionGuard
-    from uwa_cell_motion.common import ROBOT_IDS
-    node=SimpleNamespace(model_match=True,supervisor_received=1.,cfg={'heartbeat_timeout_s':.4},core=SimpleNamespace())
-    assert CollisionGuard.external_faults(node,1.2) and node.core.external_faults==[]
-    assert not CollisionGuard.external_faults(node,1.5)
-    assert node.core.external_faults==[dict(arms=list(ROBOT_IDS),reason='STOP ADAPTER LOST')]
-
-
 def test_headless_guard_skips_all_display_work_when_nobody_subscribes():
     from types import SimpleNamespace
     from uwa_cell_motion.guard_node import CollisionGuard

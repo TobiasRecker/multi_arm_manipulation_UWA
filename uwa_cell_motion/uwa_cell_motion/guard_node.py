@@ -1,122 +1,12 @@
-"""Independent10Hz geometric decision process. No motion command clients."""
-import json
-import tempfile
+"""Geometry marker rendering for the hardware guard."""
 import time
-import uuid
 
 import numpy as np
-import rclpy
-from rclpy.clock import Clock,ClockType
-from rclpy.qos import qos_profile_sensor_data
-from rclpy.qos import QoSProfile,DurabilityPolicy,ReliabilityPolicy
-from sensor_msgs.msg import JointState
-from std_msgs.msg import String
-from std_srvs.srv import Trigger
-from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
-from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
-
-from .common import ROBOT_IDS, all_names, model_context, simulation_only,guard_signature
-from .geometry import SphereModel
-from .guard_core import GuardState
-from .node import MotionNode
-from uwa_cell_control.parallel_scan import collision_signature
+from visualization_msgs.msg import Marker, MarkerArray
 
 
-class CollisionGuard(MotionNode):
-    def __init__(self, cfg, layout_path=None):
-        super().__init__('collision_guard', namespace='/uwa_cell')
-        self.set_parameters([rclpy.parameter.Parameter('use_sim_time', value=True)])
-        self.directory = tempfile.TemporaryDirectory(prefix='uwa-guard-')
-        self.layout, self.description, _ = model_context(self.directory.name, layout_path)
-        self.names = all_names(self.layout)
-        self.signature=collision_signature(self.description);self.model_match=False
-        self.model = SphereModel(self.description, self.names, cfg['sphere_spacing_m'])
-        self.core = GuardState(cfg); self.cfg = cfg; self.pairs = []; self.positions = {}
-        self.instance = str(uuid.uuid4()); self.sequence = 0
-        self.previous_blocked=set()
-        self.supervisor_status={};self.supervisor_received=-float('inf')
-        self.publisher = self.create_publisher(String, '~/decision', 10)
-        self.markers = self.create_publisher(MarkerArray, '~/markers', 1)
-        self.diagnostics = self.create_publisher(DiagnosticArray, '~/diagnostics', 10)
-        self.create_subscription(JointState, '/uwa_cell/joint_states', self.receive, qos_profile_sensor_data)
-        self.create_subscription(String,'/uwa_cell/robot_description',self.description_message,
-            QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL,reliability=ReliabilityPolicy.RELIABLE))
-        self.create_subscription(String,'/uwa_cell/collision_supervisor/status',self.supervisor_message,10)
-        self.create_service(Trigger, '~/reset', self.reset)
-        # The distance reserve and supervisor leases are wall-time budgets.
-        # Slow physics must not reduce supervision frequency; a paused source
-        # is still evaluated and becomes STATE STALE.
-        self.wall_clock=Clock(clock_type=ClockType.STEADY_TIME)
-        self.create_timer(1/cfg['rate_hz'],self.tick,clock=self.wall_clock)
-        self.get_logger().info('RUNNING: four neighbor pairs,10Hz; reset is explicit; simulation only')
-
-    def receive(self, msg):
-        now = time.monotonic()
-        stamp = msg.header.stamp.sec+msg.header.stamp.nanosec/1e9
-        q = dict(zip(msg.name, msg.position)); v = dict(zip(msg.name, msg.velocity))
-        for rid, names in self.names.items():
-            if all(j in q and j in v for j in names):
-                if self.core.receive(rid, [q[j] for j in names], [v[j] for j in names], stamp, now):
-                    self.positions.update({j: q[j] for j in names})
-
-    def description_message(self,msg):
-        try:self.model_match=collision_signature(msg.data)==self.signature
-        except Exception:self.model_match=False
-
-    def supervisor_message(self,msg):
-        try:
-            value=json.loads(msg.data)
-            if not isinstance(value,dict):return
-            if value.get('guard_config_signature')!=guard_signature(self.cfg):return
-            self.supervisor_status=value;self.supervisor_received=time.monotonic()
-        except (ValueError,TypeError):pass
-
-    def external_faults(self,now):
-        self.core.external_faults=[] if self.model_match else [dict(arms=list(ROBOT_IDS),reason='MODEL UNCONFIRMED OR MISMATCHED')]
-        available=now-self.supervisor_received<=self.cfg['heartbeat_timeout_s']
-        if not available:self.core.external_faults.append(dict(arms=list(ROBOT_IDS),reason='STOP ADAPTER LOST'))
-        return available
-
-    def geometry(self, now):
-        velocities = {r: self.core.records[r]['v'] for r in self.core.records}
-        source=self.get_clock().now().nanoseconds/1e9
-        ages = {r: max(0., now-self.core.records[r]['received'],source-self.core.records[r]['stamp']) for r in self.core.records}
-        return self.model.pairs(self.positions, velocities, ages, self.cfg,partial=True)
-
-    def tick(self):
-        now = time.monotonic(); world = None; error = None
-        try:
-            world, self.pairs = self.geometry(now)
-        except Exception as e:
-            self.pairs = []; error = str(e)
-            self.core.latched.update(ROBOT_IDS)
-        adapter_available=self.external_faults(now)
-        status = self.core.evaluate(self.pairs, now, self.get_clock().now().nanoseconds/1e9)
-        blocked=set(status['blocked_arms'])
-        if blocked-self.previous_blocked:
-            self.get_logger().error('STOP LATCHED: '+json.dumps(status['latched_causes']))
-        self.previous_blocked=blocked
-        if error: status.update(state='STATE STALE', geometry_error=error)
-        if not adapter_available:status['state']='STOP ADAPTER LOST'
-        self.sequence += 1
-        status.update(instance=self.instance, sequence=self.sequence, pairs=self.pairs,
-                      model_signature=self.signature,model_match=self.model_match,
-                      model_uncertainty='SIMULATION: world/table anchors provisional; no measured real stop reserve',
-                      guard_config_signature=guard_signature(self.cfg),schema_version=1,
-                      evaluated_monotonic_s=now,
-                      stop_adapter_available=adapter_available,
-                      stop_adapter_age_s=None if not self.supervisor_status else now-self.supervisor_received,
-                      source_time_s=self.get_clock().now().nanoseconds/1e9,
-                      state_ages_s={r: now-self.core.records[r]['received'] for r in self.core.records})
-        self.publisher.publish(String(data=json.dumps(status, allow_nan=False)))
-        diag = DiagnosticArray(); diag.header.stamp=self.get_clock().now().to_msg()
-        item=DiagnosticStatus(name='Four-arm collision guard', hardware_id='SIMULATION',
-            level=DiagnosticStatus.OK if status['state']=='CLEAR' else DiagnosticStatus.ERROR,
-            message=status['state'], values=[KeyValue(key='blocked_arms',value=','.join(status['blocked_arms']))])
-        diag.status=[item]; self.diagnostics.publish(diag)
-        self.show(world or {}, status)
-
+class CollisionGuard:
     def show(self, world, status):
         # Marker construction allocates hundreds of nested ROS messages. Keep
         # that display-only work out of headless supervision/benchmarks.
@@ -180,19 +70,3 @@ class CollisionGuard(MotionNode):
             markers.append(label)
         for marker in markers:marker.lifetime.nanosec=350_000_000
         self.markers.publish(MarkerArray(markers=markers))
-
-    def reset(self, request, response):
-        now=time.monotonic()
-        try:
-            self.external_faults(now)
-            _, pairs=self.geometry(now)
-            response.success,response.message=self.core.reset(pairs,now,self.get_clock().now().nanoseconds/1e9)
-        except Exception as error:
-            response.success=False; response.message=str(error)
-        return response
-
-
-def run(cfg, layout=None):
-    simulation_only(); rclpy.init(); node=CollisionGuard(cfg,layout)
-    try:rclpy.spin(node)
-    finally:node.destroy_node();rclpy.shutdown()

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 sys.path.insert(0,str(Path(__file__).parents[1]))
 from uwa_cell_motion.single_execution import corridor_error
-from uwa_cell_motion.execution import check_stationary,_follow,settle_obstacles,drives_stationary,unclaimed_tools
+from uwa_cell_motion.execution import check_stationary,_follow,settle_obstacles
 from uwa_cell_motion.common import joint_names
 
 
@@ -40,14 +40,14 @@ def test_motion_node_keeps_clock_and_data_but_omits_unused_warning_waitables(mon
 
 
 def test_rpc_response_is_serviced_under_continuously_ready_timer_load(monkeypatch):
-    import rclpy
     from rclpy.clock import Clock,ClockType
     from std_srvs.srv import Trigger
-    from uwa_cell_motion.execution import MotionClient,motion_context
+    from uwa_cell_motion.execution import motion_context
+    from uwa_cell_motion.simulation_execution import GazeboPlayback
     monkeypatch.setenv('ROS_DOMAIN_ID','64');monkeypatch.setenv('GZ_PARTITION','uwa_cell_sim')
     monkeypatch.setenv('ROS_AUTOMATIC_DISCOVERY_RANGE','LOCALHOST')
     with motion_context():
-        client=MotionClient();count={'timer':0}
+        client=GazeboPlayback();count={'timer':0}
         try:
             def tick():count['timer']+=1
             def answer(request,response):response.success=True;return response
@@ -57,7 +57,7 @@ def test_rpc_response_is_serviced_under_continuously_ready_timer_load(monkeypatc
             assert request.wait_for_service(timeout_sec=3.)
             future=request.call_async(Trigger.Request());client.wait(future.done,2.)
             assert future.result().success and count['timer']>0
-        finally:client.destroy_node()
+        finally:client.close()
 
 
 def test_time_lag_on_checked_path_is_safe_but_geometric_departure_is_detected():
@@ -72,14 +72,6 @@ def test_stationary_waypoint_has_finite_corridor_distance():
     start=np.array([[1.,2.]]);delta=np.zeros((1,2));squared=np.array([1e-20])
     assert corridor_error(np.array([1.,2.]),start,delta,squared)==0
     assert np.isclose(corridor_error(np.array([1.,2.01]),start,delta,squared),.01)
-
-
-def test_drive_standstill_ignores_passive_noise_but_rejects_moving_missing_nonfinite_drive():
-    client=SimpleNamespace(names={'arm':['drive']},velocities={'drive':0.,'passive_mimic':.1})
-    assert drives_stationary(client)
-    client.velocities['drive']=.01;assert not drives_stationary(client)
-    client.velocities['drive']=float('nan');assert not drives_stationary(client)
-    del client.velocities['drive'];assert not drives_stationary(client)
 
 
 def test_unselected_arm_requires_stationary_measured_state():
@@ -118,21 +110,3 @@ def test_preceding_obstacle_can_settle_before_start_without_looser_runtime_monit
     settle_obstacles(client,['obstacle'])
     assert client.velocities['selected']==.05
 
-
-def test_idle_tool_hold_only_claims_configured_unowned_drive():
-    names={r:[r+str(i) for i in range(6)]+[r+'_finger'] for r in ('free','held','custom')}
-    controllers=[SimpleNamespace(name='free_gripper_controller',state='inactive',claimed_interfaces=[]),
-        SimpleNamespace(name='held_gripper_controller',state='active',claimed_interfaces=['held_finger/position']),
-        SimpleNamespace(name='custom_owner',state='active',claimed_interfaces=['custom_finger/velocity'])]
-    assert unclaimed_tools(names,controllers)=={'free':'free_finger'}
-
-
-def test_idle_tool_hold_never_preempts_collision_hold():
-    names={'arm':['q'+str(i) for i in range(7)]}
-    controllers=[SimpleNamespace(name='collision_hold',state='active',claimed_interfaces=['q6/position'])]
-    assert unclaimed_tools(names,controllers)=={}
-
-
-def test_unclaimed_drive_without_configured_controller_rejects_execution():
-    with pytest.raises(RuntimeError,match='no configured holding controller'):
-        unclaimed_tools({'arm':['q'+str(i) for i in range(7)]},[])

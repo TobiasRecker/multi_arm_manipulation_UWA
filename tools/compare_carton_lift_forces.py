@@ -28,13 +28,13 @@ def extract(run,scene_dir):
     fit=[]
     for r in loaded:
         progress=(object_point_height(r['object']['T_world_object'],reference)-height0)/target
-        if r['phase']=='move_object' and not r['faults'] and .1<progress<.9:
+        if r['phase']=='move_object' and not r.get('faults') and .1<progress<.9:
             fit.append(r['joints']['stamp']-np.interp(r['joints']['positions'][joint],q,times))
     if len(fit)<5:raise ValueError('Insufficient moving samples to align source clock')
     origin=float(np.median(fit));spread=float(np.quantile(fit,.95)-np.quantile(fit,.05))
     if spread>.005:raise ValueError('Source-clock fit inconsistent: possible native clipping or tracking error (>5ms)')
     end=origin+motion['duration_s']
-    faults=[r['object']['stamp'] for r in rows if r['faults'] and r['object']['stamp']>=origin]
+    faults=[r['object']['stamp'] for r in rows if r.get('faults') and r['object']['stamp']>=origin]
     if faults:end=min(end,min(faults))
     losses=[r['contacts']['stamp'] for r in rows if r.get('group') and
         origin<=r['contacts']['stamp']<=origin+motion['duration_s'] and not all(all(p.values()) for p in r['contacts']['pads'].values())]
@@ -70,7 +70,7 @@ def extract(run,scene_dir):
         first_contact_loss_sim_s=first_loss,
         lift_at_first_contact_loss_m=float(np.interp(first_loss,t,progress)*target) if first_loss is not None else None,
         motion_samples=[dict(progress=float(prog),velocities=r['joints']['velocities']) for r,prog in zip(rows,progress)
-            if origin<=r['joints']['stamp']<=end and not r['faults']],rows=selected,measured_joint_velocity_peaks_rad_s={n:max(abs(r['joints']['velocities'][n]) for r in rows if origin<=r['joints']['stamp']<=end) for n in motion['joint_names']})
+            if origin<=r['joints']['stamp']<=end and not r.get('faults')],rows=selected,measured_joint_velocity_peaks_rad_s={n:max(abs(r['joints']['velocities'][n]) for r in rows if origin<=r['joints']['stamp']<=end) for n in motion['joint_names']})
 
 
 def main():

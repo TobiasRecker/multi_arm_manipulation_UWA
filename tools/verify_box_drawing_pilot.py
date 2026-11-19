@@ -47,8 +47,10 @@ def audit(run):
     drawn = []
     circle_faces = set()
     active_face = None
-    holder_reference = None
+    fixed_reference = None
     radius = report['program'].get('circle_radius_m', .025)
+    radii = report['program'].get('face_radii_m', report['program'].get('circle_radii_m', {}))
+    drivers = report['program'].get('face_drivers', report['program'].get('circle_drivers', {}))
     face_geometry = {'y_max': (1, 1), 'z_min': (2, -1), 'y_min': (1, -1)}
     polyline_edges = {}
     edge_counts = {}
@@ -62,6 +64,7 @@ def audit(run):
         polyline_edges[face] = list(zip(points, points[1:]))
         edge_counts[face] = 0
     holder_indices = [names.index(joint) for arm in holders for joint in joint_names(arm)]
+    worker_indices = [names.index(joint) for joint in joint_names(worker)]
     for phase in report['phases']:
         phase_names.append(phase['id'])
         segment = phase['segment']
@@ -74,9 +77,14 @@ def audit(run):
         angles = []
         along = []
         face = phase['face'] if phase['drawing'] else None
+        driver = phase.get('driver', drivers.get(face, 'moving_tool'))
+        if isinstance(driver, dict):
+            driver = driver['driver']
+        fixed_indices = worker_indices if driver == 'moving_workpiece' else holder_indices
+        face_radius = phase.get('circle_radius_m', radii.get(face, radius))
         if face is not None and face != active_face:
             drawn.append(face)
-            holder_reference = positions[0, holder_indices]
+            fixed_reference = positions[0, fixed_indices]
         active_face = face
         edge = None
         if face in polyline_edges:
@@ -95,7 +103,7 @@ def audit(run):
             angle = max(angle, float(np.linalg.norm(Rotation.from_matrix(base[:3, :3]@poses[holders[1]][:3, :3].T).as_rotvec())))
             assert all(abs(state[j]-initial[j])<1e-10 for j in joint_names('left_rear'))
             if phase['drawing']:
-                assert np.max(np.abs(q[holder_indices] - holder_reference)) < 1e-8
+                assert np.max(np.abs(q[fixed_indices] - fixed_reference)) < 1e-8
                 tool = chains[worker].forward(state)
                 tip = tool[:3, 3]+.30*tool[:3, 2]
                 local = base[:3, :3].T@(tip-base[:3, 3])
@@ -103,7 +111,7 @@ def audit(run):
                     axis, sign = face_geometry[face]
                     angles.append(np.arctan2(-local[2] * sign if axis == 1 else local[1] * sign, local[0]))
                     tip_error = max(tip_error, abs(local[axis]-sign*report['dimensions_m'][axis]/2),
-                                    abs(np.linalg.norm(np.delete(local, axis))-radius))
+                                    abs(np.linalg.norm(np.delete(local, axis))-face_radius))
                 else:
                     fraction = (local - edge[0]) @ direction
                     along.append(fraction)
@@ -116,6 +124,8 @@ def audit(run):
             assert face not in circle_faces, f'Multiple circles on {face}'
             circle_faces.add(face)
             sweep = np.unwrap(angles)
+            if driver == 'moving_workpiece' and sweep[-1] < sweep[0]:
+                sweep = -sweep
             assert abs(sweep[-1] - sweep[0] - 2*np.pi) < .001
             assert np.all(np.diff(sweep) > 0)
         last = positions[-1]

@@ -251,7 +251,7 @@ def controller_parameters(layout):
             'state_interfaces': ['position', 'velocity'], 'use_sim_time': True,
             'allow_partial_joints_goal': False, 'state_publish_rate': 50.0,
             'action_monitor_rate': 20.0,
-            'constraints': {'goal_time': 2.0, 'stopped_velocity_tolerance': 0.05,
+            'constraints': {'goal_time': 2.0, 'stopped_velocity_tolerance': 0.0,
                             'decelerate_on_cancel': True,
                             **{j: {'max_deceleration_on_cancel': 0.5} for j in joint_names(robot_id)}},
         }}
@@ -261,7 +261,7 @@ def controller_parameters(layout):
             result[f'/uwa_cell/{name}'] = {'ros__parameters': {
                 'joints': [gripper_joint(robot_id)], 'command_interfaces': ['position'],
                 'state_interfaces': ['position', 'velocity'], 'use_sim_time': True,
-                'constraints': {'goal_time': 2.0, 'stopped_velocity_tolerance': 0.05},
+                'constraints': {'goal_time': 2.0, 'stopped_velocity_tolerance': 0.0},
             }}
     return result
 
