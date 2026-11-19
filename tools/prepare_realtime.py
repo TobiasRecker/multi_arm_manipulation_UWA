@@ -67,8 +67,8 @@ def jitter(seconds,period):
 
 
 def record(args):
-    if os.environ.get('ROS_DOMAIN_ID')!=str(args.domain):
-        raise ValueError('Source the intended environment first; ROS_DOMAIN_ID must match --domain')
+    if args.domain not in (66,67) or os.environ.get('ROS_DOMAIN_ID')!=str(args.domain):
+        raise ValueError('ROS recording requires an explicit hardware or mock domain matching ROS_DOMAIN_ID')
     import rclpy
     from rclpy.qos import qos_profile_sensor_data
     from std_msgs.msg import String
@@ -134,7 +134,7 @@ def reaction_chain(events):
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('mode',choices=['audit','jitter','record','analyze'])
     p.add_argument('--output',type=Path,required=True);p.add_argument('--seconds',type=float,default=30.)
-    p.add_argument('--period-ms',type=float,default=2.);p.add_argument('--domain',type=int,choices=[64,66,67],default=64)
+    p.add_argument('--period-ms',type=float,default=2.);p.add_argument('--domain',type=int,choices=[66,67])
     p.add_argument('--namespace',default='/uwa_cell');p.add_argument('--input',type=Path);a=p.parse_args()
     if not math.isfinite(a.seconds) or not .1<=a.seconds<=3600:p.error('seconds must be between0.1 and3600')
     if not math.isfinite(a.period_ms) or not .1<=a.period_ms<=1000:p.error('period-ms must be between0.1 and1000')

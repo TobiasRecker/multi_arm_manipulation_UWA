@@ -10,7 +10,7 @@ from uwa_cell_tasks.planning import grasp_candidates, actual_names
 
 def test_contact_scene_keeps_open_geometry_mass_and_actual_fingers(tmp_path):
     layout=load_layout();cfg=configuration();cfg.update(physics_step_s=.0005,
-        exploration_mode=True,gripper_motor_torque_limit_nm=.7,
+        exploration_mode=True,force_observation=True,gripper_motor_torque_limit_nm=.7,
         joint_velocity_overrides_rad_s={'right_front_wrist_1_joint':.065})
     record=prepare_scene(layout,cfg,tmp_path)
     verify(record)

@@ -62,19 +62,12 @@ und kein gemessener UR-Reaktionswert.
    gezielt festlegen; vorhandenes Simulations-CPU-Profil reserviert keine CPUs.
    [Canonical-Messanleitung](https://ubuntu.com/real-time/docs/how-to/measure-maximum-latency/).
 
-## Schnellere Wächterprüfung vorbereitet
+## Historische Gazebo-Wächterraten und Realprofil
 
-Kontakt-Simulation: neuer expliziter Taskparameter
-`simulation_guard_rate_hz` (10–100Hz; abweichend von10 nur Exploration).
-Er steuert **denselben** Wert im Timer und im Reaktionswegbudget des Planers.
-Standard10Hz erhalten. Guardstatus enthält Evaluationszeit, Intervall,
-vorherige vollständige Callbackzeit, Periodenbudget und Überlaufzähler.
-
-Profile `simulation-guard-{25,50,100}hz.yaml` liegen in den Artefakten;
-alle mit weiterhin erzwungener Stoppreserve, unveränderten Frische-/Bremswerten.
-Neue Szenen vorbereiten, keine vorhandenen SHA-gebundenen Szenen überschreiben.
-Zuerst25Hz, dann50Hz bei genügend gemessener Laufzeitreserve testen.
-100Hz bleibt Kandidat, keine automatische Aktivierung.
+Die Profile `simulation-guard-{25,50,100}hz.yaml` dokumentieren die damals
+untersuchten Frequenzen. Seit dem 19.11.2026 beschreibt der historische
+Parameterschlüssel `simulation_guard_rate_hz` nur die angenommene Frequenz
+für das Offline-Reaktionswegbudget.
 
 300 gespeicherte belastete Modellzustände: Sphere-/FCL-Geometrie median3,552ms,
 p994,495ms, max4,813ms. **Offline-Geometrie allein**, ohne ROS, Kontakte,
@@ -107,20 +100,10 @@ python3 src/multi_arm_manipulation_UWA/tools/prepare_realtime.py audit --output 
 python3 src/multi_arm_manipulation_UWA/tools/prepare_realtime.py jitter --seconds 30 --output /tmp/rt-jitter-new.json
 ```
 
-Recorder erst vor dem Scharfschalten starten, Discovery setzen lassen. Er
-abonniert nur JointStates, Guard und Supervisor; keine Services, Actions oder
-Kommandopublisher. Domain muss explizit zur geladenen Umgebung passen:
-
-```bash
-# Standard-Simulationsumgebung zuvor laden; keine Domain für Hardware ändern.
-python3 src/multi_arm_manipulation_UWA/tools/prepare_realtime.py record --domain 64 --namespace /uwa_grasp_validation --seconds 60 --output /tmp/sim-reaction-new.jsonl
-```
-
-Für spätere rein passive Hardwaremessung vorhandene Hardwareumgebung/Domain66,
-Namespace `/uwa_cell` verwenden. `trace_hardware_interlock.py` aus der parallelen
-Hardwarearbeit zusätzlich wiederverwenden: erhält Watchdog-/Portübergänge und
-nativeStopanforderungen. Sein1HzSnapshot ist kein hochfrequenter Gelenktrace;
-der neueRecorder ergänzt vollständige empfangeneGelenksamples.
+Der passive Recorder unterstützt Hardware und Mock. Verwende das
+für den jeweiligen Lauf eingerichtete ROS-Umfeld, eine explizite Domain 66
+oder 67 und den passenden Namespace. `trace_hardware_interlock.py` ergänzt
+Übergänge von Watchdog und Ports. Die Recorder senden keine Bewegungskommandos.
 
 Zu korrelierende Messpunkte (gemeinsame Trial-ID):
 

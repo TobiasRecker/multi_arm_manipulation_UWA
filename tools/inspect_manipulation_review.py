@@ -40,7 +40,7 @@ def inspect(directory):
     result=dict(run=str(directory),saved_state=state['state'],phase=state['phase'],
         pending=pending,stage=packet['stage'],revision=packet['revision'],sha256=packet['sha256'],
         evidence_sha256=evidence['sha256'],review_age_wall_s=time.time()-waiting['time_unix_s'] if waiting else None,
-        notice='Saved review evidence only; inspect actual images and live task/guard state before deciding.')
+        notice='Inspect the saved images and current offline plan before deciding.')
     observation=evidence.get('observation')
     if observation is None and (directory/'strategy.json').is_file():
         observation=json.loads((directory/'strategy.json').read_text()).get('observation')

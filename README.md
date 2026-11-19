@@ -936,22 +936,13 @@ systemctl --user restart uwa-cell-scan
 ```bash
 source ~/UWA_ws/src/multi_arm_manipulation_UWA/scripts/env.bash
 python3 -m pytest ~/UWA_ws/src/multi_arm_manipulation_UWA/uwa_cell_gazebo/test -q
-# Read-only clock, joint, controller and base-transform checks:
+# Read the simulator clock, controller inventory and base transforms:
 ros2 run uwa_cell_gazebo verify_cell
-# Explicitly test a small wrist move on each arm and restore its original pose:
-ros2 run uwa_cell_gazebo verify_cell
-# Check four RGB streams, calibration, tool frames and finger coupling:
-ros2 run uwa_cell_gazebo verify_tools
-# Close/open each simulated gripper and restore its original position:
+# Inspect the simulated RGB streams, calibration and tool frames:
 ros2 run uwa_cell_gazebo verify_tools
 # Optionally save image snapshots and a JSON report:
 ros2 run uwa_cell_gazebo verify_tools --images /tmp/uwa-camera-images --output /tmp/uwa-tools.json
 ```
-
-The motion check requires domain 64, validates an error below 0.03 rad and
-other-arm drift below 0.01 rad, and checks both fixed base transforms and the
-actual Gazebo model-root pose. It is intended
-for this simulated cell, not a hardware commissioning procedure.
 
 The optional live UI check uses the installed rqt plugin, discovers all eight
 trajectory controllers, selects six joint editors per arm and one per gripper,

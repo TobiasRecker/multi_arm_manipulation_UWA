@@ -70,7 +70,7 @@ def present(row):
 
 
 class Window(QtWidgets.QWidget):
-    def __init__(self, backend=None, *, n100=False, review_mock=None):
+    def __init__(self, backend=None, *, n100=False, review_mock=None, program_library=False):
         super().__init__()
         self.n100 = n100
         self.mock = review_mock is not None
@@ -78,6 +78,8 @@ class Window(QtWidgets.QWidget):
         self.tray = None
         self.review = None
         self.log_view = None
+        self.library_process = None
+        self.library_url = None
         self.log_command = report_command(n100, review_mock)
         self.logged = {}
         try:
@@ -139,6 +141,11 @@ class Window(QtWidgets.QWidget):
         self.log_button.clicked.connect(self.show_logs)
         header.addWidget(self.log_button)
         page.addLayout(header)
+        if program_library:
+            self.library_button = QtWidgets.QPushButton('Starting program library…')
+            self.library_button.setEnabled(False)
+            self.library_button.clicked.connect(self.open_program_library)
+            page.addWidget(self.library_button, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
 
         power = QtWidgets.QWidget()
         power_page = QtWidgets.QVBoxLayout(power)
@@ -220,7 +227,46 @@ class Window(QtWidgets.QWidget):
         if not self.mock:
             self.refresh_timer.start()
             QtCore.QTimer.singleShot(0, lambda: self.launch('status'))
+        if program_library:
+            self.start_program_library(review_mock)
         self.refresh.setFocus()
+
+    def start_program_library(self, review_mock):
+        self.library_stdout = bytearray()
+        self.library_process = QtCore.QProcess(self)
+        self.library_process.readyReadStandardOutput.connect(self.read_library_url)
+        self.library_process.finished.connect(self.program_library_closed)
+        self.library_process.errorOccurred.connect(self.program_library_closed)
+        args = [str(ROOT / 'scripts/skill_library_server.py'), '--port', '0']
+        if review_mock is not None:
+            args += ['--runs', str(review_mock.resolve() / 'program-runs')]
+        elif self.n100:
+            args += ['--live-config', str(ROOT.parents[1] / 'setup/skill_library/live-carton.json')]
+        self.library_process.start(sys.executable, args)
+
+    def read_library_url(self):
+        self.library_stdout.extend(self.library_process.readAllStandardOutput().data())
+        line, separator, remainder = self.library_stdout.partition(b'\n')
+        if not separator:
+            return
+        self.library_stdout = remainder
+        url = QtCore.QUrl(line.decode(errors='replace').strip())
+        if url.scheme() == 'http' and url.host() == '127.0.0.1' and url.port() > 0:
+            self.library_url = url
+            self.library_button.setText('Program library')
+            self.library_button.setToolTip(url.toString())
+            self.library_button.setEnabled(True)
+
+    def program_library_closed(self, *_):
+        self.library_url = None
+        self.library_button.setText('Program library unavailable')
+        self.library_button.setEnabled(False)
+        error = self.library_process.readAllStandardError().data().decode(errors='replace').strip()
+        self.library_button.setToolTip(error.splitlines()[-1] if error else self.library_process.errorString())
+
+    def open_program_library(self):
+        if self.library_url and not QtGui.QDesktopServices.openUrl(self.library_url):
+            self.feedback.setText('Open the program library in your browser: ' + self.library_url.toString())
 
     def controls(self):
         for item in (self.start, self.standby, self.refresh):
@@ -409,6 +455,11 @@ class Window(QtWidgets.QWidget):
             self.review.shutdown()
         if self.log_view:
             self.log_view.shutdown()
+        if self.library_process and self.library_process.state() != QtCore.QProcess.ProcessState.NotRunning:
+            self.library_process.terminate()
+            if not self.library_process.waitForFinished(350):
+                self.library_process.kill()
+                self.library_process.waitForFinished(350)
         if self.tray:
             self.tray.hide()
         if self.process.state() != QtCore.QProcess.ProcessState.NotRunning:
@@ -439,7 +490,7 @@ def main():
         finally:
             dialog.shutdown()
     if args.review_mock is not None:
-        window = Window(review_mock=args.review_mock)
+        window = Window(review_mock=args.review_mock, program_library=True)
         window.show()
         return app.exec()
     # An abstract Unix socket is released by the kernel when the app exits.
@@ -456,7 +507,7 @@ def main():
             peer.sendto(requested_host, address)
         return 0
     peer.setblocking(False)
-    window = Window(n100=args.n100)
+    window = Window(n100=args.n100, program_library=True)
     notifier = QtCore.QSocketNotifier(peer.fileno(), QtCore.QSocketNotifier.Type.Read, window)
 
     def activate(*_):
