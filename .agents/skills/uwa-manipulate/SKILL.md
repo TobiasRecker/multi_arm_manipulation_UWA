@@ -37,6 +37,10 @@ with current pending status, image paths, candidate data and trajectory bounds.
 It never approves a review. A saved packet with pending=false is not a request
 to continue.
 
+Use the highest currently allowed and user-approved speed for the task.
+Gazebo arm joints are authorized up to 1 rad/s. For drawing playback use
+`cell_task prepare --drawing-recipe RECIPE` to select the fast profile.
+Any new watcher or test needs the user's explicit permission.
 Check the planned trajectories offline. Gazebo plays them through normal
 controllers and contact physics. The simulated pad contact triggers the grasp.
 Use the recorder only for a requested experiment that needs force or contact

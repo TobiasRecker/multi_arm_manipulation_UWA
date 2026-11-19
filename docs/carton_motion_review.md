@@ -59,9 +59,9 @@ fordert deshalb eine Sichtprüfung an. [Webtest und Ergebnis](../../../setup/tas
 
 ### Ablauf an der realen Zelle
 
-**Start program** verwendet den vorhandenen N100-Runner, sobald der passende
-Quellstand am N100 übernommen und die lokale Optikkonfiguration aktiviert ist.
-Der Start erfasst ein aktuelles OAK4-Standardfoto, schickt Bild und Metadaten
+**Start program** verwendet seit 19.11.2026 den benannten Kartonrunner auf dem
+N100. Die Optikkonfiguration für den bekannten rechten Aufbau ist auf ROSmini
+aktiv. Der Start erfasst ein aktuelles OAK4-Standardfoto, schickt Bild und Metadaten
 an den Runner und wartet auf **Motion review**. Nach bestätigter offener
 Einfahrt erfasst er ein zweites aktuelles Foto und reicht es zur
 Kontaktfreigabe ein. Der Bediener bewertet beide Anfragen in UWA Robot Power.
@@ -88,10 +88,11 @@ zugehörigen `registration.json`-Nachweis im selben Verzeichnis.
 Der Runner prüft die Versionen von Rezept, Registrierung, Programm und
 Fahrprofil auf dem N100 sowie das Texturmodell `setup/tracking/models/carton_avocado_v1/reference.npz`.
 Der laufende Pilot verlangt eine aktuelle Arbeitsbereichsfreigabe und
-betriebsbereite Arme. Die Diagnose des Live-Pfads wurde mit simulierten
-Start- und Abbruchsabläufen geprüft. Der erste Live-Starttest am 19.11.2026
-endete beim Versionsabgleich von `run_carton_cycle.py` vor der Aufnahme.
-Auf dem N100 fehlte auch die benannte Programmdefinition. [Starttest](../../../setup/tasks/carton_agent_free_live_20261119/result.json)
+betriebsbereite Arme. **Start + ROS** ist die getrennte Bedienaktion für
+die Programmbereitschaft. Nach der Übernahme bestanden der lesende Web-
+Preflight und beide Offline-Fahrphasen auf dem N100. Der Live-Start ist im
+Katalog verfügbar. Ein Lauf mit frischem Bild und realer Bewegung steht
+aus. [Einrichtungsnachweis](../../../setup/tasks/carton_agent_free_n100_setup_20261119/offline-check.json)
 
 FoundationPose ist ein separater RGB-D-Archivpfad mit Startmaske. Der
 Weblauf verwendet die vorhandene analytische Registrierung. Das

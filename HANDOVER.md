@@ -22,6 +22,28 @@
   nicht durch Entfernen räumlicher Reserven umgehen. Aktuell keine aktive
   Freigabe oder nächste Fahrwiederholung zugesagt.
 
+## N100 für den benannten Webstart eingerichtet, 19.11.2026
+
+- Nutzer beauftragte nach dem Versionsabbruch die Übernahme. Installiert
+  wurden `tools/run_carton_cycle.py`, `tools/prepare_carton_recipe.py` und
+  `config/carton_programs/carton-supported-v1.json` aus Stand `9c21fcf`.
+  Vorherige Skripte auf dem N100 in
+  `~/uwa-ur-runtime/review-candidates/carton-program.xm6X1qFA/previous/`.
+  Der Wächter lief durch (PID 505211, `NRestarts=0`).
+- Der lesende Web-Preflight bestätigte alle sechs Dateihashes, einen
+  freigegebenen Arbeitsbereich und keine offene Review. Der N100 erstellte
+  aus archivierter Pose und Gelenkmessung zur hohen Anfahrt und offenen
+  Einfahrt jeweils eine gemeinsame Bahn der beiden rechten Arme. Nominell
+  35,22 s und 8,78 s bei 33⅓ %. Rechenzeit in diesem Einzelfall 149,98 s.
+- `setup/skill_library/live-carton.json` ist auf ROSmini für den bekannten
+  rechten Aufbau aktiv, Fokus 107. `GET /api/catalog` meldete den Live-Start
+  verfügbar. Die unabhängige OAK-CLI und SDK sind vorhanden. Es wurde kein
+  Foto angefordert, kein Lauf zur Freigabe gestellt und kein Programm gestartet.
+- Die rein lesende UR-Abfrage meldete `right_rear` bereit. Bei `right_front`,
+  `left_front` und `left_rear` ist `Play` der nächste Vorbereitungsschritt.
+  Die Programmbibliothek setzt betriebsbereite Programme voraus. Nachweise
+  `setup/tasks/carton_agent_free_n100_setup_20261119/`.
+
 ## Agentenfreier Webstart bis zum ersten Blocker, 19.11.2026
 
 - Nutzerauftrag: den vorhandenen Ablauf bis zum ersten Hilfepunkt testen und
@@ -92,6 +114,21 @@ Die bedarfsabhängige Play-Freigabe ist im aktiven N100-Kartonrunner installiert
   weiterverwendet (maximale Abweichung0,000081rad bei0,0005rad Starttoleranz),
   Quellen und vollständige zeitparametrierte Sweeps neu geprüft. Kein
   automatisches Play in dieser Fahrrevision, Programme bereits bereit.
+
+## Gazebo-Tempo und Freigabe neuer Wächter oder Tests, 19.11.2026
+
+- Nutzerentscheidung für alle Agenten. Das höchste derzeit zulässige und
+  für die Aufgabe genehmigte Bewegungstempo verwenden. Gazebo bis 1 rad/s
+  je Armgelenk. Weitere Wächter oder Tests nur mit ausdrücklicher
+  Einwilligung des Nutzers. Bestehende Offline-Planprüfung weiterverwenden.
+- Haus-/Bohr-Demo: `cell_task prepare --drawing-recipe RECIPE` wählt das
+  schnellere Gazebo-Profil. Das Zeitgesetz des Compilers nutzt dessen
+  Grenzen, die räumliche Auflösung der bestehenden Planprüfung bleibt
+  erhalten. Physiktakt 1 ms, Echtzeitfaktor 1 als Ziel. Nachweise und
+  Vergleich mit 0,1 rad/s unter `setup/tasks/house_drill_gazebo_fast_20261119_01/`.
+- Offline auf dem archivierten Griff kompiliert. 44 Phasen, 23.464
+  Zustände, 80,36 s Simulationszeit ab Hub statt 390,11 s. Rückdrehung
+  15,55 s statt 107,53 s. Planstützstellen bis 0,999992 rad/s.
 
 ## Gazebo-Wiedergabe und Offline-Planprüfung, 19.11.2026
 

@@ -296,11 +296,11 @@ Kartonpilot auf dem N100: Bei optionalem regulärem Programmstart unmittelbar vo
 - Peakbewertung bleibt Default andererProfile. Keine allgemeine Erlaubnis,
   beliebige Stoppgrenzen zu lockern. NeueProfilbindung vor realer Fahrt prüfen.
 
-## Geschwindigkeiten: dauerhafte Nutzervorgabe (2026-11-18)
+## Geschwindigkeiten für reale Roboter: dauerhafte Nutzervorgabe (2026-11-18)
 
 - **Keine weitere Geschwindigkeitsreduktion ohne ausdrückliche Aufforderung
   des Nutzers.** Die zuletzt vereinbarte Geschwindigkeitsgrenze beibehalten;
-  aktueller Stand für die UWA-Arme:0,1rad/s.
+  aktueller Stand für die realen UWA-Arme: 0,1 rad/s.
 - Keine eigenmächtigen niedrigeren Kommandogrenzen, langsameren Ersatzprofile,
   zusätzlichen Reserven mit Temposenkung oder gezielte Zeitstreckung. Frühere
   Langsamprofile sind kein Anlass, die aktuelle Nutzerentscheidung zu übergehen.

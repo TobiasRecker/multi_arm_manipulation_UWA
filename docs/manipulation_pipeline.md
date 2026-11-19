@@ -258,12 +258,29 @@ ros2 launch uwa_cell_tasks grasp.launch.py \
   scene:=$UWA_WS/setup/tasks/my-contact-scene
 ```
 
+To prepare the house/drawing demo at the current Gazebo speed, pass its
+saved drawing reference directly:
+
+```bash
+ros2 run uwa_cell_tasks cell_task prepare \
+  --drawing-recipe /absolute/path/to/drawing-recipe.json \
+  --layout /absolute/path/to/layout.yaml \
+  --output setup/tasks/my-drawing-scene
+```
+
+This selects `config/carton_drawing_fast.yaml` with a 1 rad/s arm-joint cap
+and a real-time factor target of 1. The planner uses a shared time law up
+to the acceleration and jerk limits of the profile. An explicit
+`--config` selects another profile, including historical reproduction.
+Launch and run this scene with the same layout. Additional watchers or tests
+require the user's explicit consent.
+
 This launches a separate world `uwa_grasp_lab`, private ROS clock, TF tree and
 controllers under `/uwa_grasp_validation`. The existing simulation is not
 restarted. Do not launch a second grasp world while the first is alive. Both
 worlds share this PC's compute resources; avoid concurrent CPU-heavy benchmarks.
-The contact profile uses a 1 ms physics step and a real-time factor of 0.6
-for compute headroom on this shared workstation.
+The fast drawing profile uses a 1 ms physics step and targets real-time
+playback. The achieved factor depends on the contact solver and host load.
 
 After all nodes are ready and before starting a recipe, apply the measured
 workstation CPU profile from another sourced terminal:
