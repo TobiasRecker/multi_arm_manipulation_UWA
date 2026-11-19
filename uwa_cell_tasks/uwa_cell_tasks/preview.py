@@ -27,6 +27,9 @@ def preview(directory):
     if (directory/'lift-replay.html').is_file():
         parts.append('<p><a style="color:#ffe76b" href="lift-replay.html">'
                      'Play recorded Gazebo lift</a> · recorded joints and carton pose</p>')
+    if (directory/'native-gazebo-end.png').is_file():
+        parts.append('<h2>Gazebo viewport at the end of the run</h2>'
+                     '<figure><img src="native-gazebo-end.png" alt="Gazebo viewport at the end of the run"></figure>')
     review=directory/'review.json'
     if review.exists():
         packet=json.loads(review.read_text());evidence=packet['evidence']

@@ -1,5 +1,63 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Aktuell: Parallelkorrektur vorbereitet, 19.11.2026
+
+- Nutzer hat die besprochene Korrektur mit „approved“ bestätigt. Seine vorherige
+  echte GUI-Freigabe bezog sich noch auf attempt11/seriell: nur RF fuhr ein
+  weiteres Stück, dann Stopp am RR-Zeitvergleich, kein Griff/Kontakt. Danach
+  frischer Snapshot `after-attempt11`: alle vier RUNNING/Normal/STOPPED,
+  Trendruhe bestätigt, rechte Greifer OBJ3/POS3/PRE0/FOR0/SPE16 offen.
+- Tatsächlicher RF-Start jetzt etwa [0,13697; −1,53424; −0,81926; −1,48625;
+  0,68666; −0,65050]rad. Alte Home-/Teilstarts nicht wiederverwenden.
+- Konkreter Abbruchnachweis: ruhender RR Rohabweichung höchstens0,0000474rad,
+  aber konservative Interpolationsunsicherheit0,006293rad durch124ms-Lücke
+  der Driverhistorie. Daher stoppt unveränderte0,005rad-Grenze. Keine reale
+  Positionsabweichung dieser Größenordnung aus dem Fehlertext ableiten.
+- Neuer eigener Driver-Empfänger hält die Historie unabhängig von FCL/RPC-
+  Arbeit aktuell. Profilkorrektur entfernt nur das interne Erzwingen
+  dynamischer Hüllen unter `geometric_only`; volle Geometrie/40mm und alle
+  unabhängigen Fortschrittskombinationen bleiben geprüft. Geschwindigkeit,
+  Frische, Vergleichsgrenzen und native Stopps unverändert. Bei `enforce`
+  bleiben die zusätzlichen unabhängigen Stoppreserven bestehen.
+-35 gezielte Prüfungen PASS; Motionpaket lokal/N100 gebaut, kein Guard- oder
+  Treiberneustart. Passiver N100-Nachweis: tatsächlich150,8ms Hauptthreadpause,
+  RF63/RR79 neue Samples, danach5,6/7,6ms Sourcealter. Maximal konservativ
+  0,001002rad, maximale Zeitklammer29,97ms, keine Clock-/Empfängerfehler.
+- attempt12 vollständig vorbereitet: hohe Anfahrt und offene Einfahrt jeweils
+  eine gemeinsame RF/RR-Gruppe, keine seriellen Rückfälle. Nominell32,187s+
+  8,785s=40,972s bei unverändert33⅓%. WAITING_FOR_MOTION_REVIEW,
+  Ticketc2dfde11df75406a9f66f104a65f4d4e,
+  Versionb4f798dfcc68ce0069e5aef5fa87f8946006a6401924e5cd397494d724fd3a03.
+  Tatsächlicher N100-Store bestätigt pending, neue GUI-Entscheidung angefragt.
+  Noch keine weitere Fahrt. Nutzer meldete zuvor fehlende Aufforderung;
+  erst jetzt wird das tatsächliche Vorliegen der neuen Anfrage bestätigt.
+- Nachweise `setup/tasks/carton_motion_review_20261119/`; Arbeitsstand
+  `work/carton-motion-review-real-20261119.md` im Zellrepo.
+
+## Gespeicherter Kartongriff mit Pose als Eingabe, 19.11.2026
+
+- Nutzerziel: denselben Aufgabencode für unterschiedliche Posen des bekannten
+  Kartons aufrufen. Der Vorgänger konnte bereits die objektbezogenen Griffpunkte
+  aus einer neuen OAK-Pose transformieren. Die Bedienschritte für Bildausschnitt,
+  Rezepterzeugung und die separate Offline-Vorbereitung waren manuell verteilt.
+- `carton-supported-v1` speichert das Griffdesign und die IK-Referenzen unter
+  `config/carton_programs/`. `run_carton_cycle.py --program` erzeugt das Rezept
+  und protokolliert die verwendete Definition mit SHA-256. `--plan-only` nimmt
+  gespeicherte Pose und Gelenkmessung und verwendet dieselben Planungsphasen.
+- Auf ROSmini zweimal aus demselben Vierarm-Snapshot bei 33⅓ % geplant. Die
+  Archivpose aus `registration-v4` und eine synthetische Verschiebung von 50 mm
+  in Welt-X ergaben jeweils gemeinsame Hochanfahrt und offene Einfahrt von RF
+  und RR. Beide Weltgriffpunkte verschoben sich um genau diesen Betrag.
+  Planungswandzeit 22,07 s / 21,68 s, nominelle Armfahrt 44,00 s / 44,10 s.
+  48 gezielte Lyrical-Tests bestanden. Beide Paare von Bahnbündeln wurden als
+  isolierte Mock-Replays geladen.
+- Nachweise `setup/tasks/carton_program_reuse_20261119/comparison.json` und
+  jeweilige `workflow.json`. Der Versuch deckt zwei Posen im Modell ab.
+  Die zweite Pose stammt aus einer rechnerischen Verschiebung. Ein belegter
+  Erkennungs- oder Greifbereich und der reale Einsatz des neuen Aufrufs stehen
+  aus. Der neue Stand wurde lokal geprüft und liegt noch nicht auf dem N100.
+  Anleitung in [Kartonfahrt mit Aufgabenfreigabe](docs/carton_motion_review.md).
+
 ## Parallelfahrt: konkreter Planungsblocker, 19.11.2026
 
 - Nutzer fragt ausdrücklich nach weiterhin fehlender Gleichzeitigkeit und
@@ -1204,6 +1262,59 @@
   Dateien gegen den festgehaltenen Startcommit in frischer Kopie eingespielt
   und bytegleich verglichen. Originalabgabe und ihre Zeitmessung erhalten.
   Vollständiger Export gegen Startcommit im Trace-Protokoll dokumentiert.
+- Auf Nutzerfrage den Hydrogen-Trace und die sichtbaren Antigravity-Aktionen
+  ausgewertet. Stufenwandzeiten in Sekunden: Orientierung 207,06, Anpassung
+  356,97, Planung 170,10, Prüfung 304,60, Abgabe 145,66, außerhalb benannter
+  Stufen 149,21 inklusive Start und Stufenwechseln. Gewrappte Befehle
+  zusammen 131,03 s, davon Planer 101,79 s. Vom Ende des Planers bis zur
+  Abgabe vergingen 541,15 s. Nachweis: `trial/events.jsonl`,
+  `trial/summary.md`, `antigravity.log` und sichtbare Tool-Trace-Aktionen.
+- Die Vereinigung der vom CLI gemeldeten Intervalle automatischer
+  Toolprüfungen umfasst 167,54 s, bereits in den Wandzeiten enthalten.
+  Keine manuelle Befehlsfreigabe. Zeit zwischen Logereignissen enthält
+  Modellantworten, Dateiwerkzeuge, Toolprüfung und Protokollübergänge.
+  Einen exakten Anteil interner Modellrechnung weisen die Daten nicht aus.
+- Für einen späteren Beschleunigungsvergleich vorgeschlagen: Prüfungen,
+  Viewer-JSON, Hashes und Patch in einen deterministischen Abgabeschritt
+  bündeln. Dem Agenten kurze Einstiegsliste mit Aufrufen und API geben.
+  Für wiederkehrende Aufgaben geprüfte, allgemeine Pfadbausteine für
+  Oberfläche, axiale Zustellung und festes Werkzeug wiederverwenden.
+  Erstmals neue Funktionen zu erstellen bleibt eine eigene Messaufgabe.
+- Auf Nutzerfrage den Umfang der 213 Tests abgeglichen. Hydrogen rief
+  das gesamte Python-Testpaket `uwa_cell_tasks` auf, 15,57 s Befehlswandzeit.
+  Darin sind unter anderem Greifer-/Karton-Hardwarelogik, Registrierung,
+  Freigabelogik und Logger enthalten. Die konkreten Bahnnachweise stammen
+  aus den separaten Audits. Nachträgliche Stichprobe im finalen Hydrogen-
+  Checkout: 16 Tests für Pfadbausteine, Box-CLI und Episoden bestanden
+  in 1,66 s Prozesswandzeit. Vorschlag für isolierte Entwicklung: Audits
+  für jede Bahn und gezielte Regression bei Bausteinänderung; ganze Suite
+  bei gemeinsamer Integration. Der Testablauf wurde noch nicht geändert.
+- Detailmessung auf Nutzerfrage für die 304,60 s der Hydrogen-Phase `verify`:
+  28,58 s aktive geloggte Befehle, 43,27 s vom CLI protokollierte automatische
+  Toolprüfungen ohne Überlappung mit diesen Befehlsintervallen, 232,75 s
+  übrige Wandzeit. Beide Audits waren nach 76,29 s fertig (10,07 s Befehlszeit).
+  Danach folgten Archivieren und Lesen der Ergebnisse, Viewer-Inspektion
+  samt Retry, Suite und ergänzter Unit-Test, Hashprüfung und Stufenende.
+  Auch zwischen dem 66-ms-Hashbefehl und dem Stufenende vergingen 28,29 s.
+
+## Haus- und Lochkreis in Gazebo, 2026-11-19
+
+- Nutzer wünscht Umsetzung und Ansicht im nativen Gazebo-Fenster.
+  Der Kontaktadapter bindet den Seitenkreis, acht Hauskanten, sechs
+  axiale Zyklen und den Rückweg an den frisch gemessenen Griff.
+  Sichtbare virtuelle Spitze, axial maximal 3 mm am passenden Lochmittelpunkt.
+  Gegenwandkreis separat. 20 gezielte Tests bestanden.
+- Run03 bestätigt vier Padkontakte. Alle 44 Phasen vor dem Hub dicht
+  geprüft. Die Kontaktphysik erreichte 61,35 mm Hub. Fingergeschwindigkeit
+  rechts hinten (passive Spitze 0,500 rad/s und Knuckle 0,222 rad/s)
+  überschritt 0,2 rad/s. Halt bestätigt, vier Padkontakte erhalten,
+  Box ohne Tischauflage. Haus und Zustellungen in Gazebo offen.
+- Frühere Testwelt vor dem Hub durch GUI-Start pausiert; Frischewächter
+  ausgelöst, Halt nach Wiederaufnahme des Takts bestätigt. Run03 lief
+  ohne GUI. Danach mit reiner Ansicht (ohne WorldControl) geöffnet.
+  Live-Halt, vier Kontakte und nativer Viewport-Screenshot geprüft.
+- Bericht und Nachweise: `setup/tasks/house_drill_gazebo_live_20261119_01/`.
+  Ansicht im Halt belassen; kein Öffnen oder Zurücksetzen.
 
 ## Gazebo-Vorprüfung der Haus- und Bohrdemo, 2026-11-19
 

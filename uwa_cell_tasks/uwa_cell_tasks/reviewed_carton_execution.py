@@ -93,7 +93,7 @@ def _cancel_late(client):
             future.add_done_callback(cancel)
 
 
-def _monitor(client, group, trajectories, active, obstacles, force_refs, extra):
+def _monitor(client, group, trajectories, active, obstacles, force_refs, extra, *, geometry=True):
     blocked = set(client.guard['blocked_arms']) | set(client.supervisor['blocked_arms'])
     if active & blocked:
         raise RuntimeError('Reviewed arm group interlocked: '+', '.join(sorted(active & blocked)))
@@ -112,8 +112,22 @@ def _monitor(client, group, trajectories, active, obstacles, force_refs, extra):
             raise RuntimeError(arm+': unexpected wrench during open entry')
     if extra:
         _check_jaws(client,time.monotonic())
-    if not client.problem.collision.check(client.positions)[0] or (extra and not extra.check(client.positions)[0]):
+    if geometry and (not client.problem.collision.check(client.positions)[0] or (extra and not extra.check(client.positions)[0])):
         raise RuntimeError('Measured carton or full-cell collision')
+
+
+def _accept_responses(client, results, segment, acceptance_deadline, common_start):
+    """Record acceptance before blocking work, within the unchanged deadline."""
+    for arm,future in client.pending.items():
+        if arm in client.handles or not future.done():continue
+        observed=time.monotonic()
+        segment['goal_response_observed_monotonic_s_by_arm'][arm]=observed
+        if observed>=acceptance_deadline or client.get_clock().now().nanoseconds>=common_start:
+            raise TimeoutError('Missing timely group acceptance before the common trajectory start')
+        handle=future.result();client.handles[arm]=handle
+        if not handle.accepted:raise RuntimeError(arm+': reviewed trajectory rejected')
+        segment['goal_accept_observed_monotonic_s_by_arm'][arm]=observed
+        results[arm]=handle.get_result_async()
 
 
 def _dispatch(client, lock, group, goals, extra, force_refs, segment):
@@ -136,6 +150,9 @@ def _dispatch(client, lock, group, goals, extra, force_refs, segment):
     acceptance_deadline = time.monotonic()+.1
     client.pending, client.handles = {}, {}
     results = {}
+    segment['common_start_ros_ns']=common_start
+    segment['acceptance_deadline_monotonic_s']=acceptance_deadline
+    segment['goal_response_observed_monotonic_s_by_arm']={}
     segment['goal_send_monotonic_s_by_arm']={}
     segment['goal_accept_observed_monotonic_s_by_arm']={}
     for arm in group['arms']:
@@ -151,23 +168,22 @@ def _dispatch(client, lock, group, goals, extra, force_refs, segment):
     deadline = time.monotonic()+group['duration_s']*5+8
     last_stamp = None
     while time.monotonic()<deadline:
-        client.spin_once(timeout_sec=.005)
+        client.spin_once(timeout_sec=.001)
+        _accept_responses(client,results,segment,acceptance_deadline,common_start)
         client.health()
         lock.check()
+        # health() also services ready responses. Consume them before any FCL
+        # work, while the controller is still waiting for its common start.
+        _accept_responses(client,results,segment,acceptance_deadline,common_start)
+        if len(client.handles)<len(active):
+            if time.monotonic()>=acceptance_deadline or client.get_clock().now().nanoseconds>=common_start:
+                raise TimeoutError('Missing timely group acceptance before the common trajectory start')
+            _start_matches(client.problem,client,group['start'])
+            _monitor(client,group,corridors,active,obstacles,force_refs,extra,geometry=False)
+            continue
         if client.stamp != last_stamp:
             _monitor(client, group, corridors, active, obstacles, force_refs, extra)
             last_stamp = client.stamp
-        if len(client.handles)<len(active) and (time.monotonic()>=acceptance_deadline or
-                client.get_clock().now().nanoseconds>=common_start):
-            raise TimeoutError('Missing timely group acceptance before the common trajectory start')
-        for arm, future in client.pending.items():
-            if arm not in client.handles and future.done():
-                handle = future.result()
-                client.handles[arm] = handle
-                if not handle.accepted:
-                    raise RuntimeError(arm+': reviewed trajectory rejected')
-                segment['goal_accept_observed_monotonic_s_by_arm'][arm]=time.monotonic()
-                results[arm] = handle.get_result_async()
         if len(results)!=len(active) or not all(r.done() for r in results.values()):
             continue
         for arm, result in results.items():

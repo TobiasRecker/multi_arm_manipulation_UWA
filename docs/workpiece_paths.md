@@ -86,3 +86,21 @@ prozessabhängige Kraft-/Drehmomentgrenzen und eine definierte Reaktion
 auf Abweichungen. Der Baustein für irreversiblen Eingriff erhält einen
 eigenen Freigabepunkt. Aufgezeichnete Zeiten, beobachtete Kräfte und
 Abweichungen lassen sich wie bisher phasenbezogen dokumentieren.
+
+
+## Haus und Lochkreis in der Gazebo-Kontaktwelt
+
+Das getrennte Haus-Rezept übernimmt den 22-mm-Kreis, die acht Hauskanten
+und sechs axiale Zustellungen. Es fährt nach dem letzten Rückzug zur
+Unterseiten-Vorpose, nimmt den geprüften gemeinsamen Weg in Gegenrichtung
+und setzt den Karton ab. Der Gegenwandkreis bleibt eine separate Aufgabe.
+
+Das Kontaktprofil bindet die Gelenkpfade an den frisch bestätigten Griff.
+In Gazebo zeigt ein orangefarbenes Werkzeug die virtuelle Spitze. Für die
+Zustellung ist die Spitzeneindringung auf 3 mm und auf den jeweiligen
+Lochmittelpunkt begrenzt. Schaft, übrige Robotergeometrie und Umgebung
+behalten die Kollisionsprüfung. Die Darstellung erzeugt keine Bohrkräfte,
+Späne oder Materialänderung.
+
+Messdaten, Prüflogs und der Stand der Ausführung stehen unter
+`setup/tasks/house_drill_gazebo_live_20261119_01/` im Workspace.

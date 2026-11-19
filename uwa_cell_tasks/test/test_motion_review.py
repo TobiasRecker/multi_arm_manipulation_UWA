@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+import importlib.util
 from io import BytesIO
 import json
 from pathlib import Path
@@ -11,6 +12,15 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from uwa_cell_tasks.motion_review import ReviewStore, START_PERCENT, TASK, caps
 from uwa_cell_tasks.carton_review import entry_photo, motion_timing
+
+
+@pytest.fixture
+def cycle_runner():
+    script = Path(__file__).resolve().parents[2] / "tools/run_carton_cycle.py"
+    spec = importlib.util.spec_from_file_location("review_cycle_test", script)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def packet(stage="motion", risk="low"):
@@ -175,16 +185,13 @@ def test_motion_timing_skips_sample_gaps_and_counts_shared_intervals(tmp_path):
     assert summary["observed_motion_s"]==pytest.approx(dict(right_front=.2,right_rear=.2))
 
 
-def test_complete_workflow_with_mock_devices_uses_same_revisions(tmp_path, monkeypatch):
+@pytest.mark.parametrize("program", [None, "carton-supported-v1"])
+def test_complete_workflow_with_mock_devices_uses_same_revisions(tmp_path, monkeypatch, cycle_runner, program):
     from types import SimpleNamespace
     from datetime import datetime, timezone
     import hashlib
     import time
-    import importlib.util
-    tool=Path(__file__).resolve().parents[2]/"tools/run_carton_cycle.py"
-    spec=importlib.util.spec_from_file_location("review_cycle_test", tool)
-    module=importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    module=cycle_runner
     store=ReviewStore(tmp_path/"store")
     store.area("new",True)
     store.settings(trust=100)
@@ -209,10 +216,18 @@ def test_complete_workflow_with_mock_devices_uses_same_revisions(tmp_path, monke
     joints={a:[f"{a}_joint_{i}" for i in range(6)] for a in arms}
     def state(q):
         return {key:q for names in joints.values() for key in names}
-    def phase(self,name,_,*args):
+    def phase(self,name,tool,*args):
         args=list(args)
         history.append(name)
+        if name=="prepare_recipe":
+            assert tool=="prepare_carton_recipe.py"
+            assert args[args.index("--program")+1]==program
+            dump(run/"recipe/program.json",dict(program_id=program,pregrasp_m=.15))
+        if name=="registration":
+            recipe=run/"recipe" if program else tmp_path
+            assert Path(args[args.index("--description")+1])==recipe/"hardware.urdf"
         if name=="plan_high":
+            assert float(args[args.index("--pregrasp-m")+1])==pytest.approx(.15)
             dump(run/"high-plan/evidence.json",dict(saved_start=state(0),
                  path=dict(joint_names=list(state(0)),waypoints=[list(state(.02).values())])))
         if name in {"prepare_high","prepare_entry"}:
@@ -240,13 +255,103 @@ def test_complete_workflow_with_mock_devices_uses_same_revisions(tmp_path, monke
     monkeypatch.setattr(module.Workflow,"phase",phase)
     flow=module.Workflow(run,dict(events=[],started_monotonic_s=time.monotonic()))
     image,metadata=photo(tmp_path/"before")
-    args=SimpleNamespace(image=image,metadata=metadata,intrinsics=tmp_path/"intrinsics",recipe=tmp_path,
+    args=SimpleNamespace(image=image,metadata=metadata,intrinsics=tmp_path/"intrinsics",program=program,
+        recipe=None if program else tmp_path,
         risk="low",reason="Review fixture",config=tmp_path/"config",camera_reference_pose=None,roi=None,
         face_roi=None,start_ros_programs=False)
     module.approach(flow,args,store)
     assert flow.report["phase"]=="WAITING_VISUAL_REVIEW"
+    assert history.count("prepare_recipe")==int(bool(program))
     args.entry_image,args.entry_metadata=photo(tmp_path/"after")
     args.visual_confirmed=True
     module.close_after_entry(flow,args,store)
     assert flow.report["success"] and history[-3:]==["high","entry","close"]
     assert [row["status"] for row in store.status()["history"]]==["done","done"]
+
+
+@pytest.mark.parametrize("extra", [["--execute"], ["--close-after-review"], ["--recipe", "legacy"]])
+def test_offline_program_rejects_conflicting_arguments(tmp_path, monkeypatch, cycle_runner, extra):
+    monkeypatch.setattr(sys, "argv", ["run_carton_cycle.py", "--output", str(tmp_path / "run"),
+                        "--plan-only", "--program", "carton-supported-v1",
+                        "--observations", "snapshot.json", "--object-pose", "pose.json", *extra])
+    with pytest.raises(SystemExit) as result:
+        cycle_runner.main()
+    assert result.value.code == 2
+    assert not (tmp_path / "run").exists()
+
+
+def test_legacy_carton_dry_run_only_prints_stages(tmp_path, monkeypatch, capsys, cycle_runner):
+    output = tmp_path / "run"
+    monkeypatch.setattr(sys, "argv", ["run_carton_cycle.py", "--output", str(output),
+                        "--recipe", "legacy", "--image", "picture", "--metadata", "metadata",
+                        "--intrinsics", "intrinsics"])
+    assert cycle_runner.main() == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["executed"] is False and "contact_review" in report["phases"]
+    assert not output.exists()
+
+
+def test_named_offline_program_replans_for_each_pose_without_live_review(tmp_path, monkeypatch, cycle_runner):
+    observations = tmp_path / "observations.json"
+    observations.write_text('{"fixture": "same start"}')
+    calls = []
+
+    def fail_live_operation(*args, **kwargs):
+        pytest.fail("Offline planning touched the live review store")
+
+    def phase(flow, name, tool, *args):
+        calls.append((name, tool, args))
+        assert not {"--execute", "--observe", "--review-id", "--reset-unloaded"}.intersection(args)
+
+        if name == "prepare_recipe":
+            assert tool == "prepare_carton_recipe.py"
+            assert args[args.index("--program") + 1] == "carton-supported-v1"
+            recipe = Path(args[args.index("--output") + 1])
+            recipe.mkdir()
+            cycle_runner.atomic_json(recipe / "program.json", {
+                "program_id": "carton-supported-v1", "pregrasp_m": .15,
+            })
+        elif name == "plan_high":
+            assert tool == "prepare_carton_pregrasp.py"
+            assert Path(args[args.index("--observations") + 1]) == observations
+            assert Path(args[args.index("--object-pose") + 1]).read_bytes() == pose.read_bytes()
+            assert Path(args[args.index("--contact-design") + 1]) == flow.out / "recipe/contacts.json"
+            assert float(args[args.index("--pregrasp-m") + 1]) == pytest.approx(.15)
+            high = Path(args[args.index("--output") + 1])
+            high.mkdir()
+            cycle_runner.atomic_json(high / "evidence.json", {
+                "saved_start": {"joint": 0.0},
+                "path": {"joint_names": ["joint"], "waypoints": [[0.0], [0.25]]},
+            })
+        elif name == "plan_entry":
+            assert tool == "prepare_carton_open_entry.py"
+            planned_high = Path(args[args.index("--approach") + 1])
+            assert json.loads(planned_high.read_text()) == {
+                "planned_only": True, "segments": [{"final_positions": {"joint": .25}}],
+            }
+        elif name in {"prepare_high", "prepare_entry"}:
+            assert tool == {"prepare_high": "run_carton_pregrasp.py", "prepare_entry": "run_carton_open_entry.py"}[name]
+            assert float(args[args.index("--command-velocity") + 1]) == pytest.approx(.1)
+            assert float(args[args.index("--tcp-speed-m-s") + 1]) == pytest.approx(.25 / 3)
+            bundle = Path(args[args.index("--prepare-reviewed") + 1])
+            cycle_runner.atomic_json(bundle, {"fixture": name})
+        else:
+            pytest.fail(f"Unexpected offline phase {name}")
+
+    monkeypatch.setattr(cycle_runner, "ReviewStore", fail_live_operation)
+    monkeypatch.setattr(cycle_runner.Workflow, "phase", phase)
+    expected_phases = ["prepare_recipe", "plan_high", "plan_entry", "prepare_high", "prepare_entry"]
+    for offset in (0.0, 0.05):
+        calls.clear()
+        pose = tmp_path / f"pose-{offset}.json"
+        pose.write_text(json.dumps({"fixture_offset_m": offset}))
+        output = tmp_path / f"run-{offset}"
+        monkeypatch.setattr(sys, "argv", ["run_carton_cycle.py", "--output", str(output),
+                            "--plan-only", "--program", "carton-supported-v1",
+                            "--observations", str(observations), "--object-pose", str(pose)])
+        assert cycle_runner.main() == 0
+        assert [name for name, _, _ in calls] == expected_phases
+        workflow = json.loads((output / "workflow.json").read_text())
+        assert workflow["phase"] == "OFFLINE_APPROACH_PREPARED"
+        assert workflow["success"] is True and workflow["execute"] is False
+        assert (output / "review-high.json").is_file() and (output / "review-entry.json").is_file()

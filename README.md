@@ -4,6 +4,9 @@
 groups, risk assessment, speed limits, RViz playback and contact photograph.
 The operator can try the archived task in a local mock session. See the
 [carton review and execution guide](docs/carton_motion_review.md).
+The saved program `carton-supported-v1` takes the measured carton pose and arm
+start as inputs. The guide includes an offline comparison for a 50 mm shift
+using the same program and a mock RViz preview for each pose.
 
 All four grippers now have shared ROS actions, status services and Python/CLI
 helpers for opening, closing with an explicit raw-force setting and relative
@@ -28,9 +31,12 @@ Motion review run. All four drives are ready again, with their unloaded hold tar
 to current positions under stopped programs. After operator approval, right front started the reviewed high approach
 and was stopped by the driver/native-state comparison. All arms are stationary,
 programs stopped and right grippers open; no entry or grasp occurred.
-A bounded host-clock sampling correction passed software and passive N100
-checks; a new reviewed plan awaits operator approval. The previous aborts
-are not yet fully explained. The position-trend standstill profile is approved for future
+The parallel compiler now respects the active geometric-only profile, and a
+separate driver receiver preserves measurements during geometry and RPC work.
+Both approach phases are prepared as shared right-arm groups, about41seconds
+nominally at the retained limits. Software and passive N100 checks passed;
+the new parallel revision awaits operator approval. Earlier serial aborts and
+their recorded causes remain in the handover. The position-trend standstill profile is approved for future
 carton runs. See the [workflow and evidence](docs/carton_supported_grasp.md).
 
 Open **UWA Robot Power** from the application menu for all four arms.

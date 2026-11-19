@@ -32,25 +32,18 @@ def observe(sim,description,reference,directory):
     scene=json.loads((sim.directory/'scene.json').read_text())
     if (reference_meta['asset_id']!=scene['asset_id'] or reference_meta['asset_manifest_sha256']!=scene['asset_manifest_sha256']):
         raise ValueError('Image reference belongs to a different asset revision')
-    sim.wait(lambda:all(abs(sim.v.get(j,1))<.003 for j in sim.q if '_robotiq_' not in j),10.,health=True)
     from std_srvs.srv import Trigger
-    baseline=dict(sim.q);initial_object=np.array(sim.object['T_world_object']);records=[]
+    records=[]
     minimum_stamp=sim.now()
     deadline=time.monotonic()+30.
     while not records and time.monotonic()<deadline:
-        sim.health()
-        if any(abs(sim.q.get(j,1e9)-q)>.001 for j,q in baseline.items() if '_robotiq_' not in j):
-            raise RuntimeError('Arm moved during static image inspection')
+        sim.check_cancel()
         try:batch=json.loads(sim.call('capture',Trigger.Request(),timeout=35.).message)
         except RuntimeError as error:
             if 'WAITING for' not in str(error):raise
             time.sleep(.1);continue
         if any(r.get('snapshot_physics_stamp',-1)<minimum_stamp-.02 for r in batch):
             raise RuntimeError('Renderer snapshot predates the stationary inspection')
-        movement=pose_error(initial_object,sim.object['T_world_object'])
-        if movement[0]>.0005 or movement[1]>.005:raise RuntimeError('Physical object moved during snapshot rendering')
-        if any(abs(sim.q.get(j,1e9)-q)>.001 for j,q in baseline.items() if '_robotiq_' not in j):
-            raise RuntimeError('Physical arms moved during snapshot rendering')
         for record in batch:
             arm=record['arm']
             record['T_world_camera']=(json.loads((sim.directory/'scene.json').read_text())['T_world_overview_optical'] if arm=='oak'

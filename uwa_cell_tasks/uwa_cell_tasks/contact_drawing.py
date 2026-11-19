@@ -50,7 +50,7 @@ class ContactDrawing:
                 if not .003 <= float(axial['clearance_m']) <= .06:
                     raise ValueError('Virtual axial approach outside checked range')
 
-    def compile(self, problem, group, start, observed_asset, output, *, health=None):
+    def compile(self, problem, group, start, observed_asset, output, *, check_cancel=None):
         """Bind both holders to fresh offsets, keep the reviewed worker path."""
         dims = np.asarray(self.reference['dimensions_m'])
         center = np.eye(4)
@@ -106,8 +106,8 @@ class ContactDrawing:
         state = dict(start)
         inv = np.linalg.inv(new_offsets[ARMS[0]])
         for phase in phases:
-            if health is not None:
-                health()
+            if check_cancel is not None:
+                check_cancel()
             phase_id = phase['id']
             print('Retarget drawing phase',phase_id,flush=True)
             ref_names = phase.get('joint_names', self.reference['names'])
@@ -194,8 +194,8 @@ class ContactDrawing:
                 transverse = np.cross(normal,tangent)
                 heights = []
             for index,q in enumerate(spline(checks)):
-                if health is not None and index % 64 == 0:
-                    health()
+                if check_cancel is not None and index % 64 == 0:
+                    check_cancel()
                 checked = dict(start,**dict(zip(names,q)))
                 pose = chain.forward(checked) @ inv
                 try:

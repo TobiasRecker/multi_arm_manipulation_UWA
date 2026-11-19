@@ -2,6 +2,12 @@
 
 ## Aufgabenbezogene Freigabe im Kartonpiloten, 19.11.2026
 
+- Bestätigte Korrektur19.11.: Auch der Parallelprüfer muss die aktive
+  `stopping_reserve_policy` respektieren. Unter `geometric_only` keine
+  dynamischen Brems-/Latenzhüllen über ein internes `enforce` wieder einführen.
+  Vollständige Geometrie-/Fortschrittsprüfung und bestehende Laufzeitstopps
+  erhalten; `enforce` behält seine zusätzlichen Stoppreserven.
+
 - Nutzer bekräftigt am 19.11.2026 für den Kartonablauf: Die beteiligten Arme
   sollen zeitgleich fahren, soweit der konkrete Modellnachweis gelingt.
   Einen seriellen Rückfall nicht als Erfüllung dieses Wunsches behandeln;
@@ -94,6 +100,13 @@
 
 ## Programmierpipeline mit Demonstrationen und Sprache (2026-11-17)
 
+- Nutzerziel vom 19.11.: bewährte Abläufe als benannte Programme speichern.
+  Neue Posen desselben Werkstücks sind Eingaben für das bestehende Programm.
+  Griffpunkte, Phasen und aufgabenbezogene Konfiguration wiederverwenden. Aus
+  der aktuellen Objektpose und dem aktuellen Gelenkstart die konkrete Bahn
+  automatisch ableiten und mit den bestehenden Prüfungen bewerten. Beim
+  Kartonpiloten sind Bilderkennung, planbare Posen und realer Kontakt getrennt
+  nachzuweisen. Bedienung in `docs/carton_motion_review.md`.
 - Nutzerziel: schnelles einfaches LLM soll mit wiederverwendbaren Bausteinen
   möglichst zügig ein Aufgabenprogramm erstellen. Optional ein bis zwei
   erklärte Teleoperations-/Handführungsbeispiele mit Kameras, UR-Posen und

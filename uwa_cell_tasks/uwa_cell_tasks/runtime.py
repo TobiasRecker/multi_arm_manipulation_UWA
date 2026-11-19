@@ -4,27 +4,24 @@ import json
 from pathlib import Path
 import threading
 import time
-import xml.etree.ElementTree as ET
 import numpy as np
 import rclpy
 from uwa_cell_motion.node import MotionNode
-from rclpy.clock import Clock,ClockType
 from rclpy.action import ActionClient
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.qos import qos_profile_sensor_data,QoSProfile,DurabilityPolicy
-from sensor_msgs.msg import JointState,Image,CameraInfo
+from sensor_msgs.msg import JointState
 from std_msgs.msg import String
 from std_srvs.srv import Trigger,SetBool
 from controller_manager_msgs.srv import SwitchController,ListControllers
 from control_msgs.action import FollowJointTrajectory
-from control_msgs.msg import JointTolerance
-from trajectory_msgs.msg import JointTrajectoryPoint
+from uwa_cell_motion.simulation_goals import trajectory_goal
 from action_msgs.msg import GoalStatus
 from uwa_cell_description.configuration import load_layout,joint_names,gripper_joint
 from uwa_cell_motion.common import simulation_only
 from uwa_cell_gazebo.charuco_views import Chain
 from match_cooperative_handling.rigid_object import pose_error,interpolate
-from .core import ARMS,CAMERAS,RunStore,GraspGroup,verify,write_json,seal,resource_lease,gripper_profile,measured_open,object_point_height
+from .core import ARMS,RunStore,GraspGroup,verify,write_json,seal,resource_lease,gripper_profile,object_point_height
 from .planning import TaskProblem,grasp_candidates,plan_approach,object_trajectory,grasp_entry,PlannedObjectConstraint,carton_motion_poses,compile_object_recipe
 from .scene import verify_scene
 
@@ -37,29 +34,24 @@ class Simulation(MotionNode):
         super().__init__('task_runner',namespace=namespace,
             cli_args=['--ros-args','-r','/clock:='+namespace+'/clock'])
         self.set_parameters([rclpy.parameter.Parameter('use_sim_time',value=True)])
-        self.ns=namespace;self.directory=Path(scene_directory);self.q={};self.v={};self.joint_received=0.
+        self.directory=Path(scene_directory)
+        self.q={}
         self.cfg=json.loads((self.directory/'scene.json').read_text())['cfg']
         self.motion_arms = (*ARMS, 'left_front') if self.cfg.get('drawing_recipe') else ARMS
-        self.finger_names=[j.get('name') for j in ET.fromstring((self.directory/'robot.urdf').read_text()).findall('joint')
-            if j.get('type')=='revolute' and j.get('name').startswith(ARMS) and '_robotiq_85_' in j.get('name')]
-        if len(self.finger_names)!=12:raise ValueError('Twelve measured right finger joints required')
-        self.guard=None;self.supervisor=None;self.guard_received=0.;self.supervisor_received=0.
-        self.contact=None;self.object=None;self.contact_received=0.;self.object_received=0.;self.images={};self.infos={}
-        self.phase='observe';self.handles=[];self.owned=False;self.measured_peaks={};self.last_artifact_check=0.
+        self.contact=None
+        self.object=None
+        self.phase='observe'
+        self.handles=[]
+        self.pending_goals=[]
         self.create_subscription(JointState,namespace+'/joint_states',self.joints,qos_profile_sensor_data)
-        for topic,key in [('collision_guard/decision','guard'),('collision_supervisor/status','supervisor'),
-                          ('tasks/contacts','contact'),('tasks/object_truth','object')]:
-            self.create_subscription(String,namespace+'/'+topic,lambda msg,k=key:self.message(k,msg),
-                qos_profile_sensor_data if key in ('contact','object') else 10)
-        self.heartbeat_pub=self.create_publisher(String,'tasks/heartbeat',10)
+        for topic,key in [('tasks/contacts','contact'),('tasks/object_truth','object')]:
+            self.create_subscription(String,namespace+'/'+topic,lambda msg,k=key:setattr(self,k,json.loads(msg.data)),
+                qos_profile_sensor_data)
         self.group_pub=self.create_publisher(String,'tasks/group',QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL))
-        self.heartbeat_clock=Clock(clock_type=ClockType.STEADY_TIME)
-        self.create_timer(.1,self.heartbeat,clock=self.heartbeat_clock)
         self.service_clients={key:self.create_client(kind,namespace+'/'+topic) for key,kind,topic in [
-            ('reset',Trigger,'collision_supervisor/reset'),('switch',SwitchController,'controller_manager/switch_controller'),
+            ('switch',SwitchController,'controller_manager/switch_controller'),
             ('list',ListControllers,'controller_manager/list_controllers'),('latch',SetBool,'tasks/grip_latch'),
             ('capture',Trigger,'tasks/camera_capture')]}
-        for arm in self.motion_arms:self.service_clients['stop_'+arm]=self.create_client(Trigger,namespace+'/collision_supervisor/'+arm+'/stop')
         self.actions={name:ActionClient(self,FollowJointTrajectory,namespace+'/'+name+'/follow_joint_trajectory')
             for name in ['rigid_object_controller']+[a+'_gripper_controller' for a in ARMS]}
         # A fixed single executor prevents ready /clock callbacks from piling
@@ -68,25 +60,20 @@ class Simulation(MotionNode):
         self.thread=threading.Thread(target=self.ros_executor.spin,daemon=True);self.thread.start()
 
     def joints(self,msg):
-        self.q=dict(zip(msg.name,msg.position));self.v=dict(zip(msg.name,msg.velocity));self.joint_received=time.monotonic()
-        peaks=self.measured_peaks.setdefault(self.phase,{})
-        for joint,speed in self.v.items():
-            if joint.startswith(ARMS):peaks[joint]=max(peaks.get(joint,0.),abs(speed))
-    def message(self,key,msg):setattr(self,key,json.loads(msg.data));setattr(self,key+'_received',time.monotonic())
-    def image(self,arm,msg):self.images[arm]=msg
-    def info(self,arm,msg):self.infos[arm]=msg
-    def heartbeat(self):
-        if self.owned:
-            if (getattr(self,'stop_directory',self.directory)/'STOP').exists() and not getattr(self,'stop_sent',False):
-                self.stop_sent=True
-                for arm in self.motion_arms:self.service_clients['stop_'+arm].call_async(Trigger.Request())
-            self.heartbeat_pub.publish(String(data=json.dumps(dict(phase=self.phase))))
-    def now(self):return self.get_clock().now().nanoseconds/1e9
+        self.q=dict(zip(msg.name,msg.position))
 
-    def wait(self,predicate,timeout=10.,*,health=False):
+    def now(self):
+        return self.get_clock().now().nanoseconds/1e9
+
+    def check_cancel(self):
+        if (self.stop_directory/'STOP').exists():
+            raise RuntimeError('STOP requested')
+
+    def wait(self,predicate,timeout=10.,*,cancellable=True):
         end=time.monotonic()+timeout
-        while not predicate():
-            if health:self.health()
+        while True:
+            if cancellable:self.check_cancel()
+            if predicate():return
             if time.monotonic()>end:raise TimeoutError('Simulation response timed out')
             time.sleep(.01)
 
@@ -94,10 +81,10 @@ class Simulation(MotionNode):
         client=self.service_clients[key]
         if not client.wait_for_service(timeout_sec=timeout):raise RuntimeError('Missing service '+key)
         # Only this read-only query is replayed after a missing transport reply.
-        # Reset, controller switches, latches and captures are never retried here.
+        # Controller switches, latches and captures are never retried here.
         for attempt in range(2 if key=='list' else 1):
             future=client.call_async(request)
-            try:self.wait(future.done,timeout,health=key=='capture');break
+            try:self.wait(future.done,timeout);break
             except TimeoutError:
                 client.remove_pending_request(future)
                 if key!='list' or attempt:raise
@@ -105,66 +92,10 @@ class Simulation(MotionNode):
         if hasattr(result,'success') and not result.success:raise RuntimeError(result.message)
         return result
 
-    def health(self):
-        now=time.monotonic()
-        if now-self.last_artifact_check>=1.:
-            verify_scene(self.directory);self.last_artifact_check=now
-        if (getattr(self,'stop_directory',self.directory)/'STOP').exists():raise RuntimeError('STOP requested')
-        for channel,limit in [('joint',.2),('guard',.4),('supervisor',.4)]:
-            age=now-getattr(self,channel+'_received')
-            if age>limit:
-                import faulthandler
-                with (getattr(self,'stop_directory',self.directory)/'stale-thread-stacks.txt').open('a') as output:
-                    output.write(f'{channel} stale at monotonic {now}; age {age}\n');output.flush()
-                    faulthandler.dump_traceback(file=output,all_threads=True)
-                raise RuntimeError(f'{channel} reception stale: {age:.6f}s exceeds {limit:.3f}s')
-        if getattr(self, 'drawing_in_air', False) and self.contact.get('supported'):
-            raise RuntimeError('Unexpected support contact during the drawing sequence')
-        if self.owned and set(self.motion_arms).intersection(self.supervisor.get('blocked_arms',[])):
-            raise RuntimeError('Grasp group/owned arm STOP LATCHED')
-        if self.owned and any(abs(self.q.get(j,float('inf'))-q)>.001 or abs(self.v.get(j,float('inf')))>.003
-            for j,q in getattr(self,'obstacles',{}).items()):
-            raise RuntimeError('Unselected obstacle arm moved; remaining task plan invalid')
-
     def connect(self):
-        self.wait(lambda:bool(self.q) and self.guard is not None and self.supervisor is not None
-            and self.object is not None and self.contact is not None,30.)
-        # Discovery of the runner's action/service endpoints can still be in
-        # progress after its first telemetry sample. Require sustained fresh
-        # reception before reset/ownership; keep all armed deadlines unchanged.
-        quiet_since=None
-        def ready():
-            nonlocal quiet_since
-            now=time.monotonic()
-            if any(now-getattr(self,k+'_received')>.1 for k in ('joint','object','contact')):
-                quiet_since=None;return False
-            if quiet_since is None:quiet_since=now
-            return now-quiet_since>=5.
-        self.wait(ready,30.)
-
-    def reset(self):
-        from .planning import actual_names
-        description=(self.directory/'robot.urdf').read_text()
-        required=[j for names in actual_names(description,getattr(self,'layout',load_layout())).values() for j in names]
-        if self.contact and any(any(p.values()) for p in self.contact['pads'].values()):
-            raise RuntimeError('Object contact already exists; explicit supported release is required before a new run')
-        # A single quiet sample is insufficient while startup controllers are
-        # settling. Match the independent guard's measured standstill window.
-        history=[]
-        def settled():
-            now=time.monotonic()
-            if not all(j in self.q and j in self.v and abs(self.v[j])<.003 for j in required):
-                history.clear();return False
-            history.append((now,np.array([self.q[j] for j in required])))
-            while len(history)>1 and history[1][0]<now-.5:history.pop(0)
-            return (now-history[0][0]>=.5 and
-                    np.max(np.ptp([q for _,q in history],axis=0))<=.0009)
-        self.wait(settled,30.)
-        answer=self.call('reset',Trigger.Request())
-        try:self.wait(lambda:not set(self.motion_arms).intersection(self.supervisor.get('blocked_arms',[])),5.)
-        except TimeoutError as error:
-            raise RuntimeError('Owned arms remain interlocked after reset: '+answer.message) from error
-        self.owned=True
+        required=[j for a in self.motion_arms for j in joint_names(a)]
+        required.extend(gripper_joint(a) for a in ARMS)
+        self.wait(lambda:all(j in self.q for j in required) and self.object is not None and self.contact is not None,30.)
 
     def activate_group(self):
         states=self.call('list',ListControllers.Request()).controller
@@ -175,46 +106,49 @@ class Simulation(MotionNode):
         response=self.call('switch',req)
         if not response.ok:raise RuntimeError('Common rigid-object controller activation rejected')
 
-    def follow(self,trajectory,controller='rigid_object_controller',timeout=None):
-        self.health();action=self.actions[controller]
+    def send_goal(self, controller, trajectory):
+        self.check_cancel()
+        action=self.actions[controller]
         if not action.wait_for_server(timeout_sec=5.):raise RuntimeError('Missing action '+controller)
-        if self.cfg.get('drawing_recipe') and controller == 'rigid_object_controller':
-            missing = [j for arm in self.motion_arms for j in joint_names(arm)
-                       if j not in trajectory['joint_names']]
+        future=action.send_goal_async(trajectory_goal(trajectory))
+        self.pending_goals.append(future)
+        return future
+
+    def accept_goals(self, futures):
+        self.wait(lambda:all(f.done() for f in futures),5.)
+        handles=[]
+        for future in futures:
+            handle=future.result()
+            self.pending_goals.remove(future)
+            if handle.accepted:
+                self.handles.append(handle)
+                handles.append(handle)
+        if len(handles)!=len(futures):raise RuntimeError('Trajectory action was rejected')
+        return handles
+
+    def wait_results(self, handles, timeout):
+        results=[handle.get_result_async() for handle in handles]
+        self.wait(lambda:all(f.done() for f in results),timeout)
+        for future in results:
+            response=future.result()
+            if response.status!=GoalStatus.STATUS_SUCCEEDED or response.result.error_code!=0:
+                raise RuntimeError('Action failed: '+response.result.error_string)
+        for handle in handles:
+            self.handles.remove(handle)
+
+    def follow(self,trajectory,controller='rigid_object_controller',timeout=None,*,fixed_positions=None):
+        if self.cfg.get('drawing_recipe') and controller=='rigid_object_controller':
+            missing=[j for arm in self.motion_arms for j in joint_names(arm)
+                     if j not in trajectory['joint_names']]
             if missing:
-                held = [self.q[j] for j in missing]
-                trajectory = dict(trajectory, joint_names=trajectory['joint_names']+missing,
-                    points=[dict(point, positions=list(point['positions'])+held,
+                held=[fixed_positions[j] for j in missing]
+                trajectory = dict(trajectory,joint_names=trajectory['joint_names']+missing,
+                    points=[dict(point,positions=list(point['positions'])+held,
                         **{key:list(point[key])+[0.]*len(missing)
                            for key in ('velocities','accelerations') if key in point})
                         for point in trajectory['points']])
-        goal=FollowJointTrajectory.Goal();goal.trajectory.joint_names=trajectory['joint_names']
-        # Detect an unresponsive actuator during the path, not only at its
-        # final endpoint. Rigid-group telemetry adds the tighter TCP corridor.
-        goal.path_tolerance=[JointTolerance(name=j,position=.005) for j in trajectory['joint_names']]
-        goal.goal_tolerance=[JointTolerance(name=j,position=.001) for j in trajectory['joint_names']]
-        if self.cfg.get('drawing_recipe') and controller == 'rigid_object_controller':
-            if any(abs(self.q[j] - q) > .001 for j,q in zip(
-                    trajectory['joint_names'], trajectory['points'][0]['positions'])):
-                raise RuntimeError('Measured state differs from checked drawing-phase start')
-        for entry in trajectory['points']:
-            point=JointTrajectoryPoint();point.positions=list(entry['positions'])
-            # Supplied derivatives preserve the shared object time law.
-            if 'velocities' in entry:point.velocities=list(entry['velocities'])
-            if 'accelerations' in entry:point.accelerations=list(entry['accelerations'])
-            ns=round(entry['time']*1e9);point.time_from_start.sec=ns//10**9;point.time_from_start.nanosec=ns%10**9
-            goal.trajectory.points.append(point)
-        future=action.send_goal_async(goal);self.wait(future.done,5.,health=True);handle=future.result()
-        if not handle.accepted:raise RuntimeError('Action rejected '+controller)
-        self.handles.append(handle);result=handle.get_result_async()
-        self.wait(result.done,timeout or trajectory['points'][-1]['time']*5+10,health=True)
-        response=result.result()
-        if response.status!=GoalStatus.STATUS_SUCCEEDED or response.result.error_code!=0:
-            raise RuntimeError('Action failed: '+response.result.error_string)
-        self.wait(lambda:all(abs(self.v.get(j,1))<.003 for j in trajectory['joint_names']),5.,health=True)
-        if any(abs(self.q.get(j,float('inf'))-q)>.001 for j,q in zip(trajectory['joint_names'],trajectory['points'][-1]['positions'])):
-            raise RuntimeError('Measured endpoint did not reach the checked common target')
-        self.handles.remove(handle)
+        handles=self.accept_goals([self.send_goal(controller,trajectory)])
+        self.wait_results(handles,timeout or trajectory['points'][-1]['time']*5+10)
 
     def grippers(self,target):
         states=self.call('list',ListControllers.Request()).controller
@@ -223,84 +157,52 @@ class Simulation(MotionNode):
         if activate:
             req=SwitchController.Request();req.activate_controllers=activate;req.strictness=2;req.timeout.sec=5
             if not self.call('switch',req).ok:raise RuntimeError('Gripper activation rejected')
-        # Both fingers advance under the same target schedule. Physical contact
-        # can stop the force-limited fingers before their requested closure.
-        start={a:self.q[gripper_joint(a)] for a in ARMS}
-        profile=gripper_profile([start[a] for a in ARMS],target,self.cfg);duration=profile['duration_s']
+        profile=gripper_profile([self.q[gripper_joint(a)] for a in ARMS],target,self.cfg)
         pending=[]
         for index,arm in enumerate(ARMS):
-            goal=FollowJointTrajectory.Goal();goal.trajectory.joint_names=[gripper_joint(arm)]
-            if target==0:
-                goal.goal_tolerance=[JointTolerance(name=gripper_joint(arm),position=.02,velocity=.003)]
-            for entry in profile['points']:
-                p=JointTrajectoryPoint();p.positions=[entry['positions'][index]]
-                ns=round(entry['time']*1e9);p.time_from_start.sec=ns//10**9;p.time_from_start.nanosec=ns%10**9
-                goal.trajectory.points.append(p)
-            action=self.actions[arm+'_gripper_controller']
-            if not action.wait_for_server(timeout_sec=5.):raise RuntimeError('Gripper action unavailable')
-            pending.append(action.send_goal_async(goal))
-        self.wait(lambda:all(p.done() for p in pending),5.,health=True)
-        handles=[p.result() for p in pending]
-        if not all(h.accepted for h in handles):raise RuntimeError('Gripper goal rejected')
-        self.handles.extend(handles)
-        # A force-limited grip intentionally cannot reach its closed-air angle.
+            trajectory=dict(joint_names=[gripper_joint(arm)],
+                points=[dict(time=p['time'],positions=[p['positions'][index]]) for p in profile['points']])
+            pending.append(self.send_goal(arm+'_gripper_controller',trajectory))
+        handles=self.accept_goals(pending)
+        timeout=profile['duration_s']*5+10
         if target>0:
-            self.wait(lambda:all(all(self.contact['pads'][a].values()) for a in ARMS),duration*5+10,health=True)
+            # Pad contact is the event that commands the physical grip latch.
+            self.wait(lambda:all(all(self.contact['pads'][a].values()) for a in ARMS),timeout)
             self.call('latch',SetBool.Request(data=True))
-            for h in handles:h.cancel_goal_async()
-            preload_until=self.now()+max(2.,max(.8-self.q[gripper_joint(a)] for a in ARMS)/self.cfg['gripper_fine_velocity_rad_s']+2.)
-            wall_deadline=time.monotonic()+180.
-            while self.now()<preload_until:
-                self.health()
-                if time.monotonic()>wall_deadline:raise TimeoutError('Grip preload did not settle')
-                time.sleep(.02)
-            quiet_since=None
-            def stable_contact():
-                nonlocal quiet_since
-                quiet=(all(all(self.contact['pads'][a].values()) for a in ARMS) and
-                    all(abs(v)<.003 for j,v in self.v.items() if '_robotiq_' in j and j.startswith(ARMS)))
-                if not quiet:quiet_since=None;return False
-                if quiet_since is None:quiet_since=self.now()
-                return self.now()-quiet_since>=.3
-            self.wait(stable_contact,30.,health=True)
+            cancellations=[h.cancel_goal_async() for h in handles]
+            self.wait(lambda:all(f.done() for f in cancellations),5.)
+            for handle in handles:
+                self.handles.remove(handle)
+            self.dwell(max(2.,max(.8-self.q[gripper_joint(a)] for a in ARMS)
+                /self.cfg['gripper_fine_velocity_rad_s']+2.),180.)
             write_json(self.stop_directory/'grasp-contact-confirmation.json',dict(
-                source='simulation_contact_telemetry',stable_source_duration_s=self.now()-quiet_since,
-                contacts=self.contact,positions={j:q for j,q in self.q.items() if '_robotiq_' in j and j.startswith(ARMS)},
-                holding_reliability_proved=False))
+                source='simulation_contact_telemetry',contacts=self.contact))
         else:
-            results=[h.get_result_async() for h in handles]
-            self.wait(lambda:all(f.done() for f in results),duration*5+10,health=True)
-            if any(f.result().result.error_code!=0 for f in results):raise RuntimeError('Open gripper action failed')
-            quiet_since=None
-            def open_measured():
-                nonlocal quiet_since
-                if not measured_open(self.finger_names,self.q,self.v):quiet_since=None;return False
-                if quiet_since is None:quiet_since=self.now()
-                return self.now()-quiet_since>=.3
-            try:self.wait(open_measured,8.,health=True)
-            except TimeoutError as error:raise RuntimeError('Actual finger positions did not confirm open grippers') from error
-        for h in handles:
-            if h in self.handles:self.handles.remove(h)
+            self.wait_results(handles,timeout)
 
-    def stop(self):
-        report=dict(arms=list(self.motion_arms),grip_release_commanded=False,confirmed=False)
-        pending=[];errors=[]
-        for h in list(self.handles):
-            try:h.cancel_goal_async()
-            except Exception as error:errors.append('cancel: '+str(error))
-        # Send to every member before waiting; one missing reply must never
-        # prevent requesting the other member's independent hold.
-        for arm in self.motion_arms:
-            try:pending.append(self.service_clients['stop_'+arm].call_async(Trigger.Request()))
-            except Exception as error:errors.append(arm+': '+str(error))
-        if errors:report['request_errors']=errors
-        try:
-            self.wait(lambda:set(self.motion_arms)<=set(self.supervisor.get('held_arms',[])) and
-                time.monotonic()-self.supervisor_received<.4 and time.monotonic()-self.joint_received<.2 and
-                all(abs(self.v.get(j,1))<.003 for a in self.motion_arms for j in joint_names(a)),5.)
-            states=self.call('list',ListControllers.Request()).controller
-            report['confirmed']=all(any(c.name==a+'_collision_hold_controller' and c.state=='active' for c in states) for a in self.motion_arms)
-        except Exception as error:report['error']=str(error)
+    def dwell(self,duration,timeout):
+        end=self.now()+duration
+        self.wait(lambda:self.now()>=end,timeout)
+
+    def cancel(self):
+        report=dict(requested_goals=0,acknowledged_goals=0,errors=[])
+        for future in self.pending_goals:
+            try:
+                self.wait(future.done,2.,cancellable=False)
+                if future.result().accepted:self.handles.append(future.result())
+            except Exception as error:
+                report['errors'].append(str(error))
+        requests=[]
+        for handle in self.handles:
+            try:requests.append(handle.cancel_goal_async())
+            except Exception as error:report['errors'].append(str(error))
+        report['requested_goals']=len(self.handles)
+        try:self.wait(lambda:all(f.done() for f in requests),5.,cancellable=False)
+        except TimeoutError as error:report['errors'].append(str(error))
+        for future in requests:
+            if future.done():
+                try:report['acknowledged_goals']+=bool(future.result().goals_canceling)
+                except Exception as error:report['errors'].append(str(error))
         return report
 
     def close(self):
@@ -311,8 +213,7 @@ def await_review(store,sim,stage,evidence):
     sim.phase=stage
     packet=store.request_review(stage,evidence);end=time.monotonic()+300.
     while time.monotonic()<end:
-        sim.health()
-        if (store.directory/'STOP').exists():raise RuntimeError('STOP requested')
+        sim.check_cancel()
         decision=store.decision(packet)
         if decision:
             store.event('REVIEWED',stage,decision=decision)
@@ -332,19 +233,18 @@ def _run_task(directory,scene_directory,layout_file,namespace,reference):
     if store.state['state']!='CREATED':raise RuntimeError('A run is immutable after start; create a new run directory')
     scene_directory=Path(scene_directory);scene=verify_scene(scene_directory)
     cfg=scene['cfg'];layout=load_layout(layout_file);description=(scene_directory/'robot.urdf').read_text()
-    sim=Simulation(namespace,scene_directory);sim.stop_directory=directory;sim.layout=layout;group=None
+    sim=Simulation(namespace,scene_directory);sim.stop_directory=directory
     drawing = None
     if cfg.get('drawing_recipe'):
         from .contact_drawing import ContactDrawing
         drawing = ContactDrawing(cfg['drawing_recipe'])
     try:
         sim.connect()
-        sim.reset();sim.activate_group()
-        # No pre-existing contact was accepted by reset. Establish the open
-        # start explicitly before generating a wall-straddling approach.
+        sim.activate_group()
+        if any(any(p.values()) for p in sim.contact['pads'].values()):
+            raise RuntimeError('A new grasp needs a box outside the grippers')
         store.event('RUNNING','observe',step='open_unloaded_grippers')
         sim.grippers(0.)
-        sim.obstacles={j:q for j,q in sim.q.items() if j.startswith(('left_front_','left_rear_')) and ('_robotiq_' not in j or j.endswith('robotiq_85_left_knuckle_joint'))}
         for attempt in range(int(cfg['maximum_attempts'])):
             store.event('RUNNING','observe',attempt=attempt+1)
             from .observation import observe
@@ -399,7 +299,7 @@ def _run_task(directory,scene_directory,layout_file,namespace,reference):
             if freshness_delta[0]>.002 or freshness_delta[1]>.0175:
                 store.event('REPLAN_REQUIRED','observe',reason='Object changed after plan review')
                 continue
-            sim.phase='approach';store.event('RUNNING','approach');sim.follow(plan['trajectory'])
+            sim.phase='approach';store.event('RUNNING','approach');sim.follow(plan['trajectory'],fixed_positions=start)
             sim.phase='inspect_pregrasp';store.event('RUNNING','inspect_pregrasp')
             aligned=observe(sim,description,reference,directory/f'alignment-{attempt}')
             delta=pose_error(obj,aligned['T_world_object'])
@@ -412,12 +312,11 @@ def _run_task(directory,scene_directory,layout_file,namespace,reference):
             # Final entry is still pre-grasp. Both Cartesian targets share one
             # interpolation parameter and one combined controller.
             sim.phase='grasp';store.event('RUNNING','grasp')
-            if not sim.contact['supported']:raise RuntimeError('Grasp entry requires a supported object')
             contact_problem=TaskProblem(directory/'contact-plan',description,layout,scene,obj,static=False)
-            entry,_=grasp_entry(contact_problem,dict(sim.q),plan['candidate'],cfg)
+            entry_start=dict(sim.q)
+            entry,_=grasp_entry(contact_problem,entry_start,plan['candidate'],cfg)
             store.event('RUNNING','grasp',step='checked_entry')
-            sim.follow(entry)
-            if not sim.contact['supported']:raise RuntimeError('Contact closure requires a supported object')
+            sim.follow(entry,fixed_positions=entry_start)
             store.event('RUNNING','grasp',step='contact_closure_and_preload')
             sim.grippers(.8)
             # Use visual pose and actual TCPs, not a synthetic attachment.
@@ -433,7 +332,7 @@ def _run_task(directory,scene_directory,layout_file,namespace,reference):
             lifted=poses['lifted']
             sim.phase='move_object';store.event('RUNNING','move_object')
             if drawing:
-                drawing.compile(contact_problem, group, dict(sim.q), obj, directory, health=sim.health)
+                drawing.compile(contact_problem, group, dict(sim.q), obj, directory, check_cancel=sim.check_cancel)
                 lifted = drawing.lifted
                 poses.update(lifted=lifted, placed=obj,
                     lift_m=object_point_height(lifted,scene['lift_reference_point_object_m'])
@@ -442,78 +341,48 @@ def _run_task(directory,scene_directory,layout_file,namespace,reference):
             recipe=compile_object_recipe(contact_problem,group,dict(sim.q),obj,cfg) if (cfg.get('roll_long_axis') or cfg.get('force_comparison_lift')) else None
             if recipe:write_json(directory/'object-recipe.json',seal(recipe))
             trajectory=drawing.trajectories[0] if drawing else recipe['motions']['lift'] if recipe else object_trajectory(contact_problem,group,dict(sim.q),obj,lifted,cfg)
-            truth_before=np.array(sim.object['T_world_object'])
-            write_json(directory/'object-lift.json',trajectory);sim.follow(trajectory, timeout=trajectory['duration_s']*12+20 if drawing else None)
-            truth=np.array(sim.object['T_world_object'])
-            truth_start=truth_before
-            reference=scene['lift_reference_point_object_m']
-            actual_hub=object_point_height(truth,reference)-object_point_height(truth_start,reference)
-            if sim.contact['supported'] or abs(actual_hub-poses['lift_m'])>.002:
-                raise RuntimeError('Actual load pickup was not established')
-            end=sim.now()+cfg['dwell_s'];wall_deadline=time.monotonic()+30.
-            while sim.now()<end:
-                sim.health()
-                if time.monotonic()>wall_deadline:raise TimeoutError('Simulation dwell did not complete')
-                if sim.contact['supported']:raise RuntimeError('Support contact during free hold')
-                time.sleep(.02)
+            carried=poses.get('turned',lifted)
             if drawing:
-                sim.drawing_in_air = True
-                sim.obstacles = {j:q for j,q in sim.obstacles.items()
-                                 if not j.startswith('left_front_') or '_robotiq_' in j}
+                back=drawing.trajectories[-1]
+            elif recipe:
+                back=recipe['motions']['set_down']
+            else:
+                lifted_state=dict(sim.q,**dict(zip(trajectory['joint_names'],trajectory['points'][-1]['positions'])))
+                back=object_trajectory(contact_problem,group,lifted_state,carried,poses['placed'],cfg)
+            write_json(directory/'object-lift.json',trajectory)
+            write_json(directory/'object-set-down.json',back)
+            truth_start=np.array(sim.object['T_world_object'])
+            sim.follow(trajectory,timeout=trajectory['duration_s']*12+20 if drawing else None)
+            truth=np.array(sim.object['T_world_object'])
+            lift_reference=scene['lift_reference_point_object_m']
+            actual_hub=object_point_height(truth,lift_reference)-object_point_height(truth_start,lift_reference)
+            sim.dwell(cfg['dwell_s'],30.)
+            if drawing:
                 for path in drawing.trajectories[1:-1]:
                     store.event('RUNNING','move_object',step=path['phase'])
-                    sim.follow(path, timeout=path['duration_s']*12+20)
-            carried=lifted
+                    sim.follow(path,timeout=path['duration_s']*12+20)
             if 'turned' in poses:
-                # Keep the existing move_object guard phase throughout rotation.
                 store.event('RUNNING','move_object',step='longitudinal_quarter_turn')
                 turn=recipe['motions']['turn']
-                write_json(directory/'object-turn.json',turn);sim.follow(turn)
-                carried=poses['turned']
-                measured=np.asarray(sim.object['T_world_object'])
-                if pose_error(measured,carried)[1]>.0174533 or sim.contact['supported']:
-                    raise RuntimeError('Unsupported quarter-turn orientation was not established')
-            sim.drawing_in_air = False
+                write_json(directory/'object-turn.json',turn)
+                sim.follow(turn)
             sim.phase='set_down';store.event('RUNNING','set_down')
-            back=drawing.trajectories[-1] if drawing else recipe['motions']['set_down'] if recipe else object_trajectory(contact_problem,group,dict(sim.q),carried,poses['placed'],cfg)
-            write_json(directory/'object-set-down.json',back);sim.follow(back, timeout=back['duration_s']*12+20 if drawing else None)
-            sim.wait(lambda:sim.contact['supported'],5.,health=True)
-            if cfg.get('roll_long_axis') and pose_error(sim.object['T_world_object'],poses['placed'])[1]>.0174533:
-                raise RuntimeError('Supported sideways orientation differs from target')
+            sim.follow(back,timeout=back['duration_s']*12+20 if drawing else None)
             release_request=dict(group.record(),release_requested=True)
             sim.group_pub.publish(String(data=json.dumps(release_request,default=lambda v:v.tolist())))
             sim.call('latch',SetBool.Request(data=False));sim.phase='release';store.event('RUNNING','release');sim.grippers(0.)
-            sim.wait(lambda:not any(any(sim.contact['pads'][a].values()) for a in ARMS)
-                and all(sim.q[gripper_joint(a)]<.02 for a in ARMS),10.,health=True)
-            time.sleep(.5)
-            sim.wait(lambda:sim.guard.get('group_stationary') is True,10.,health=True)
-            stationary=all(abs(sim.v.get(j,float('inf')))<.003 for a in ARMS for j in joint_names(a))
-            group.release(supported=bool(sim.contact['supported']),stationary=stationary)
+            group.release()
             sim.group_pub.publish(String(data=json.dumps(group.record(),default=lambda v:v.tolist())))
-            sim.wait(lambda:sim.guard.get('active_grasp_members')==[],5.,health=True)
-            stop_report=sim.stop()
-            if not stop_report['confirmed']:raise RuntimeError('Final resource holds not confirmed')
-            if cfg.get('roll_long_axis') and (not sim.contact['supported'] or
-                    pose_error(sim.object['T_world_object'],poses['placed'])[1]>.0174533):
-                raise RuntimeError('Released carton did not retain supported sideways orientation')
-            write_json(directory/'object-targets.json',seal(poses))
             store.event('DONE','done',group=group.record(),actual_hub_m=actual_hub,
                 asset_origin_hub_m=float(truth[2,3]-truth_start[2,3]),
-                lift_reference_point_object_m=reference,lift_reference_kind=scene['lift_reference_kind'],stop=stop_report,
-                physically_attached=False,assumptions=cfg['simulation_assumptions'],measured_peak_speeds_rad_s=sim.measured_peaks)
-            sim.phase='done';sim.heartbeat();sim.owned=False
+                lift_reference_point_object_m=lift_reference,lift_reference_kind=scene['lift_reference_kind'],
+                physically_attached=False,assumptions=cfg['simulation_assumptions'])
             return store.state
         raise RuntimeError('Review/replanning attempt budget exhausted')
     except BaseException as error:
-        # Preserve the primary fault before stopping changes the diagnosis
-        # to secondary cancellation/runner-loss messages.
         write_json(directory/'stop-diagnostic.json',dict(error=str(error),phase=sim.phase,
-            reception_ages_wall_s={k:time.monotonic()-getattr(sim,k+'_received')
-                for k in ('joint','guard','supervisor','object','contact')},executor_thread_alive=sim.thread.is_alive(),
-            guard=sim.guard,supervisor=sim.supervisor,positions=sim.q,velocities=sim.v,
-            contact=sim.contact,object_truth_evaluation_only=sim.object,measured_peak_speeds_rad_s=sim.measured_peaks))
-        report=sim.stop()
-        store.event('FAILED',sim.phase,error=str(error),stop=report)
+            positions=sim.q,contact=sim.contact,object_truth_evaluation_only=sim.object))
+        store.event('FAILED',sim.phase,error=str(error),cancellation=sim.cancel())
         raise
     finally:
         sim.close();fcntl.flock(lock,fcntl.LOCK_UN);lock.close()

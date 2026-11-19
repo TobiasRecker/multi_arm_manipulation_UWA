@@ -1,5 +1,35 @@
 # Reale Übernahme Motion review,19.11.2026
 
+## Aktuell: Parallelkorrektur vorbereitet, 19.11.2026
+
+- Nutzer hat die besprochene Korrektur mit „approved“ bestätigt. Seine vorherige
+  echte GUI-Freigabe bezog sich noch auf attempt11/seriell: nur RF fuhr ein
+  weiteres Stück, dann Stopp am RR-Zeitvergleich, kein Griff/Kontakt. Danach
+  frischer Snapshot `after-attempt11`: alle vier RUNNING/Normal/STOPPED,
+  Trendruhe bestätigt, rechte Greifer OBJ3/POS3/PRE0/FOR0/SPE16 offen.
+- Tatsächlicher RF-Start jetzt etwa [0,13697; −1,53424; −0,81926; −1,48625;
+  0,68666; −0,65050]rad. Alte Home-/Teilstarts nicht wiederverwenden.
+- Konkreter Abbruchnachweis: ruhender RR Rohabweichung höchstens0,0000474rad,
+  aber konservative Interpolationsunsicherheit0,006293rad durch124ms-Lücke
+  der Driverhistorie. Daher stoppt unveränderte0,005rad-Grenze. Keine reale
+  Positionsabweichung dieser Größenordnung aus dem Fehlertext ableiten.
+- Neuer eigener Driver-Empfänger hält die Historie unabhängig von FCL/RPC-
+  Arbeit aktuell. Profilkorrektur entfernt nur das interne Erzwingen
+  dynamischer Hüllen unter `geometric_only`; volle Geometrie/40mm und alle
+  unabhängigen Fortschrittskombinationen bleiben geprüft. Geschwindigkeit,
+  Frische, Vergleichsgrenzen und native Stopps unverändert. Bei `enforce`
+  bleiben die zusätzlichen unabhängigen Stoppreserven bestehen.
+-35 gezielte Prüfungen PASS; Motionpaket lokal/N100 gebaut, kein Guard- oder
+  Treiberneustart. Passiver N100-Nachweis: tatsächlich150,8ms Hauptthreadpause,
+  RF63/RR79 neue Samples, danach5,6/7,6ms Sourcealter. Maximal konservativ
+  0,001002rad, maximale Zeitklammer29,97ms, keine Clock-/Empfängerfehler.
+- attempt12 bereitet aus frischem Iststart die neue vollständige Parallel-
+  Reviewversion vor. Noch keine weitere Fahrt oder Freigabeanfrage. Nutzer
+  meldete fehlende Aufforderung; klargestellt, dass die vorige verarbeitet
+  war und die neue erst nach erfolgreicher Vorbereitung tatsächlich erscheint.
+- Nachweise `setup/tasks/carton_motion_review_20261119/`; Arbeitsstand
+  `work/carton-motion-review-real-20261119.md` im Zellrepo.
+
 ## Aktuell19.11.2026: Uhrmessung korrigiert, neue Reviewvorbereitung
 
 - Operatorfreigegebeneattempt10 brach vor jedem Arm-/Greiferziel am Clockflag
@@ -316,3 +346,26 @@
   Workspace-Scan gescheitert. EngerBuildnurdesMotionpakets läuft; kein
   Original-/Fremdrepo verändert. ErsteTests dadurchneuesModulnochuninstalliert;
   zusätzlich synthetischeStopbox-Testform korrigiert. Keine Grenzlockerung.
+
+- EngerLyricalBuildlokal5,12s/N1007,59sPASS, keinDienstneustart.35gezielte
+  PrüfungenPASS einschließlichbeiderReservepolitiken, weiterhinabgewiesener
+  geometrischerKollision, blockiertemAufgabenThread undReview-Ausfallfällen.
+  N100passiv190Vergleiche maxraw0,000104rad/maxkonservativ0,000401rad,
+  Zeitklammermax10,01ms, keineClock-/Receiverfehler. Empfänger nahm während
+  Pausenversuch RF96/RR101 weitereSamples auf; Sourcefortschritt≈1,15s
+  verlangt genaue tatsächlichePausendauermessung, bevor daraus ein150ms-
+  Echtzeitnachweis abgeleitet wird. ZweiterpassiverLaufmitZeitmessung läuft.
+
+- Genauzeitiger passiver N100-Empfängerlauf PASS: tatsächlichePause150,785ms,
+  RF63/RR79weitereSamples, Sourcealterdanach5,62/7,57ms, maximalraw0,0000857rad/
+  konservativ0,001002rad/Intervall29,97ms; keineClock-/Receiverfehler. Erstes
+  passivesPausenergebnis nicht als150msZeitnachweisüberinterpretiert.
+- attempt12-Aufrufgenerierung zunächst durchShell-Zitatfehler vorProzessstart
+  abgebrochen, keineHardwareaktion. ExakterGeneratoralsDatei übertragen und
+  Shellsyntaxgeprüft; echteUnitb54fadc37c7e4eec8a05d1ebe741b2db aktiv.
+
+- attempt12 vollständigPASSvorbereitet, beidePhasen Gruppen[RF,RR],
+  keinecoordination_attempts/seriellenRückfälle. Nominell32,1869+8,7850=
+ 40,9719s, Vorbereitungszeit122,678s. Ticketc2dfde11df75406a9f66f104a65f4d4e,
+  Versionb4f798dfcc68ce0069e5aef5fa87f8946006a6401924e5cd397494d724fd3a03.
+  Storependingbestätigt, neue tatsächlicheGUI-Entscheidung angefragt.

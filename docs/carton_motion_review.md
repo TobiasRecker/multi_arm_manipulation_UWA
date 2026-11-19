@@ -31,11 +31,67 @@ bekannte Bereichsfreigabe.
    Änderungen am Tempo verwerfen offene Freigaben und entziehen einer aktiven
    Ausführung die bisherige Freigabe.
 
+## Gespeichertes Kartonprogramm
+
+`carton-supported-v1` speichert das Griffdesign für denselben Avocado-Karton
+und das rechte Armpaar. Die JSON-Datei hält die Griffhöhe relativ zur Wand und
+die bevorzugten IK-Startwerte fest. Der Runner verwendet die vorhandene
+Phasenfolge aus hoher Anfahrt, offener Einfahrt, Bildprüfung, Schließen und
+HOLD. Kartonpose und Gelenkstart sind Eingaben pro Lauf. Bei einer neuen Pose
+werden die Griffpunkte in Weltkoordinaten transformiert und die Anfahrt und
+Einfahrt aus dem aktuellen Armzustand berechnet und geprüft. Die Freigabe
+bezieht sich auf die dabei entstandene Bahnversion. [Programmdefinition](../config/carton_programs/carton-supported-v1.json)
+
+### Zwei Posen im Offline-Vergleich
+
+In beiden Fällen waren das gespeicherte Programm und der Vierarm-Snapshot
+identisch. Bei der zweiten Eingabe wurde die registrierte Pose im Modell um
+50 mm entlang Welt-X verschoben. Beide Griffpunkte folgten dieser Verschiebung.
+
+| Objektpose | Planungszeit | Nominelle Hochanfahrt | Nominelle offene Einfahrt |
+| --- | ---: | ---: | ---: |
+| Aus archiviertem OAK-Bild | 22,07 s | 35,22 s gemeinsam | 8,78 s gemeinsam |
+| Synthetisch um 50 mm verschoben | 21,68 s | 35,31 s gemeinsam | 8,79 s gemeinsam |
+
+Die Modellschranke der Hochanfahrt lag bei 40,13 bzw. 42,04 mm bei
+geforderten 40 mm. Aus diesen zwei Posen lässt sich noch kein Arbeitsbereich
+ableiten. Die echte Bilderkennung und der Kontakt am verschobenen Karton sind
+offen. Bei verdecktem Tischboard oder ungünstiger Sicht kann die Registrierung
+weiterhin einen aktuellen Bildausschnitt oder eine bestätigte Kamerareferenz
+benötigen. [Messwerte und Eingabe-Hashes](../../../setup/tasks/carton_program_reuse_20261119/comparison.json)
+
+Die verschobene Variante lässt sich aus `~/UWA_ws` in der vorhandenen Mock-GUI
+öffnen. Für die Archivpose `plus-50mm` durch `registered` ersetzen. Dann
+**Motion review → Open RViz → Play preview** wählen.
+
+```bash
+python3 src/multi_arm_manipulation_UWA/scripts/ur_power_gui.py \
+    --review-mock setup/tasks/carton_program_reuse_20261119/plus-50mm/gui-mock
+```
+
+Eine andere gespeicherte Pose lässt sich aus `~/UWA_ws` mit dem gleichen
+Programm prüfen. `$snapshot`, `$pose` und `$new_run` bezeichnen den
+gespeicherten Vierarmzustand, die Objektpose und ein neues Ergebnisverzeichnis.
+
+```bash
+source setup/lyrical_env.bash
+python3 src/multi_arm_manipulation_UWA/tools/run_carton_cycle.py \
+    --plan-only --program carton-supported-v1 --observations "$snapshot" \
+    --object-pose "$pose" --output "$new_run"
+```
+
+`--plan-only` schreibt beide Bahnbündel und `workflow.json` mit Programmversion,
+Eingabe-Hashes und Phasenstatus. Es verwendet das Pilottempo von 33⅓ % für
+die Modellrechnung. Für eine Variante des Griffdesigns eine neue JSON mit
+eigenem Namen und passender `program_id` unter `config/carton_programs/` ablegen
+und die vollständige Anfahrt und Einfahrt prüfen. Für eine neue Kartonpose
+genügt die geänderte Pose als Eingabe.
+
 ## Ablauf für den planenden Agenten
 
 Der N100 verwaltet Entscheidungen in `~/.local/state/uwa-motion-review`.
-Der Kartonablauf läuft dort in der Zellumgebung. Rezept, native OAK-Aufnahme,
-Metadaten und zugehörige Intrinsics vorab wie im
+Der Kartonablauf läuft dort in der Zellumgebung. Native OAK-Aufnahme, Metadaten
+und zugehörige Intrinsics vorab wie im
 [realen Kartonablauf](carton_supported_grasp.md) bereitstellen. Das
 Registrierungsfoto nach der Bereichsfreigabe dieser Sitzung aufnehmen.
 Für versetzte Kartons akzeptiert der Zyklus die bestehenden Registrierungsoptionen
@@ -51,9 +107,13 @@ anwesenden Personen abstimmen.
 
 ```bash
 python3 tools/run_carton_cycle.py --output "$run" --image "$image" --metadata "$metadata" \
-    --intrinsics "$intrinsics" --recipe "$recipe" --risk "$risk" --reason "$assessment" --execute
+    --intrinsics "$intrinsics" --program carton-supported-v1 \
+    --risk "$risk" --reason "$assessment" --execute
 ```
 
+Der Aufruf mit `--program` ist lokal geprüft. Für den Einsatz auf dem N100
+steht die Übernahme des neuen Quellstands aus. Der dort installierte Runner
+verwendet `--recipe "$recipe"`.
 `risk` ist `low`, `medium` oder `high`. Ohne Einschätzung ist die Bedienperson
 gefragt. Das Werkzeug bereitet beide vollständigen Fahrphasen vor. Während
 einer offenen Entscheidung wartet derselbe Prozess und prüft anschließend
@@ -62,9 +122,11 @@ Holds wird nur mit dem zusätzlichen Argument `--start-ros-programs` in die
 Bewertung aufgenommen und erfordert die ausdrückliche Bedienentscheidung.
 Er darf das bereits geladene External-Control-Programm mit Play starten.
 Power, Bremsen und Programmvorbereitung bleiben im separaten Betriebsablauf.
-Mit `--registration-directory` kann eine erfolgreiche Registrierung desselben
-aktuellen Bildsatzes nach SHA-Prüfung aller gebundenen Quellen weiterverwendet
-werden. Der Iststart wird trotzdem neu aufgenommen. `--path-budget-s` erhöht
+Mit `--registration-directory` und `--recipe` am ursprünglichen Rezeptpfad
+kann eine erfolgreiche Registrierung desselben aktuellen Bildsatzes nach
+SHA-Prüfung aller gebundenen Quellen weiterverwendet werden. Für einen Lauf
+aus `--program` liegt dieses Rezept im Unterordner `recipe/` des Laufs.
+Der Iststart wird trotzdem neu aufgenommen. `--path-budget-s` erhöht
 nur die verfügbare Offline-Rechenzeit, keine Fahrgeschwindigkeit.
 Eine Ablehnung oder Neuplanungsanforderung beendet
 diesen Versuch. Für eine geänderte Bahn ein neues Ausgabeverzeichnis wählen.
@@ -110,6 +172,20 @@ einer offenen Freigabesitzung separat öffnen. [Bedienung und Export](ur_power_g
 | Vor und während Bewegung | Frischer Iststart und native Zustände, Programm, Modell, Greifer, Ressourcenzuordnung und Betriebsruhe. Guard, Supervisor und Watchdog begleiten die Ausführung. Bahnabweichung, Geschwindigkeitsüberschreitung und unerwarteter Kraftwechsel bei der offenen Einfahrt können stoppen. |
 | Stillstand und Leerlauf | Der Kartonpilot verwendet die bestehende Freigabe über Positionstrend und Positionsspanne. Bei Kontakt, möglicher Fremdbewegung oder unbestätigter Lage bleibt die Schutzpflicht aktiv. Ein freier Leerlauf setzt einen nachgewiesenen exklusiven Sperrmechanismus für sämtliche Fahrquellen voraus. Der reale N100 hat direkte ROS- und Pendantquellen. Dort bleibt der Schutz bewaffnet. |
 
+Der Parallelprüfer verwendet die im Betriebsprofil gewählte Reservepolitik.
+Bei `geometric_only` bleiben die vollständige Geometrieprüfung, der
+40-mm-Modellpuffer und die Prüfung aller unabhängigen Armfortschritte aktiv;
+es werden keine zusätzlichen Brems-/Latenzhüllen erzwungen. Bei `enforce`
+werden diese Hüllen weiterhin berücksichtigt. Gemeinsame Gruppen erhalten
+denselben Startzeitpunkt. Die realen Geschwindigkeits-, Frische-, Abweichungs-
+und nativen UR-Stopps bleiben in beiden Modi aktiv.
+
+Der Aufgabenprozess empfängt Driver-JointStates über einen eigenen Empfänger,
+damit Geometriearbeit und Dienstaufrufe die Messhistorie nicht unterbrechen.
+Gepufferte Daten müssen weiterhin ihre ursprünglichen Zeitstempel und die
+unveränderten Frische-/Vergleichsgrenzen erfüllen; ein Empfängerfehler stoppt.
+Die Reviewidentität bindet auch diesen Empfänger und den Uhrabgleich.
+
 Die GUI-Prüfsumme bezieht sich auf die vorgelegten Sollbahnen. Eine Abweichung
 eines realen Arms innerhalb seines geprüften Fortschrittskorridors ist möglich.
 Die 40-mm-Modellreserve des aktuellen Kartonprofils ist geometrisch. Die neue
@@ -153,7 +229,9 @@ zeigt die Wahl des Zeitplans anhand der konfigurierten Stoppannahmen:
 | Dieselben rechten Arme, Offlinebeispiel bei 10 % | Die Hochanfahrt bleibt seriell. Die Einfahrt passt gemeinsam, einschließlich Stoppannahmen mit mindestens 56 mm Modellabstand. Nominal 23,28 s gemeinsam gegenüber 46,53 s seriell **bei denselben 10 %**. |
 | Archivierte Diagonalfahrt, links vorne und rechts hinten | Beide historischen Bahnen passen in eine gemeinsame Gruppe. 18,75 s nominelle Gruppenzeit, 37,50 s nacheinander. |
 
-Die Modellwerte beschreiben die archivierten Startzustände. Eine negative
+Die Modellwerte beschreiben die archivierten Startzustände und die vor der
+Profilkorrektur zusätzlich erzwungenen Stopphüllen. Sie sind kein aktueller
+Nachweis für serielle Planung unter `geometric_only`. Eine negative
 untere Schranke bedeutet, dass der Nachweis für diese Variante scheitert.
 Die Referenzdateien liegen im [lokalen Ergebnisordner](../../../setup/tasks/carton_motion_review_20261119/).
 

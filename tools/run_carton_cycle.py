@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare and review the whole supported carton approach. Real execution is explicit."""
+"""Run the supported carton program or prepare its approach from offline inputs."""
 import argparse
 from contextlib import contextmanager
 from datetime import datetime
@@ -14,7 +14,7 @@ import time
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "uwa_cell_tasks"))
 from uwa_cell_tasks.carton_review import contact_component, current_capture, entry_photo, motion_packet, motion_timing, read_json
-from uwa_cell_tasks.motion_review import ReviewStore, TASK, caps, digest
+from uwa_cell_tasks.motion_review import ReviewStore, START_PERCENT, TASK, caps, digest
 
 
 class CaptureUnavailable(ValueError):
@@ -30,13 +30,21 @@ def atomic_json(path, data):
 def arguments():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--output", type=Path, required=True)
-    ap.add_argument("--execute", action="store_true")
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--execute", action="store_true")
+    mode.add_argument("--plan-only", action="store_true",
+                      help="Prepare and check both approach phases from files without connecting to the cell")
+    recipe = ap.add_mutually_exclusive_group()
+    recipe.add_argument("--program", help="Saved carton program name from config/carton_programs")
+    recipe.add_argument("--recipe", type=Path, help="Previously generated carton geometry/contact recipe")
+    ap.add_argument("--observations", type=Path, help="Saved arm observations for --plan-only")
+    ap.add_argument("--object-pose", type=Path, help="Saved carton pose for --plan-only")
     ap.add_argument("--close-after-review", action="store_true")
     ap.add_argument("--visual-confirmed", action="store_true",
                     help="Agent inspected this actual post-entry image")
     ap.add_argument("--start-ros-programs", action="store_true",
                     help="Include explicit unloaded regular startup under verified holds in this review")
-    for name in ("image", "metadata", "intrinsics", "recipe", "entry-image", "entry-metadata"):
+    for name in ("image", "metadata", "intrinsics", "entry-image", "entry-metadata"):
         ap.add_argument("--" + name, type=Path)
     ap.add_argument("--registration-directory", type=Path, help="Reuse a successful registration only when every bound source and current capture is unchanged")
     ap.add_argument("--path-budget-s", type=float, help="Offline path-search time per candidate; no change to execution speed")
@@ -54,11 +62,23 @@ def arguments():
     args = ap.parse_args()
     if bool(args.risk) != bool(args.reason and args.reason.strip()):
         ap.error("Provide --risk and a nonempty --reason together")
-    if args.close_after_review:
+    if args.plan_only:
+        if not (args.observations and args.object_pose and (args.program or args.recipe)):
+            ap.error("Offline planning needs --observations, --object-pose and --program or --recipe")
+        if any((args.close_after_review, args.start_ros_programs, args.visual_confirmed, args.risk,
+                args.image, args.metadata, args.intrinsics, args.entry_image, args.entry_metadata,
+                args.registration_directory, args.camera_reference_pose, args.photo_reference,
+                args.verification_image, args.verification_metadata, args.planar_texture, args.roi, args.face_roi)):
+            ap.error("Live capture, review and execution options are invalid with --plan-only")
+    elif args.observations or args.object_pose:
+        ap.error("--observations and --object-pose require --plan-only")
+    elif args.close_after_review:
         if not (args.execute and args.entry_image and args.entry_metadata):
             ap.error("Contact needs --execute, --entry-image and --entry-metadata")
-    elif not all((args.image, args.metadata, args.intrinsics, args.recipe)):
-        ap.error("Approach needs --image, --metadata, --intrinsics and --recipe")
+    elif not all((args.image, args.metadata, args.intrinsics, args.program or args.recipe)):
+        ap.error("Approach needs --image, --metadata, --intrinsics and --program or --recipe")
+    elif args.program and args.registration_directory:
+        ap.error("Reusing a registration requires --recipe with the original hardware.urdf path")
     return args
 
 
@@ -161,37 +181,26 @@ class Workflow:
                 raise RuntimeError("Review revoked before completion")
 
 
-def approach(flow, args, store):
+def resolve_recipe(flow, args):
+    if not getattr(args, "program", None):
+        return args.recipe, .15
+    recipe = flow.out / "recipe"
+    flow.phase("prepare_recipe", "prepare_carton_recipe.py", "--program", args.program,
+               "--config", args.config, "--output", recipe)
+    program_file = recipe / "program.json"
+    raw = program_file.read_bytes()
+    program = json.loads(raw)
+    flow.report["program"] = dict(id=program["program_id"], path=str(program_file), sha256=digest(raw))
+    return recipe, program["pregrasp_m"]
+
+
+def prepare_approach(flow, args, joint, tcp, recipe, observations, object_pose, pregrasp_m):
     out = flow.out
-    status = store.status()
-    if not status["area_released"] or not status.get("area_released_at"):
-        raise ValueError("Release the physical work area in UWA Robot Power before acquiring the scene")
-    current_capture(args.image, args.metadata, status["area_released_at"], time.time())
-    if getattr(args,"verification_image",None):current_capture(args.verification_image,args.verification_metadata,status["area_released_at"],time.time())
-    flow.report["scene_session"] = status["session_id"]
-    speed = status["settings"]["speed_percent"]
-    joint, tcp = caps(speed)
-    flow.phase("snapshot", "prepare_carton_hardware.py", "--observe", "--stationarity-config", args.config, "--output", out/"snapshot")
-    if getattr(args,"registration_directory",None):
-        required=[args.image,args.metadata,args.intrinsics,args.recipe/"hardware.urdf",REPO/"tools/register_carton_from_oak.py"]
-        if getattr(args,"verification_image",None):required.extend([args.verification_image,args.verification_metadata])
-        flow.report["reused_registration"]=reuse_registration(args.registration_directory,out/"registration",required)
-        flow.save()
-    else:
-        flow.phase("registration", "register_carton_from_oak.py", "--image", args.image,
-                   "--metadata", args.metadata, "--intrinsics", args.intrinsics, "--description",
-                   args.recipe/"hardware.urdf", "--output", out/"registration",
-                   *(["--camera-reference-pose", args.camera_reference_pose] if args.camera_reference_pose else []),
-                   *(["--planar-texture"] if getattr(args,"planar_texture",False) else []),
-                   *(["--photo-reference", args.photo_reference] if getattr(args,"photo_reference",None) else []),
-                   *(["--verification-image",args.verification_image,"--verification-metadata",args.verification_metadata]if getattr(args,"verification_image",None)else []),
-                   *(["--roi", *args.roi] if args.roi else []),
-                   *(["--face-roi", *args.face_roi] if args.face_roi else []))
-    flow.phase("plan_high", "prepare_carton_pregrasp.py", "--observations", out/"snapshot/observations.json",
-               "--object-pose", out/"registration/object-pose.json", "--contact-design", args.recipe/"contacts.json",
-               "--contact-scene", args.recipe/"scene.json", "--config", args.config, "--pregrasp-m", ".15",
+    flow.phase("plan_high", "prepare_carton_pregrasp.py", "--observations", observations,
+               "--object-pose", object_pose, "--contact-design", recipe/"contacts.json",
+               "--contact-scene", recipe/"scene.json", "--config", args.config, "--pregrasp-m", pregrasp_m,
                "--output", out/"high-plan",
-               *(["--path-budget-s",args.path_budget_s]if getattr(args,"path_budget_s",None)else []))
+               *(["--path-budget-s", args.path_budget_s] if getattr(args, "path_budget_s", None) else []))
     evidence = read_json(out/"high-plan/evidence.json")
     if not evidence.get("path"):
         raise ValueError("High approach has no checked path: "+str(evidence.get("status"))+"; inspect high-plan/evidence.json")
@@ -203,9 +212,54 @@ def approach(flow, args, store):
     runners = [("high", "run_carton_pregrasp.py", "--evidence", out/"high-plan"),
                ("entry", "run_carton_open_entry.py", "--plan", out/"entry-plan/result.json")]
     paths = [out/"review-high.json", out/"review-entry.json"]
-    for (name, tool, source, value), bundle in zip(runners, paths):
+    for (name, tool, source, value), bundle in zip(runners, paths, strict=True):
         flow.phase("prepare_"+name, tool, source, value, "--prepare-reviewed", bundle, "--command-velocity",
                    joint, "--tcp-speed-m-s", tcp, "--output", out/("prepared-"+name))
+    return runners, paths
+
+
+def plan_offline(flow, args):
+    joint, tcp = caps(START_PERCENT)
+    observations, object_pose = args.observations.resolve(), args.object_pose.resolve()
+    flow.report["offline_inputs"] = {
+        key: dict(path=str(path), sha256=digest(path.read_bytes()))
+        for key, path in (("observations", observations), ("object_pose", object_pose))
+    }
+    recipe, pregrasp_m = resolve_recipe(flow, args)
+    _, paths = prepare_approach(flow, args, joint, tcp, recipe, observations, object_pose, pregrasp_m)
+    flow.report.update(success=True, phase="OFFLINE_APPROACH_PREPARED", speed_percent=START_PERCENT,
+                       review_bundles=[str(path) for path in paths])
+
+
+def approach(flow, args, store):
+    out = flow.out
+    status = store.status()
+    if not status["area_released"] or not status.get("area_released_at"):
+        raise ValueError("Release the physical work area in UWA Robot Power before acquiring the scene")
+    current_capture(args.image, args.metadata, status["area_released_at"], time.time())
+    if getattr(args,"verification_image",None):current_capture(args.verification_image,args.verification_metadata,status["area_released_at"],time.time())
+    flow.report["scene_session"] = status["session_id"]
+    speed = status["settings"]["speed_percent"]
+    joint, tcp = caps(speed)
+    recipe, pregrasp_m = resolve_recipe(flow, args)
+    flow.phase("snapshot", "prepare_carton_hardware.py", "--observe", "--stationarity-config", args.config, "--output", out/"snapshot")
+    if getattr(args,"registration_directory",None):
+        required=[args.image,args.metadata,args.intrinsics,recipe/"hardware.urdf",REPO/"tools/register_carton_from_oak.py"]
+        if getattr(args,"verification_image",None):required.extend([args.verification_image,args.verification_metadata])
+        flow.report["reused_registration"]=reuse_registration(args.registration_directory,out/"registration",required)
+        flow.save()
+    else:
+        flow.phase("registration", "register_carton_from_oak.py", "--image", args.image,
+                   "--metadata", args.metadata, "--intrinsics", args.intrinsics, "--description",
+                   recipe/"hardware.urdf", "--output", out/"registration",
+                   *(["--camera-reference-pose", args.camera_reference_pose] if args.camera_reference_pose else []),
+                   *(["--planar-texture"] if getattr(args,"planar_texture",False) else []),
+                   *(["--photo-reference", args.photo_reference] if getattr(args,"photo_reference",None) else []),
+                   *(["--verification-image",args.verification_image,"--verification-metadata",args.verification_metadata]if getattr(args,"verification_image",None)else []),
+                   *(["--roi", *args.roi] if args.roi else []),
+                   *(["--face-roi", *args.face_roi] if args.face_roi else []))
+    runners, paths = prepare_approach(flow, args, joint, tcp, recipe, out/"snapshot/observations.json",
+                                     out/"registration/object-pose.json", pregrasp_m)
     asset = read_json(REPO/"uwa_cell_description/assets/carton_avocado_v1/asset.json")
     meta, preview = motion_packet(paths, asset["dimensions_m"], speed, args.risk or "high",
                                   args.reason or "Operator review requested for this approach.",
@@ -265,8 +319,9 @@ def close_after_entry(flow, args, store):
 def main():
     args = arguments()
     out = args.output.resolve()
-    if not args.execute:
-        print(json.dumps(dict(executed=False, phases=["snapshot", "registration","plan_high","plan_entry",
+    if not (args.execute or args.plan_only):
+        print(json.dumps(dict(executed=False, phases=[*(["prepare_recipe"] if args.program else []),
+              "snapshot", "registration","plan_high","plan_entry",
               "prepare_high","prepare_entry","motion_review","high","entry",
               "actual_image_review","contact_review","close","hold"])))
         return 0
@@ -283,16 +338,19 @@ def main():
                       "Use the original explicit supported-grasp contact procedure for this run.", file=sys.stderr)
                 return 1
         else:
-            report = dict(success=False, execute=True, started_wall=datetime.now().astimezone().isoformat(),
+            report = dict(success=False, execute=args.execute, started_wall=datetime.now().astimezone().isoformat(),
                           started_monotonic_s=time.monotonic(), events=[], loaded_motion=False)
         flow = Workflow(out, report)
         store = None
         try:
-            store = ReviewStore()
-            if args.close_after_review:
-                close_after_entry(flow,args,store)
+            if args.plan_only:
+                plan_offline(flow, args)
             else:
-                approach(flow,args,store)
+                store = ReviewStore()
+                if args.close_after_review:
+                    close_after_entry(flow, args, store)
+                else:
+                    approach(flow, args, store)
         except CaptureUnavailable as error:
             report.update(phase="WAITING_VISUAL_REVIEW", last_image_error=str(error))
             report["events"].append(dict(phase="IMAGE_REJECTED_BEFORE_CONTACT", error=str(error)))
@@ -301,7 +359,8 @@ def main():
             stage = "contact" if args.close_after_review else "motion"
             if store is not None and not report.get(stage+"_review"):
                 store.record_blocker(str(out), str(error) or "Interrupted")
-            report.update(success=False, phase="STOPPED_NO_AUTOMATIC_RECOVERY", error=str(error) or "Interrupted")
+            phase = "OFFLINE_APPROACH_REJECTED" if args.plan_only else "STOPPED_NO_AUTOMATIC_RECOVERY"
+            report.update(success=False, phase=phase, error=str(error) or "Interrupted")
         finally:
             grasp = out/"grasp/result.json"
             if args.close_after_review and grasp.exists():
@@ -311,7 +370,10 @@ def main():
                 report["closing_control_result_success"] = contact.get("success", False)
             flow.save()
     print(json.dumps({k:v for k,v in report.items() if k != "events"}, indent=2))
-    expected = "SUPPORTED_CONTACT_HELD" if args.close_after_review else "WAITING_VISUAL_REVIEW"
+    if args.plan_only:
+        expected = "OFFLINE_APPROACH_PREPARED"
+    else:
+        expected = "SUPPORTED_CONTACT_HELD" if args.close_after_review else "WAITING_VISUAL_REVIEW"
     return 0 if report["phase"] == expected else 1
 
 

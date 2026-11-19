@@ -244,7 +244,7 @@ class Fixture:
         return Trace()
 
 
-@pytest.mark.parametrize('mode',['success','reject','missing_ack','revoke','revoke_queued','revoke_first',
+@pytest.mark.parametrize('mode',['success','slow_geometry','reject','missing_ack','revoke','revoke_queued','revoke_first',
                                 'jaw_closed','wrench_fault'])
 def test_review_to_two_controller_results_without_ros(monkeypatch,tmp_path,mode):
     p=problem()
@@ -291,6 +291,16 @@ def test_review_to_two_controller_results_without_ros(monkeypatch,tmp_path,mode)
         def get_clock(self):return Box(now=lambda:Box(nanoseconds=time.time_ns()))
     args=Box(review_id=release,reviewed_sha256=sha,start_ros_programs=False)
     report={}
+    if mode=='slow_geometry':
+        original_monitor=execution._monitor
+        delayed={'done':False}
+        def slow_monitor(client,*args,**kwargs):
+            if kwargs.get('geometry',True) and not delayed['done']:
+                assert set(client.handles)==set(ARMS)
+                delayed['done']=True
+                time.sleep(.13)  # exceeds acceptance window, still before common start
+            return original_monitor(client,*args,**kwargs)
+        monkeypatch.setattr(execution,'_monitor',slow_monitor)
     try:
         bundle=read_bundle(path,sha,'entry',p,source)
         rc=execution.run_bundle(p,bundle,args,tmp_path,report,client_type=Client,observer_type=fixture.Observer,
@@ -309,7 +319,7 @@ def test_review_to_two_controller_results_without_ros(monkeypatch,tmp_path,mode)
             times=np.array([row['received'] for row in native])
             assert len(times)>=10 and np.all(np.diff(times)>0) and times[-1]-times[0]>=.45
         final=store.finish(release,rc==0)
-        if mode=='success':
+        if mode in ('success','slow_geometry'):
             assert rc==0 and final=='done' and report['segments'][0]['executed'],report.get('error')
             assert fixture.moved==set(ARMS)
             for arm in ARMS:
@@ -332,3 +342,13 @@ def test_review_to_two_controller_results_without_ros(monkeypatch,tmp_path,mode)
                 assert 'revoked' in report['error'] and not fixture.moved
     finally:
         fixture.channel.close()
+
+
+def test_ready_but_late_acceptance_does_not_relax_deadline(monkeypatch):
+    monkeypatch.setattr(execution.time,'monotonic',lambda:1.)
+    client=Box(pending={'right_front':completed(Box(accepted=True))},handles={},
+               get_clock=lambda:Box(now=lambda:Box(nanoseconds=0)))
+    segment={'goal_response_observed_monotonic_s_by_arm':{},'goal_accept_observed_monotonic_s_by_arm':{}}
+    with pytest.raises(TimeoutError,match='timely group acceptance'):
+        execution._accept_responses(client,{},segment,.9,200_000_000)
+    assert not client.handles
