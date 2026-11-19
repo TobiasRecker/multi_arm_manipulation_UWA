@@ -53,6 +53,11 @@
   in der [N100-Anleitung](../../setup/n100/ur-runtime/README.md).
   [Messwerte, Quellen und Prüfplan](work/n100-ur-runtime-20261119.md).
 
+## Neuer Kartonzyklus mit N100 beauftragt,19.11.2026
+
+- Nutzer bestätigt ausdrücklich: Karton korrekt gegriffen. Beauftragt Loslassen auf Tisch, Hochfahren, Home und vollständige Wiederholung mit Gesamtzeitmessung; UR-Steuerung diesmal auf N100. Dies erlaubt gezieltes Lösen und anschließende unbeladene Betriebsübergabe, keine geladene unabhängige Armfahrt.
+- Karton inzwischen tatsächlich losgelassen: beide OBJ3/POS3/PRE0/FOR0/SPE16. Nach kurzzeitigem Ruhefehler bei Öffnung aktuelle frische Holds/Stillstände bestätigt. Alle6eigenen Hardwaredienste auf ROSmini kontrolliert beendet. N100-RT-Runtime aktuell gebaut (18Pakete/21,1s), echte Dienste dort noch inaktiv. External-Control-Hostwechsel aller4am Pendant auf192.168.8.5 ist beimNutzer angefragt und abzuwarten. Aktiver Stand `work/carton-cycle-n100-20261119.md`, Zeit-/Ausführungsdaten `setup/tasks/carton_cycle_n100_20261119/`.
+
 ## Aktueller realer Kartongriff,19.11.2026: Kontakt gehalten, RR-Programm gestoppt
 
 - **Beide rechten Greifer geschlossen am aufliegenden Karton. Keine unabhängigen
@@ -573,8 +578,35 @@
   bestand den separaten FK-/Zeitaudit, Modellzeit 395,080 s,
   Spitzengeschwindigkeit 0,096583 rad/s. Starter in lokalem Terminaltest
   mit simuliertem Client geprüft, einschließlich Exitcode-Erhalt,
-  sichtbarer Ausgabe, Timing und IDE-Vorbereitung. Der echte
-  Kompatibilitäts- und Zeitvergleich steht noch aus.
+  sichtbarer Ausgabe, Timing und IDE-Vorbereitung. Der anschließende
+  Gemini-Lauf ist im folgenden Abschnitt ausgewertet.
+
+## Gemini-Lauf geprüft und Nikolaushaus vorbereitet, 2026-11-19
+
+- `box_gemini_20261119/session-50t0fawy` enthält einen neuen Offline-Lauf
+  mit Gemini 4 Neon (High). Drei Kreise à 22 mm, gemeinsamer Rückweg und
+  Spitzengeschwindigkeit 0,096583 rad/s bestätigt. Erneuter Audit auf
+  temporärer Kopie bytegleich. Phasen und Programm entsprechen exakt der
+  lokalen Vorabprüfung derselben Eingabe. Modellausgabe und Rohprotokoll
+  zeigen eine Neuberechnung mit dem vorhandenen Planer. Kein Hinweis auf
+  Kopieren alter Laufartefakte im sichtbaren Trace. Der bekannte
+  Gegenwand-Umweg ist als Suchstart im Toolkit enthalten.
+- 82,086 s ausgeführter Planungsbefehl, 344,544 s Entwicklungszeit ab
+  Logger-Init und 395,080 s Modellzeit. Nicht direkt mit dem ersten
+  Agententest zu vergleichen, der neuen Modellcode verlangte.
+  [Auswertung und Quellen](docs/agent_trials/REVIEW_GEMINI_02.md).
+- Nutzer möchte das Haus vom Nikolaus statt des Unterseitenkreises.
+  Der dritte Test lässt beide 22-mm-Seitenkreise stehen und verlangt einen
+  durchgängigen Acht-Kanten-Zug auf `z_min`. `start_gemini_trial.py --case
+  nikolaus` bereitet einen separaten Checkout ohne Git-Remote und
+  einen frischen Prompt vor. Historische Resultate sind kein
+  Testkontext. Modellquelle und Offline-Umgebung bleiben geteilt.
+- Der Hauptrepo-Prüfer `tools/check_nikolaus_trial.py` prüft die Form
+  unabhängig anhand der Gelenkinterpolanten und FK. Synthetischer
+  Referenzzug bestanden, Testabweichungen und früheren Drei-Kreis-Lauf
+  abgelehnt. Normale Offline-CLI in der Quellkopie mit Seitenkreis und
+  Audit geprüft. Der neue Agent implementiert das Haus.
+  [Einstieg für den Bediener](docs/agent_trials/NIKOLAUS_TRIAL_03.md).
 
 ## Neuplanung des Gazebo-Drei-Kreis-Ablaufs, 2026-11-18
 

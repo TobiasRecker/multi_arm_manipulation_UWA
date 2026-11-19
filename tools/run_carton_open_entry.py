@@ -142,11 +142,16 @@ def main():
                 if not answer.success:raise RuntimeError(answer.message)
                 client.wait(lambda:arm not in client.guard['blocked_arms'] and arm not in client.supervisor['blocked_arms'],3.,health=True);client.health();record['other_holds']=retained_holds(client.supervisor,set(ROBOT_IDS)-{arm});save()
                 if not all(record['other_holds'][k]for k in ['resource_holds_confirmed','latches_confirmed']):raise RuntimeError('Other holds unconfirmed')
-                client.force_reference=np.median([r['force']for r in ob.snapshot()[-12:]],axis=0);client.monitor_open=True
+                # Native wrench delta is a near-carton entry/retreat cue, not
+                # a gravity-compensated load monitor for unloaded Home turns.
+                if plan.get('motion_kind')!='unloaded_home':
+                    client.force_reference=np.median([r['force']for r in ob.snapshot()[-12:]],axis=0)
+                client.monitor_open=True
                 parts=[s for s in plan['segments']if s['arm']==arm]
                 p.current_primitive=[s['primitive']for s in parts]
                 request=p.normalize(dict(start=dict(client.positions),goals={arm:parts[-1]['primitive']['positions'][-1]}))
-                execution=dict(stage='OPEN_ALIGN_ENTRY_'+arm,record_path=str(out/(arm+'-ALIGN-ENTRY.json')),phase_count=0,guard_stops=0)
+                label='_'.join(s['name']for s in parts)
+                execution=dict(stage='OPEN_'+label+'_'+arm,record_path=str(out/(arm+'-'+label+'.json')),phase_count=0,guard_stops=0)
                 report['phase']=execution['stage'];report['arm_commands'].append(dict(arm=arm,phases=[s['name']for s in parts],goal=request['goals'][arm]));save()
                 completed=follow(p,client,dict(request=request,trajectory=dict(waypoints=[q for s in parts for q in s['primitive']['positions']])),execution)
                 dump(execution['record_path'],execution)
@@ -164,7 +169,8 @@ def main():
             finally:
                 ob.close();dump(out/(arm+'-native.json'),dict(error=ob.error,records=ob.snapshot()))
                 if client is not None:client.destroy_node()
-        report.update(success=True,phase='BOTH_OPEN_AT_WALL_HELD_NO_CLOSE');save();return 0
+        phase={'unloaded_retreat':'BOTH_OPEN_AT_HIGH_HELD_NO_CONTACT','unloaded_home':'BOTH_OPEN_AT_HOME_HELD'}.get(plan.get('motion_kind'),'BOTH_OPEN_AT_WALL_HELD_NO_CLOSE')
+        report.update(success=True,phase=phase);save();return 0
 
 
 if __name__=='__main__':raise SystemExit(main())

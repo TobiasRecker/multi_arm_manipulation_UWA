@@ -19,14 +19,19 @@ REPO = Path(__file__).resolve().parents[1]
 WORKSPACE = REPO.parents[1]
 DOCS = REPO / "docs/agent_trials"
 DEFAULT_AGY = WORKSPACE / "setup/agent_tools/antigravity/agy"
-TRIALS = WORKSPACE / "setup/agent_trials/box_gemini_20261119"
-CONTEXT = (
+TRIALS = WORKSPACE / "setup/agent_trials"
+CIRCLES_CONTEXT = (
     DOCS / "PROMPT_GEMINI_TRIAL_02.md",
     DOCS / "GEMINI_HANDOFF.md",
     DOCS / "TRACE_PROTOCOL.md",
     REPO / "docs/box_drawing_pilot.md",
     REPO / "AGENTS.md",
     REPO / "tools/start_gemini_trial.py",
+)
+HOUSE_CONTEXT = (
+    DOCS / "PROMPT_NIKOLAUS_TRIAL_03.md",
+    DOCS / "NIKOLAUS_HANDOFF.md",
+    *CIRCLES_CONTEXT[2:],
 )
 
 
@@ -39,6 +44,8 @@ def main():
     parser.add_argument("--prepare-only", action="store_true", help="Save a prompt for a fresh IDE session")
     parser.add_argument("--agy", type=Path, default=DEFAULT_AGY, help="Path to the local Antigravity CLI")
     parser.add_argument("--model", help="Gemini model slug from agy models")
+    parser.add_argument("--case", choices=("circles", "nikolaus"), default="circles",
+                        help="The Nikolaus test opens a separate checkout of the current commit")
     args = parser.parse_args()
 
     version = None
@@ -54,23 +61,38 @@ def main():
         except (OSError, subprocess.SubprocessError) as error:
             parser.error(f"Antigravity version check failed: {error}")
 
-    TRIALS.mkdir(parents=True, exist_ok=True)
-    session = Path(tempfile.mkdtemp(prefix="session-", dir=TRIALS))
+    house = args.case == "nikolaus"
+    trial_root = TRIALS / ("nikolaus_gemini_20261119" if house else "box_gemini_20261119")
+    trial_root.mkdir(parents=True, exist_ok=True)
+    session = Path(tempfile.mkdtemp(prefix="session-", dir=trial_root))
     trace = session / "trial"
-    source_prompt = CONTEXT[0].read_text().rstrip()
+    agent_repo = REPO
+    if house:
+        agent_repo = session / "repo"
+        subprocess.run(["git", "clone", "--quiet", "--no-local", "--single-branch",
+                        "--depth", "1", "--no-tags", str(REPO), str(agent_repo)], check=True)
+        subprocess.run(["git", "-C", str(agent_repo), "remote", "remove", "origin"], check=True)
+    revision = subprocess.check_output(["git", "-C", str(agent_repo), "rev-parse", "HEAD"], text=True).strip()
+    context = HOUSE_CONTEXT if house else CIRCLES_CONTEXT
+    source_prompt = context[0].read_text().rstrip()
     client = "Google Antigravity for VS Code" if args.prepare_only else f"Antigravity CLI {version}"
     prompt = (f"{source_prompt}\n\n"
+              f"Dein Arbeits-Repo ist {agent_repo}.\n"
               f"Dein absoluter Trial-Pfad ist {trace}.\n"
               f"Client laut Start: {client}. Modellvorgabe: {args.model or 'keine, tatsächliches Modell erfassen falls sichtbar'}.\n")
     (session / "prompt.md").write_text(prompt)
     snapshots = session / "context"
     snapshots.mkdir()
     hashes = {}
-    for file in CONTEXT:
+    for file in context:
+        relative = file.relative_to(REPO)
+        if house and file.name in ("AGENTS.md", "box_drawing_pilot.md", "TRACE_PROTOCOL.md"):
+            file = agent_repo / relative
         data = file.read_bytes()
         (snapshots / file.name).write_bytes(data)
-        hashes[str(file.relative_to(REPO))] = hashlib.sha256(data).hexdigest()
-    metadata = dict(schema_version=1, repo=str(REPO), trial=str(trace), client=client,
+        hashes[str(relative)] = hashlib.sha256(data).hexdigest()
+    metadata = dict(schema_version=1, case=args.case, repo=str(agent_repo), git_head=revision,
+                    trial=str(trace), client=client,
                     model_requested=args.model, prepared_at=perth_time(), context_sha256=hashes)
     metadata_path = session / "observer.json"
 
@@ -80,11 +102,13 @@ def main():
         temporary.replace(metadata_path)
 
     write_metadata()
-    print(f"Session: {session}\nPrompt: {session / 'prompt.md'}\nTrial: {trace}", flush=True)
+    print(f"Session: {session}\nRepo: {agent_repo}\nPrompt: {session / 'prompt.md'}\nTrial: {trace}", flush=True)
     if args.prepare_only:
         return 0
 
     command = [str(agy), "-i", prompt]
+    if house:
+        command.extend(["--add-dir", str(session)])
     if args.model:
         command.extend(["--model", args.model])
     metadata["terminal_started_at"] = perth_time()
@@ -94,7 +118,7 @@ def main():
     try:
         code = subprocess.run(["script", "-qef", "-O", str(session / "terminal.log"),
                                "-T", str(session / "terminal.timing"),
-                               "-c", shlex.join(command)], cwd=REPO).returncode
+                               "-c", shlex.join(command)], cwd=agent_repo).returncode
         return code if code >= 0 else 128 - code
     finally:
         metadata.update(terminal_ended_at=perth_time(), terminal_wall_s=time.monotonic()-begin,

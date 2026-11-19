@@ -1,0 +1,13 @@
+# Kartonzyklus und Betriebsübergabe auf N100,19.11.2026
+
+- Status: aktiv, Hauptagent dieses Kartonchats. Nutzer bestätigt ausdrücklich den korrekten realen Griff. Neuer Auftrag: Karton auf Tisch loslassen, nach oben ausfahren, Home, vollständigen Griffzyklus wiederholen und Gesamtdauer messen; UR-Steuerung auf vorbereitetem N100.
+- Lösen zuerst auf bestehendem ROSmini-Host ohne Armbewegung, damit Steuerungswechsel unbeladen erfolgt. Danach gezielte Übergabe aller4Treiber/Guard/Greifer an N100; GUI bleibtROSmini. Keine Doppel-Treiber, keine Fremddienständerung.0,1rad/s unverändert.
+- N100 aktuell erreichbar,7.0.0-43-realtime, realtime1, echte UR-Dienste inaktiv. Installation/Mock vorbereitet; External-Control-Hosts an Pendants laut Übergabe noch nicht umgestellt. Vor Liveübergabe aktuellen Quellstand und nötige Taskdaten übertragen; keine neue separate Testkampagne.
+- Zeitlogger `setup/tasks/carton_cycle_n100_20261119/timing.json`: Vorbereitung/Hostwechsel/Rücksetzen und eigentlichen Wiederholungszyklus getrennt protokollieren; erste Dokumentlesung vor Logger als ausgeschlossen markieren. Keine Vorbereitung als reine Zykluszeit ausgeben.
+- Geplante eigene Neustarts: vorhandene ROSmini-Hardwaredienste erst nach bestätigtem Loslassen kontrolliert stoppen; N100-Dienste anschließend exklusiv starten. Kontakt zunächst nurHOLD, Loslassen ausdrücklich neu beauftragt.
+
+- Loslassen tatsächlich erfolgt: beide ACT1/STA3/OBJ3/POS3/PRE0/FOR0/SPE16, remaining_contact_members[]. Lokaler Öffnungsmonitor registriert wieder kurz fehlende Ruhe, Ergebnis HELD_OPEN_UNCONFIRMED bleibt erhalten; danach explizite frische Holds/Stillstände mit erlaubtem STOPPED-Programm nachgewiesen (`pre-host-switch-held.json`). Keine Kontaktbindung mehr.
+- NativerSTOPaller4 bestätigt. Standard-Hardware-stopCLI erzeugte eigene neue StopPorts und bestätigte Ruhe nicht innerhalb5s; keinen Erfolg erfunden. Anschließende bestehende aktuelle Hold-/Ruheprüfung PASS, danach nur eigene6Hardwaredienste kontrolliert geschlossen; `rosmini-services-stopped.txt` alleinactive. N100nochkeineechtenDienste.
+- AktuellerQuellstand übertragen, fehlende zwei Carton-PrepareTools im Staging ergänzt. Isolierter N100-Build18Pakete/21,1sPASS. Pendant-Hostumstellung aller4auf192.168.8.5/Ports51002,52002,53002,54002 beimNutzer angefragt, nochabzuwarten.
+
+- Nutzer bestätigt Pendant-Hostumstellung mit „erledigt“. Regulärer N100-Livebringup/Provisionierung/Schutz- und Greiferstart jetzt beauftragt ausgeführt; ROSmini-Dienste bleiben aus. N100-Retreatplan tatsächlich geometrischPASS, je6,412/6,374snominal bei0,1rad/s. Home-Direktpfad und erster Zwischenvorschlag noch verworfen; keineHomefahrt freigegeben, weitere Offlineplanung nötig.

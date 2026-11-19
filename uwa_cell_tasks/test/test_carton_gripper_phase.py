@@ -53,6 +53,18 @@ def test_stationary_held_left_program_need_not_run_for_static_right_grippers():
     assert held_error(values,1.1,"expected",limits,positions)
 
 
+def test_explicit_supported_release_allows_stopped_program_but_keeps_hold_and_safety():
+    values,positions,limits=packets()
+    values['state'][0]['records']['right_rear']['status']['runtime_state']=1
+    assert held_error(values,1.1,'expected',limits,positions)
+    assert held_error(values,1.1,'expected',limits,positions,require_running=False)is None
+    values['supervisor'][0]['ports']['right_rear']['held']=False
+    assert held_error(values,1.1,'expected',limits,positions,require_running=False)
+    values['supervisor'][0]['ports']['right_rear']['held']=True
+    values['state'][0]['records']['right_rear']['status']['safety_mode']=3
+    assert held_error(values,1.1,'expected',limits,positions,require_running=False)
+
+
 def test_contact_members_remain_recorded_when_final_native_readiness_fails(tmp_path,monkeypatch):
     import json
     from types import SimpleNamespace

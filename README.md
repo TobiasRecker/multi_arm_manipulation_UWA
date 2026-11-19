@@ -549,6 +549,8 @@ confirms three model circles, identifies the search and logging bottlenecks,
 and adds explicit stdin capture for reproducible editing commands.
 The [second trial](docs/agent_trials/GEMINI_TRIAL_02.md) prepares a fresh Gemini
 session with a new circle radius and a check of the stated grasp geometry.
+The [Nikolaus house trial](docs/agent_trials/NIKOLAUS_TRIAL_03.md) adds a new
+stroke in a separate checkout and checks its shape from joint trajectories.
 The latest [500g force and speed tests](docs/carton_dynamic_validation_2026-11-16.md)
 include two complete10mm/s Home cycles and three loaded stop cases with retained
 grip using exactly the same version-bound profile. The report preserves earlier

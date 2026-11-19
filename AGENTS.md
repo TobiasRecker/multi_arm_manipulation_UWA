@@ -107,6 +107,12 @@
   gebundenen Griff verwenden und die Bahn damit neu prüfen. Die
   52/55 mm aus dem ersten Vergleich sind ein Fallbefund und kein
   universeller Korrekturwert. Nachweis in HANDOVER.md.
+- Bei einem Kompatibilitätstest den Zweck klar benennen. Aufruf eines
+  bestehenden Bausteins und Entwicklung einer neuen Aufgabe messen
+  unterschiedliche Fähigkeiten. Den Nikolaushaus-Test vom 19.11. in
+  separater Quellkopie starten und die neue Form aus der gespeicherten
+  Gelenkbahn prüfen. Alte Ergebnisordner bleiben außerhalb des
+  bereitgestellten Kontexts. Details in docs/agent_trials/.
 - Piloteinstieg ist bestätigt; weitere Architekturvarianten bleiben Empfehlungen,
   keine pauschale Hardwarefreigabe. Erster file-only Modellstand/Bedienung:
   docs/box_drawing_pilot.md. Forschungsbericht:
