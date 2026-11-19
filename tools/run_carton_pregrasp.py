@@ -124,9 +124,9 @@ def main():
         not np.allclose(binding['T_world_anchor_current'],anchor,atol=1e-9,rtol=0) or
         not np.allclose(binding['T_world_object_candidate'],evidence['world_object_candidate'],atol=1e-9,rtol=0)):
         raise ValueError('Object pose must explicitly use the current right-front model anchor; old frozen world pose is not an execution target')
-    if path['kind'] not in ('serial_direct','simultaneous_direct'):
-        raise ValueError('Expected direct pregrasp endpoint evidence')
     selected=[args.arm] if args.arm else ['right_front','right_rear']
+    if path['kind'] not in ('serial_direct','simultaneous_direct') and not (path['kind']in ('single_arm_via_upright','rrt_detour')and len(selected)==1):
+        raise ValueError('Expected direct or explicitly checked single-arm upright pregrasp path')
     if any(not 0<args.command_velocity<=arm_velocity_limit(problem.cfg,r) for r in selected):
         raise ValueError('Command speed must not exceed a selected monitored arm cap')
     required_names=[j for r in selected for j in joint_names(r)]
@@ -156,12 +156,13 @@ def main():
         # offered a simultaneous direct path. Both arms are still unloaded.
         request = problem.normalize(dict(start=expected, goals={arm:[end[j] for j in joint_names(arm)]}))
         initial = [expected[j] for j in joint_names(arm)]
-        if not problem.edge(request, initial, request['target']): raise ValueError('Fresh full-cell path verification failed')
-        trajectory=problem.time_parameterize(request,[initial,request['target']])
+        geometric_path=path['waypoints'] if path['kind']in ('single_arm_via_upright','rrt_detour')else [initial,request['target']]
+        if not all(problem.edge(request,a,b)for a,b in zip(geometric_path,geometric_path[1:])):raise ValueError('Fresh full-cell path verification failed')
+        trajectory=problem.time_parameterize(request,geometric_path)
         planned=root/(arm+'-planned-trajectory.json')
         dump(planned,dict(executable=False,hardware_plan=False,request=request,trajectory=trajectory,
                           supplemental_object_signature=problem.supplemental_signature))
-        report['segments'].append(dict(arm=arm, request=request, geometric_path=[initial, request['target']],
+        report['segments'].append(dict(arm=arm, request=request, geometric_path=geometric_path,
             planned_trajectory=str(planned),nominal_duration_s=trajectory['duration_s'],executed=False))
         expected.update(zip(joint_names(arm), request['target']))
     if not args.execute:

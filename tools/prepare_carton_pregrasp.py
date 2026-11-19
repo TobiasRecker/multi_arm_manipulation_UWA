@@ -157,6 +157,8 @@ def prepare(args):
     # closest limit-respecting equivalent endpoint, preserving raw evidence.
     # This is endpoint branch selection before planning, never live rebasing.
     alternatives = {}
+    from uwa_cell_tasks.hardware_posture import branch_allowed,rank_postures
+    required_branches=source_plan['candidate'].get('elbow_signs',{})
     for arm in selected:
         names = joint_names(arm)
         initial = [start[j] for j in names]; bounds = [problem.collision.bounds[j] for j in names]
@@ -166,28 +168,38 @@ def prepare(args):
         wanted = np.asarray(goal_frames[arm]['tool0_pregrasp'])
         for c in raw['candidates'][arm]:
             q = nearest_winding(c['positions'], initial, bounds)
+            if not branch_allowed(q,required_branches.get(arm)):continue
             measured = chain.forward(dict(start, **dict(zip(names, q))))
             if (np.linalg.norm(measured[:3, 3]-wanted[:3, 3]) > 1e-4 or
                 Rotation.from_matrix(measured[:3, :3]@wanted[:3, :3].T).magnitude() > 1e-4):
                 raise ValueError('Equivalent winding changed the Cartesian target')
-            values.extend([dict(positions=q), dict(positions=c['positions'])])
+            values.append(dict(positions=q))
         if not values:
             dump(out/'failure.json', dict(executable=False, error=arm+': no Cartesian IK solution'))
             return dict(status='NO_IK_FOUND', output=str(out), executable=False)
         alternatives[arm] = dict(alternatives=values)
     candidates = enumerate_candidates(problem, dict(start=start, goals=alternatives), max_per_arm=12, budget_s=30.)
+    candidates['combinations']=rank_postures(problem,start,candidates['combinations'])
+    candidates['posture_policy']=dict(required_elbow_signs=required_branches,reason=source_plan['candidate'].get('posture_reason'),ranking='Task suitability, then Pareto fronts: joint reserves, scaled Jacobian minimum singular value, wrist/neighbor clearance, travel; shortest travel within each front')
     dump(out/'candidates.json', candidates)
     attempts = []; path = None
+    path_budget=getattr(args,'path_budget_s',None)or cfg['planning_budget_s']
     start_valid = problem.check(dict(start=start, joint_names=[]), [])
     if start_valid:
         for combined in candidates['combinations'][:8]:
             normalized = problem.normalize(dict(start=start, goals=combined['goals']))
             a = [start[j] for j in normalized['joint_names']]; b = normalized['target']
-            begun = time.monotonic(); deadline = begun+cfg['planning_budget_s']
+            begun = time.monotonic(); deadline = begun+path_budget
             if problem.edge(normalized, a, b, deadline=deadline):
                 path = [a, b]; kind = 'simultaneous_direct'
             else:
                 path = problem.serial_direct(normalized, deadline); kind = 'serial_direct'
+            if path is None and len(selected)==1:
+                # A changed elbow branch may need a geometrically checked
+                # upright intermediate, with every other arm held fixed.
+                via=list(a);via[1:]=[-np.pi/2,0.,-np.pi/2,0.,0.]
+                if problem.edge(normalized,a,via) and problem.edge(normalized,via,b):
+                    path=[a,via,b];kind='single_arm_via_upright'
             if path is None and time.monotonic() < deadline:
                 path, error = problem.rrt(normalized, seed=64, budget=deadline-time.monotonic())
                 kind = 'rrt_detour'
@@ -228,6 +240,7 @@ if __name__ == '__main__':
         parser.add_argument('--'+name, type=Path, required=True)
     parser.add_argument('--inventory', type=Path, default=REPO/'config/hardware_inventory.yaml')
     parser.add_argument('--config', type=Path, default=REPO/'uwa_cell_motion/config/hardware_commissioning.yaml')
+    parser.add_argument('--path-budget-s',type=float,help='Offline path-search budget per candidate only; no operating/safety/profile change')
     parser.add_argument('--layout', type=Path)
     parser.add_argument('--pregrasp-m', type=float, default=.08)
     parser.add_argument('--arm', choices=MEMBERS, action='append', help='Optional unloaded phase member; other arms remain measured obstacles')

@@ -1,113 +1,99 @@
-# Hohe USB-Kamera am linken Tisch · Vorentwurf
+# Tischhalterung für das 19-mm-Kamerarohr
 
-## Anordnung
+Stand 2026-11-19. Links an der Roboterzelle soll eine OAK-D Pro AF (RVC2)
+auf dem vorhandenen **1.200 mm langen Edelstahlrohr Ø19 mm** sitzen.
+Der Fuß nutzt die vier vorhandenen Tischbohrungen und wird durch die
+Tischplatte mit Scheiben und Muttern verschraubt. Dieser Entwurf ersetzt
+den Vorentwurf mit 40-mm-Vierkantmast und Tischklemmen.
 
-Die am N100 getestete Kamera ist eine **OAK-D Pro AF (RVC2)**, USB-ID
-`18443010314F3B1300`, mit IMX378-Autofokus. Sie bekommt links außen eine
-Ansicht Richtung Zellmitte, gegenüber der Ethernet-OAK4. Ziel für die erste
-Sichtprobe sind **1,85–2,0 m optische Höhe über Boden**. Zum Vergleich liegt
-die dokumentierte frühere OAK4-Registrierung bei etwa 1,86 m. Das nominale
-Modell setzt die linke Tischplatte auf 0,90 m. Daraus folgen ungefähr
-0,95–1,10 m von Tischoberkante bis Optik. Mast erst nach der Sichtprobe
-auf Länge bringen. Die Optik liegt etwas über dem Rohrende.
+[CAD-Vorschau mit Lochbild](rohrhalter-vorschau.png) ·
+[STEP für Onshape und andere CAD-Programme](rohrhalter-19mm.step) ·
+[STL für den Druck](rohrhalter-19mm.stl) ·
+[STL für die Passprobe](passprobe-19mm.stl)
 
-```text
-Schnitt senkrecht zur linken Außenkante    Blick Richtung Zellmitte →
-                                                 LOS zur Arbeitsfläche
-   OAK-D Pro + kurzer Metall-Neigekopf     ╲
-                 ║                         ╲
-                 ║ Stahl 40 × 40 × 1,6
-                 ║
-                 ║ ╲ Aussteifung
-                 ╚══╧════════════════════ Klemmplatte auf Tisch
-                     ┌─────────────────── Tischplatte
-               Klemme└──▲────────────────
-                        Druckteller unten
+## Geometrie
 
-Draufsicht: zwei Klemmen entlang der Tischkante, Mast mittig dazwischen.
+| Merkmal | Maß |
+|---|---:|
+| Tischbohrungen laut STEP-Vorlage | 4 × Ø9 mm, Raster 98 × 98 mm |
+| Rohrachse zur nächstgelegenen Schraubenreihe | 67,45 mm in Richtung Tischkante, mittig zwischen den Schrauben |
+| Außenmaße des Fußes | 124 × 201 × 145 mm |
+| Höhe der Führung über Tisch | 145 mm |
+| Einstecktiefe mit integriertem Anschlag | 141 mm |
+| Abstand der beiden M5-Klemmschrauben | 113 mm |
+| Innen-Ø an beiden Klemmzonen | 19,4 mm |
+| Innen-Ø zwischen den Klemmzonen | 21,4 mm |
+
+Zwei Rippen stützen die Hülse quer zur Rohrachse in Richtung der beiden
+nahen Schraubpunkte. Die mittlere Rippe und die gegabelten Stege binden
+die hintere Schraubenreihe an. Die vier Schraubauflagen sind 8 mm dick.
+Zwei M5-Schrauben ziehen die geschlitzten Klemmbereiche am Rohr zusammen.
+Die entlastete Mittelbohrung erleichtert das Einsetzen des Rohrs über
+die gesamte Länge. Ein Einlaufkonus hilft beim Ansetzen.
+
+Die ursprüngliche Führung war 50 mm tief. Der neue Fuß hat mit
+141 mm Einstecktiefe rund die 2,8-fache Führung und mit 203,5 cm³
+gegenüber 289,8 cm³ etwa 30 % weniger CAD-Volumen. Der tatsächliche
+Filamentbedarf hängt von Wandlinien, Füllung und Material ab. Die lange
+Führung begrenzt das Spiel an der Einspannung. Oberhalb bleiben rund
+1,06 m freies Rohr, dessen Biegung von der Wandstärke abhängt.
+
+## Passprobe und Montage
+
+1. **Tischseite prüfen.** Abstand der kantennahen Bohrungsreihe zur Kante
+   direkt messen. Mindestens **87 mm** sind erforderlich, damit die
+   Unterseite am Hülsenfuß vollständig aufliegt. Für bündigen Aufbau
+   einschließlich der Klemmohren sind **90 mm** erforderlich. Bei 100 mm
+   bis zur nahen Reihe liegt die Rohrachse etwa 32,6 mm innerhalb der
+   Kante. Unter der Platte Platz für die Scheiben und Muttern prüfen.
+2. **Kurze Passprobe drucken.** Das 24 mm hohe Prüfstück entspricht
+   dem Klemmbereich. Rohrdurchmesser an mehreren Stellen und in zwei
+   Richtungen messen und dann ausprobieren, ob sich das Rohr von Hand
+   einschieben und mit einer M5-Schraube spielfrei klemmen lässt.
+   Der Standard von 19,4 mm ist ein Druckstartwert. Bei Bedarf die
+   Bohrung mit `--bore` anpassen.
+3. **Fuß aufrecht drucken.** Die flache Montagefläche liegt in der STL
+   bei Z = 0. Für einen PETG-Prototyp sind 0,2 mm Schichthöhe, 6
+   Wandlinien und 40 % Füllung Startwerte. Im Slicer die gerampten
+   Klemmohren und horizontalen M5-Löcher kontrollieren. Die M5-Löcher
+   haben oben ein spitzes Dach für die Druckbarkeit. Bohrung und Schlitz
+   nach dem Druck vom Grat befreien.
+4. **Durchschrauben und klemmen.** Bei bestätigten Ø9-mm-Tischlöchern
+   sind vier M8-Durchgangsschrauben mit Scheiben oben und breiten Scheiben
+   oder Gegenleisten unten vorgesehen. Schraubenlänge nach gemessener
+   Tischstärke plus 8 mm Fuß sowie Scheiben und Sicherungsmuttern wählen.
+   Für die Rohrklemmung sind zwei M5 × 45 mm mit Scheiben und
+   Sicherungsmuttern vorgesehen. Beide gleichmäßig anziehen, bis das
+   Rohr spielfrei sitzt. Die Ohren sollen dabei Abstand voneinander
+   behalten. Nach dem Setzen der Verbindung erneut auf Spiel prüfen.
+5. **Sitz und Freiraum prüfen.** Bei stillstehenden Armen zuerst das Rohr
+   allein montieren. Seitliches Spiel am Fuß sowie Durchbiegung am
+   Rohrende getrennt prüfen. Vor Montage der Kamera den Freiraum von
+   Mast und Klemmen zu den linken URs prüfen. Erst mit stabiler mechanischer
+   Lage Kamerakopf und Zellenregistrierung festlegen.
+
+Das tatsächliche Lochbild, die Passung, die Tragfähigkeit der Tischplatte
+und die Schwingung im Zellbetrieb sind vor Ort noch zu prüfen.
+Der Kamerakopf am oberen Rohrende ist ein eigener Arbeitsschritt.
+Die vorhandene [Kameralochschablone](oak-rear-hole-template.stl) bildet
+weiterhin das Rückseitenraster der OAK-D Pro AF ab. Der frühere
+[USB-Sattel](usb-cable-saddle.stl) passt auf das 40-mm-Vierkantprofil
+des alten Entwurfs.
+
+## CAD und Reproduktion
+
+Koordinaten der Vorlage `Rohrhalter.step` gedreht in Drucklage
+`(x, y, z) = (STEP x, STEP z, −STEP y)`. Unterseite Z = 0.
+Tischlochachsen bei X = ±49 und Y = −13 bzw. +85 mm.
+Rohrachse bei X = 0, Y = −80,45 mm. Die Tischkante ist in der Vorlage
+nicht modelliert. Der STEP-Export und beide STL-Volumenkörper wurden
+eingelesen und auf Gültigkeit bzw. Geschlossenheit geprüft.
+
+Das Modell entsteht mit OpenCascade aus
+[make_table_mount.py](make_table_mount.py). Auf ROSmini vom Workspace aus:
+
+```bash
+.venvs/oak-model/bin/python \
+  src/multi_arm_manipulation_UWA/hardware/oak_d_pro_left/make_table_mount.py \
+  --bore 19.4 --output /tmp/uwa-oak-mount
 ```
-
-1. **Mast und Fuß**  
-   40 × 40 × 1,6 mm Stahl-Vierkantrohr. Für die Klemmplatte sind als
-   Layoutannahme etwa 220 mm entlang der Kante × 140 mm in die Tiefe
-   vorgesehen, mit dem Mast außen, zwei Stahlgussets in unterschiedlichen
-   Ebenen und dem Plattenüberstand auf der Tischplatte. Die Endausführung
-   hängt von der Kante und der Unterseite ab. Mastposition nahe einem
-   steifen Tischrahmenbereich wählen. Kein langer horizontaler Ausleger.
-2. **Anschluss an den Tisch**  
-   Zwei mechanisch gesicherte Stahl-Schraubklemmen greifen oben an der
-   Fußplatte und unten an tragfähiger Tischsubstanz. Zielgrößen für die
-   Anordnung sind 160–180 mm Abstand entlang der Kante und etwa 60–80 mm
-   Einbindetiefe bis zur Drucktellerachse. Oben nimmt der tiefe
-   Fußplattenüberstand das Kippmoment auf. Druck über Metallauflagen mit
-   dünner rutschfester Schutzlage verteilen. Vor Auswahl der Klemmen
-   Plattenstärke plus Fußplatte, freien Untergriff und Lage einer
-   Zarge prüfen. Falls die Zarge im Weg ist, an ihre Geometrie anpassen oder
-   alternativ mit zwei vertikal versetzten Metallklemmen an ein geeignetes
-   Tischbein anbinden. Die Maße sind Layoutwerte ohne Belastungsnachweis.
-3. **Kamerakopf**  
-   Kompakter Metall-Neigekopf mit gekonterter Verbindung am Mast und
-   kurzer Metallplatte mit zwei Rückenschrauben zur Kamera. Als erste
-   Orientierung 35° nach unten ansetzen und anhand des Bilds einstellen.
-   Alternativ lässt sich die Neigung nach der Sichtprobe in einen festen,
-   gekanteten Metallwinkel übernehmen. Laut Luxonis-Zeichnung hat die
-   Rückseite zwei M4-Gewinde im Abstand von 75 mm mit 8 mm eingezeichneter
-   Gewindetiefe. Lochbild und nutzbare Tiefe am Gerät prüfen. Schrauben
-   nach Plattendicke und Scheiben auswählen, sodass sie beim Anziehen
-   an der Platte klemmen und vor dem Gewindegrund enden. Kühlrippen,
-   Optik und USB-Stecker brauchen Freiraum. Eine separate kurze
-   Sicherungsleine verbindet Kamera bzw. Kamerahalter mit dem Tischrahmen.
-4. **USB und Registrierung**  
-   Kabel am Mast abfangen und mit einer kleinen Serviceschlaufe zum
-   Stecker führen. N100 in der Nähe des Masts platzieren. Mast, Klemmen,
-   Kabel und eventuelle Sicherungsleine vor Montage gegen den Arbeitsraum
-   der beiden linken UR prüfen. Nach der Montage starren ChArUco-Anker
-   beobachten, während der Tisch typisch belastet wird. So fallen Wackeln
-   und bleibendes Wandern auf. Die USB-OAK anschließend zum linken Tisch
-   registrieren. Bei einem Tischversatz folgt die Kamera dem Tisch, ihre
-   Weltpose folgt entsprechend dem Tischtransform.
-
-## Warum der größere Querschnitt
-
-Idealisiertes Kragarm-Beispiel bei 1 m freier Länge, 10 N seitlicher
-Spitzenlast und starrer Einspannung, mit Δ = FL³/(3EI). 10 N ist eine
-Vergleichslast. Sie ersetzt keine Auslegung der Klemme oder des Tisches.
-
-| Rohr | Flächenträgheitsmoment ca. | Auslenkung des Rohrs ca. |
-|---|---:|---:|
-| Alu rund Ø10 × 1 mm | 290 mm⁴ | 167 mm |
-| Stahl quadratisch 40 × 40 × 1,6 mm | 60.500 mm⁴ | 0,28 mm |
-
-Die 167 mm zeigen die Größenordnung der linearen Rechnung. Bei realer
-Montage kommen Verdrehung, Tischbewegung und Spiel hinzu. Der linke Tisch
-trägt zwei Roboter. Die erreichbare optische Stabilität hängt deshalb
-auch von dessen Bewegung ab.
-
-[Bunnings 10-mm-Alurohr](https://www.bunnings.com.au/metal-mate-10-x-1mm-1m-aluminium-round-tube-1m_p1067742) ·
-[Bunnings 40-mm-Stahl-Vierkantrohr, 2 m, I/N 0910112](https://www.bunnings.com.au/australian-handyman-supplies-40-x-40-x-1-6mm-x-2m-galvanised-square-hollow-section_p0910112) ·
-[Luxonis-Gehäusezeichnung, S. 6](https://www.mouser.com/datasheet/2/1139/Luxonis_4_13_2022_OAK_D_Pro_AF_Datasheet_4_12_22-2939269.pdf)
-
-## Druckdateien
-
-- [Lochschablone](oak-rear-hole-template.stl), 91 × 18 × 4 mm.
-  Zwei Ø4,5-mm-Öffnungen im 75-mm-Raster. Erst von Hand an das
-  Kameralochbild halten, dann die Bohrmitten auf einer Metallplatte
-  übertragen. Beim Bohren bleibt die Kamera getrennt.
-- [USB-Kabelsattel](usb-cable-saddle.stl), 46,6 × 14 × 24 mm.
-  Auf das 40er Profil setzen und per Klettband um Mast, Sattel und Kabel
-  legen. V-Nut für ungefähr 6 mm Kabelaußendurchmesser. Das Band so anziehen,
-  dass das Kabel gehalten wird und der Mantel seine Form behält.
-- Beide mit der bereits flachen STL-Unterseite auf das Druckbett legen.
-  Einheiten mm, ohne Stützstrukturen. PETG für den Kabelsattel als Start.
-  Die STLs sind als geschlossene Volumenkörper überprüft. Druckpassung und
-  reale Last-/Vibrationsprüfung stehen aus. Mast, Tischklemmung
-  und Kamerakopf übernehmen die Traglast über Metall.
-- [Parametrischer Export](make_prints.py) per `python3 make_prints.py`
-  mit Python-VTK. `--tube`, `--clearance`, `--cable` und `--spacing`
-  passen die Teile an gemessene Maße an.
-
-Für die Maßzeichnung des Fußes fehlen ein Foto der linken Außenkante
-schräg von unten mit Maßstab, **Plattenstärke und freie Tiefe bis zur
-Zarge** sowie die reale Tischhöhe. Für die endgültige Mastlänge
-und Kopfneigung braucht es die gewünschte Position entlang der Kante
-und eine Sichtprobe auf Arbeitsfläche und Referenzboards.

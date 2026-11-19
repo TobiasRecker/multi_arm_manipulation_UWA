@@ -143,6 +143,13 @@ def main():
             report['group']=dict(members=contacts,allowed_next_action='HOLD',
                 independent_arm_motion_allowed=False,loaded_motion_enabled=False,
                 object_supported=True,reference_pending=True)
+            if len(contacts)==2:
+                monitor.error()  # Drain queued state; keep every age/hold limit.
+                static_error=held_error(monitor.values,time.monotonic(),expected,limits,positions,require_running=False)
+                report['static_hold_error']=static_error
+                if static_error is None:
+                    report['group']=freeze_group(args.state.resolve(),state,monitor,contacts)
+                    report['static_contact_hold_verified']=True
             save()
         if args.phase=='release':
             report['remaining_contact_members']=[a for a,r in report.get('after',{}).items()if closing_contact(r)]

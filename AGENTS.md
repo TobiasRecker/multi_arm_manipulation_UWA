@@ -1,17 +1,33 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Längere Rechenaufträge auf titanpc (2026-11-19)
+
+- GPU-intensive und größere, länger laufende CPU-Aufträge gemäß Nutzerwunsch
+  bevorzugt in Containern auf **titanpc** ausführen. Das gilt für Offline-
+  Planung, Batch-Kollisionsprüfungen, Datensatzgenerierung, Vision und
+  Training. Aktuelle Rechnerlast prüfen und nur benötigte Eingaben stagen.
+  Jobstatus und Ergebnisse bis zum Abschluss verfolgen. Setup und Aufruf
+  stehen in der [titanpc-Anleitung](../../setup/titanpc/README.md).
+- Auf ROSmini kurze interaktive Prüfungen und Bedienoberflächen betreiben.
+  Echtzeitausführung und Live-Wächter gehören zum realen UR-Steuerhost.
+  Compute-Container sind für Datei-/Offlineaufträge. Bei fehlendem Zugriff
+  oder Containerbedarf den konkreten Blocker nennen. Gemeinsame Workstation
+  und bestehende FoundationPose-Umgebung erhalten.
+
 - Nach Greifschluss bestätigte Kontaktmitglieder auch dann vorab als HOLD-only-
   Gruppe festhalten, wenn die abschließende Arm-/Programmprüfung fehlschlägt.
   Fehlerzustand nicht als unbeladen behandeln; kein automatisches Öffnen,
   Reset/Play oder unabhängiges Armziel. Aktueller realer Kontaktstand19.11.
   steht ganz oben in HANDOVER.md.
 
-## Zweite Übersichtskamera links (2026-11-18)
+## Zweite Übersichtskamera links (2026-11-19)
 
-- Nutzer wünscht die USB-OAK am N100 hoch gegenüber der Ethernet-OAK4;
-  Befestigung am linken Tisch ohne Tischbohrungen. Standardentwurf und
-  Druckteile unter `hardware/oak_d_pro_left/`. Kamera und Mast bei der
-  späteren Modellierung an den linken Tisch binden.
+- Nutzer wünscht die USB-OAK am N100 hoch gegenüber der Ethernet-OAK4.
+  Konkretisierung19.11.: vorhandenes 1.200-mm-Edelstahlrohr Ø19 mm als
+  Säule, vier bereits vorhandene Tischbohrungen durchschrauben. Lange
+  Rohrführung, geringer Materialeinsatz, Tischfuß vor Kamerakopf.
+  Entwurf und Druckteile unter `hardware/oak_d_pro_left/`. Bei der
+  späteren Modellierung Kamera und Mast an den linken Tisch binden.
 
 ## Hinteres Armpaar als Offline-Lehrer (2026-11-17)
 
@@ -354,10 +370,14 @@
 
 ## Startmenü-App UWA Robot Power (2026-11-16)
 
-- Nutzerpräzisierung19.11. für den erwogenen N100-Umbau: **UWA Robot Power**
-  bleibt als GUI auf ROSmini. Betriebsbezogene Berechnung und Überwachung
-  der echten Roboter sollen auf dem N100 laufen. Statusanzeigen und
-  explizite Aktionen sollen weiter über die lokale GUI bedienbar sein.
+- Nutzerauftrag19.11. umgesetzt: **UWA Robot Power** bleibt als GUI auf
+  ROSmini; alle4realen Treiber, Live-Zustandserfassung/Guard/Supervisor/Watchdog,
+  Greifer und Ausführung laufen auf N100/miniminiPC192.168.8.5 in isoliertem
+  `~/uwa-ur-runtime`, Domain66/LOCALHOST. User hat alle4External-Control-Hosts
+  auf N100 umgestellt, Ports unverändert. ROSmini-Hardwaredienste sind aus;
+  nicht parallel starten. Startmenüeintrag auf `--n100` installiert. SSH zu
+  diesem Steuerhost ist für die Runtime beauftragt; keine URScript-/Armsteuerung
+  per SSH auf den URs. Aktueller Kartonstand im HANDOVER.
 - Kurze Pausen: [UWA Robot Power](docs/ur_power_gui.md). **Standby** stoppt
   das konfigurierte `ros.urp` und schaltet die Antriebe ab; **Start + ROS**
   nutzt den bestehenden UR-Startablauf. Sichtbare Einzelresultate, englische
@@ -384,6 +404,27 @@
   bleiben; keine routinemäßige vollständige Rückstellung nach jedem Foto.
   Tatsächliche Werte und Intrinsicsbindung speichern, geteilte Nutzung/Leases
   erhalten. Kamera-Dienst/Format müssen weiter funktionsfähig zurückkommen.
+
+## Aufgabenbezogene Konfigurationswahl (Nutzerkorrektur19.11.2026)
+
+- Vor numerischer Optimierung logisch prüfen, ob die Armkonfiguration für die
+  ganze Aufgabe geeignet ist. Eine isoliert erreichbare/kollisionsfreie
+  Vorposition genügt nicht: insbesondere nachfolgenden Absenk-/Greifweg vor
+  der realen Anfahrt prüfen.
+- Bei Tischgriffen ist „Ellenbogen unten“ häufig ungünstig. „Handgelenk innen“
+  ist tendenziell schlechter, wenn das Handgelenk dadurch näher an einen
+  Nachbarroboter kommt. Kontextabhängige Heuristiken, keine universellen
+  Verbote oder Ersatz für Modell-/Kollisionsprüfung.
+- Konkretes reales Kartonbeispiel: RF mit positivem physischem Ellbogenzweig
+  erreichte die hohe Pose, konnte aber die Absenkbahn bei beibehaltenem
+  Nachbarpuffer nicht abschließen. Für diese aktuelle Kartonrezeptur den
+  zuvor erfolgreichen negativen Ellbogenzweig nutzen; Signum von sin(q_elbow)
+  statt bloßes Vorzeichen des mehrumdrehigen Encoders verwenden. RR-Pose vom
+  Nutzer als gut bestätigt; bei dieser Korrektur nicht mit umkonfigurieren.
+- Danach verbleibende Gelenkreserven, Manipulierbarkeit/Singularitätsnähe,
+  Handgelenk-/Nachbarabstände, Wegaufwand und Konfigurationskontinuität
+  vergleichen. Maße, Einheiten/Skalierungen und Auswahlbegründung speichern;
+  Rangheuristiken nicht als Sicherheitsqualifikation darstellen.
 
 ## Modulare Manipulation und starre Greifverbünde (2026-11-13)
 

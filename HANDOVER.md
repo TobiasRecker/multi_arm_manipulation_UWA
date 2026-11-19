@@ -1,5 +1,66 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## CPU-/GPU-Container für Offlinearbeit, 2026-11-19
+
+- Nutzer bevorzugt titanpc für rechenintensive GPU- und längere CPU-Läufe,
+  standardmäßig in Containern. Gilt unter anderem für IK/FCL-Sweeps,
+  Datensatzgenerierung, Training und Vision-Replays. Regeln in AGENTS.md,
+  Bedienung über `setup/titanpc/compute.py` aus dem Workspace.
+- Rootloses Apptainer im eigenen Datenordner installiert. Lyrical-CPU-Job
+  mit isolierten Arbeitsordnern, Abbruch, Zeitlimit und Ergebnisabruf geprüft.
+  CPU/GPU-Jobs gehören zur Offline-Verarbeitung. Live-UR-Ausführung und
+  Schutzdienste nutzen ihre eigene reale Betriebsanbindung.
+
+## Konfigurationslehre aus dem Wiederholungszyklus,19.11.2026
+
+- Nutzerkorrektur: RF fährt Ellenbogen-unten-Vorpose an, RR gut. Bestätigt durch
+  IK/Plan: RF physischer Ellbogen positiv1,143rad statt zuvor negativ; hohe Pose
+  allein gültig, Absenkbahn bei59,8% am bestehenden Nachbarpuffer verworfen.
+  Keine offene Einfahrt/Fingerziele in diesem Wiederholungsversuch ausgeführt.
+  Zusätzlicher nativerAll4STOP bestätigt, Arme offen/gehalten. Nicht als
+  erfolgreichen oder ungestörten vollständigen Zeitlauf ausgeben.
+- Übertragbare Nutzerregel: erst logische Eignung für ganze Aufgabe, danach
+  Zahlen. Ellenbogen unten bei Tischgriff häufig ungünstig; Handgelenk innen
+  nachteilig, falls näher am Nachbararm. Kontextbezogen, keine Universalverbote.
+  Danach Gelenkreserven, Manipulierbarkeit, Nachbarabstand, Weg/Kontinuität.
+  In Root-/Zell-AGENTS dauerhaft festgehalten.
+- Konkrete Rezeptur verlangt für RF den zuvor erfolgreichen physischen negativen
+  Ellbogenzweig, erkannt mit sin(q_elbow), invariant zu2piWinding. Kandidaten
+  nach Geometriefilter mit ausgewiesenen Kennzahlen/Paretorang: relative
+  Gelenkreserven, kleinster Singularwert eines mit0,5m skalierten Jacobis,
+  Wrist-Nachbarabstand, Weg. Rangheuristiken sind keine Sicherheitsgrenzen.
+- Gesamte Einfahrt wird künftig vor hoher Realfahrt an ausdrücklich geplantem
+  zukünftigen Hochzustand geprüft; Live-Startbindung bleibt erhalten. Aktuelle
+  Korrektur nurRF, RR bleibt fest. Bisher noch kein geprüfter Wechselpfad aus
+  dem positiven in negativen Zweig; längere begrenzte Offline-Suche läuft,
+  keine Korrekturfahrt behauptet. Aktiver Arbeitsstand im Kartonzyklus-Dokument.
+
+## N100-Liveübergabe und gemessener Wiederholungszyklus,19.11.2026
+
+- Expliziter Auftrag: Loslassen, hochfahren, Home, erneut greifen mit Gesamtzeit.
+  Nutzer bestätigt den vorherigen realen Griff als korrekt. Karton tatsächlich
+  losgelassen (beideOBJ3/POS3/PRE0/FOR0/SPE16), danach alle6eigenen ROSmini-
+  Hardwaredienste kontrolliert geschlossen. N10018Pakete aktuell gebaut.
+- Nutzer bestätigt Hostumstellung aller4External-Control-URCaps auf192.168.8.5,
+  bisherige armweisen Ports. N100-Bringup alle4ready/Reverse verbunden, Holds
+  provisioniert und gemeinsamer Guard/Greiferservice aktiv. Reale150mm-Rückzüge
+  beiderRechten aufN100 bestanden; alleEndholds/Stillstände bestätigt.
+- Home benötigt RF-Zwischenroute zuerst aufrichten, dann Basis drehen wegen
+  bestehendem40mm-Nachbarpuffer. Erster Home-Grenzfall: Encoder1,26µrad unter
+  nominaler-360°-Modellgrenze; sichereHolds, kein belegterKartonkontakt. Ziel an
+  Winkelgrenze1mrad nachinnen gesetzt; gemesseneGrenzprüfung unverändert.
+  Danach beide rechtenHomepositionen tatsächlich bestanden (`home-interior/`).
+- GUI bleibtROSmini; Startmenüinstaller mit`--n100` durchgeführt. Nie gleichzeitig
+  lokaleROSmini-Hardwaretreiber starten. NativeUR-Adressen/Basisprofile unverändert.
+- **Gemessener Zyklus ab tatsächlichemHome läuft jetzt aufN100**: neueAufnahme,
+  Bildregistrierung/Planung, hoheAnfahrt, offeneEinfahrt, Agent-Bildprüfung,
+  Schließen. NochkeinneuerKontaktabschluss behauptet.0,1rad/s/0,2rad/s²,
+  40mmMargin und bestehendeFrische-/Stoppschwellen unverändert.
+- N100-Daten `~/uwa-ur-runtime/setup/tasks/carton_cycle_n100_20261119/`,
+  lokaleZeitbasis `setup/tasks/carton_cycle_n100_20261119/timing.json`.
+  EinmaligeVorbereitung/Hostwechsel/Home von Zykluszeit trennen; unterschiedliche
+  Host-Monotonzeiten nicht voneinander subtrahieren. Details im Arbeitsstand.
+
 ## N100 als möglicher UR-Steuerrechner, 2026-11-19
 
 - Anschlussauftrag19.11.: N100 vorbereiten und für RT-Kernel neu starten.
@@ -175,22 +236,25 @@
   danach keine erneuten Startschleifen. Frische-/Stoppgrenzen unverändert.
   `carton_grasp_20261118_recalc_plan01`, `recalc_checked01`, `recalc_real01`.
 
-## Linke USB-Übersichtskamera und Klemmmast, 2026-11-18
+## Linke USB-Übersichtskamera und Rohrhalter, 2026-11-19
 
-- Nutzerauftrag: zweite Luxonis-Kamera auf der linken Tischseite hoch
-  montieren, bohrungsfrei; verlinktes Ø10 × 1 mm Alurohr als Idee, andere
-  Geometrien offen. N100-SDK-Artefakt bestätigt OAK-D Pro AF (RVC2),
-  Geräte-ID 18443010314F3B1300, RGB-Sensor meldet Autofokus.
-- Vorentwurf unter [hardware/oak_d_pro_left](hardware/oak_d_pro_left/README.md).
-  Technischer Vorschlag: 40 × 40 × 1,6 mm Stahlmast, ausgesteifte
-  Stahlfußplatte mit zwei Schraubklemmen, kompakter Metall-Neigekopf.
-  Vorläufige Optikhöhe 1,85–2,0 m. Vergleichsrechnung für beide Rohre und
-  STL-Dateien für Rückseiten-Lochschablone und USB-Kabelsattel abgelegt.
-  Beide STL-Meshes sind geschlossen und konsistent orientiert.
-- Plattenstärke, freier Untergriff, Zarge und endgültige Kameraposition
-  müssen vor Festlegung der Fußmaße gemessen werden. Montage, reale
-  Steifigkeits-/Sichtprüfung, Kollisionsgeometrie und Tischregistrierung
-  stehen aus. Keine Robotik- oder Kameradienste angesprochen.
+- USB-OAK gegenüber der Ethernet-OAK4. N100-SDK-Artefakt bestätigt
+  OAK-D Pro AF (RVC2), Geräte-ID 18443010314F3B1300 mit Autofokus.
+- Nutzer nutzt das vorhandene 1.200-mm-Edelstahlrohr Ø19 mm und vier
+  vorhandene Tischlöcher. Tischfuß zuerst konstruieren, mit langer
+  Führung und sparsamem Materialeinsatz. Ersetzt den Vorentwurf vom
+  18.11. mit 40-mm-Vierkantmast und Schraubklemmen am Tisch.
+- STEP-Referenz `Rohrhalter.step` gelesen. 98 × 98 mm Raster, vier
+  Ø9-mm-Löcher und Rohrachse 67,45 mm vor der nahen Schraubenreihe
+  in Konstruktion übernommen. Neuer Fuß mit 145 mm Führungsbauhöhe,
+  141 mm Einstecktiefe, zwei M5-Klemmzonen im Schraubenabstand 113 mm
+  und drei Rippen. CAD-Volumen 203,5 statt 289,8 cm³ (30 % weniger).
+- [CAD, STL, Passprobe und Vorschau](hardware/oak_d_pro_left/README.md).
+  STEP wieder eingelesen, Solid gültig. Beide STLs geschlossen,
+  konsistent orientiert, jeweils ein Volumenkörper. Kantendistanz
+  der nahen Bohrungsreihe für vollständige Auflage mindestens 87 mm.
+  Tischmaße, Passung, Druck und Steifigkeit am realen Tisch stehen
+  aus. Kamerakopf und Raumprüfung folgen nach dem Fuß.
 
 ## Schritt 4: variierte Lehrerbahnen für die hinteren Arme, 2026-11-18
 

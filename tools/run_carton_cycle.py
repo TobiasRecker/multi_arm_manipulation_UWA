@@ -37,15 +37,27 @@ def main():
             phase('snapshot','prepare_carton_hardware.py','--observe','--output',out/'snapshot')
             phase('registration','register_carton_from_oak.py','--image',a.image,'--metadata',a.metadata,'--intrinsics',a.intrinsics,'--description',a.recipe/'hardware.urdf','--output',out/'registration')
             phase('plan_high','prepare_carton_pregrasp.py','--observations',out/'snapshot/observations.json','--object-pose',out/'registration/object-pose.json','--contact-design',a.recipe/'contacts.json','--contact-scene',a.recipe/'scene.json','--config',a.config,'--pregrasp-m','.15','--output',out/'high-plan')
+            if a.execute:
+                evidence=json.loads((out/'high-plan/evidence.json').read_text());future=dict(evidence['saved_start'])
+                future.update(zip(evidence['path']['joint_names'],evidence['path']['waypoints'][-1]))
+                (out/'planned-high.json').write_text(json.dumps(dict(planned_only=True,segments=[dict(final_positions=future)]),indent=2)+'\n')
+            # Decide that the chosen branches can complete the task BEFORE
+            # spending a real approach on a merely valid isolated high pose.
+            phase('plan_entry','prepare_carton_open_entry.py','--evidence',out/'high-plan','--approach',out/'planned-high.json','--planned-start','--output',out/'entry-plan')
             phase('high','run_carton_pregrasp.py','--evidence',out/'high-plan','--output',out/'high','--command-velocity','.1','--execute','--reset-unloaded')
             # Already activated/open from release: read readiness, don't send
             # another opening or activation merely to repeat the same state.
             phase('open_readiness','carton_gripper_phase.py','prepare','--state',out/'high/result.json','--output',out/'open-readiness')
-            phase('plan_entry','prepare_carton_open_entry.py','--evidence',out/'high-plan','--approach',out/'high/result.json','--output',out/'entry-plan')
             phase('entry','run_carton_open_entry.py','--plan',out/'entry-plan/result.json','--output',out/'entry','--execute','--reset-unloaded')
             report['phase']='WAITING_VISUAL_REVIEW'
     except BaseException as error:report.update(success=False,phase='STOPPED_NO_AUTOMATIC_RECOVERY',error=str(error))
     finally:
+        grasp=out/'grasp/result.json'
+        if a.close_after_review and grasp.exists():
+            contact=json.loads(grasp.read_text())
+            report['confirmed_contact_members']=contact.get('confirmed_contact_members',[])
+            report['static_contact_hold_verified']=contact.get('static_contact_hold_verified',False)
+            report['closing_control_result_success']=contact.get('success',False)
         report['elapsed_s']=time.monotonic()-report['started_monotonic_s'];report['updated_wall']=datetime.now().astimezone().isoformat()
         if a.execute:save()
     print(json.dumps({k:v for k,v in report.items()if k!='events'},indent=2));return 0 if report['phase']in ('WAITING_VISUAL_REVIEW','SUPPORTED_CONTACT_HELD')or not a.execute else 1
