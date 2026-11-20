@@ -48,7 +48,9 @@ def arguments():
         ap.add_argument("--" + name, type=Path)
     ap.add_argument("--registration-directory", type=Path, help="Reuse a successful registration only when every bound source and current capture is unchanged")
     ap.add_argument("--path-budget-s", type=float, help="Offline path-search time per candidate; no change to execution speed")
-    ap.add_argument("--camera-reference-pose", type=Path)
+    camera = ap.add_mutually_exclusive_group()
+    camera.add_argument("--camera-reference-pose", type=Path)
+    camera.add_argument("--camera-session", type=Path)
     ap.add_argument("--photo-reference", type=Path)
     ap.add_argument("--verification-image", type=Path)
     ap.add_argument("--verification-metadata", type=Path)
@@ -67,18 +69,20 @@ def arguments():
             ap.error("Offline planning needs --observations, --object-pose and --program or --recipe")
         if any((args.close_after_review, args.start_ros_programs, args.visual_confirmed, args.risk,
                 args.image, args.metadata, args.intrinsics, args.entry_image, args.entry_metadata,
-                args.registration_directory, args.camera_reference_pose, args.photo_reference,
+                args.registration_directory, args.camera_reference_pose, args.camera_session, args.photo_reference,
                 args.verification_image, args.verification_metadata, args.planar_texture, args.roi, args.face_roi)):
             ap.error("Live capture, review and execution options are invalid with --plan-only")
     elif args.observations or args.object_pose:
         ap.error("--observations and --object-pose require --plan-only")
     elif args.close_after_review:
-        if not (args.execute and args.entry_image and args.entry_metadata):
+        if args.camera_session or not (args.execute and args.entry_image and args.entry_metadata):
             ap.error("Contact needs --execute, --entry-image and --entry-metadata")
     elif not all((args.image, args.metadata, args.intrinsics, args.program or args.recipe)):
         ap.error("Approach needs --image, --metadata, --intrinsics and --program or --recipe")
     elif args.program and args.registration_directory:
         ap.error("Reusing a registration requires --recipe with the original hardware.urdf path")
+    elif args.registration_directory and args.camera_session:
+        ap.error("A camera session requires registering the current carton image.")
     return args
 
 
@@ -278,6 +282,7 @@ def approach(flow, args, store):
                    "--metadata", args.metadata, "--intrinsics", args.intrinsics, "--description",
                    recipe/"hardware.urdf", "--output", out/"registration",
                    *(["--camera-reference-pose", args.camera_reference_pose] if args.camera_reference_pose else []),
+                   *(["--camera-session", args.camera_session] if getattr(args,"camera_session",None) else []),
                    *(["--planar-texture"] if getattr(args,"planar_texture",False) else []),
                    *(["--photo-reference", args.photo_reference] if getattr(args,"photo_reference",None) else []),
                    *(["--verification-image",args.verification_image,"--verification-metadata",args.verification_metadata]if getattr(args,"verification_image",None)else []),

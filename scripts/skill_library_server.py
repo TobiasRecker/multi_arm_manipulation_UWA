@@ -15,6 +15,10 @@ from uuid import uuid4
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from carton_camera_session import validate_session
+from run_carton_program import live_inputs
+
 WORKSPACE = ROOT.parents[1]
 PROGRAM_ID = "carton-supported-v1"
 RUN_ID = re.compile(r"[a-f0-9]{32}")
@@ -28,7 +32,7 @@ STATIC = {
 }
 STAGES = [
     {"id": "capture", "title": "Capture the scene", "description": "Reference the carton in an OAK4 standard image."},
-    {"id": "registration", "title": "Locate the carton", "description": "Fit its pose from the known carton texture and check the table reference."},
+    {"id": "registration", "title": "Locate the carton", "description": "Fit the current carton pose from its known texture using the camera reference."},
     {"id": "planning", "title": "Plan both arms", "description": "Compute and check the high approach and open entry from measured joints."},
     {"id": "motion_review", "title": "Review the approach", "description": "Review the current paths in UWA Robot Power before real motion."},
     {"id": "wrist", "title": "Inspect the grasp alignment", "description": "Measure the visible carton rim in archived wrist-camera images. Real contact uses a fresh OAK4 entry photo."},
@@ -67,19 +71,28 @@ class Runs:
         self.live_config = live_config
         self.directory.mkdir(parents=True, exist_ok=True)
 
-    def live_blocker(self):
+    def camera_status(self):
         try:
-            configured = self.live_config is not None and read_json(self.live_config).get("enabled") is True
-        except (OSError, ValueError, AttributeError):
-            return "The local live configuration could not be read."
-        return None if configured else "The N100 and OAK live configuration has not been enabled on this workstation."
+            config = live_inputs(self.live_config)
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            return {"calibrate_available": False, "live_blocker": str(error)}
+        path = config.get("camera_session")
+        if path is None:
+            return {"calibrate_available": False, "live_blocker": None}
+        if not path.is_file():
+            return {"calibrate_available": True, "live_blocker": "Calibrate the OAK4 before starting the carton program."}
+        try:
+            session = validate_session(read_json(path), config["intrinsics"])
+        except (OSError, ValueError, KeyError, TypeError):
+            return {"calibrate_available": True, "live_blocker": "The OAK4 camera reference expired or is invalid. Recalibrate the camera."}
+        return {"calibrate_available": True, "live_blocker": None, "camera_valid_until": session["valid_until"]}
 
     def catalog(self):
-        blocker = self.live_blocker()
+        camera = self.camera_status()
         program = dict(id=PROGRAM_ID, title="Supported carton grasp",
                        description="Both right arms grasp the known Avocado carton at its measured pose and hold it on the table.",
                        object="Avocado carton", arms=["Right front", "Right rear"], stages=STAGES,
-                       demo_available=True, live_available=blocker is None, live_blocker=blocker)
+                       demo_available=True, live_available=camera["live_blocker"] is None, **camera)
         latest = max((path for path in self.directory.glob("*/run.json") if RUN_ID.fullmatch(path.parent.name)),
                      key=lambda path: path.stat().st_mtime, default=None)
         return dict(programs=[program], active_run=self.get(latest.parent.name) if latest else None)
@@ -132,21 +145,25 @@ class Runs:
         write_json(directory / "exit.json", dict(code=code, at=now()))
 
     def start(self, program, mode):
-        if program != PROGRAM_ID or mode not in ("demo", "live"):
+        if program != PROGRAM_ID or mode not in ("demo", "live", "calibrate"):
             raise ValueError("Choose a program and execution mode from the library.")
-        if mode == "live" and (blocker := self.live_blocker()):
-            raise ValueError(blocker)
         with (self.directory / ".run.lock").open("a") as lease:
             try:
                 fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError as error:
                 raise RuntimeError("Another library run is already active.") from error
+            if mode != "demo":
+                camera = self.camera_status()
+                if mode == "live" and camera["live_blocker"]:
+                    raise ValueError(camera["live_blocker"])
+                if mode == "calibrate" and not camera["calibrate_available"]:
+                    raise ValueError("The separate OAK4 calibration is not configured on this workstation.")
             identifier = uuid4().hex
             output = self.directory / identifier
             output.mkdir()
             command = [sys.executable, str(ROOT / "tools/run_carton_program.py"),
                        "--program", program, "--mode", mode, "--output", str(output)]
-            if mode == "live":
+            if mode != "demo":
                 command.extend(["--live-config", str(self.live_config)])
             started_at = now()
             with (output / "run.log").open("wb") as log:

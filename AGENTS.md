@@ -24,6 +24,9 @@ Kartonpilot auf dem N100: Bei optionalem regulärem Programmstart unmittelbar vo
 - Gazebo darf mit bis zu **1 rad/s je Armgelenk** geplant und abgespielt
   werden. Diese Freigabe gilt für die Simulation. Für echte URs gelten ihre
   separaten Freigaben und Geschwindigkeitsprofile.
+- Am 20.11.2026 bestätigte der Nutzer das schnelle Gazebo-Zeichnungsprofil
+  `carton_drawing_fast.yaml` als Standard für künftige vergleichbare Demos.
+  Mit bis zu 1 rad/s je Armgelenk und Echtzeitfaktor 1 als Ziel wiederverwenden.
 
 ## Aufgabenbezogene Freigabe im Kartonpiloten, 19.11.2026
 
@@ -310,6 +313,12 @@ Kartonpilot auf dem N100: Bei optionalem regulärem Programmstart unmittelbar vo
   bestehen. Keine pauschale Freigabe über0,1rad/s daraus ableiten.
 
 ## OAK-Neukalibrierung und Aufnahmefeedback (2026-11-17)
+
+- Nutzerziel 20.11.: Den Kartonablauf gegenüber kleinen Änderungen der
+  OAK-Lage im Bild robuster machen. Temperatur ist eine mögliche Ursache.
+  Als technische Lösung fest angebundene, dauerhaft sichtbare Marker für
+  die laufbezogene Kameraregistrierung prüfen. Die übernommenen
+  Roboterbasen sind davon getrennt. Stand im HANDOVER.
 
 - Verbindliche Nutzerentscheidung18.11.: vorhandene Basisanbindungen ALLER
   vier URs einschließlich left_front als **fest übernommen** behandeln.

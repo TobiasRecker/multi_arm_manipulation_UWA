@@ -12,6 +12,8 @@ import subprocess
 import sys
 import uuid
 
+from carton_camera_session import create_session, validate_session, write_session
+
 REPO = Path(__file__).resolve().parents[1]
 WORKSPACE = REPO.parents[1]
 CELL = REPO.relative_to(WORKSPACE)
@@ -149,11 +151,16 @@ def live_inputs(path):
     config = load_json(path)
     if not isinstance(config, dict) or config.get("enabled") is not True:
         raise ValueError("Live mode is disabled in the local configuration.")
-    fields = {"enabled", "intrinsics", "roi", "face_roi", "camera_reference_pose", "planar_texture"}
+    fields = {"enabled", "intrinsics", "roi", "face_roi", "camera_reference_pose", "camera_session", "planar_texture"}
     if set(config) - fields:
         raise ValueError("Live config contains unknown fields.")
     if not isinstance(config.get("planar_texture", False), bool):
         raise ValueError("planar_texture must be true or false.")
+    if "camera_session" in config:
+        session = config["camera_session"]
+        if not isinstance(session, str) or not session.strip() or config.get("camera_reference_pose"):
+            raise ValueError("Configure a camera session file or a legacy camera reference.")
+        config["camera_session"] = (path.parent / session).resolve()
     for key in ("intrinsics", "camera_reference_pose"):
         value = config.get(key)
         if value is None and key == "camera_reference_pose":
@@ -196,6 +203,7 @@ def n100_preflight(out, program):
         CELL / "tools/run_carton_cycle.py",
         CELL / "tools/prepare_carton_recipe.py",
         CELL / "tools/register_carton_from_oak.py",
+        CELL / "tools/carton_camera_session.py",
         CELL / "config/carton_programs" / f"{program}.json",
         CELL / "uwa_cell_motion/config/hardware_carton_supported_trend.yaml",
         TEXTURE_MODEL,
@@ -237,6 +245,30 @@ def capture_oak(out, name, focus):
     return image, metadata
 
 
+def calibrate_camera(progress, config_path):
+    config = live_inputs(config_path)
+    session_path = config.get("camera_session")
+    if session_path is None:
+        raise ValueError("Enable the local ChArUco camera session in the program configuration.")
+    # Starting a calibration after moving the camera revokes the old reference
+    # even if the new capture fails. Successful prior runs keep their copies.
+    session_path.unlink(missing_ok=True)
+    progress.update("oak_calibration", "Capturing and fitting the OAK4 right table reference with ChArUco.")
+    requested = datetime.now(timezone.utc)
+    photo_tool = WORKSPACE / "src/oak_camera_calibration/tools/oak4_photo.sh"
+    raw = logged_command(["/bin/bash", photo_tool, "capture", "--mode", "charuco"],
+                         progress.output / "charuco-capture.log", 320)
+    result = json.loads(raw)
+    directory = Path(result["directory"]).resolve(strict=True)
+    if result.get("mode") != "charuco" or Path(result["metadata"]).resolve() != directory / "metadata.json":
+        raise ValueError("Expected a native ChArUco capture and its metadata.")
+    session = create_session(directory, config["intrinsics"], requested_at=requested)
+    write_session(progress.output / "camera-session.json", session)
+    write_session(session_path, session)
+    return {"calibration": f"Right table · {session['right_marker_count']} markers · "
+            f"{session['held_out_rms_px']:.2f} px held-out RMS", "valid_until": session["valid_until"]}
+
+
 def upload(remote, local_file, log_path):
     command = [
         "/usr/bin/scp", *SSH_OPTIONS, str(local_file),
@@ -273,6 +305,12 @@ def run_live(program, progress, config_path):
     out = progress.output
     progress.update("live_preflight", "Checking the configured optics, N100 runtime and work-area release.")
     config = live_inputs(config_path)
+    session = None
+    if session_path := config.get("camera_session"):
+        if not session_path.is_file():
+            raise ValueError("Calibrate the OAK4 before starting the carton program.")
+        session = validate_session(load_json(session_path), config["intrinsics"])
+        write_session(out / "camera-session.json", session)
     n100_preflight(out, program)
     remote = f"setup/tasks/skill-library-carton-{uuid.uuid4().hex}"
     logged_command(
@@ -286,7 +324,11 @@ def run_live(program, progress, config_path):
     upload(f"{remote}/input/metadata.json", metadata, out / "upload-initial-metadata.log")
     upload(f"{remote}/input/intrinsics.json", config["intrinsics"], out / "upload-intrinsics.log")
     options = []
-    if reference := config.get("camera_reference_pose"):
+    if session is not None:
+        session_remote = f"{remote}/camera-reference/camera-session.json"
+        upload(session_remote, out / "camera-session.json", out / "upload-camera-session.log")
+        options.extend(["--camera-session", session_remote])
+    elif reference := config.get("camera_reference_pose"):
         upload(f"{remote}/camera-reference/object-pose.json", reference, out / "upload-camera-reference.log")
         upload(f"{remote}/camera-reference/registration.json", reference.with_name("registration.json"),
                out / "upload-camera-proof.log")
@@ -322,7 +364,7 @@ def run_live(program, progress, config_path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("demo", "live"), required=True)
+    parser.add_argument("--mode", choices=("demo", "live", "calibrate"), required=True)
     parser.add_argument("--program", choices=(PROGRAM,), required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--live-config", type=Path)
@@ -338,6 +380,9 @@ def main():
         if args.mode == "demo":
             result = run_demo(args.program, progress)
             message = "Recorded carton pose, checked approach and wrist diagnostic completed."
+        elif args.mode == "calibrate":
+            result = calibrate_camera(progress, args.live_config)
+            message = "Right table camera reference saved for 12 hours."
         else:
             result = run_live(args.program, progress, args.live_config)
             message = "Supported carton contact is held."

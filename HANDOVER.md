@@ -1,5 +1,41 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Kamerareferenz-Abbruch im Karton-Weblauf, 20.11.2026
+
+- Weblauf `f7badf0f257b4e95aecc7b5bdbab06ce` stoppte um 11:44:25 AWST
+  nach Rezept und rein lesendem Snapshot bei `registration`. Der N100-Log
+  meldet 3,988 px RMS und 5,377 px maximal bei Grenzen <2 und <4 px. Der
+  Lauf erreichte keine Karton-Textursuche, Bahnplanung, Review oder Ziele.
+- Das OAK-Foto `20261120-114332-standard-5eaef2a5` hat Fokus 107 und sieht
+  16 Ecken der rechten IDs 52, 56, 59 und 63. Gegen die Aufnahme vom 19.11.
+  18:31:18 verschieben sich die wiedererkannten Eckpunkte beider Boards
+  gemeinsam nach rechts (mittlere Verschiebung rechts 3,54 px, links 3,78 px).
+  Die physische Ursache ist offen. Der bestehende Weg für einen vollständigen
+  aktuellen Kamerabezug braucht mindestens 48 gut sichtbare rechte Ecken.
+- Im Snapshot des Laufs meldeten beide rechten Arme und `left_rear` nativ
+  `POWER_OFF`. `left_front` war im Messfenster von 0,528 s stationär
+  (größte Gelenkspanne 0,000072 rad bei 0,0005 rad Grenze). Diese Zustände
+  sind ein zeitgebundener Befund und kein Grund für den Bildabbruch.
+- Rohlog und Snapshot `setup/tasks/carton_board_reference_20261120/`. Der
+  lokale allgemeine Safety-log-Export stammt vom Vortag. Zum Vorfall gehören
+  die aktuellen Web- und N100-Laufberichte.
+- Nutzer fragt nach thermischer Drift und möchte den Ablauf robuster machen.
+  Fokus-107-Optik mit fx 5832 px und mittlerer Tiefe der 16 sichtbaren rechten
+  Markerecken 1,334 m. Der horizontale Versatz von 3,536 px entspricht
+  näherungsweise 0,035 Grad Sichtwinkel oder 0,81 mm quer zur Blickrichtung
+  unter den jeweiligen Einzelannahmen. Beide Foto-Metadaten enthalten keine
+  Material- oder Umgebungstemperatur. Ein reiner modellierter Höhenverlust
+  der Kamera um 0,47 mm ergibt im Mittel −0,023 px horizontal und −1,080 px
+  vertikal. Kippen oder differenzielle Dehnung bleiben offene Hypothesen.
+- Die Offline-Auswertung vorhandener Bilder prüfte das linke Board als
+  zusätzlichen Weltbezug. Selbst der beste separat am rechten Board
+  geprüfte Fit landete bei 2,84 px RMS und 5,52 px Maximum. Eine brauchbare
+  gemeinsame Pose braucht einen besser belegten Anker. Der vorhandene Weg
+  mit ausreichend sichtbaren, fest angebundenen Markern am rechten Tisch
+  erlaubt eine neue Kamerapose direkt aus der laufenden Aufnahme. Die
+  automatische Zweiboard-Korrektur wurde nicht übernommen.
+  Nachweis `setup/tasks/carton_board_reference_20261120/two-board-diagnostic.json`.
+
 ## Aktuell nach Klarstellung: kein Reserveblocker, UR-Startup offen
 
 - Beide aktuellen Parallelphasen sind mit `geometric_only` und0,0m zusätzlichem
@@ -153,6 +189,36 @@ Die bedarfsabhängige Play-Freigabe ist im aktiven N100-Kartonrunner installiert
   Quellen und vollständige zeitparametrierte Sweeps neu geprüft. Kein
   automatisches Play in dieser Fahrrevision, Programme bereits bereit.
 
+## Gazebo-Kartonreibung, 19.11.2026
+
+- Nutzerhypothese: Die reale Verformung der Kartonwand durch die Greifbacken
+  könnte zum Kraftschluss etwas Formschluss beitragen. In der starren
+  Gazebo-Hülle wurde auf seinen Vorschlag zunächst der Reibwert erhöht.
+- Das schnelle Zeichnungsprofil setzt 1,0 nur für die vier rechten
+  Greifpad–Karton-Paare. Das virtuelle Motordrehmoment blieb 0,7 Nm.
+  Die Boden-/Tischkontakte folgen dem bisherigen Materialansatz. Die
+  Änderung gehört zur Kontaktphysik und erfasst keine Laufzeitmessreihe.
+- Wiedergabe bei bis zu 1 rad/s durch alle 44 Planphasen bis zum Öffnen.
+  163,1 mm Hub und 22,9° Endneigung am Tischspalt. Der höhere Reibwert
+  allein beseitigte die Schräglage in diesem Lauf nicht. Bericht und Bild
+  unter setup/tasks/house_drill_gazebo_friction_20261119_01/report.md.
+- Am 20.11.2026 meldete der Nutzer aus der laufenden Gazebo-Ansicht, dass
+  der Karton schon während der Drehung im Griff verrutscht. Das seitliche
+  Moment am Greifer ist seine Erklärung. Die Endpose am Tisch dokumentiert
+  nur den Endzustand. Schlupf und Moment wurden während der Drehung nicht
+  gemessen.
+- Auf Nutzerwunsch vom 20.11.2026 wurde dieselbe Haus-/Bohrdemo live in
+  Gazebo mit einem effektiven Greifpad–Karton-Reibwert von 1000 abgespielt.
+  Der Nutzer beobachtete während der Drehung kein Verrutschen im Griff.
+  Das separate Versuchsprofil behält die schnelle Zeitparametrierung und
+  den bisherigen Greiferantrieb. [Laufbericht](../../setup/tasks/house_drill_gazebo_high_friction_20261120_01/report.md)
+- Der anschließende Gazebo-Lauf vom 20.11.2026 mit Reibwert 50 absolvierte
+  alle 44 Phasen und setzte den Karton aufrecht ab. Hin- und Rückdrehung
+  zeigen im Mitschnitt kein sichtbares Verrutschen. Die Offline-Bahnen
+  stimmen mit dem Lauf bei 1000 numerisch überein. 50 ist der niedrigste
+  bisher erfolgreiche Vergleichswert nach Sicht, der Mindestwert bleibt
+  offen. [Laufbericht](../../setup/tasks/house_drill_gazebo_friction50_20261120_01/report.md)
+
 ## Gazebo-Tempo und Freigabe neuer Wächter oder Tests, 19.11.2026
 
 - Nutzerentscheidung für alle Agenten. Das höchste derzeit zulässige und
@@ -164,6 +230,8 @@ Die bedarfsabhängige Play-Freigabe ist im aktiven N100-Kartonrunner installiert
   Grenzen, die räumliche Auflösung der bestehenden Planprüfung bleibt
   erhalten. Physiktakt 1 ms, Echtzeitfaktor 1 als Ziel. Nachweise und
   Vergleich mit 0,1 rad/s unter `setup/tasks/house_drill_gazebo_fast_20261119_01/`.
+- Am 20.11.2026 bestätigte der Nutzer dieses schnelle Tempo als Standard
+  für künftige vergleichbare Gazebo-Demos.
 - Offline auf dem archivierten Griff kompiliert. 44 Phasen, 23.464
   Zustände, 80,36 s Simulationszeit ab Hub statt 390,11 s. Rückdrehung
   15,55 s statt 107,53 s. Planstützstellen bis 0,999992 rad/s.

@@ -5,6 +5,10 @@ const timestamp = new Intl.DateTimeFormat("en-AU", {
   hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
   timeZone: "Australia/Perth",
 });
+const expiryDate = new Intl.DateTimeFormat("en-AU", {
+  day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false,
+  timeZone: "Australia/Perth",
+});
 const workflowPhase = {
   oak_capture: "capture",
   oak_registration: "registration",
@@ -127,10 +131,16 @@ function actions(program) {
   } else if (program.live_blocker) {
     section.append(element("p", "", program.live_blocker));
   }
+  if (program.calibrate_available) {
+    const validUntil = program.camera_valid_until
+      ? `Camera reference valid until ${expiryDate.format(new Date(program.camera_valid_until))} AWST.` : "";
+    section.append(element("p", "", [validUntil, "Recalibrate after moving the camera or the table board."].filter(Boolean).join(" ")));
+  }
   const demoText = "The offline demo uses saved inputs. It plans motion without connecting to the cell.";
   if (program.demo_available) section.append(element("p", "", demoText));
   const buttons = element("div", "run-buttons");
   buttons.append(startButton(program, "live", "Start program", "primary"));
+  if (program.calibrate_available) buttons.append(startButton(program, "calibrate", "Calibrate OAK4", "secondary"));
   buttons.append(startButton(program, "demo", "Run offline demo", program.live_available ? "secondary" : "primary"));
   section.append(buttons);
   const message = element("p", "feedback");
@@ -156,6 +166,7 @@ function localTime(value) {
 function phaseTitle(run, phase) {
   const program = state.programs.find(candidate => candidate.id === run.program);
   if (phase === "oak_entry_capture") return "Capture the open entry";
+  if (phase === "oak_calibration") return "Calibrate OAK4";
   const title = program?.stages.find(stage => stage.id === (workflowPhase[phase] || phase))?.title;
   if (title) return title;
   return (phase || "").replaceAll("_", " ").replaceAll("-", " ");
@@ -166,7 +177,8 @@ function runState(run) {
     ["motion_review", "contact_review"].includes(run.phase);
   const label = waiting ? "REVIEW REQUIRED" :
     ({ running: "RUNNING", succeeded: "COMPLETE", failed: "FAILED" }[run.state] || "UNKNOWN");
-  return `${run.mode === "live" ? "CELL" : "OFFLINE DEMO"} · ${label}`;
+  const mode = { live: "CELL", demo: "OFFLINE DEMO", calibrate: "OAK4 CALIBRATION" }[run.mode];
+  return `${mode} · ${label}`;
 }
 
 function verdict(code) {
@@ -184,6 +196,7 @@ function verdict(code) {
 function summarizeResult(result) {
   const evidence = element("dl", "evidence");
   const rows = [
+    ["Camera reference", result.calibration],
     ["Carton pose", result.pose],
     ["Motion plan", result.plan],
     ["Contact", result.contact],
@@ -352,6 +365,7 @@ async function poll() {
   updateActions();
   updateStatus();
   if (state.run?.state === "running") state.timer = setTimeout(poll, 1250);
+  else if (run.mode === "calibrate") await loadCatalog();
 }
 
 async function start(program, mode) {

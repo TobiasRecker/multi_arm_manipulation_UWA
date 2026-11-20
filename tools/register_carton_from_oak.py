@@ -11,6 +11,7 @@ from pathlib import Path
 import cv2,numpy as np,yaml
 from scipy.optimize import least_squares
 from scipy.spatial.transform import Rotation
+from carton_camera_session import validate_session
 REPO=Path(__file__).resolve().parents[1];sys.path.insert(0,str(REPO/'uwa_cell_tasks'))
 from uwa_cell_tracking.core import TexturePose,estimate,PoseResult
 from uwa_cell_gazebo.charuco import make_board
@@ -92,18 +93,41 @@ def track_photo_points(old,image,points,pixels,roi,width,K,D,window):
                        max_forward_backward_px=float(fb[keep].max())if keep.any()else None)
 
 
+def right_board_observation(image):
+    layout = yaml.safe_load((REPO/'uwa_cell_description/config/cell_layout.yaml').read_text())
+    board = make_board(layout['charuco'], 'right')
+    known = {int(i): points for i, points in zip(board.getIds().ravel(), board.getObjPoints())}
+    params = cv2.aruco.DetectorParameters()
+    params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+    corners, ids, _ = cv2.aruco.ArucoDetector(board.getDictionary(), params).detectMarkers(image)
+    obj, uv = [], []
+    for pixels,mid in zip(corners,[]if ids is None else ids.ravel()):
+        if int(mid)in known:obj.extend(known[int(mid)]);uv.extend(pixels.reshape(4,2))
+    return np.asarray(obj, dtype=float), np.asarray(uv, dtype=float)
+
+
 def register(a):
     out=a.output.resolve();out.mkdir(parents=True,exist_ok=False);photo=json.loads(a.metadata.read_text());intr=json.loads(a.intrinsics.read_text());intr=intr.get('intrinsics',intr);K=np.array(intr['K']);D=np.array(intr['D']);image=cv2.imread(str(a.image));focus=photo['standard']['lens_position']
     if image is None:raise ValueError('Native image unavailable')
     if not photo.get('success') or photo.get('mode')!='standard' or focus!=intr['focus'] or list(image.shape[1::-1])!=intr['image_size']:raise ValueError('Native photo/calibration mode, focus or dimensions differ')
-    board=make_board(yaml.safe_load((REPO/'uwa_cell_description/config/cell_layout.yaml').read_text())['charuco'],'right');known={int(i):np.array(p)for i,p in zip(board.getIds().ravel(),board.getObjPoints())};params=cv2.aruco.DetectorParameters();params.cornerRefinementMethod=cv2.aruco.CORNER_REFINE_SUBPIX;corners,ids,_=cv2.aruco.ArucoDetector(board.getDictionary(),params).detectMarkers(image);obj=[];uv=[]
-    for pixels,mid in zip(corners,[]if ids is None else ids.ravel()):
-        if int(mid)in known:obj.extend(known[int(mid)]);uv.extend(pixels.reshape(4,2))
-    obj=np.array(obj,dtype=float);uv=np.array(uv,dtype=float)
     description=a.description.read_text();Twb=Chain(description,'world','right_charuco').forward({});Twt=Chain(description,'world','right_table_top').forward({})
     board_mode='current_full_board_fit';reference_check={}
-    if len(obj)<48:
-        reference_path=getattr(a,'camera_reference_pose',None)
+    session_path = getattr(a, 'camera_session', None)
+    session = None
+    if session_path:
+        session = validate_session(json.loads(session_path.read_text()), a.intrinsics, photo=photo)
+        Twc = Twb @ np.linalg.inv(np.asarray(session['T_camera_board']))
+        board_mode = 'stored_charuco_session'
+        board_corners, brms = None, None
+        reference_check = {key: session[key] for key in ('valid_from', 'valid_until', 'held_out_rms_px')}
+    else:
+        obj, uv = right_board_observation(image)
+        board_corners = len(obj)
+    reference_path = getattr(a, 'camera_reference_pose', None)
+    camera_sources = [session_path] if session else []
+    if session:
+        reference_source = 'Session ChArUco camera reference + adopted base bindings; current carton image fit'
+    elif board_corners < 48:
         if reference_path is None:raise ValueError('Fixed right board has insufficient visible marker corners')
         reference=json.loads(reference_path.read_text());proof=json.loads((reference_path.parent/'registration.json').read_text())
         if (reference.get('focus')!=focus or not proof.get('success') or proof.get('board_corners',0)<48 or
@@ -113,11 +137,14 @@ def register(a):
         Twc=Chain(description,'world','right_front_base_link').forward({})@np.asarray(reference['T_base_camera_by_arm']['right_front'])
         reference_check=validate_visible_board_projection(obj,uv,np.linalg.inv(Twc)@Twb,K,D)
         brms=reference_check['reference_projection_rms_px'];board_mode='reference_validated_against_visible_corners'
+        reference_source = 'Previous complete board camera registration validated on current visible markers; current carton image fit'
+        camera_sources = [reference_path, reference_path.with_name('registration.json')]
     else:
         ok,rv,tv=cv2.solvePnP(obj,uv,K,D);Tcb=np.eye(4);Tcb[:3,:3]=cv2.Rodrigues(rv)[0];Tcb[:3,3]=tv.ravel()
         res=cv2.projectPoints(obj,rv,tv,K,D)[0].reshape(-1,2)-uv;brms=float(np.sqrt(np.mean(np.sum(res**2,axis=1))))
         if not ok or brms>=2.:raise ValueError('Fixed right-board reprojection failed')
         Twc=Twb@np.linalg.inv(Tcb)
+        reference_source = 'Current fixed right board + adopted base bindings'
     Tcw=np.linalg.inv(Twc);attempts=[];fits=[];photo_reference=None
     if getattr(a,'photo_reference',None):photo_reference=load_photo_reference(a.photo_reference,image.shape,focus,a.intrinsics)
     def accept_supported(r,method,roi,width):
@@ -171,10 +198,11 @@ def register(a):
     if verification_path:
         verification=cv2.imread(str(a.verification_image));meta=json.loads(a.verification_metadata.read_text())
         if (verification is None or verification.shape!=image.shape or not meta.get('success') or meta.get('mode')!='standard' or meta['standard']['lens_position']!=focus):raise ValueError('Additional current observation optics differ')
-        vc,vi,_=cv2.aruco.ArucoDetector(board.getDictionary(),params).detectMarkers(verification);vo=[];vp=[]
-        for c,i in zip(vc,[]if vi is None else vi.ravel()):
-            if int(i)in known:vo.extend(known[int(i)]);vp.extend(c.reshape(4,2))
-        validate_visible_board_projection(vo,vp,Tcw@Twb,K,D)
+        if session:
+            validate_session(session, a.intrinsics, photo=meta)
+        else:
+            vo, vp = right_board_observation(verification)
+            validate_visible_board_projection(vo,vp,Tcw@Twb,K,D)
         for roi,width in [(a.roi,1600),(a.face_roi,1200),(a.face_roi,1600)]:
             x0,y0,x1,y1=roi;k=K.copy();k[0,2]-=x0;k[1,2]-=y0
             if photo_reference is not None:
@@ -190,14 +218,25 @@ def register(a):
                 accept_supported(r,method,roi,width)
         if contrast_fallback and len(fits) == first_observation_fits:
             add_contrast_hypotheses(verification, verification_path)
-    report=dict(success=False,device_commands=[],board_corners=len(obj),board_rms_px=brms,board_camera_mode=board_mode,camera_reference_pose=str(getattr(a,'camera_reference_pose',None)),reference_check=reference_check,attempts=attempts,support_prior='Carton visibly upright/supported on fixed right table; bottom at table plane; x/y/yaw fitted to current image',absolute_accuracy_validated=False,manipulation_approved=False)
+    report=dict(success=False,device_commands=[],board_corners=board_corners,board_rms_px=brms,board_camera_mode=board_mode,camera_reference_pose=str(reference_path),camera_session=str(session_path),reference_check=reference_check,attempts=attempts,support_prior='Carton visibly upright/supported on fixed right table; bottom at table plane; x/y/yaw fitted to current image',absolute_accuracy_validated=False,manipulation_approved=False)
     if getattr(a,'verification_image',None) and not (first_observation_fits and len(fits)>first_observation_fits):report['error']='Each current observation requires its own valid supported image-pose hypothesis'
     elif len(fits)<2:report['error']='Fewer than two valid supported image-pose hypotheses'
     else:
         T=fits[0];spread=max(np.linalg.norm(t[:3,3]-T[:3,3])for t in fits);angular=max(np.rad2deg(Rotation.from_matrix(t[:3,:3]@T[:3,:3].T).magnitude())for t in fits);report.update(position_spread_m=float(spread),angle_spread_deg=float(angular))
         if spread>=.01 or angular>=2.:report['error']='Supported image hypotheses disagree'
         else:
-            registration=dict(transforms={arm:dict(parent_frame=arm+'_base_link',child_frame='oak4_rgb_optical_frame',T_parent_child=(np.linalg.inv(Chain(description,'world',arm+'_base_link').forward({}))@Twc).tolist())for arm in ['right_front','right_rear']});binding=per_arm_camera_binding(description,registration,Tcw@T);validate_per_arm_binding(description,binding);binding.update(source=('Current fixed right board + adopted base bindings'if board_mode=='current_full_board_fit'else 'Previous complete board camera registration validated on current visible markers; current carton image fit'),focus=focus,support_prior=report['support_prior'],source_inputs={str(p.resolve()):hashlib.sha256(p.read_bytes()).hexdigest()for p in [a.image,a.metadata,a.intrinsics,a.description,a.reference,Path(__file__)]+([a.verification_image,a.verification_metadata]if getattr(a,'verification_image',None)else [])+([a.photo_reference]+[Path(v)for v in photo_reference[0]['files']]if photo_reference is not None else [])+([a.camera_reference_pose,a.camera_reference_pose.parent/'registration.json']if board_mode!='current_full_board_fit'else [])});(out/'object-pose.json').write_text(json.dumps(binding,indent=2)+'\n');report.update(success=True,T_world_object=T.tolist(),object_pose=str(out/'object-pose.json'))
+            registration=dict(transforms={arm:dict(parent_frame=arm+'_base_link',child_frame='oak4_rgb_optical_frame',T_parent_child=(np.linalg.inv(Chain(description,'world',arm+'_base_link').forward({}))@Twc).tolist())for arm in ['right_front','right_rear']})
+            binding = per_arm_camera_binding(description, registration, Tcw @ T)
+            validate_per_arm_binding(description, binding)
+            sources = [a.image, a.metadata, a.intrinsics, a.description, a.reference, Path(__file__), *camera_sources]
+            if verification_path:
+                sources.extend((verification_path, a.verification_metadata))
+            if photo_reference is not None:
+                sources.extend([a.photo_reference, *map(Path, photo_reference[0]['files'])])
+            binding.update(source=reference_source, focus=focus, support_prior=report['support_prior'],
+                           source_inputs={str(p.resolve()):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources})
+            (out/'object-pose.json').write_text(json.dumps(binding,indent=2)+'\n')
+            report.update(success=True,T_world_object=T.tolist(),object_pose=str(out/'object-pose.json'))
             dims=json.loads((REPO/'uwa_cell_description/assets/carton_avocado_v1/asset.json').read_text())['dimensions_m'];L,W,H=dims;points=np.array([[x,y,z]for z in (0,H)for y in (0,W)for x in (0,L)]);co=Tcw@T;px=cv2.projectPoints(points,cv2.Rodrigues(co[:3,:3])[0],co[:3,3],K,D)[0].reshape(-1,2)
             for i,j in [(0,1),(0,2),(1,3),(2,3),(4,5),(4,6),(5,7),(6,7),(0,4),(1,5),(2,6),(3,7)]:cv2.line(image,tuple(np.rint(px[i]).astype(int)),tuple(np.rint(px[j]).astype(int)),(0,255,255),9)
             cv2.rectangle(image,(0,0),(image.shape[1],250),(0,0,0),-1);cv2.putText(image,'CURRENT SUPPORTED CARTON / IMAGE REGISTRATION ONLY',(80,165),cv2.FONT_HERSHEY_SIMPLEX,3,(255,255,255),7);cv2.imwrite(str(out/'pose-preview.jpg'),cv2.resize(image,(1600,1200)));report['preview']=str(out/'pose-preview.jpg')
@@ -211,5 +250,7 @@ if __name__=='__main__':
     ap.add_argument('--verification-metadata',type=Path)
     ap.add_argument('--photo-reference',type=Path,help='SHA-bound successful historical image observation; estimate a new pose from forward/backward-verified CURRENT pixels, never return its old pose')
     ap.add_argument('--planar-texture',action='store_true',help='Affine feature views with per-panel planar consensus; unchanged inlier, residual and hypothesis-agreement limits')
-    ap.add_argument('--camera-reference-pose',type=Path,help='Explicit complete earlier camera registration, validated against >=4 current visible markers; never reuse its object pose')
+    camera = ap.add_mutually_exclusive_group()
+    camera.add_argument('--camera-reference-pose',type=Path,help='Complete earlier camera registration validated against current visible markers')
+    camera.add_argument('--camera-session',type=Path,help='Current 12-hour ChArUco camera reference; still fit the carton from current images')
     ap.add_argument('--reference',type=Path,default=REPO.parents[1]/'setup/tracking/models/carton_avocado_v1/reference.npz');ap.add_argument('--roi',nargs=4,type=int,default=[2700,2100,4900,3700]);ap.add_argument('--face-roi',nargs=4,type=int,default=[2850,2750,4700,3520]);raise SystemExit(register(ap.parse_args()))
