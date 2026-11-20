@@ -93,7 +93,11 @@ Abweichungen lassen sich wie bisher phasenbezogen dokumentieren.
 Das getrennte Haus-Rezept übernimmt den 22-mm-Kreis, die acht Hauskanten
 und sechs axiale Zustellungen. Es fährt nach dem letzten Rückzug zur
 Unterseiten-Vorpose, nimmt den geprüften gemeinsamen Weg in Gegenrichtung
-und setzt den Karton ab. Der Gegenwandkreis bleibt eine separate Aufgabe.
+und setzt den Karton ab. Das erweiterte Rezept vom 20.11. fügt den
+25-mm-Radius-Bodenkreis und die zweite Drehung zur Gegenwand ein. Dort
+fährt die gemeinsam gehaltene Box den 22-mm-Radius-Kreis am festen Stift.
+Anschließend folgen beide Rückdrehungen. Die 54 Phasen wurden nach dem
+Greifen bei Reibwert 20 in Gazebo vorgeführt. [Laufbericht](../../../setup/tasks/house_drill_box_circle_friction20_20261120_01/report.md)
 
 Das Kontaktprofil bindet die Gelenkpfade an den frisch bestätigten Griff.
 In Gazebo zeigt ein orangefarbenes Werkzeug die virtuelle Spitze. Für die

@@ -4,9 +4,11 @@ import argparse
 from contextlib import contextmanager
 from datetime import datetime
 import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path
+import socket
 import subprocess
 import sys
 import time
@@ -14,7 +16,7 @@ import time
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "uwa_cell_tasks"))
 from uwa_cell_tasks.carton_review import contact_component, current_capture, entry_photo, motion_packet, motion_timing, read_json
-from uwa_cell_tasks.motion_review import ReviewStore, START_PERCENT, TASK, caps, digest
+from uwa_cell_tasks.motion_review import ReviewStore, START_PERCENT, TASK, caps, digest, percent
 
 
 class CaptureUnavailable(ValueError):
@@ -37,8 +39,13 @@ def arguments():
     recipe = ap.add_mutually_exclusive_group()
     recipe.add_argument("--program", help="Saved carton program name from config/carton_programs")
     recipe.add_argument("--recipe", type=Path, help="Previously generated carton geometry/contact recipe")
+    recipe.add_argument("--prepared-approach", type=Path, help="Executor-local staged, checked approach")
     ap.add_argument("--observations", type=Path, help="Saved arm observations for --plan-only")
     ap.add_argument("--object-pose", type=Path, help="Saved carton pose for --plan-only")
+    ap.add_argument("--speed-percent", type=float, help="Active pilot speed to compile in --plan-only")
+    ap.add_argument("--expected-scene-session", help="N100 work-area session bound to a prepared approach")
+    ap.add_argument("--expected-observations", type=Path,
+                    help="Original N100 snapshot used in a prepared approach")
     ap.add_argument("--close-after-review", action="store_true")
     ap.add_argument("--visual-confirmed", action="store_true",
                     help="Agent inspected this actual post-entry image")
@@ -64,6 +71,18 @@ def arguments():
     args = ap.parse_args()
     if bool(args.risk) != bool(args.reason and args.reason.strip()):
         ap.error("Provide --risk and a nonempty --reason together")
+    if args.speed_percent is not None and not args.plan_only:
+        ap.error("--speed-percent is for --plan-only; execution uses the active pilot setting")
+    if args.prepared_approach:
+        if not (args.execute and args.image and args.metadata and args.intrinsics and
+                args.expected_scene_session and args.expected_observations):
+            ap.error("Prepared approach needs --execute, current camera inputs, --expected-scene-session and --expected-observations")
+        if any((args.close_after_review, args.visual_confirmed, args.registration_directory, args.path_budget_s,
+                args.photo_reference, args.verification_image, args.verification_metadata,
+                args.planar_texture, args.roi, args.face_roi)):
+            ap.error("A prepared approach cannot change the completed registration or path search")
+    elif args.expected_scene_session or args.expected_observations:
+        ap.error("Expected session and observations require --prepared-approach")
     if args.plan_only:
         if not (args.observations and args.object_pose and (args.program or args.recipe)):
             ap.error("Offline planning needs --observations, --object-pose and --program or --recipe")
@@ -77,12 +96,16 @@ def arguments():
     elif args.close_after_review:
         if args.camera_session or not (args.execute and args.entry_image and args.entry_metadata):
             ap.error("Contact needs --execute, --entry-image and --entry-metadata")
-    elif not all((args.image, args.metadata, args.intrinsics, args.program or args.recipe)):
-        ap.error("Approach needs --image, --metadata, --intrinsics and --program or --recipe")
+    elif not all((args.image, args.metadata, args.intrinsics,
+                  args.program or args.recipe or args.prepared_approach)):
+        ap.error("Approach needs --image, --metadata, --intrinsics and a program, recipe or prepared approach")
     elif args.program and args.registration_directory:
         ap.error("Reusing a registration requires --recipe with the original hardware.urdf path")
     elif args.registration_directory and args.camera_session:
         ap.error("A camera session requires registering the current carton image.")
+    if (args.execute and not (args.prepared_approach or args.close_after_review)
+            and socket.gethostname().split(".", 1)[0].casefold() == "miniminipc"):
+        ap.error("N100 execution requires a checked approach prepared on ROSmini.")
     return args
 
 
@@ -186,16 +209,29 @@ class Workflow:
 
 
 def resolve_recipe(flow, args):
-    if not getattr(args, "program", None):
-        return args.recipe, .15
-    recipe = flow.out / "recipe"
-    flow.phase("prepare_recipe", "prepare_carton_recipe.py", "--program", args.program,
-               "--config", args.config, "--output", recipe)
-    program_file = recipe / "program.json"
+    program_name = getattr(args, "program", None)
+    if program_name:
+        recipe = flow.out / "recipe"
+        flow.phase("prepare_recipe", "prepare_carton_recipe.py", "--program", program_name,
+                   "--config", args.config, "--output", recipe)
+    else:
+        recipe = args.recipe
+    program_file = (recipe / "program.json").resolve()
+    if not program_name and not program_file.exists():
+        return recipe, .15
     raw = program_file.read_bytes()
     program = json.loads(raw)
-    flow.report["program"] = dict(id=program["program_id"], path=str(program_file), sha256=digest(raw))
-    return recipe, program["pregrasp_m"]
+    identifier, pregrasp = program["program_id"], program["pregrasp_m"]
+    if not isinstance(identifier, str) or not identifier or pregrasp != .15:
+        raise ValueError("Expected a named supported carton program with a 150 mm pregrasp separation.")
+    flow.report["program"] = dict(id=identifier, path=str(program_file), sha256=digest(raw))
+    return recipe, pregrasp
+
+
+def task_components(directory):
+    runners = [("high", "run_carton_pregrasp.py", "--evidence", directory/"high-plan"),
+               ("entry", "run_carton_open_entry.py", "--plan", directory/"entry-plan/result.json")]
+    return runners, [directory/"review-high.json", directory/"review-entry.json"]
 
 
 def prepare_approach(flow, args, joint, tcp, recipe, observations, object_pose, pregrasp_m):
@@ -213,9 +249,7 @@ def prepare_approach(flow, args, joint, tcp, recipe, observations, object_pose, 
     atomic_json(out/"planned-high.json", dict(planned_only=True,segments=[dict(final_positions=positions)]))
     flow.phase("plan_entry", "prepare_carton_open_entry.py", "--evidence", out/"high-plan",
                "--approach", out/"planned-high.json", "--planned-start", "--output", out/"entry-plan")
-    runners = [("high", "run_carton_pregrasp.py", "--evidence", out/"high-plan"),
-               ("entry", "run_carton_open_entry.py", "--plan", out/"entry-plan/result.json")]
-    paths = [out/"review-high.json", out/"review-entry.json"]
+    runners, paths = task_components(out)
     for (name, tool, source, value), bundle in zip(runners, paths, strict=True):
         flow.phase("prepare_"+name, tool, source, value, "--prepare-reviewed", bundle, "--command-velocity",
                    joint, "--tcp-speed-m-s", tcp, "--output", out/("prepared-"+name))
@@ -223,7 +257,8 @@ def prepare_approach(flow, args, joint, tcp, recipe, observations, object_pose, 
 
 
 def plan_offline(flow, args):
-    joint, tcp = caps(START_PERCENT)
+    speed = START_PERCENT if args.speed_percent is None else percent(args.speed_percent)
+    joint, tcp = caps(speed)
     observations, object_pose = args.observations.resolve(), args.object_pose.resolve()
     flow.report["offline_inputs"] = {
         key: dict(path=str(path), sha256=digest(path.read_bytes()))
@@ -231,7 +266,7 @@ def plan_offline(flow, args):
     }
     recipe, pregrasp_m = resolve_recipe(flow, args)
     _, paths = prepare_approach(flow, args, joint, tcp, recipe, observations, object_pose, pregrasp_m)
-    flow.report.update(success=True, phase="OFFLINE_APPROACH_PREPARED", speed_percent=START_PERCENT,
+    flow.report.update(success=True, phase="OFFLINE_APPROACH_PREPARED", speed_percent=speed,
                        review_bundles=[str(path) for path in paths])
 
 
@@ -260,16 +295,119 @@ def requested_program_starts(flow, requested, stage):
     return sorted(starts)
 
 
-def approach(flow, args, store):
+def file_sha256(path):
+    with Path(path).open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def staged_approach(flow, args, status, photo):
+    from uwa_cell_tasks.reviewed_carton import checker_identity
+
+    if args.expected_scene_session != status["session_id"]:
+        raise ValueError("Work area changed during planning; acquire the scene again.")
+    directory = args.prepared_approach.resolve(strict=True)
+    receipt_path = directory/"stage-receipt.json"
+    receipt = read_json(receipt_path)
+    if receipt.get("schema_version") != 1 or receipt["speed_percent"] != status["settings"]["speed_percent"]:
+        raise ValueError("Staged approach schema or active speed changed; prepare a new plan.")
+    joint, tcp = caps(receipt["speed_percent"])
+    if not {
+        "high-plan/evidence.json", "high-plan/moveit/robot.urdf", "entry-plan/result.json",
+        "review-high.json", "review-entry.json", "prepared-high/preview.urdf", "prepared-entry/preview.urdf",
+        "inputs/observations.json", "inputs/object-pose.json", "recipe/scene.json", "recipe/contacts.json",
+        "recipe/program.json", "planned-high.json",
+    } <= receipt["files"].keys():
+        raise ValueError("Staged approach is missing required proof files.")
+    for name, sha256 in receipt["files"].items():
+        path = (directory/name).resolve(strict=True)
+        if Path(name).is_absolute() or not path.is_relative_to(directory) or file_sha256(path) != sha256:
+            raise ValueError(f"Staged proof file changed: {name}")
+    for name, sha256 in receipt["target_resources"].items():
+        path = Path(name)
+        if (not path.is_absolute() or ".." in path.parts
+                or not (path.is_relative_to(REPO.parents[1]) or path.is_relative_to("/opt/ros/lyrical"))
+                or file_sha256(path) != sha256):
+            raise ValueError(f"Staged model input changed: {name}")
+
+    evidence = read_json(directory/"high-plan/evidence.json")
+    expected = {
+        "observations": directory/"inputs/observations.json",
+        "object_pose": directory/"inputs/object-pose.json",
+        "contact_scene": directory/"recipe/scene.json",
+        "contact_design": directory/"recipe/contacts.json",
+    }
+    for name, path in expected.items():
+        source = evidence["inputs"][name]
+        if Path(source["path"]).resolve() != path or source["sha256"] != receipt["files"][str(path.relative_to(directory))]:
+            raise ValueError(f"Staged evidence uses an unexpected {name} input.")
+    if (file_sha256(args.expected_observations) != receipt["snapshot_sha256"] or
+            receipt["snapshot_sha256"] != receipt["files"]["inputs/observations.json"]):
+        raise ValueError("Staged approach uses a different N100 joint snapshot.")
+    if receipt["object_pose_sha256"] != receipt["files"]["inputs/object-pose.json"]:
+        raise ValueError("Staged approach uses a different carton registration.")
+    for name, path in (("config", args.config), ("inventory", REPO/"config/hardware_inventory.yaml")):
+        source = evidence["inputs"][name]
+        if Path(source["path"]).resolve() != path.resolve() or source["sha256"] != file_sha256(path):
+            raise ValueError(f"The active hardware {name} changed.")
+
+    binding = read_json(expected["object_pose"])
+    source_hashes = set(binding["source_inputs"].values())
+    source_paths = [
+        args.image, args.metadata, args.intrinsics,
+        REPO/"tools/register_carton_from_oak.py",
+        REPO.parents[1]/"setup/tracking/models/carton_avocado_v1/reference.npz",
+    ]
+    registration_source = binding["source"]
+    if args.camera_session:
+        from carton_camera_session import validate_session
+
+        validate_session(read_json(args.camera_session), args.intrinsics, photo=photo)
+        source_paths.append(args.camera_session)
+    elif registration_source.startswith("Session ChArUco"):
+        raise ValueError("The staged plan requires its original OAK4 camera session.")
+    elif registration_source.startswith("Previous complete board camera registration"):
+        if not args.camera_reference_pose:
+            raise ValueError("The staged plan requires its original checked camera reference.")
+        source_paths.extend((args.camera_reference_pose, args.camera_reference_pose.with_name("registration.json")))
+    for path in source_paths:
+        if file_sha256(path) not in source_hashes:
+            raise ValueError(f"Staged carton pose differs from the current registration input {path.name}.")
+
+    runners, paths = task_components(directory)
+    entry = read_json(directory/"entry-plan/result.json")
+    entry_sources = {
+        str(directory/name): receipt["files"][name] for name in (
+            "high-plan/evidence.json", "planned-high.json", "inputs/object-pose.json", "recipe/scene.json",
+        )
+    }
+    entry_script = REPO/"tools/prepare_carton_open_entry.py"
+    entry_sources[str(entry_script)] = file_sha256(entry_script)
+    if entry.get("inputs") != entry_sources:
+        raise ValueError("Staged open entry uses different input evidence.")
+    checker = checker_identity(REPO/"tools")
+    if receipt["checker_sha256"] != checker["sha256"]:
+        raise ValueError("Staged trajectory checker differs from the N100 runtime.")
+    phase_sources = (directory/"high-plan/evidence.json", directory/"entry-plan/result.json")
+    for (phase, *_), path, source in zip(runners, paths, phase_sources, strict=True):
+        bundle = read_json(path)
+        preview_relative = Path(f"prepared-{phase}/preview.urdf")
+        if (bundle.get("schema_version") != 2 or bundle.get("phase") != phase
+                or bundle.get("checker") != checker or bundle.get("source_sha256") != file_sha256(source)
+                or bundle.get("joint_limit_rad_s") != joint or bundle.get("tcp_limit_m_s") != tcp
+                or Path(bundle["preview_urdf"]).resolve() != directory/preview_relative
+                or bundle["preview_urdf_sha256"] != receipt["files"][str(preview_relative)]):
+            raise ValueError("Staged trajectory no longer matches its checked source, active speed or N100 runtime.")
+    program = read_json(directory/"recipe/program.json")
+    flow.report["program"] = dict(id=program["program_id"], path=str(directory/"recipe/program.json"),
+                                  sha256=receipt["files"]["recipe/program.json"])
+    flow.report["staged_approach"] = dict(path=str(directory), receipt_sha256=file_sha256(receipt_path),
+                                          speed_percent=receipt["speed_percent"])
+    flow.save()
+    return runners, paths
+
+
+def prepare_live_approach(flow, args, joint, tcp):
     out = flow.out
-    status = store.status()
-    if not status["area_released"] or not status.get("area_released_at"):
-        raise ValueError("Release the physical work area in UWA Robot Power before acquiring the scene")
-    current_capture(args.image, args.metadata, status["area_released_at"], time.time())
-    if getattr(args,"verification_image",None):current_capture(args.verification_image,args.verification_metadata,status["area_released_at"],time.time())
-    flow.report["scene_session"] = status["session_id"]
-    speed = status["settings"]["speed_percent"]
-    joint, tcp = caps(speed)
     recipe, pregrasp_m = resolve_recipe(flow, args)
     flow.phase("snapshot", "prepare_carton_hardware.py", "--observe", "--stationarity-config", args.config, "--output", out/"snapshot")
     if getattr(args,"registration_directory",None):
@@ -288,8 +426,24 @@ def approach(flow, args, store):
                    *(["--verification-image",args.verification_image,"--verification-metadata",args.verification_metadata]if getattr(args,"verification_image",None)else []),
                    *(["--roi", *args.roi] if args.roi else []),
                    *(["--face-roi", *args.face_roi] if args.face_roi else []))
-    runners, paths = prepare_approach(flow, args, joint, tcp, recipe, out/"snapshot/observations.json",
-                                     out/"registration/object-pose.json", pregrasp_m)
+    return prepare_approach(flow, args, joint, tcp, recipe, out/"snapshot/observations.json",
+                            out/"registration/object-pose.json", pregrasp_m)
+
+
+def approach(flow, args, store):
+    out = flow.out
+    status = store.status()
+    if not status["area_released"] or not status.get("area_released_at"):
+        raise ValueError("Release the physical work area in UWA Robot Power before acquiring the scene")
+    _, _, photo = current_capture(args.image, args.metadata, status["area_released_at"], time.time())
+    if getattr(args,"verification_image",None):current_capture(args.verification_image,args.verification_metadata,status["area_released_at"],time.time())
+    flow.report["scene_session"] = status["session_id"]
+    speed = status["settings"]["speed_percent"]
+    joint, tcp = caps(speed)
+    if getattr(args, "prepared_approach", None):
+        runners, paths = staged_approach(flow, args, status, photo)
+    else:
+        runners, paths = prepare_live_approach(flow, args, joint, tcp)
     asset = read_json(REPO/"uwa_cell_description/assets/carton_avocado_v1/asset.json")
     starts = requested_program_starts(flow, args.start_ros_programs, "motion")
     meta, preview = motion_packet(paths, asset["dimensions_m"], speed, args.risk or "high",

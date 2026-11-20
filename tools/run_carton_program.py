@@ -2,12 +2,14 @@
 """Run the carton library program on recorded inputs or through N100 review."""
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import hashlib
 import json
 import os
 from pathlib import Path
 import shlex
+import shutil
 import subprocess
 import sys
 import uuid
@@ -19,7 +21,17 @@ WORKSPACE = REPO.parents[1]
 CELL = REPO.relative_to(WORKSPACE)
 PROGRAM = "carton-supported-v1"
 INTRINSICS = Path("setup/calibration/oak_capture_proposal_20261118/calibration_candidate_v1/oak_pose_candidate.json")
-TEXTURE_MODEL = Path("setup/tracking/models/carton_avocado_v1/reference.npz")
+LIVE_PROFILE = CELL / "uwa_cell_motion/config/hardware_carton_supported_trend.yaml"
+RECIPE_CACHE = WORKSPACE / "setup/skill_library/carton-recipes"
+CHECKER_PREFIX = WORKSPACE / "setup/skill_library/n100-checker"
+CHECKER_QUERY = """import json
+from pathlib import Path
+import sys
+cell = Path(sys.argv[1]).resolve(strict=True)
+sys.path.insert(0, str(cell / 'uwa_cell_tasks'))
+from uwa_cell_tasks.reviewed_carton import checker_identity
+print(json.dumps(checker_identity(cell / 'tools')))
+"""
 N100_HOST = "uwa-n100-robot-lan"
 SSH_CONFIG = WORKSPACE / "setup/n100/ssh_config"
 SSH_OPTIONS = [
@@ -63,29 +75,39 @@ def load_json(path):
     return json.loads(path.read_text())
 
 
-def logged_command(command, log_path, timeout):
+def logged_command(command, log_path, timeout, *, separate_stdout=False):
     with log_path.open("w+") as log:
         try:
             completed = subprocess.run([str(arg) for arg in command], cwd=WORKSPACE,
-                                       stdout=log, stderr=subprocess.STDOUT, timeout=timeout)
+                                       stdout=subprocess.PIPE if separate_stdout else log,
+                                       stderr=log if separate_stdout else subprocess.STDOUT,
+                                       text=True, timeout=timeout)
         except subprocess.TimeoutExpired as error:
             raise RuntimeError(f"{log_path.stem} timed out after {timeout} s. See {log_path.name}.") from error
+        if separate_stdout:
+            log.write(completed.stdout)
         log.seek(0)
         output = log.read()
     if completed.returncode:
         lines = output.strip().splitlines()
         reason = lines[-1] if lines and lines[-1] not in {"{", "}"} else f"See {log_path.name}."
         raise RuntimeError(f"{log_path.stem} failed: {reason}")
-    return output
+    return completed.stdout if separate_stdout else output
 
 
-def offline_tool(script, *args):
+def offline_command(*args, checker_prefix=None):
     environment = WORKSPACE / "setup/lyrical_env.bash"
     return [
         "/bin/bash", "-c",
-        'source "$1" || exit $?; shift; export ROS_DOMAIN_ID=74 ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST; exec "$@"',
-        "uwa-carton-program", environment, sys.executable, REPO / "tools" / script, *args,
+        'source "$1" || exit $?; if [[ -n $2 ]]; then export AMENT_PREFIX_PATH="$2:$AMENT_PREFIX_PATH"; fi; '
+        'shift 2; export ROS_DOMAIN_ID=74 ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST '
+        'OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1; exec "$@"',
+        "uwa-carton-program", environment, checker_prefix or "", *args,
     ]
+
+
+def offline_tool(script, *args, checker_prefix=None):
+    return offline_command(sys.executable, REPO / "tools" / script, *args, checker_prefix=checker_prefix)
 
 
 def run_demo(program, progress):
@@ -201,19 +223,17 @@ def n100(script, *args):
 def n100_preflight(out, program):
     files = [
         CELL / "tools/run_carton_cycle.py",
-        CELL / "tools/prepare_carton_recipe.py",
         CELL / "tools/register_carton_from_oak.py",
         CELL / "tools/carton_camera_session.py",
         CELL / "config/carton_programs" / f"{program}.json",
-        CELL / "uwa_cell_motion/config/hardware_carton_supported_trend.yaml",
-        TEXTURE_MODEL,
+        LIVE_PROFILE,
     ]
     arguments = []
     for file in files:
         with (WORKSPACE / file).open("rb") as source:
             arguments.extend([hashlib.file_digest(source, "sha256").hexdigest(), file])
     command = n100("""test -r install_lyrical/setup.bash
-while [[ $# -gt 0 ]]; do
+while [[ $# -gt 2 ]]; do
     actual=$(sha256sum -- "$2")
     if [[ ${actual%% *} != "$1" ]]; then
         printf 'N100 needs the matching qualified version of %s.\n' "$2" >&2
@@ -221,13 +241,33 @@ while [[ $# -gt 0 ]]; do
     fi
     shift 2
 done
-exec ./review.sh status
-""", *arguments)
-    status = json.loads(logged_command(command, out / "n100-preflight.log", 25))
+printf '%s\n' "$PWD"
+./review.sh status
+source "$1/scripts/control_env.bash"
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 /usr/bin/python3 -c "$2" "$1"
+""", *arguments, CELL, CHECKER_QUERY)
+    workspace_path, status_text, checker_text = logged_command(
+        command, out / "n100-preflight.log", 25, separate_stdout=True,
+    ).splitlines()
+    target_workspace = Path(workspace_path)
+    if not target_workspace.is_absolute() or target_workspace.name != "uwa-ur-runtime":
+        raise ValueError("Unexpected N100 runtime workspace.")
+    status = json.loads(status_text)
     if not status.get("area_released"):
         raise ValueError("Release the physical work area in UWA Robot Power before starting the live program.")
     if any(item.get("status") in {"pending", "approved", "running"} for item in status.get("pending", [])):
         raise ValueError("A motion review is already open. Finish it in UWA Robot Power before starting a new run.")
+    prefix = CHECKER_PREFIX if CHECKER_PREFIX.is_dir() else None
+    local = logged_command(offline_command(sys.executable, "-c", CHECKER_QUERY, REPO, checker_prefix=prefix),
+                           out / "rosmini-checker.log", 25, separate_stdout=True)
+    local_checker = json.loads(local)
+    target_checker = json.loads(checker_text)
+    if local_checker != target_checker:
+        parts = local_checker["components"]
+        target_parts = target_checker["components"]
+        changed = sorted(key for key in parts.keys() | target_parts.keys() if parts.get(key) != target_parts.get(key))
+        raise ValueError("ROSmini and N100 use different trajectory checker components: " + ", ".join(changed))
+    return target_workspace, status, prefix
 
 
 def capture_oak(out, name, focus):
@@ -277,6 +317,101 @@ def upload(remote, local_file, log_path):
     logged_command(command, log_path, 100)
 
 
+def observe_start(remote, out):
+    command = n100("""mkdir -- "$1"
+mkdir -- "$1/entry"
+source "$2/scripts/control_env.bash"
+/usr/bin/python3 "$2/tools/prepare_carton_hardware.py" --observe \
+  --stationarity-config "$3" --output "$1/observed" > "$1/observe.log"
+exec cat -- "$1/observed/observations.json"
+""", remote, CELL, LIVE_PROFILE)
+    observations = out / "observations.json"
+    observations.write_text(logged_command(command, out / "n100-snapshot.log", 25, separate_stdout=True))
+    logged_command(offline_tool("prepare_carton_hardware.py", "--validate-planning-snapshot", observations),
+                   out / "check-snapshot.log", 20)
+    return observations
+
+
+def prepare_local_approach(program, progress, config, observations, status, checker_prefix):
+    out = progress.output
+    progress.update("oak_capture", "Capturing a current native OAK4 photo for carton registration.")
+    cache_command = offline_tool("prepare_carton_recipe.py", "--program", program, "--cache-dir", RECIPE_CACHE)
+    with ThreadPoolExecutor(max_workers=1) as workers:
+        recipe_ready = workers.submit(logged_command, cache_command, out / "static-recipe.log", 120,
+                                      separate_stdout=True)
+        image, metadata = capture_oak(out, "initial", config["focus"])
+        recipe = Path(json.loads(recipe_ready.result())["recipe"])
+
+    options = []
+    if config.get("camera_session"):
+        options.extend(["--camera-session", out / "camera-session.json"])
+    elif reference := config.get("camera_reference_pose"):
+        options.extend(["--camera-reference-pose", reference])
+    if config.get("planar_texture"):
+        options.append("--planar-texture")
+
+    registration = out / "registration"
+    progress.update("oak_registration", "Locating the carton in the current OAK4 image on ROSmini.")
+    command = offline_tool("register_carton_from_oak.py", "--image", image, "--metadata", metadata,
+                           "--intrinsics", config["intrinsics"], "--description", recipe / "hardware.urdf",
+                           "--roi", *config["roi"], "--face-roi", *config["face_roi"],
+                           "--output", registration, *options)
+    try:
+        logged_command(command, out / "oak-registration.log", 120)
+    except RuntimeError as error:
+        result = registration / "registration.json"
+        if result.is_file() and (reason := load_json(result).get("error")):
+            raise ValueError(f"OAK4 registration failed. {reason}") from error
+        raise
+
+    progress.update("offline_plan", "Planning and checking both arm paths on ROSmini.")
+    plan = out / "plan"
+    command = offline_tool("run_carton_cycle.py", "--plan-only", "--recipe", recipe,
+                           "--observations", observations, "--object-pose", registration / "object-pose.json",
+                           "--speed-percent", status["settings"]["speed_percent"], "--output", plan,
+                           checker_prefix=checker_prefix)
+    try:
+        logged_command(command, out / "offline-plan.log", 240)
+    except RuntimeError as error:
+        report = plan / "workflow.json"
+        if report.is_file() and (reason := load_json(report).get("error")):
+            raise ValueError(f"ROSmini planning failed. {reason}") from error
+        raise
+    return plan, image, metadata
+
+
+def transfer_approach(remote, target_workspace, plan, image, metadata, config, out, checker_prefix):
+    handoff = out / "handoff"
+    handoff.mkdir()
+    prepared = handoff / "prepared"
+    command = offline_tool("stage_carton_plan.py", "--plan", plan, "--output", prepared,
+                           "--target-root", target_workspace / remote / "prepared",
+                           "--target-workspace", target_workspace, checker_prefix=checker_prefix)
+    logged_command(command, out / "stage-approach.log", 60)
+
+    inputs = handoff / "input"
+    inputs.mkdir()
+    for file, name in ((image, "standard.png"), (metadata, "metadata.json"),
+                       (config["intrinsics"], "intrinsics.json")):
+        shutil.copyfile(file, inputs / name)
+    sources = [prepared, inputs]
+    reference_dir = handoff / "camera-reference"
+    reference_dir.mkdir()
+    options = []
+    if config.get("camera_session"):
+        shutil.copyfile(out / "camera-session.json", reference_dir / "camera-session.json")
+        options.extend(["--camera-session", f"{remote}/camera-reference/camera-session.json"])
+    elif reference := config.get("camera_reference_pose"):
+        shutil.copyfile(reference, reference_dir / "object-pose.json")
+        shutil.copyfile(reference.with_name("registration.json"), reference_dir / "registration.json")
+        options.extend(["--camera-reference-pose", f"{remote}/camera-reference/object-pose.json"])
+    if options:
+        sources.append(reference_dir)
+    command = ["/usr/bin/scp", *SSH_OPTIONS, "-r", *sources, f"{N100_HOST}:uwa-ur-runtime/{remote}/"]
+    logged_command(command, out / "upload-approach.log", 100)
+    return options
+
+
 def request_review(progress, remote_run, stage, *args):
     command = n100(f"""source {shlex.quote(str(CELL / 'scripts/control_env.bash'))}
 exec /usr/bin/python3 -u {shlex.quote(str(CELL / 'tools/run_carton_cycle.py'))} "$@"
@@ -311,38 +446,22 @@ def run_live(program, progress, config_path):
             raise ValueError("Calibrate the OAK4 before starting the carton program.")
         session = validate_session(load_json(session_path), config["intrinsics"])
         write_session(out / "camera-session.json", session)
-    n100_preflight(out, program)
+    target_workspace, status, checker_prefix = n100_preflight(out, program)
     remote = f"setup/tasks/skill-library-carton-{uuid.uuid4().hex}"
-    logged_command(
-        n100('mkdir -- "$1"\nmkdir -- "$1/input" "$1/entry" "$1/camera-reference"\n', remote),
-        out / "n100-run-directory.log", 20,
-    )
     (out / "n100-run.txt").write_text(remote + "\n")
-    progress.update("oak_capture", "Capturing a current native OAK4 photo for carton registration.")
-    image, metadata = capture_oak(out, "initial", config["focus"])
-    upload(f"{remote}/input/standard.png", image, out / "upload-initial-image.log")
-    upload(f"{remote}/input/metadata.json", metadata, out / "upload-initial-metadata.log")
-    upload(f"{remote}/input/intrinsics.json", config["intrinsics"], out / "upload-intrinsics.log")
-    options = []
-    if session is not None:
-        session_remote = f"{remote}/camera-reference/camera-session.json"
-        upload(session_remote, out / "camera-session.json", out / "upload-camera-session.log")
-        options.extend(["--camera-session", session_remote])
-    elif reference := config.get("camera_reference_pose"):
-        upload(f"{remote}/camera-reference/object-pose.json", reference, out / "upload-camera-reference.log")
-        upload(f"{remote}/camera-reference/registration.json", reference.with_name("registration.json"),
-               out / "upload-camera-proof.log")
-        options.extend(["--camera-reference-pose", f"{remote}/camera-reference/object-pose.json"])
-    if config.get("planar_texture"):
-        options.append("--planar-texture")
+    progress.update("snapshot", "Reading the four arms and the two grippers on the N100.")
+    observations = observe_start(remote, out)
+    plan, image, metadata = prepare_local_approach(program, progress, config, observations, status, checker_prefix)
+    progress.update("n100_approach", "Sending the checked trajectories to the N100 for motion review.")
+    options = transfer_approach(remote, target_workspace, plan, image, metadata, config, out, checker_prefix)
 
     cycle = f"{remote}/cycle"
-    progress.update("n100_approach", "Registering the carton and preparing the approach on the N100.")
-    report = request_review(progress, cycle, "motion", "--program", program,
+    report = request_review(progress, cycle, "motion", "--prepared-approach", target_workspace / remote / "prepared",
+                            "--expected-scene-session", status["session_id"],
+                            "--expected-observations", f"{remote}/observed/observations.json",
                             "--image", f"{remote}/input/standard.png",
                             "--metadata", f"{remote}/input/metadata.json",
-                            "--intrinsics", f"{remote}/input/intrinsics.json",
-                            "--roi", *config["roi"], "--face-roi", *config["face_roi"], *options)
+                            "--intrinsics", f"{remote}/input/intrinsics.json", *options)
     if report.get("phase") != "WAITING_VISUAL_REVIEW":
         raise ValueError("The N100 did not confirm the completed open entry for this run.")
 

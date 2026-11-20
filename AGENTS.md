@@ -1,5 +1,17 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Rechneraufteilung für reale URs, 20.11.2026
+
+- Nutzerentscheidung: N100 betreibt die UR-ROS-Treiber, Regelung, Ausführung
+  und den Live-Schutz. Er liefert Zustandsdaten und prüft unmittelbar für die
+  Ausführung erforderliche Voraussetzungen. ROSmini übernimmt OAK-Auswertung,
+  Bahnplanung und Offline-Planprüfung. Größere Offline-Aufträge gehen bei
+  Bedarf in den eigenen Container auf titanpc.
+- Statische Modelle dürfen mit Versions- und Eingabebindung wiederverwendet
+  werden. Die aktuelle Kartonpose und der reale Gelenkzustand bleiben
+  Eingaben je Lauf. Die vom Bediener geprüfte Bahnrevision wird unverändert
+  an die Ausführung übergeben.
+
 ## Bedarfsabhängiger UR-Programmstart, 19.11.2026
 
 Kartonpilot auf dem N100: Bei optionalem regulärem Programmstart unmittelbar vor der Review den wirklichen Play-Bedarf verwenden. Für eine betriebsbereite Zelle gilt das Aufgabenvertrauen. Die Zustimmung für Play ist an die konkret gemeldeten Arme und die Revision gebunden.
@@ -29,6 +41,12 @@ Kartonpilot auf dem N100: Bei optionalem regulärem Programmstart unmittelbar vo
   Mit bis zu 1 rad/s je Armgelenk und Echtzeitfaktor 1 als Ziel wiederverwenden.
 
 ## Aufgabenbezogene Freigabe im Kartonpiloten, 19.11.2026
+
+- Nutzerentscheidung 20.11.2026. Das Kartonprogramm nutzt eine separate
+  ChArUco-Kamerareferenz zum rechten Tischboard für zwölf Stunden ab Aufnahme.
+  Nach Verstellen von Kamera oder Board neu kalibrieren. Bei gültiger Referenz
+  keine erneute Tischboardprüfung im Kartonfoto. Die aktuelle Kartonpose und
+  das offene Einfahrbild für die Kontaktentscheidung weiter verwenden.
 
 - Bestätigte Korrektur19.11.: Auch der Parallelprüfer muss die aktive
   `stopping_reserve_policy` respektieren. Unter `geometric_only` keine

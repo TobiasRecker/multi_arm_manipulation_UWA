@@ -31,9 +31,10 @@ STATIC = {
     "/assets/carton.png": (ROOT / "output/images/carton_in_virtual_cell.png", "image/png"),
 }
 STAGES = [
-    {"id": "capture", "title": "Capture the scene", "description": "Reference the carton in an OAK4 standard image."},
-    {"id": "registration", "title": "Locate the carton", "description": "Fit the current carton pose from its known texture using the camera reference."},
-    {"id": "planning", "title": "Plan both arms", "description": "Compute and check the high approach and open entry from measured joints."},
+    {"id": "snapshot", "title": "Read the robot state", "description": "Read the joints and grippers on the N100 and check readiness on ROSmini."},
+    {"id": "capture", "title": "Capture the scene", "description": "Acquire the current OAK4 standard image."},
+    {"id": "registration", "title": "Locate the carton", "description": "Fit the current carton pose from its known texture on ROSmini."},
+    {"id": "planning", "title": "Plan both arms", "description": "Compute and check the high approach and open entry on ROSmini."},
     {"id": "motion_review", "title": "Review the approach", "description": "Review the current paths in UWA Robot Power before real motion."},
     {"id": "wrist", "title": "Inspect the grasp alignment", "description": "Measure the visible carton rim in archived wrist-camera images. Real contact uses a fresh OAK4 entry photo."},
     {"id": "contact_review", "title": "Close and hold", "description": "Review the actual entry before closing both grippers on the supported carton."},

@@ -183,6 +183,40 @@ def operating_stationarity(observation,cfg):
     return observation
 
 
+def validate_planning_snapshot(observation):
+    """Check saved snapshot eligibility before computing a carton approach."""
+    expected = ("left_front", "left_rear", *ARMS)
+    arms = observation.get("arms", {})
+    errors = []
+    for rid in expected:
+        arm = arms.get(rid, {})
+        samples = arm.get("samples", ())
+        if arm.get("observed") is not True or not samples:
+            errors.append(f"{rid}: {arm.get('error') or 'native observation missing'}")
+            continue
+        sample = samples[-1]
+        mode, safety, runtime = (sample.get(key) for key in ("robot_mode", "safety_mode", "runtime_state"))
+        if mode != 7 or safety != 1 or runtime not in (1, 2):
+            label = {3: "POWER_OFF", 7: "RUNNING"}.get(mode, str(mode))
+            errors.append(f"{rid}: {label} (robot_mode={mode}, safety_mode={safety}, runtime_state={runtime})")
+        elif arm.get("stationary_observed") is not True:
+            evidence = arm.get("stationarity_evidence", {})
+            reason = evidence.get("reason") or "stationarity not confirmed"
+            if evidence.get("operating_speed_within_bounds") is False:
+                reason = "operating velocity limit exceeded"
+            elif evidence.get("native_state_suitable_for_planning") is False:
+                reason = "native state unsuitable during snapshot"
+            errors.append(f"{rid}: {reason}")
+        else:
+            joints = sample.get("actual_q", ())
+            if (not isinstance(joints, (list, tuple)) or len(joints) != 6
+                    or not all(isinstance(q, (int, float)) and math.isfinite(q) for q in joints)):
+                errors.append(f"{rid}: invalid native joint positions")
+    if errors:
+        raise ValueError("Carton planning snapshot unsuitable. " + ". ".join(errors))
+    return list(expected)
+
+
 def prepare(directory, profile_path, inventory, *, live=False, stationarity_config=None):
     """Write a preparation bundle, never a plan accepted by hardware execute."""
     directory = Path(directory); directory.mkdir(parents=True, exist_ok=False)

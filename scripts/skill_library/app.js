@@ -13,7 +13,7 @@ const workflowPhase = {
   oak_capture: "capture",
   oak_registration: "registration",
   offline_plan: "planning",
-  n100_approach: "planning",
+  n100_approach: "motion_review",
   wrist_diagnostic: "wrist",
   oak_entry_capture: "wrist",
   n100_contact: "contact_review",
@@ -165,8 +165,10 @@ function localTime(value) {
 
 function phaseTitle(run, phase) {
   const program = state.programs.find(candidate => candidate.id === run.program);
+  if (phase === "snapshot") return "Read the robot state";
   if (phase === "oak_entry_capture") return "Capture the open entry";
   if (phase === "oak_calibration") return "Calibrate OAK4";
+  if (phase === "n100_approach") return "Send the checked paths";
   const title = program?.stages.find(stage => stage.id === (workflowPhase[phase] || phase))?.title;
   if (title) return title;
   return (phase || "").replaceAll("_", " ").replaceAll("-", " ");

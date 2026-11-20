@@ -65,20 +65,34 @@ fordert deshalb eine Sichtprüfung an. [Webtest und Ergebnis](../../../setup/tas
 
 ### Ablauf an der realen Zelle
 
-**Start program** verwendet seit 19.11.2026 den benannten Kartonrunner auf dem
-N100. Die Optikkonfiguration für den bekannten rechten Aufbau ist auf ROSmini
-aktiv. Der Start erfasst ein aktuelles OAK4-Standardfoto, schickt Bild und Metadaten
-an den Runner und wartet auf **Motion review**. Nach bestätigter offener
-Einfahrt erfasst er ein zweites aktuelles Foto und reicht es zur
-Kontaktfreigabe ein. Der Bediener bewertet beide Anfragen in UWA Robot Power.
-Ein abgelehnter oder abgebrochener Lauf endet am betreffenden Schritt.
+**Calibrate OAK4** erfasst einmalig die festen Tischboards mit dem
+ChArUco-Fotomodus. Das rechte Board und die zum Standardfoto passenden
+Intrinsics bilden die Kamerareferenz für diesen Kartonablauf. Die Bibliothek
+zeigt die Ablaufzeit in AWST. Die Referenz gilt zwölf Stunden ab der Aufnahme.
+Bei verstellter Kamera oder verschobenem Tischboard vor einem Greiflauf
+erneut **Calibrate OAK4** wählen. Ein neuer Kalibriervorgang ersetzt die
+vorherige Sitzung. Bis eine gültige Referenz vorliegt, ist **Start program**
+deaktiviert. Der Kalibriervorgang benötigt nur die OAK4.
+
+**Start program** liest Arbeitsbereich, Tempo und den gemessenen Zustand
+der Arme und Greifer am N100. ROSmini prüft die Eignung des Startzustands,
+bevor die OAK4 das aktuelle Standardfoto erfasst. ROSmini bestimmt die
+Kartonpose mit der gespeicherten Kamerareferenz, plant die Hochanfahrt
+und offene Einfahrt und prüft beide Bahnen. Das statische Rezept wird bei
+gleicher Modell- und Quellversion wiederverwendet. Der N100 übernimmt die
+geprüfte Bahn mit unveränderten Sollwerten für **Motion review** und
+Ausführung. Nach bestätigter offener Einfahrt reicht die Bibliothek eine
+zweite aktuelle Aufnahme für die Kontaktfreigabe ein. Der Bediener
+bewertet beide Anfragen in UWA Robot Power. Ein abgelehnter oder
+abgebrochener Lauf endet am betreffenden Schritt.
 
 Der erwartete lokale Konfigurationspfad ist `setup/skill_library/live-carton.json`.
 Dieses Beispiel zeigt die Felder für die dokumentierte rechte Kartonlage.
 `enabled` bei der Betriebsübernahme auf `true` setzen. Bildausschnitte beziehen
 sich auf das native 8000×6000-Standardbild. Der Fokus kommt aus der verknüpften
-Intrinsics-Datei. Die Kamerareferenz ist optional und braucht ihren
-zugehörigen `registration.json`-Nachweis im selben Verzeichnis.
+Intrinsics-Datei. `camera_session` bezeichnet die vom Kalibrierprogramm
+erstellte aktuelle Referenz. Archivläufe können weiter ihre ursprüngliche
+`camera_reference_pose` mit zugehörigem `registration.json` verwenden.
 
 ```json
 {
@@ -86,24 +100,29 @@ zugehörigen `registration.json`-Nachweis im selben Verzeichnis.
   "intrinsics": "../calibration/oak_capture_proposal_20261118/calibration_candidate_v1/oak_pose_candidate.json",
   "roi": [2400, 2850, 5000, 5050],
   "face_roi": [2450, 3980, 5000, 5000],
-  "camera_reference_pose": "../tasks/carton_grasp_20261119/registration/object-pose.json",
+  "camera_session": "carton-camera-session.json",
   "planar_texture": true
 }
 ```
 
-Der Runner prüft die Versionen von Rezept, Registrierung, Programm und
-Fahrprofil auf dem N100 sowie das Texturmodell `setup/tracking/models/carton_avocado_v1/reference.npz`.
+Der Webstart prüft die gemeinsame Version von Programm, Fahrprofil und
+Trajektorienprüfer. Die Offline-Umgebung auf ROSmini kann bei getrennten
+Controller-Builds die bereits eingesetzte N100-Version aus
+`setup/skill_library/n100-checker/` an den Bahnbeleg binden. Bei Abweichung
+meldet der Webstart die betroffene Komponente. Der N100 vergleicht die
+gebundenen Daten mit seinem Laufzeitmodell, der aktuellen Freigabesitzung
+und dem eingestellten Tempo. Beim Ausführen bleiben die Live-Prüfungen
+für Iststart, Treiber und Schutzdienste aktiv.
 Bei zu wenigen gültigen Textur-Fits versucht die planare Registrierung
 denselben Ausschnitt mit lokaler Kontrastanpassung. Der Vergleich prüft
 weiterhin die Bildpunkte, Tischauflage und Posenübereinstimmung.
 Das ursprüngliche Fehlerfoto vom 19.11.2026 wurde damit offline auf N100
 erfolgreich registriert. [Registrierungsnachweis](../../../setup/tasks/carton_web_registration_20261119/contrast-fallback/registration.json)
-Der laufende Pilot verlangt eine aktuelle Arbeitsbereichsfreigabe und
-betriebsbereite Arme. **Start + ROS** ist die getrennte Bedienaktion für
-die Programmbereitschaft. Nach der Übernahme bestanden der lesende Web-
-Preflight und beide Offline-Fahrphasen auf dem N100. Der Live-Start ist im
-Katalog verfügbar. Ein Lauf mit frischem Bild und realer Bewegung steht
-aus. [Einrichtungsnachweis](../../../setup/tasks/carton_agent_free_n100_setup_20261119/offline-check.json)
+Der Pilot verlangt eine aktuelle Arbeitsbereichsfreigabe und die für den
+Start notwendigen nativen Zustände aller vier Arme. **Start + ROS** ist
+die getrennte Bedienaktion für die Programmbereitschaft. Der Gelenkzustand
+umfasst pro Arm eine Messreihe für die bestehende Ruheprüfung. Den Stand
+der Rechnerübergabe und die Zeitmessungen führt die [Übergabe](../HANDOVER.md).
 
 FoundationPose ist ein separater RGB-D-Archivpfad mit Startmaske. Der
 Weblauf verwendet die vorhandene analytische Registrierung. Das
@@ -174,32 +193,35 @@ genügt die geänderte Pose als Eingabe.
 ## Ablauf für den planenden Agenten
 
 Der N100 verwaltet Entscheidungen in `~/.local/state/uwa-motion-review`.
-Der Kartonablauf läuft dort in der Zellumgebung. Native OAK-Aufnahme, Metadaten
+Der bevorzugte Livepfad ist der Webstart auf ROSmini. Native OAK-Aufnahme, Metadaten
 und zugehörige Intrinsics vorab wie im
 [realen Kartonablauf](carton_supported_grasp.md) bereitstellen. Das
 Registrierungsfoto nach der Bereichsfreigabe dieser Sitzung aufnehmen.
 Für versetzte Kartons akzeptiert der Zyklus die bestehenden Registrierungsoptionen
-`--roi`, `--face-roi` und `--camera-reference-pose`. Mit
+`--roi`, `--face-roi` und `--camera-session` für eine gültige ChArUco-Referenz.
+`--camera-reference-pose` bleibt für den bisherigen Referenzpfad verfügbar. Mit
 `--verification-image` und `--verification-metadata` lässt sich eine zweite
 aktuelle Aufnahme direkt gegen dieselbe Modelltextur prüfen. Jedes Bild muss
 einen eigenen gültigen Auflagefit liefern; beide Posen müssen die bestehenden
 Übereinstimmungsgrenzen erfüllen. Eine optionale `--photo-reference` dient nur
 als Bildmerkmalsreferenz und liefert keine alte Objektpose zurück. Vor dem
-Hardwarepilot muss der N100 dieselbe geprüfte Runner- und Guard-Version
+Hardwarepilot muss der N100 den passenden Runner- und Guard-Stand
 betreiben. Andere Fahranforderungen und die Bedienung am Pendant mit den
 anwesenden Personen abstimmen.
 
 ```bash
-python3 tools/run_carton_cycle.py --output "$run" --image "$image" --metadata "$metadata" \
-    --intrinsics "$intrinsics" --program carton-supported-v1 \
-    --risk "$risk" --reason "$assessment" --execute
+python3 tools/run_carton_cycle.py --plan-only --output "$plan" --program carton-supported-v1 \
+    --observations "$snapshot" --object-pose "$pose" --speed-percent "$active_speed"
 ```
 
-Der Aufruf mit `--program` ist lokal geprüft. Für den Einsatz auf dem N100
-steht die Übernahme des neuen Quellstands aus. Der dort installierte Runner
-verwendet `--recipe "$recipe"`.
+Der Webrunner protokolliert die Übergabe der geprüften Bahnen und ihrer
+Eingaben in `stage-receipt.json`. Ein manueller Liveempfänger auf dem N100
+verwendet `--prepared-approach`, das ursprüngliche N100-Snapshot über
+`--expected-observations` und die ursprüngliche Arbeitsbereichsfreigabe
+über `--expected-scene-session`. Das frische Bild und die zugehörigen
+Aufnahmedaten dienen der Bindung der aktuellen Kartonpose.
 `risk` ist `low`, `medium` oder `high`. Ohne Einschätzung ist die Bedienperson
-gefragt. Das Werkzeug bereitet beide vollständigen Fahrphasen vor. Während
+gefragt. Während
 einer offenen Entscheidung wartet derselbe Prozess und prüft anschließend
 den aktuellen Start. Mit `--start-ros-programs` liest der Pilot unmittelbar vor der Fahr- oder
 Kontaktfreigabe den Dashboardzustand und die ROS-Reverse-Verbindungen aller
@@ -210,12 +232,8 @@ Holds sowie die angezeigte Aktion. Bei fehlender Verbindung oder anderem
 Vorbereitungsbedarf meldet der Pilot die Ursache. Fällt später ein weiterer
 Arm aus, erfordert dessen Start eine neue Freigabe.
 Power, Bremsen und Programmvorbereitung bleiben im separaten Betriebsablauf.
-Mit `--registration-directory` und `--recipe` am ursprünglichen Rezeptpfad
-kann eine erfolgreiche Registrierung desselben aktuellen Bildsatzes nach
-SHA-Prüfung aller gebundenen Quellen weiterverwendet werden. Für einen Lauf
-aus `--program` liegt dieses Rezept im Unterordner `recipe/` des Laufs.
-Der Iststart wird trotzdem neu aufgenommen. `--path-budget-s` erhöht
-nur die verfügbare Offline-Rechenzeit, keine Fahrgeschwindigkeit.
+`--path-budget-s` erhöht nur die verfügbare Offline-Rechenzeit, keine
+Fahrgeschwindigkeit. Der Iststart ist die gemessene Eingabe je Lauf.
 Eine Ablehnung oder Neuplanungsanforderung beendet
 diesen Versuch. Für eine geänderte Bahn ein neues Ausgabeverzeichnis wählen.
 

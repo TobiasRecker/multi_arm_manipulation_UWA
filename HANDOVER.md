@@ -1,5 +1,125 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Start + ROS am Dateideskriptorlimit der N100-Treiber, 20.11.2026
+
+- Der Karton-Weblauf um 13:23:35 AWST endete um 13:23:47 bei der lesenden
+  RTDE-Zustandsprüfung. `left_rear`, `right_front` und `right_rear` meldeten
+  `POWER_OFF` (3), Safety `NORMAL` (1), Runtime `STOPPED` (1). Der Weblauf
+  erreichte weder Aufnahme noch Bewegungsanforderung.
+- Im N100-GUI-Protokoll forderte der Nutzer um 13:46:21 **Start + ROS** an.
+  Der Start endete um 13:48:16 als unvollständig. Dashboard-Readback um
+  13:48:19: vier Antriebe `RUNNING/NORMAL`. Beide vorderen Arme
+  `ros.urp` `STOPPED` nach Play-Timeout. Beide hinteren Arme `PLAYING`,
+  aber ohne bestätigte ROS-Reverse-Verbindung. Die vorherigen `CONFIRM_SAFETY`-
+  Meldungen beim Laden um 11:43 beschreiben einen früheren Startversuch.
+- Alle vier N100-Controllerprozesse belegten um 13:48:52 exakt je 1.024
+  Dateideskriptoren am Softlimit 1.024, darunter je 1.009 Sockets. An den
+  Ports 51002, 52002, 53002 und 54002 scheiterte `accept` mit `Too many open
+  files`. TCP-Verbindungen der Roboter erreichten die vorgesehenen Ports.
+  Je 997 Sockets waren in den abgefragten `/proc/net`-Tabellen keinem
+  Endpunkt zugeordnet. Ein ähnlicher Fehler wurde historisch auf ROSmini
+  gemessen. Der Mechanismus des Zuwachses ist offen. Ein gezielter Neustart
+  der vier Treiber ist der bisher erprobte Weg zur Betriebsbereitschaft
+  und bedarf einer Freigabe für den aktuellen physischen Zustand.
+- Safety Log während des Startens, 13:47:20: native STOP-Anforderung für
+  `right_front` wegen verweigertem Stillstandsnachweis. Gelenk 6 zeigte
+  0,00250 rad/s Positionstrend bei 0,001 rad/s Limit und 0,00153 rad Spanne
+  bei 0,0005 rad Limit im 0,49994-s-Fenster. Das zeigt eine gemessene
+  Positionsänderung beim Hochfahren. Ein Zusammenhang mit dem Play-Timeout
+  ist unbelegt. [N100-Status und Treiberlog](../../setup/tasks/uwa_program_library/00d1bc2458704638a95927b1a3f7100e/n100-start-current.log) · [FD-Messung](../../setup/tasks/uwa_program_library/00d1bc2458704638a95927b1a3f7100e/driver-fd-current.txt) · [Safety Log](../../setup/tasks/uwa_program_library/00d1bc2458704638a95927b1a3f7100e/safety-report-current.json)
+- Eine weitere rein lesende RTDE-Messung nach dem Start bestätigt für alle
+  vier Arme `RUNNING/NORMAL` und Stillstand in Fenstern von 0,528–0,550 s.
+  Programmzustände blieben vorne `STOPPED` und hinten `PLAYING`.
+  [RTDE-Nachweis](../../setup/tasks/uwa_program_library/00d1bc2458704638a95927b1a3f7100e/observations-after-start.json)
+
+## Rechneraufteilung für den Kartonpilot, 20.11.2026
+
+- Nutzerentscheidung: ROSmini übernimmt Bildauswertung, Bahnplanung und
+  Offline-Prüfung. Größere Rechenaufträge bei Bedarf auf titanpc. Der N100
+  liefert den gemessenen Startzustand und betreibt Regelung, Ausführung und
+  Live-Schutz. Das versionsgebundene statische Modell darf wiederverwendet
+  werden. Die Rechneraufteilung ersetzt die frühere Zuordnung der Planung
+  zum N100.
+- Der bisherige Snapshot ist eine native RTDE-Messreihe. Vier parallele
+  Leser holen je 20 Samples, während zwei weitere Abfragen die Greifer lesen.
+  Der Messabschnitt je Arm dauerte 0,912–0,950 s, der Aufruf auf dem N100
+  insgesamt 3,05 s. Das bestehende Ruhefenster beträgt 0,5 s.
+- ROSmini wiederholte die Bildauswertung des unveränderten Fehlerfotos um
+  12:47 AWST in 6,738 s. Auf dem N100 waren es 44,804 s. Alle 19
+  Hypothesenprotokolle stimmten überein. Die erweiterte Diagnose mit größerem
+  Ausschnitt bleibt ein eigenes Ergebnis. Cache-Messung auf ROSmini:
+  2,124 s für den Erstaufbau des statischen Rezepts und 0,465 s beim
+  Wiederaufruf. [Messnachweis](../../setup/tasks/carton_web_timing_20261120/rosmini-feature-replay/summary.json)
+- Die Webbibliothek meldet Zustand, Aufnahme, Kartonregistrierung und
+  Bahnplanung einzeln. Ein ungeeigneter Zustand beendet den Vorlauf vor
+  Fotoaufnahme und Modellrechnung. Ein neuer lesender Web-Snapshot meldete
+  `POWER_OFF` bei `left_rear`, `right_front` und `right_rear`. Messung und
+  Auswertung dieses Aufrufs dauerten 6,55 s einschließlich SSH und Start
+  der Werkzeuge. [Snapshot-Auswertung](../../setup/tasks/carton_desktop_handoff_proof_20261120/observed-start/check-snapshot.log)
+- ROSmini prüft die Bahn bei dem aktuell gemeldeten gemeinsamen Tempo.
+  Der Transport bindet die Eingaben an die Zielpfade vor der Motion review.
+  Prüferidentität, Bahnzeitstempel, Sollwerte und Parallelitätsnachweis bleiben
+  erhalten. Die tatsächliche UR-Controllerbibliothek des N100 ist als lokaler
+  Offline-Nachweis in `setup/skill_library/n100-checker/` hinterlegt, da sich
+  dieser Binärhash von ROSmini unterscheidet. Die übrigen Prüferkomponenten
+  stimmen überein. Der Web-Vorlauf vergleicht alle Komponenten je Lauf.
+- Auf dem N100 akzeptierten die vorhandenen Modell- und Bündelprüfungen
+  in einer isolierten Archivprüfung beide Pakete, aus frischem und aus
+  wiederverwendetem Rezept. Beide Phasen blieben parallel mit nominell
+  35,22 s und 8,78 s bei 33⅓ %. Die Offline-Planung auf ROSmini dauerte für
+  die archivierte Bahn mit vorhandener Pose und Rezept 18,09 s. Die lokale
+  Übergabeprüfung wies geänderte Freigabesitzung und geändertes Tempo ab.
+  Der vollständige lokale Archiv-Webworker inklusive kaltem Cache,
+  Bildfit, Bahnprüfung und Bereitstellung der Übergabe brauchte 27,95 s.
+  [N100-Nachweis](../../setup/tasks/carton_desktop_handoff_proof_20261120/live-checker.wEmXfM8p/n100-verify-cached.log)
+- Der neue Empfänger ist auf dem N100 installiert. Vorgänger
+  `~/uwa-ur-runtime/review-candidates/rosmini-handoff.A9eOvUVr/run_carton_cycle.py.before`.
+  Der inaktive Standalone-Webserver auf Port 8780 wurde aktualisiert und
+  sein Katalog geprüft. Der aktuelle Rezeptcache auf ROSmini ist aufgebaut.
+  Der reale Armstart und die Kontaktentscheidung wurden in diesem Auftrag
+  nicht ausgeführt. Treiber und Schutzdienste liefen weiter.
+
+## Historischer N100-Weblauf vor der Umstellung, 20.11.2026
+
+- Nutzer fragt, warum der Weblauf bei einer ungültigen Eingabe so lange unter
+  „Planen“ steht. Beim Lauf `68173c28fafe44dcb9ac19155683be6a` um 12:47 AWST
+  dauerte Klick bis Fehler etwa 86,6 s. Foto und Transferphase 15,51 s
+  (Aufnahme 11,40 s), statische Rezeperzeugung 17,13 s, lesender Gelenksnapshot
+  3,05 s, Bildregistrierung 44,80 s. Der übrige Vorlauf und Rücktransport
+  dauerte rund 6,1 s. Die Bahnplanung wurde nicht aufgerufen.
+- Gültige Kamerasitzung mit 1,606 px Prüf-RMS. Die bedruckte Kartonseite
+  lag im Foto oberhalb des konfigurierten Detailausschnitts. Genau ein
+  Auflagefit bestand im größeren Ausschnitt (56 Inlier, 5,886 px RMS bei
+  6,5 px). Rohbildsuche und Kontrastvariante ergaben zusammen 19 protokollierte
+  Versuchsresultate. Die Ablehnung erfolgte vor Planung, Review und Zielen.
+- Die Weboberfläche ordnete den gesamten damaligen N100-Vorlauf „Plan both
+  arms“ zu. Die Statusmessung erkannte `POWER_OFF` an beiden rechten Armen
+  und `left_rear`. Der Ablauf hätte die Eignung des Startzustands erst
+  nach der Kartonregistrierung im Planer ausgewertet.
+- Originalbericht und Bildausschnitte in `setup/tasks/carton_web_timing_20261120/`.
+  Der frühere Lauf um 12:44 hatte fast gleiche Wartezeit und denselben
+  Registrierungsfehler. Die Auswertung hat weder einen Lauf noch eine
+  Laufzeitänderung ausgelöst.
+
+## Separate OAK4-Kamerareferenz im Kartonprogramm, 20.11.2026
+
+- **Calibrate OAK4** nutzt `oak4_photo.sh capture --mode charuco`. Das
+  Kartonprogramm übernimmt den vollständigen rechten Boardbezug zwölf
+  Stunden ab Aufnahme. Passende ID, Fokus, Optik, Boarddefinition und
+  Basisbindungen sind in der Sitzung gebunden. Nach Kameraverstellung
+  oder Verschieben des Boards neu kalibrieren.
+- Bei gültiger Sitzung entsteht die Kartonpose weiter aus dem aktuellen
+  Bild. `stored_charuco_session` überspringt die Boardprüfung im Kartonbild.
+  Offenes Einfahrbild bleibt Grundlage der Kontaktentscheidung.
+- Erste Sitzung 20.11.2026 12:35:55 bis 21.11.2026 00:35:55 AWST.
+  17 Marker, 1,606 px Prüf-RMS, Fokus 107. N100-Quellpaket aktiv, Vorgänger
+  in `review-candidates/carton-camera-session.DYOAUmW7/previous/`. Der
+  Web-Preflight und 29 bestehende Offline-Tests bestanden.
+- Die Kartonregistrierung mit gespeichertem Boardbezug gelang auf ROSmini
+  und N100 im Diagnoseausschnitt. Der Karton stand 12:41 weiter links
+  außerhalb des normalen Greif-Suchbereichs. Reale Greifausführung steht
+  aus. [Laufbericht](../../setup/tasks/carton_camera_session_20261120/report.md)
+
 ## Kamerareferenz-Abbruch im Karton-Weblauf, 20.11.2026
 
 - Weblauf `f7badf0f257b4e95aecc7b5bdbab06ce` stoppte um 11:44:25 AWST
@@ -218,6 +338,14 @@ Die bedarfsabhängige Play-Freigabe ist im aktiven N100-Kartonrunner installiert
   stimmen mit dem Lauf bei 1000 numerisch überein. 50 ist der niedrigste
   bisher erfolgreiche Vergleichswert nach Sicht, der Mindestwert bleibt
   offen. [Laufbericht](../../setup/tasks/house_drill_gazebo_friction50_20261120_01/report.md)
+- Am 20.11.2026 lief das erweiterte Programm mit Reibwert 20 und bis zu
+  1 rad/s in Gazebo. Drei Kreise, Haus, sechs virtuelle Bohrzustellungen,
+  zweite Drehung und vollständiger Rückweg. Die rechten Arme lassen die
+  Box beim letzten Kreis am festen Stift kreisen. 54 Phasen, 52.070
+  Modellzustände und 162,5 mm Gazebo-Hub, danach beide Greifer geöffnet.
+  In der nativen Aufnahme kein deutliches Verrutschen erkennbar. Die alte
+  Gegenwandpose scheiterte am rechten Hinterarm, die Endpose wurde rund
+  31 mm verschoben. [Rezept- und Laufnachweis](../../setup/tasks/house_drill_box_circle_friction20_20261120_01/report.md)
 
 ## Gazebo-Tempo und Freigabe neuer Wächter oder Tests, 19.11.2026
 
