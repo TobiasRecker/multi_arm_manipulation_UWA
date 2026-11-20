@@ -74,9 +74,16 @@ erneut **Calibrate OAK4** wählen. Ein neuer Kalibriervorgang ersetzt die
 vorherige Sitzung. Bis eine gültige Referenz vorliegt, ist **Start program**
 deaktiviert. Der Kalibriervorgang benötigt nur die OAK4.
 
-**Start program** liest Arbeitsbereich, Tempo und den gemessenen Zustand
-der Arme und Greifer am N100. ROSmini prüft die Eignung des Startzustands,
-bevor die OAK4 das aktuelle Standardfoto erfasst. ROSmini bestimmt die
+**Start program** prüft Arbeitsbereich und Tempo. Der N100 liest die
+External-Control-Bereitschaft der beiden rechten Arme und sendet bei Bedarf
+Play für das geladene `ros.urp`. Dafür müssen Arbeitsbereich, Stillstand,
+offene unbeladene Greifer und die bestehenden Haltezustände bestätigt sein.
+Bei einer erforderlichen weiteren Vorbereitung meldet der Browser den
+betroffenen Arm und dessen Zustand.
+
+Anschließend liest der N100 den gemessenen Zustand der Arme und Greifer.
+ROSmini prüft die Eignung des Startzustands, bevor die OAK4 das aktuelle
+Standardfoto erfasst. ROSmini bestimmt die
 Kartonpose mit der gespeicherten Kamerareferenz, plant die Hochanfahrt
 und offene Einfahrt und prüft beide Bahnen. Das statische Rezept wird bei
 gleicher Modell- und Quellversion wiederverwendet. Der N100 übernimmt die
@@ -85,6 +92,30 @@ Ausführung. Nach bestätigter offener Einfahrt reicht die Bibliothek eine
 zweite aktuelle Aufnahme für die Kontaktfreigabe ein. Der Bediener
 bewertet beide Anfragen in UWA Robot Power. Ein abgelehnter oder
 abgebrochener Lauf endet am betreffenden Schritt.
+
+### Hydrogen Low als Reserve für den Bildfit
+
+ROSmini verwendet zuerst die festen Suchfenster. Wenn bereits erfolgreiche
+Hydrogen-Fenster gespeichert sind und der aktuelle Tischbildausschnitt bei
+derselben Kamerakalibrierung ähnlich aussieht, probiert ROSmini diese
+Fenster zuerst. Für beide Varianten rechnet der vorhandene Posefit mit den
+aktuellen nativen OAK4-Pixeln.
+
+Fehlen im Standardfit genügend gültige, zusammenpassende Hypothesen,
+schickt ROSmini einen verkleinerten Tischbildausschnitt und die
+[feste Anweisung](agent_trials/PROMPT_CARTON_VISION.md) über Antigravity an
+Gemini 4 Hydrogen Low. Das Modell liefert Bildrechtecke. ROSmini validiert
+das JSON, leitet daraus Suchfenster ab und berechnet die Pose erneut.
+Bei erfolgreichem Fit speichert ROSmini die Fenster und eine kleine
+Helligkeitssignatur für spätere Aufnahmen. Im Laufordner zeigen
+`registration-reused/` und `registration-hydrogen/`, welche Fenster
+verwendet wurden. `hydrogen.json` enthält Modellantwort und gemessene Anfragezeit.
+
+Die Reserve wird auf ROSmini durch `setup/skill_library/carton-hydrogen.enabled`
+aktiviert und nutzt daneben `carton-hydrogen-windows.json`. Sie gilt für
+Läufe mit aktueller ChArUco-Kamerasitzung.
+
+### Lokale Konfiguration
 
 Der erwartete lokale Konfigurationspfad ist `setup/skill_library/live-carton.json`.
 Dieses Beispiel zeigt die Felder für die dokumentierte rechte Kartonlage.
@@ -99,7 +130,7 @@ erstellte aktuelle Referenz. Archivläufe können weiter ihre ursprüngliche
   "enabled": false,
   "intrinsics": "../calibration/oak_capture_proposal_20261118/calibration_candidate_v1/oak_pose_candidate.json",
   "roi": [2400, 2850, 5000, 5050],
-  "face_roi": [2450, 3980, 5000, 5000],
+  "face_roi": [2450, 3200, 5000, 5000],
   "camera_session": "carton-camera-session.json",
   "planar_texture": true
 }
@@ -223,7 +254,8 @@ Aufnahmedaten dienen der Bindung der aktuellen Kartonpose.
 `risk` ist `low`, `medium` oder `high`. Ohne Einschätzung ist die Bedienperson
 gefragt. Während
 einer offenen Entscheidung wartet derselbe Prozess und prüft anschließend
-den aktuellen Start. Mit `--start-ros-programs` liest der Pilot unmittelbar vor der Fahr- oder
+den aktuellen Start. Beim manuellen Aufruf mit `--start-ros-programs`
+liest der Pilot unmittelbar vor der Fahr- oder
 Kontaktfreigabe den Dashboardzustand und die ROS-Reverse-Verbindungen aller
 vier Arme. Laufen alle vorbereiteten Programme, gilt die normale Risikostufe
 der Aufgabe. Brauchen einzelne Arme Play, zeigt die Anfrage deren Namen.

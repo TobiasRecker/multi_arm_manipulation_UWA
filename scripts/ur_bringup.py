@@ -425,6 +425,8 @@ def main(argv=None):
     mode.add_argument('--status', action='store_true', help='Nur lesen (Standard).')
     mode.add_argument('--apply', action='store_true', help='Die ausgewählten realen URs vorbereiten und ros.urp starten.')
     parser.add_argument('--arm', action='append', choices=ROBOT_IDS, help='Wiederholbar; Standard: alle vier.')
+    parser.add_argument('--play-only-for-scene', metavar='SESSION',
+                        help='Nur Play für explizite Arme im freigegebenen Browser-Arbeitsbereich.')
     parser.add_argument('--json', action='store_true', help='Ergebnis als JSON für Skripte und Agenten.')
     parser.add_argument('--review-id')
     parser.add_argument('--review-stage', choices=('motion','contact'))
@@ -433,7 +435,24 @@ def main(argv=None):
     try:
         review_binding = (args.review_id, args.review_component, args.review_stage)
         before_write = None
-        if any(review_binding):
+        if args.play_only_for_scene is not None:
+            if not args.apply or not args.arm or any(review_binding):
+                raise ValueError('Browser-Play erfordert --apply, explizite Arme und eine Arbeitsbereichssitzung.')
+            sys.path.insert(0, str(INVENTORY.parents[1] / 'uwa_cell_tasks'))
+            from uwa_cell_tasks.motion_review import ReviewStore
+            store = ReviewStore()
+
+            def check_scene(step, _arm_id):
+                if step != 'play':
+                    raise Blocked('separate_preparation_required', 'Der Browserstart darf nur Play senden.')
+                status = store.status()
+                if not status['area_released'] or status['session_id'] != args.play_only_for_scene:
+                    raise Blocked('work_area_unreleased', 'Die Arbeitsbereichsfreigabe wurde geändert.')
+                if any(item['status'] in ('pending', 'approved', 'running') for item in status['pending']):
+                    raise Blocked('review_active', 'Eine andere Bewegungsfreigabe ist bereits offen.')
+
+            before_write = check_scene
+        elif any(review_binding):
             if not args.apply or not all(review_binding):
                 raise ValueError('Vollständige Auftragsbindung für den regulären Pilot-Programmstart erforderlich.')
             sys.path.insert(0, str(INVENTORY.parents[1] / 'uwa_cell_tasks'))

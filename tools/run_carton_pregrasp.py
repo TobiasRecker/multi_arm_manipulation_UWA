@@ -132,9 +132,8 @@ def reviewed_command(args, phase, problem, source, start, end, selected, make_pa
                       end_phase=end_phase,extra_collision=extra_collision)
 
 
-def start_ros_programs_held(client, root, problem, segment, save):
-    # Geometry has already been compiled. Startup is explicit,
-    # once only, with all four open/unloaded and resource-held.
+def start_ros_programs_held(client, root, problem, segment, save, *, browser_play=None):
+    # Startup is explicit, with all four open/unloaded and resource-held.
     # Spin telemetry while the existing dashboard CLI runs.
     client.connect(guard=False)
     client.wait(lambda:client.witness is not None,timeout=5.)
@@ -167,7 +166,12 @@ def start_ros_programs_held(client, root, problem, segment, save):
     import subprocess
     from concurrent.futures import ThreadPoolExecutor
     command=[sys.executable,str(REPO/'scripts/ur_bringup.py'),'--apply','--json']
-    if startup:
+    if browser_play is not None:
+        scene, arms = browser_play
+        command.extend(['--play-only-for-scene', scene])
+        for arm in arms:
+            command.extend(['--arm', arm])
+    elif startup:
         authorize()
         command.extend(['--review-id',startup[0],'--review-component',startup[1],'--review-stage',startup[2]])
     with (root/'program-start.json').open('w') as program_log, ThreadPoolExecutor(max_workers=1) as pool:
@@ -175,7 +179,16 @@ def start_ros_programs_held(client, root, problem, segment, save):
         client.wait(future.done,35.)
         answer=future.result()
     segment['program_start']=dict(returncode=answer.returncode,stderr=answer.stderr,report=str(root/'program-start.json'));save()
-    if answer.returncode:raise RuntimeError('Explicit ROS program startup failed; no retry/goal')
+    if answer.returncode:
+        try:
+            result = json.loads((root/'program-start.json').read_text())
+        except ValueError:
+            result = {}
+        details = [
+            f"{arm}: {row['message']}" for arm, row in result.get('arms', {}).items() if row['code'] != 'ready'
+        ]
+        reason = result.get('error') or '; '.join(details) or 'see program-start.json'
+        raise RuntimeError('Explicit ROS program startup failed: ' + reason)
 
 
 def main():

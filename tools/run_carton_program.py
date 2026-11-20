@@ -14,6 +14,7 @@ import subprocess
 import sys
 import uuid
 
+import carton_hydrogen
 from carton_camera_session import create_session, validate_session, write_session
 
 REPO = Path(__file__).resolve().parents[1]
@@ -225,6 +226,8 @@ def n100_preflight(out, program):
         CELL / "tools/run_carton_cycle.py",
         CELL / "tools/register_carton_from_oak.py",
         CELL / "tools/carton_camera_session.py",
+        CELL / "tools/start_carton_browser_programs.py",
+        CELL / "scripts/ur_bringup.py",
         CELL / "config/carton_programs" / f"{program}.json",
         LIVE_PROFILE,
     ]
@@ -317,10 +320,17 @@ def upload(remote, local_file, log_path):
     logged_command(command, log_path, 100)
 
 
-def observe_start(remote, out):
+def observe_start(remote, out, scene, progress):
     command = n100("""mkdir -- "$1"
 mkdir -- "$1/entry"
 source "$2/scripts/control_env.bash"
+/usr/bin/python3 "$2/tools/start_carton_browser_programs.py" --output "$1" \
+  --config "$3" --scene-session "$4"
+""", remote, CELL, LIVE_PROFILE, scene)
+    progress.update("snapshot", "Checking External Control and starting the stopped carton programs on the N100 if needed.")
+    logged_command(command, out / "n100-browser-play.log", 75)
+    progress.update("snapshot", "Reading the four arms and grippers for planning.")
+    command = n100("""source "$2/scripts/control_env.bash"
 /usr/bin/python3 "$2/tools/prepare_carton_hardware.py" --observe \
   --stationarity-config "$3" --output "$1/observed" > "$1/observe.log"
 exec cat -- "$1/observed/observations.json"
@@ -332,7 +342,86 @@ exec cat -- "$1/observed/observations.json"
     return observations
 
 
-def prepare_local_approach(program, progress, config, observations, status, checker_prefix):
+class CartonFitRejected(ValueError):
+    """The camera inputs were valid, but the current carton fit was rejected."""
+
+
+def register_attempt(config, out, recipe, image, metadata, windows, suffix=""):
+    options = []
+    if config.get("camera_session"):
+        options.extend(["--camera-session", out / "camera-session.json"])
+    elif reference := config.get("camera_reference_pose"):
+        options.extend(["--camera-reference-pose", reference])
+    if config.get("planar_texture"):
+        options.append("--planar-texture")
+
+    registration = out / f"registration{suffix}"
+    roi, face_roi = windows
+    command = offline_tool("register_carton_from_oak.py", "--image", image, "--metadata", metadata,
+                           "--intrinsics", config["intrinsics"], "--description", recipe / "hardware.urdf",
+                           "--roi", *roi, "--face-roi", *face_roi,
+                           "--output", registration, *options)
+    try:
+        logged_command(command, out / f"oak-registration{suffix}.log", 120)
+    except RuntimeError as error:
+        result = registration / "registration.json"
+        if result.is_file():
+            report = load_json(result)
+            reason = report.get("error")
+            if report.get("success") is False and reason in (
+                "Fewer than two valid supported image-pose hypotheses",
+                "Supported image hypotheses disagree",
+            ):
+                raise CartonFitRejected(f"OAK4 registration failed. {reason}") from error
+            if reason:
+                raise ValueError(f"OAK4 registration failed. {reason}") from error
+        raise
+    pose = registration / "object-pose.json"
+    if not pose.is_file():
+        raise ValueError(f"OAK4 registration did not write {pose.relative_to(out)}.")
+    return pose
+
+
+def register_current_carton(config, progress, recipe, image, metadata, *, window_cache=None):
+    out = progress.output
+    progress.update("oak_registration", "Locating the carton in the current OAK4 image on ROSmini.")
+    default_windows = config["roi"], config["face_roi"]
+    if window_cache is None or not config.get("camera_session"):
+        return register_attempt(config, out, recipe, image, metadata, default_windows)
+
+    calibration_sha = hashlib.sha256((out / "camera-session.json").read_bytes()).hexdigest()
+    preview = signature = None
+    if window_cache.is_file():
+        preview = carton_hydrogen.tabletop_preview(image)
+        signature = carton_hydrogen.scene_signature(preview)
+        if windows := carton_hydrogen.cached_windows(window_cache, calibration_sha, signature):
+            progress.update("oak_registration", "Fitting the current OAK4 image in previously successful search windows.")
+            try:
+                return register_attempt(config, out, recipe, image, metadata, windows, "-reused")
+            except CartonFitRejected:
+                progress.update("oak_registration", "Trying the standard search windows on the current OAK4 image.")
+
+    try:
+        return register_attempt(config, out, recipe, image, metadata, default_windows)
+    except CartonFitRejected as primary_error:
+        progress.update("oak_registration", "The standard image fit was rejected. Asking Hydrogen Low for search windows.")
+        try:
+            if preview is None:
+                preview = carton_hydrogen.tabletop_preview(image)
+                signature = carton_hydrogen.scene_signature(preview)
+            windows = carton_hydrogen.suggest_windows(preview, out)
+        except (ValueError, OSError) as error:
+            raise ValueError(f"{primary_error} {error}") from error
+        progress.update("oak_registration", "Checking the suggested windows against the current OAK4 image.")
+        pose = register_attempt(config, out, recipe, image, metadata, windows, "-hydrogen")
+        try:
+            carton_hydrogen.save_windows(window_cache, calibration_sha, signature, windows)
+        except OSError as error:
+            print(f"Could not save carton search windows: {error}", flush=True)
+        return pose
+
+
+def prepare_local_approach(program, progress, config, observations, status, checker_prefix, *, window_cache=None):
     out = progress.output
     progress.update("oak_capture", "Capturing a current native OAK4 photo for carton registration.")
     cache_command = offline_tool("prepare_carton_recipe.py", "--program", program, "--cache-dir", RECIPE_CACHE)
@@ -342,32 +431,12 @@ def prepare_local_approach(program, progress, config, observations, status, chec
         image, metadata = capture_oak(out, "initial", config["focus"])
         recipe = Path(json.loads(recipe_ready.result())["recipe"])
 
-    options = []
-    if config.get("camera_session"):
-        options.extend(["--camera-session", out / "camera-session.json"])
-    elif reference := config.get("camera_reference_pose"):
-        options.extend(["--camera-reference-pose", reference])
-    if config.get("planar_texture"):
-        options.append("--planar-texture")
-
-    registration = out / "registration"
-    progress.update("oak_registration", "Locating the carton in the current OAK4 image on ROSmini.")
-    command = offline_tool("register_carton_from_oak.py", "--image", image, "--metadata", metadata,
-                           "--intrinsics", config["intrinsics"], "--description", recipe / "hardware.urdf",
-                           "--roi", *config["roi"], "--face-roi", *config["face_roi"],
-                           "--output", registration, *options)
-    try:
-        logged_command(command, out / "oak-registration.log", 120)
-    except RuntimeError as error:
-        result = registration / "registration.json"
-        if result.is_file() and (reason := load_json(result).get("error")):
-            raise ValueError(f"OAK4 registration failed. {reason}") from error
-        raise
+    pose = register_current_carton(config, progress, recipe, image, metadata, window_cache=window_cache)
 
     progress.update("offline_plan", "Planning and checking both arm paths on ROSmini.")
     plan = out / "plan"
     command = offline_tool("run_carton_cycle.py", "--plan-only", "--recipe", recipe,
-                           "--observations", observations, "--object-pose", registration / "object-pose.json",
+                           "--observations", observations, "--object-pose", pose,
                            "--speed-percent", status["settings"]["speed_percent"], "--output", plan,
                            checker_prefix=checker_prefix)
     try:
@@ -440,6 +509,9 @@ def run_live(program, progress, config_path):
     out = progress.output
     progress.update("live_preflight", "Checking the configured optics, N100 runtime and work-area release.")
     config = live_inputs(config_path)
+    window_cache = None
+    if config_path.with_name("carton-hydrogen.enabled").is_file():
+        window_cache = config_path.with_name("carton-hydrogen-windows.json")
     session = None
     if session_path := config.get("camera_session"):
         if not session_path.is_file():
@@ -449,9 +521,10 @@ def run_live(program, progress, config_path):
     target_workspace, status, checker_prefix = n100_preflight(out, program)
     remote = f"setup/tasks/skill-library-carton-{uuid.uuid4().hex}"
     (out / "n100-run.txt").write_text(remote + "\n")
-    progress.update("snapshot", "Reading the four arms and the two grippers on the N100.")
-    observations = observe_start(remote, out)
-    plan, image, metadata = prepare_local_approach(program, progress, config, observations, status, checker_prefix)
+    observations = observe_start(remote, out, status["session_id"], progress)
+    plan, image, metadata = prepare_local_approach(
+        program, progress, config, observations, status, checker_prefix, window_cache=window_cache,
+    )
     progress.update("n100_approach", "Sending the checked trajectories to the N100 for motion review.")
     options = transfer_approach(remote, target_workspace, plan, image, metadata, config, out, checker_prefix)
 

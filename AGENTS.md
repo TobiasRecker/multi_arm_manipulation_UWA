@@ -14,8 +14,26 @@
 
 ## Bedarfsabhängiger UR-Programmstart, 19.11.2026
 
-Kartonpilot auf dem N100: Bei optionalem regulärem Programmstart unmittelbar vor der Review den wirklichen Play-Bedarf verwenden. Für eine betriebsbereite Zelle gilt das Aufgabenvertrauen. Die Zustimmung für Play ist an die konkret gemeldeten Arme und die Revision gebunden.
+Kartonpilot auf dem N100: Beim manuellen Pilotpfad mit optionalem Play vor
+der Fahrt den wirklichen Bedarf verwenden. Die Zustimmung ist an die
+angezeigten Arme und die Revision gebunden.
 
+- Nutzerentscheidung 20.11.2026: **Start program** im Browser beauftragt
+  für den unbeladenen Kartonablauf auch reguläres Play von `ros.urp` für
+  die beiden rechten Arme bei Bedarf. Der N100 prüft dies vor Foto und
+  Planung anhand der Arbeitsbereichsfreigabe und der bestehenden
+  Haltezustände. Bewegungs- und Kontaktfreigabe bleiben separat.
+- Die Altersgrenze der bestätigten Hold-Konfiguration im Kartonprofil
+  beträgt auf Nutzerauftrag seit 20.11.2026 1.000 ms. Die Änderung betrifft
+  die Bestätigung der Hold-Parameter. Die anderen Fristen sind separat
+  konfiguriert oder im Guard definiert.
+
+- Nutzerentscheidung 20.11.2026: Reguläres Beenden von `ros.urp` und
+  Standby nur durch den Nutzer oder auf seine ausdrückliche Aufforderung.
+  Ein laufendes Programm bleibt bei normalem Ablauf, Leerlauf und
+  Schließen von Browser oder GUI verfügbar. Bestehende Schutzstopps sind
+  davon getrennt. Bei unerwartetem `STOPPED` den Auslöser im N100-Safety-Log
+  zuordnen und nachvollziehbar benennen.
 
 ## Nutzerentscheidung zur Gazebo-Simulation, 19.11.2026
 
@@ -164,6 +182,12 @@ Kartonpilot auf dem N100: Bei optionalem regulärem Programmstart unmittelbar vo
   automatisch ableiten und mit den bestehenden Prüfungen bewerten. Beim
   Kartonpiloten sind Bilderkennung, planbare Posen und realer Kontakt getrennt
   nachzuweisen. Bedienung in `docs/carton_motion_review.md`.
+- Nutzerentscheidung vom 20.11.: Gemini 4 Hydrogen Low als Reserve für
+  abgelehnte Karton-Bildfits. ROSmini übergibt einen verkleinerten
+  Tischbildausschnitt und die feste Bildanweisung. Erfolgreiche Suchfenster
+  dürfen bei gleicher Kamerakalibrierung und ähnlicher Aufnahme lokal
+  wiederverwendet werden. Die Pose wird je Lauf aus den aktuellen
+  Originalpixeln mit der vorhandenen geometrischen Prüfung berechnet.
 - Nutzerziel: schnelles einfaches LLM soll mit wiederverwendbaren Bausteinen
   möglichst zügig ein Aufgabenprogramm erstellen. Optional ein bis zwei
   erklärte Teleoperations-/Handführungsbeispiele mit Kameras, UR-Posen und
@@ -271,7 +295,7 @@ Kartonpilot auf dem N100: Bei optionalem regulärem Programmstart unmittelbar vo
 
 ## Reale Bedienabläufe ohne Diagnosekaskaden (2026-11-18)
 
-- Bei einem konkreten Abbruch zuerst den aktuellen N100-Bericht aus **Safety log** oder dem passenden lokalen Export lesen und den betroffenen Versuch über dessen Workflowpfad zuordnen. Den auf dem N100 seit 19.11.2026 um 17:14 AWST aktiven [Wächterstand](../../setup/n100/ur-runtime/README.md#guard-protokoll-auf-dem-n100) verwenden. Den aktuellen Interlockstatus vor einer Fahrt separat prüfen.
+- Bei einem konkreten Abbruch zuerst den aktuellen N100-Bericht aus **Safety log** oder dem passenden lokalen Export lesen und den betroffenen Versuch über dessen Workflowpfad zuordnen. Den aktiven [N100-Wächterstand](../../setup/n100/ur-runtime/README.md#guard-protokoll-auf-dem-n100) verwenden. Den aktuellen Interlockstatus vor einer Fahrt separat prüfen.
 
 - Nutzerwunsch vom 19.11.2026: Die Ursache wiederkehrender Sperren in **UWA Robot Power** sichtbar machen. Bei der Auswertung Zeitpunkt, betroffene Arme, Auswirkung und vorhandene Messwerte zur Schwelle heranziehen. Mehrere Meldungen desselben Vorfalls und eigenständige Auslösungen unterscheiden.
 

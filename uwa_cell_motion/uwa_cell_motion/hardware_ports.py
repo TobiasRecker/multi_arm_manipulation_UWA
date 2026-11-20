@@ -136,7 +136,7 @@ class StopPort:
             except Exception as error:self.error=str(error)
             self.checking=None
         if self.checking and now-self.parameter_sent>.3:self.checking=None
-        if now-self.parameter_received>.3:self.verified=False
+        if now-self.parameter_received>self.cfg.get('hold_config_max_age_s', .3):self.verified=False
         if self.checking is None and now-self.parameter_sent>.1 and self.parameters.service_is_ready():
             self.parameter_sent=now
             request=GetParameters.Request();request.names=['joints','deceleration'];self.checking=self.parameters.call_async(request)

@@ -3,6 +3,7 @@
 rate_hz: 20.0
 state_timeout_s: 0.2
 heartbeat_timeout_s: 0.25
+hold_config_max_age_s: 1.0
 stop_latency_s: 1.0
 braking_acceleration_rad_s2: 0.2
 velocity_limit_rad_s: 0.1

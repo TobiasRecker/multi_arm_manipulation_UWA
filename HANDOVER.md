@@ -1,6 +1,227 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Browser-Play und Hold-Konfigurationsalter, 20.11.2026
+
+- Nutzer beauftragte 1.000 ms für die Bestätigung der Hold-Konfiguration
+  und Play bei Bedarf über **Start program**. `hold_config_max_age_s: 1.0`
+  gilt für das aktive N100-Kartonprofil. RPC-Fristen, Nachweise von
+  Controllerliste und realer Hardware sowie native Zustands- und
+  Heartbeat-Frische behalten ihre jeweiligen Grenzen.
+- Der Webrunner fragt die beiden rechten Arme vor Foto und Planung ab.
+  Für vorbereitete, gestoppte Programme sendet der N100 unter den
+  vorhandenen unbeladenen Haltebedingungen ausschließlich Play. Er prüft
+  vor dem Befehl erneut die Arbeitsbereichssitzung und offene Freigaben.
+  Sind beide Programme bereits verbunden, bleibt es beim lesenden Check.
+  Die Fahr- und Kontaktfreigaben laufen wie bisher über UWA Robot Power.
+- Erster Guard-Wechsel um 17:13:02 AWST zurückgerollt. Die beiden
+  rechten Controller bestätigten ihre Zustände innerhalb des ersten
+  18-s-Prüffensters noch nicht. Zweiter Wechsel um 17:14:42 AWST mit
+  längerem Prüfzeitfenster bestätigt. Vier Arme stationär und auf STOPPED,
+  vier Holds und Interlock bestätigt. Der Watchdog war nach dem Neustart
+  ausgelöst. Keine Bewegung und kein Live-Play während der Umstellung.
+- 57 bestehende Offline-Tests bestanden. Gezielte Offline-Prüfung für
+  Altersgrenze, Armwahl und Play-only. Der lesende Live-Versionsvergleich
+  von ROSmini und N100 bestand. Erster tatsächlicher Play-Befehl über den
+  Browser steht aus.
+  [Aktivierungsbeleg](../../setup/tasks/carton_browser_play_20261120/n100-activation-retry.log) ·
+  [Bedienung](docs/carton_motion_review.md)
+
+## Kartonstart bei gestopptem ROS-Programm, 20.11.2026, 17:03 AWST
+
+- Der Startsnapshot um 17:00 meldete alle vier Arme mit
+  `robot_mode=7` (Antriebe eingeschaltet), `safety_mode=1` (NORMAL) und
+  `runtime_state=1` (`ros.urp` STOPPED). Bildfit und Offline-Planung
+  bestanden, weil der Planungssnapshot gültige Gelenkpositionen auch bei
+  STOPPED zulässt. Die Hochanfahrt braucht `runtime_state=2` (PLAYING).
+  `right_front` war der erste abgewiesene Fahrarm. Beide rechten Arme
+  zeigten 0 s Bewegung über der Messschwelle von 0,003 rad/s. Der
+  Ausführungsbericht enthält keine Arm- oder Fingerbefehle.
+- Der letzte belegte PLAYING-Zustand für `right_front` und `right_rear`
+  ist im Snapshot von 15:56. Die beiden N100-Treiber protokollierten
+  um 15:58:51 den Verlust ihrer Reverse-Verbindungen, zeitgleich mit
+  dem protokollierten Schutz-STOP des Supervisors für `right_front`.
+  In den geprüften Treiber- und GUI-Logs ist danach bis zum Fehlerlauf
+  kein erneuter erfolgreicher Play belegt. Der Safety-Log zeigt um
+  17:03 den Workflowfehler ohne neuen Supervisor-STOP. Der bestätigte
+  Guard ist seit 19.11. 17:14:28 AWST aktiv (PID 505211).
+- Der lesende N100-Dashboardstatus danach bestätigte an allen vier Armen
+  `ros.urp` geladen und STOPPED, Treiber-Listener erreichbar und Reverse
+  getrennt. Keine Betriebsbefehle bei dieser Diagnose.
+  [Ablaufbeleg](../../setup/tasks/uwa_program_library/6d35f87793fd47dcb1d7380f6367e044/n100-motion-workflow.json) ·
+  [Treiberjournal](../../setup/tasks/uwa_program_library/6d35f87793fd47dcb1d7380f6367e044/n100-driver-state.log)
+
+## Hydrogen Low als Karton-Bildreserve, 20.11.2026
+
+- Nutzerentscheidung: den getesteten Gemini 4 Hydrogen Low als Reserve
+  übernehmen und Vorbereitung zwischen Läufen wiederverwenden. Aktiv auf
+  ROSmini über `setup/skill_library/carton-hydrogen.enabled`.
+- Der lokale Ablauf verwendet die feste Markdown-Bildanweisung, den auf
+  1.120 px verkleinerten Tischbildausschnitt und ein validiertes
+  Bildrechteck-JSON. Hydrogen wird nach Ablehnung des Standard-Bildfits
+  aufgerufen. Haben Fenster bereits zu einem gültigen Fit geführt, probiert
+  ROSmini sie bei ähnlicher aktueller Aufnahme mit derselben ChArUco-Sitzung
+  zuerst. Die Pose entsteht jedes Mal aus den nativen Pixeln der aktuellen
+  Aufnahme mit dem bestehenden Auflage- und Mehrhypothesenfit.
+- Archiv-Replay des 16:05-Fehlerfotos: 34,74 s für die gesamte Bildphase
+  mit Standardablehnung und Hydrogen, davon 2,36 s ACP-Start und 7,21 s
+  Modellanfrage. Wiederverwendung auf der separaten 15:56-Aufnahme und
+  erneut auf dem 16:05-Foto dauerte 10,63 bzw. 11,00 s. Beide Fits gültig
+  ohne Modellanfrage. Die weiter links stehende Archivlage und eine
+  andere Kamera-Sitzungskennung verwarfen den Cache.
+- Mit der neu berechneten Pose und dem archivierten N100-Snapshot bestanden
+  der Offline-Bahnplan und die lokale Erstellung der N100-Übergabedateien.
+  Die Prüfung endete vor dem Upload und vor einer realen Bewegung.
+  [Messwerte](../../setup/tasks/carton_hydrogen_fallback_20261120/measurements.json) ·
+  [Bedienung](docs/carton_motion_review.md#hydrogen-low-als-reserve-für-den-bildfit)
+
+## Antigravity als Bildlokalisierung im Kartonversuch, 20.11.2026
+
+- Nutzerauftrag: zuerst schnelles verfügbares Bildmodell bei niedrigster
+  Reasoning-Stufe, Vergleich von Antwortzeit und nutzbarem Ergebnis. Kleine
+  Markdown-Anweisung und 0–1000-JSON-Boxen für ganzen Karton und bedruckte
+  Front. Eingaben drei gespeicherte Kartonbilder und ein kartonfreier
+  Ausschnitt. ACP übermittelte Bild und Prompt ohne Werkzeugaufrufe.
+  [Prompt](docs/agent_trials/PROMPT_CARTON_VISION.md)
+- Die Modellboxen zentrierten die vorhandenen 2.600/2.550 px breiten
+  Suchfenster. Der gleiche Bild-, Tischauflage- und Mehrhypothesenfit rechnete
+  die Pose. Der damalige Weblauf verwendete ausschließlich den SIFT-Pfad
+  mit erweitertem festem Detailfenster. Dies war ein Archivversuch.
+- Feste Fenster lieferten aus drei positiven Bildern eine gültige Pose.
+  Gemini 3.8 Flash Low beantwortete alle vier Bildfälle korrekt, Median
+  4,43 s bis Antwort, 0,980 Median-IoU zur Bildannotation, zwei gültige
+  Posen. Flash Medium lieferte zwei korrekte Antworten in 8,37 und 21,78 s,
+  zweimal fiel die Anfrage ins 32-s-Zeitlimit. Eine gültige Pose.
+  Gemini 4 Hydrogen Low beantwortete vier von vier, Median 5,89 s,
+  IoU 0,990 und drei gültige Posen. Anfragezeit erfasst ACP und Netzwerk,
+  separater lokaler Fit im Bericht. JSON erschien teils in einem Markdown-
+  Codeblock, den der Benchmark strikt entpackt und danach validiert.
+- Das Fehlerfoto um 16:05 bestand drei getrennte Hydrogen-Low-Anfragen
+  mit jeweils anschließendem Fit. Modellursprung maximal 3,20 mm und
+  0,75° auseinander. Einer der bestandenen Fits lag nur 0,00095 px unter
+  der bisherigen Grenze. Der LLM-Vorschlag ist ein Kandidat für die
+  Ausschnittwahl, metrische Genauigkeit und Live-Stabilität sind offen.
+  [Vergleich](../../setup/tasks/carton_antigravity_20261120/comparison.json) ·
+  [Weiter links stehender Karton](../../setup/tasks/carton_antigravity_20261120/hydrogen-low/low-C-overlay.jpg)
+
+## Kantengeometrie, FoundationPose und Bildmerkmale am Karton, 20.11.2026
+
+- Nutzerauftrag: Kartonpose direkt aus den Kanten schätzen, FoundationPose
+  mit automatischer Startmaske testen und SIFT gegenüber ORB einordnen.
+- Offline auf ROSmini: vier Archivbilder, STL-Randprofile plus sichtbare
+  untere Frontkante, kalibrierte Tischauflage, x/y/Drehung aus einem gemeinsamen
+  Suchbereich, keine Texturpose als Startwert. Bei den drei praktisch gleichen
+  Aufnahmen driftete der reine Kantenfit in einer Aufnahme auf eine innere
+  Naht, größte Mittelpunktstreuung 33,10 mm. Vier automatisch detektierte
+  gelbe Randlaschen lieferten einen zusätzlichen Silhouettenhinweis. Damit
+  1,236 mm Mittelpunktstreuung und 0,624° Drehstreuung, ohne Nachweis der
+  absoluten Genauigkeit. Abstand zur Texturpose um 15:56 blieb 13,21 mm
+  am Modellursprung. Auch die versetzte Archivlage vom Vortag wurde gefunden.
+- FoundationPose auf titanpc mit den acht gespeicherten 640×480-RGB-D-Paaren
+  vom auf der Seite stehenden Karton. Tisch-Ebene aus Tiefe, gelber Aufdruck
+  als Startregion, daraus zusammenhängende RGB-Silhouette per GrabCut. Maske
+  automatisch und ohne Szenenpose erzeugt. IoU 0,781 zur Handmaske, beide
+  Poseläufe unterscheiden sich im ersten Frame um 0,441 mm und 0,134°,
+  acht gültige Frames im automatischen Lauf. Vergleich auf identischen Daten,
+  keine absolute Genauigkeit oder roboterseitige Greifqualifikation.
+- SIFT/ORB auf den Bildern 15:49, 15:56 und 16:05 mit derselben Poseprüfung
+  und denselben ROI. ORB verwendet neu erzeugte Binärreferenzen, Hamming und
+  denselben 0,73-Verhältnistest wie SIFT. Beide akzeptierten zwei Bilder.
+  SIFT hatte drei, drei und einen gültigen Auflagefit, ORB zwei, zwei und
+  keinen. Laufzeiten SIFT 5,46–10,56 s, ORB 1,99–2,61 s. Ergebnis gilt für
+  diesen kleinen Vergleich und die benutzte Konfiguration.
+  [Messbericht](../../setup/tasks/carton_perception_comparison_20261120/comparison-summary.json) ·
+  [Kantenvergleich](../../setup/tasks/carton_perception_comparison_20261120/kantenvergleich-1605.jpg) ·
+  [FoundationPose-Projektion](../../setup/tasks/carton_perception_comparison_20261120/foundationpose-auto-result/overlay_000.png)
+
+## OAK4-Wiederholaufnahme bei gleicher Kartonlage, 20.11.2026
+
+- Nutzer meldet unveränderten Karton und unveränderte Kamera. Vergleich der
+  akzeptierten Aufnahme 15:56 und der abgelehnten Aufnahme 16:05 bestätigt
+  eine Verschiebung der Bildmerkmale deutlich unter einem nativen Pixel.
+  In beiden Aufnahmen liegt die bedruckte Front im korrigierten Ausschnitt.
+  Fokus 107, Belichtungszeit 25 ms und Kamerareferenz identisch. Gemeldete
+  ISO-Werte 265 bzw. 290. ISO allein ist als Ursache unbewiesen.
+- Die Rohbilder lieferten drei bzw. einen gültigen Auflagefit. Reproduzierter
+  Übersichtsfit für dieselbe Kartonfläche: 50 bzw. 65 Textur-Inlier, bei
+  Tischauflage 5,773 bzw. 7,556 px RMS (Grenze 6,5 px). Der Detailfit mit
+  1.200 px und Streckung 1,5 stieg von 7,825 auf 10,231 px bei 8,5 px Grenze.
+  Der Detailfit mit Streckung 1,6 blieb gültig (8,107 und 8,090 px). Damit
+  war der Karton im Bild auffindbar und dem Ablauf fehlte ein zweiter
+  belastbarer, zur Tischauflage passender Fit.
+- Der Bildvergleich nutzt die echten Punktzuordnungen und zeigt ausgewählte
+  Reprojektionsfehler sechsfach vergrößert. Beide Ursprungsberichte wurden
+  aus den unveränderten Eingaben exakt wiederholt. Im Wiederholungsnachweis
+  wurden Bildarchiv und bestehende Erkennung verwendet.
+  [Bildmessung](../../setup/tasks/carton_oak_repeat_20261120.nmF6Bhre/frame-comparison.json) ·
+  [Fehlgeschlagener Bericht](../../setup/tasks/uwa_program_library/59fe6864007d413c905c3131f39c1cca/registration/registration.json)
+
+## Nativer STOP vor der Hochanfahrt, 20.11.2026, 15:58 AWST
+
+- Nutzerentscheidung: `ros.urp` im regulären Betrieb nur durch den Nutzer
+  oder auf ausdrückliche Aufforderung beenden. Bestehende Schutzstopps
+  bleiben die gesonderte Schutzfunktion. In beiden AGENTS-Dateien dokumentiert.
+- Karton-Weblauf `e7b50828b789419ba029347a3aeb8893` bereitete Bildpose und
+  beide parallelen Bahnphasen erfolgreich vor. Der native Snapshot um 15:56
+  zeigte `ros.urp` bei beiden rechten Armen und `left_rear` als `PLAYING`.
+  `left_front` war bereits `STOPPED`. Die Bedienperson gab die Bahn um 15:58
+  frei. Die GUI-Sitzung protokollierte keinen regulären Stop/Standby zu diesem
+  Zeitpunkt. Die Hochanfahrt brach vor Haltereset und Zielversand ab, mit
+  `arm_commands=[]` und `finger_commands=[]`. Native Bewegungsmessung für
+  beide rechte Arme jeweils 0 s über 0,003 rad/s.
+- Der aktive N100-Supervisor (PID 505211) protokollierte um 15:58:51,369
+  einen nativen STOP für `right_front`, weil die letzte Bestätigung der
+  Haltekonfiguration 300,212 ms alt war (Grenze 300 ms, Controllerliste
+  199,748 ms und frisch). Beim Folge-STOP um 15:58:51,627 war der Nachweis
+  der realen Hardware 540,081 ms alt (Grenze 300 ms). Die GUI meldete
+  darauf `ros.urp` `STOPPED`, während Antrieb und Safety `RUNNING/NORMAL`
+  blieben. Für weitere gleichzeitig als gestoppt gemeldete Arme enthält das
+  enge Journalfenster keinen eigenen Auslöser. Warum die Statusantworten
+  verspätet eintrafen, ist offen. Der Runner war währenddessen in der
+  Initialisierung des Ausführungskontexts. Freigabe-/Schutzlogik unverändert.
+  Lesender Status um 16:02 zeigte alle vier Antriebe `RUNNING/NORMAL`, alle
+  Programme `STOPPED` und alle vier Treiber bei je 30 Dateideskriptoren.
+  [N100-Schutzjournal](../../setup/tasks/uwa_program_library/e7b50828b789419ba029347a3aeb8893/n100-high-guard-exact.log) ·
+  [Ergebnis Hochanfahrt](../../setup/tasks/uwa_program_library/e7b50828b789419ba029347a3aeb8893/n100-high-result.json)
+
+## Detailausschnitt für die OAK4-Kartonpose, 20.11.2026
+
+- Der Lauf um 15:49 AWST endete bei der Bildregistrierung. Das aktuelle
+  Foto enthielt die bedruckte Vorderseite etwa bei y=3250–3900 im 8K-Bild.
+  Der bisherige Detailausschnitt begann mit y=3980 darunter und enthielt
+  das ChArUco-Board. In der Übersicht bestand ein Auflagefit mit 53 Inliern
+  und 6,212 px RMS bei 6,5 px Grenze. Zwei weitere Fits derselben Fläche
+  lagen bei 7,869 und 9,383 px. Für die Registrierung sind zwei gültige,
+  übereinstimmende Fits erforderlich.
+- Die lokale Optikdatei erweitert den Detailausschnitt nach oben auf
+  `[2450,3200,5000,5000]`. Derselbe Bildsatz um 15:49 liefert drei gültige
+  Fits mit maximal 1,792 mm und 0,524° Abweichung. Das Fehlerfoto um 12:47
+  liefert zwei, der am 19.11. um 13:24 bereits akzeptierte Bildsatz fünf.
+  Suchbreiten, Kalibrierung und bestehende Fit-Grenzen sind identisch.
+  [Bildvergleich](../../setup/tasks/carton_web_roi_20261120/latest-roi-overview.jpg) ·
+  [Registrierung 15:49](../../setup/tasks/carton_web_roi_20261120/upward/registration.json) ·
+  [Registrierung 12:47](../../setup/tasks/carton_oa4_crops_20261120.l1cMEo9Z/12-47-face-y3200/registration.json)
+
 ## Start + ROS am Dateideskriptorlimit der N100-Treiber, 20.11.2026
+
+- Nach Meldung des Nutzers, dass die Zelle frei und unbeladen ist, bestätigte
+  ein frischer RTDE-Snapshot alle vier Arme stationär. Die vier betroffenen
+  N100-UR-Treiberdienste wurden gezielt neu gestartet. Um 13:59:57 waren
+  alle vier neuen Controllerprozesse auf ihren vorgesehenen Ports erreichbar
+  und belegten je 30 statt 1.024 Deskriptoren. Live-Schutz und Greiferdienst
+  liefen mit denselben Dienstidentitäten weiter. Die anschließenden
+  Dashboard-/RTDE-Readbacks zeigten `RUNNING/NORMAL/STOPPED` und Stillstand.
+  Die vorhandenen Sechs-Gelenk-Haltecontroller wurden auf den vier neuen
+  Managern mit dem bestehenden `provision`-Befehl inaktiv bereitgestellt.
+  Die Bedienperson startet anschließend `ros.urp` über **Start + ROS**.
+  [Neustartnachweis](../../setup/tasks/ur-driver-restart-20261120/restart-verified.log) ·
+  [Haltecontroller](../../setup/tasks/ur-driver-restart-20261120/holds-verified.log)
+- Der auf ROSmini und N100 identische URCL-Quellstand in `tcp_socket.cpp`
+  überschreibt beim erneuten `socket()`-Aufruf unter bestimmten Fehlerpfaden
+  den alten Deskriptor, ohne ihn freizugeben. Das erklärt einen plausiblen
+  Mechanismus für die Ansammlung. Die Zuordnung aller historischen Sockets zu
+  diesem Pfad ist offen. Der TCP-Server verwendet `select()` und verwirft
+  Deskriptoren ab `FD_SETSIZE`. Ein höheres Prozesslimit ersetzt die Korrektur
+  der Socket-Verwaltung daher nicht.
 
 - Der Karton-Weblauf um 13:23:35 AWST endete um 13:23:47 bei der lesenden
   RTDE-Zustandsprüfung. `left_rear`, `right_front` und `right_rear` meldeten
@@ -346,6 +567,17 @@ Die bedarfsabhängige Play-Freigabe ist im aktiven N100-Kartonrunner installiert
   In der nativen Aufnahme kein deutliches Verrutschen erkennbar. Die alte
   Gegenwandpose scheiterte am rechten Hinterarm, die Endpose wurde rund
   31 mm verschoben. [Rezept- und Laufnachweis](../../setup/tasks/house_drill_box_circle_friction20_20261120_01/report.md)
+- Der anschließende Gazebo-Gesamtlauf vom 20.11.2026 begann mit vier
+  Armen in Home und dem Karton vollständig auf der rechten Tischplatte.
+  Beide rechten Arme fuhren gemeinsam an und griffen über vier Padkontakte.
+  Der vorhandene Compiler prüfte ab dem so gebildeten Griff 54 Phasen mit
+  53.040 Modellzuständen bei bis zu 1 rad/s. Gazebo meldete 162,9 mm Hub,
+  54 erfolgreiche Folgeaktionen und danach beide Greifer offen. Reibwert 20.
+  Die Box erzeugt den Gegenwandkreis am feststehenden virtuellen Stift.
+  Halter und dort sichtbarer Stift bleiben Ansichtsmodelle. Der lokale
+  Simulationsbildfit nutzt für den stehenden Karton die Tischhöhe; ein
+  vorheriger freier Bildfit hatte den Hub in der Offline-Prüfung blockiert.
+  [Laufbericht und Mitschnitt](../../setup/tasks/house_drill_home_20261120_01/report.md)
 
 ## Gazebo-Tempo und Freigabe neuer Wächter oder Tests, 19.11.2026
 
