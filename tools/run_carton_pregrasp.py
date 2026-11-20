@@ -67,7 +67,10 @@ class ApproachClient(HardwareClient):
         started=time.monotonic();key=(kind,name)
         if key not in self.rpc_clients:self.rpc_clients[key]=self.create_client(kind,name)
         client=self.rpc_clients[key]
-        wait_service_spinning(client,self.spin_once)
+        try:
+            wait_service_spinning(client,self.spin_once)
+        except TimeoutError as error:
+            raise TimeoutError(f'Hardware service discovery timed out: {name}') from error
         future=client.call_async(request);self.wait(future.done,5.)
         self.service_timings.append(dict(service=name,duration_s=time.monotonic()-started))
         return future.result()

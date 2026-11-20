@@ -7,7 +7,9 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 
+from std_srvs.srv import Trigger
 from run_carton_pregrasp import read_gripper_status, start_ros_programs_held, ApproachClient
+from uwa_cell_gripper_control.api import endpoint
 from uwa_cell_motion.common import ROBOT_IDS, config
 from uwa_cell_motion.execution import motion_context
 from uwa_cell_motion.hardware_model import HardwareProblem
@@ -42,6 +44,28 @@ def programs_needing_play(output):
     return needs_play
 
 
+def check_unloaded_grippers(client):
+    reads = {}
+    for arm in ROBOT_IDS:
+        name = endpoint(arm, 'hardware') + '/read'
+        rpc = client.create_client(Trigger, name)
+        client.rpc_clients[(Trigger, name)] = rpc
+        reads[name] = rpc
+    try:
+        client.wait(lambda: all(rpc.service_is_ready() for rpc in reads.values()), timeout=10.)
+    except TimeoutError as error:
+        missing = [name for name, rpc in reads.items() if not rpc.service_is_ready()]
+        if missing:
+            raise RuntimeError('Gripper read service unavailable: ' + ', '.join(missing)) from error
+    for arm in ROBOT_IDS:
+        try:
+            status = read_gripper_status(client, arm)
+        except (RuntimeError, TimeoutError) as error:
+            raise RuntimeError(f'{arm}: gripper status read failed: {error}') from error
+        if not unloaded_open_status(status):
+            raise ValueError(f'{arm}: open, unloaded gripper required for Play.')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
@@ -62,14 +86,15 @@ def main():
     def save():
         (args.output / 'browser-play.json').write_text(json.dumps(evidence, indent=2) + '\n')
 
+    save()
     with TemporaryDirectory(prefix='carton-browser-play-') as models, motion_context():
         problem = HardwareProblem(models, config(args.config), REPO / 'config/hardware_inventory.yaml')
         # Monitor only. The startup client acquires no trajectory actions.
         client = ApproachClient(problem, [], {})
         try:
-            for arm in ROBOT_IDS:
-                if not unloaded_open_status(read_gripper_status(client, arm)):
-                    raise ValueError(f'{arm}: open, unloaded gripper required for Play.')
+            check_unloaded_grippers(client)
+            evidence['open_unloaded_grippers_confirmed'] = True
+            save()
             start_ros_programs_held(client, args.output, problem, evidence, save,
                                     browser_play=(args.scene_session, arms))
         finally:

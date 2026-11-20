@@ -324,7 +324,7 @@ def observe_start(remote, out, scene, progress):
     command = n100("""mkdir -- "$1"
 mkdir -- "$1/entry"
 source "$2/scripts/control_env.bash"
-/usr/bin/python3 "$2/tools/start_carton_browser_programs.py" --output "$1" \
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 /usr/bin/python3 "$2/tools/start_carton_browser_programs.py" --output "$1" \
   --config "$3" --scene-session "$4"
 """, remote, CELL, LIVE_PROFILE, scene)
     progress.update("snapshot", "Checking External Control and starting the stopped carton programs on the N100 if needed.")

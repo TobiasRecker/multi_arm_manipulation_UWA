@@ -1,5 +1,66 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Browser-Play für beide Kartonarme bestätigt, 20.11.2026, 17:28 AWST
+
+- Bedienperson startete den Weblauf `b10edbd8a8764868b1be6d9018eef802`
+  um 17:27:30. Vier offene Greifer und vier Holds bestätigt. Nach
+  erfolgreichem Software-Watchdog-Reset meldeten die Treiber die
+  Reverse-Verbindung für `right_front` um 17:28:07,477 und für
+  `right_rear` um 17:28:08,618. Beide standen im anschließenden
+  Dashboard-Readback auf `RUNNING/NORMAL/PLAYING`, Reverse verbunden.
+  Die beiden linken Programme bleiben beim Karton-Weblauf selektiv auf
+  STOPPED.
+- Das bestätigt den Browserstart einschließlich realem Play nach der
+  Wiederherstellung des Greiferadapters. Bei Eingang der Bewegungsfreigabe
+  in UWA Robot Power meldeten beide rechten URs erneut PLAYING und ready.
+  [Startbeleg](../../setup/tasks/uwa_program_library/b10edbd8a8764868b1be6d9018eef802/n100-browser-play-result.json) ·
+  [Dashboard-Readback](../../setup/tasks/uwa_program_library/b10edbd8a8764868b1be6d9018eef802/n100-dashboard-after-browser-play.json)
+
+## UWA Robot Power meldet NOT READY, 20.11.2026, 17:26 AWST
+
+- Der manuelle **Start + ROS** ab 17:18:39 AWST erhielt für alle vier
+  Arme die Dashboard-Antwort `Starting program`. Alle vier waren
+  bei der nachfolgenden Bestätigung wieder `STOPPED`. Der nach dem
+  Guard-Neustart ausgelöste N100-Watchdog sendete in diesem Zeitraum
+  native STOPs. Beispielsweise bei `right_rear` am 17:20:12 AWST:
+  Reverse-Verbindung um .642, Watchdog-STOP um .693 und Verbindungsabbruch
+  um .722. Die lesende Statusabfrage um 17:26 zeigte weiterhin alle
+  `RUNNING/NORMAL/STOPPED`, Reverse getrennt. Bei dieser Diagnose keine
+  Sollwerte oder Bedienbefehle gesendet.
+- Der manuelle Desktop-Pfad sendet Play ohne den unter bestätigten Holds
+  ausgeführten Watchdog-Startschritt des Karton-Webpfads. Der zweite
+  Browser-Versuch von 17:21 endete ebenfalls in der Greiferabfrage und
+  lag vor der Wiederherstellung des Greiferdienstes um 17:24. Die lesende
+  Vorprüfung des korrigierten Webpfades bestand anschließend bis vor
+  dem Watchdog-Aufruf.
+  [N100-Journal](../../setup/tasks/uwa_program_library/79a52f8964b043e3b0198bf8a528656f/n100-manual-start-journal.log) ·
+  [Status](../../setup/tasks/uwa_program_library/79a52f8964b043e3b0198bf8a528656f/n100-power-status.json)
+
+## ROS-Lesedienst des rechten vorderen Greifers, 20.11.2026, 17:17 AWST
+
+- Der Browserlauf `79a52f8964b043e3b0198bf8a528656f` brach vor Play
+  und OAK-Aufnahme in der Greiferabfrage ab. Beide rechten Arme meldeten
+  `RUNNING/NORMAL/STOPPED` und hatten einen erreichbaren Script-Listener.
+  Ein frischer ROS-Client sah alle vier Greiferdienste im ROS-Graphen,
+  konnte aber innerhalb von 15 s ausschließlich
+  `/uwa_hardware/right_front/gripper/read` nicht verbinden. Ein separater
+  Client empfing vom selben Adapter weder Statusmeldungen noch Antworten.
+  Der Adapterprozess lebte mit 26 Dateideskriptoren. Der native
+  Robotiq-GET für diesen Greifer war erreichbar.
+- N100 meldete Stillstand und vier Holds, die vier nativen Greifer-GETs
+  meldeten inaktive offene Greifer. Nur `uwa-grippers.service` wurde um
+  17:24:04 AWST neu gestartet. Die korrigierte Browserprüfung meldete
+  vier erfolgreiche Greiferabfragen in 1,15 s, darunter 52 ms für
+  `right_front`. Die Ursache der verlorenen ROS-Verbindung ist offen.
+- Der Browser erstellt jetzt die vier Leseclients gemeinsam und nennt
+  den konkreten Dienst bei fehlender Discovery. Eine zweite lesende
+  Vorprüfung bestätigte vier offene Greifer, frische Guard-Pakete,
+  vier Holds und die Erreichbarkeit des Watchdog-Diensts. Der lesende
+  Versionsvergleich bestand. Bei dieser Diagnose wurden weder Play
+  noch Greiferbefehle gesendet. 33 bestehende Offline-Tests bestanden.
+  [ROS-Discovery](../../setup/tasks/uwa_program_library/79a52f8964b043e3b0198bf8a528656f/n100-gripper-discovery.log) ·
+  [Wiederherstellung](../../setup/tasks/uwa_program_library/79a52f8964b043e3b0198bf8a528656f/n100-gripper-recovery.log)
+
 ## Browser-Play und Hold-Konfigurationsalter, 20.11.2026
 
 - Nutzer beauftragte 1.000 ms für die Bestätigung der Hold-Konfiguration

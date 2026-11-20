@@ -79,7 +79,8 @@ External-Control-Bereitschaft der beiden rechten Arme und sendet bei Bedarf
 Play für das geladene `ros.urp`. Dafür müssen Arbeitsbereich, Stillstand,
 offene unbeladene Greifer und die bestehenden Haltezustände bestätigt sein.
 Bei einer erforderlichen weiteren Vorbereitung meldet der Browser den
-betroffenen Arm und dessen Zustand.
+betroffenen Arm und dessen Zustand. Fehlt ein ROS-Lesedienst für einen
+Greifer, nennt die Meldung den betroffenen Dienst.
 
 Anschließend liest der N100 den gemessenen Zustand der Arme und Greifer.
 ROSmini prüft die Eignung des Startzustands, bevor die OAK4 das aktuelle
