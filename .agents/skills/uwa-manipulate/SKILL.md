@@ -25,6 +25,11 @@ support. Its closing axes use image-derived yaw and gravity alignment; observed
 tilt above2degrees is rejected. Do not generalize it to inclined or unsupported
 objects without a different grasp strategy.
 
+For force-triggered tool contact in Gazebo, use the versioned `seek_contact`
+contract and [contact search recipe and run instructions](../../../docs/seek_contact.md).
+Read the wrist-force result, measured handoff and separate tip/wall evidence
+before reporting contact. The process feed applies only to the search.
+
 For the first carton recipe, prepare a new immutable contact scene, launch it in
 its own `uwa_grasp_lab` world, and run into a fresh output directory. Preserve
 other simulations and existing runs. Check whether an own grasp world already

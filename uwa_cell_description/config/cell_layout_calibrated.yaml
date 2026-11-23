@@ -1,3 +1,28 @@
 # Shared measured model; nominal geometry remains in cell_layout.yaml.
 base_layout: cell_layout.yaml
 calibration_profile: calibration/hardware_20261118_base_fixed_v1/profile.json
+
+# Optical calibrations for simulation and display, relative to the printed right pattern.
+external_camera_pair:
+  source: setup/calibration/external_pair_20261123/external_camera_poses.json
+  source_sha256: 4c7a9d7e6dcde92e03d4c96c85adc7e470579e54d1858f3c00dc4b2cf370f8fc
+  oak4:
+    device_id: "1479883285"
+    focus: 107
+    image_size: [8000, 6000]
+    K: [[5832.357336832991, 0.0, 4017.15673828125], [0.0, 5831.933618456733, 2972.843017578125], [0.0, 0.0, 1.0]]
+    T_right_charuco_optical:
+      - [0.026621116604627234, 0.6816082785942633, -0.7312328430141031, 0.9314961208757108]
+      - [-0.9995939707753798, 0.010716645770617898, -0.026401649435904704, 0.06278677080066843]
+      - [-0.010159219469632332, 0.7316387824980249, 0.6816168147900811, -1.2130461230370666]
+      - [0.0, 0.0, 0.0, 1.0]
+  oak_usb:
+    device_id: "18443010314F3B1300"
+    focus: 112
+    image_size: [4056, 3040]
+    K: [[3048.5474775822063, 0.0, 2021.2760009765625], [0.0, 3048.5474775822063, 1535.5560302734375], [0.0, 0.0, 1.0]]
+    T_right_charuco_optical:
+      - [0.06162330356454236, 0.8659145992407068, 0.49638138087522815, -1.2063998605511765]
+      - [-0.998088053233895, 0.05108195213760572, 0.03479758838748504, 0.08682773324690908]
+      - [0.004775609863225076, -0.4975766684518251, 0.8674068552662105, -1.2218895858698606]
+      - [0.0, 0.0, 0.0, 1.0]

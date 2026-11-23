@@ -64,9 +64,11 @@ case "$operation" in
     if systemctl --user is-active --quiet uwa-cell-hardware-overlay; then
       systemctl --user stop uwa-cell-hardware-overlay
     fi
-    if systemctl --user is-active --quiet uwa-cell-overview-view; then
-      systemctl --user stop uwa-cell-overview-view
-    fi
+    for viewer in uwa-cell-overview-view uwa-cell-usb-view; do
+      if systemctl --user is-active --quiet "$viewer"; then
+        systemctl --user stop "$viewer"
+      fi
+    done
     if systemctl --user is-active --quiet uwa-cell-overview; then
       systemctl --user stop uwa-cell-overview
     fi

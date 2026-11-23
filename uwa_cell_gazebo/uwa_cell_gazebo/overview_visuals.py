@@ -121,7 +121,17 @@ def add_visual(parent, visual, reference=None):
         ET.SubElement(material,key).text = ' '.join(map(str,visual.color))
 
 
-def append_sdf_visuals(model, camera_link, sensor_pose):
+def append_sdf_visuals(model, camera_link, sensor_pose, camera='oak4'):
+    if camera == 'oak_usb':
+        from ament_index_python.packages import get_package_share_directory
+        share = Path(get_package_share_directory('depthai_descriptions'))
+        mesh = share / 'urdf/models/OAK-D-PRO.stl'
+        # depthai_descriptions base_macro: RGB sensor coincides with base;
+        # the STL model-origin joint rotates by pi/2 about X and Z.
+        rotation = Rotation.from_euler('xyz', [math.pi/2, 0, math.pi/2]).as_matrix()
+        pose = sensor_pose @ transform([0, 0, 0], rotation)
+        add_visual(camera_link, Visual('oak_d_pro', pose, 'mesh', (1., 1., 1.), BODY, mesh.as_uri()), sensor_pose)
+        return
     visuals = camera_and_tripod(sensor_pose)
     for visual in visuals[:2]:
         add_visual(camera_link, visual, sensor_pose)
@@ -130,7 +140,7 @@ def append_sdf_visuals(model, camera_link, sensor_pose):
         add_visual(stand,visual)
 
 
-def sdf_visual_markers(sdf):
+def sdf_visual_markers(sdf, namespace='oak_overview'):
     """Read exactly the Gazebo visuals, including meshes and cylindrical tubes."""
     from visualization_msgs.msg import Marker
     def pose_matrix(text):
@@ -143,7 +153,7 @@ def sdf_visual_markers(sdf):
         parent = model_pose @ pose_matrix(link.findtext('pose'))
         for visual in link.findall('visual'):
             pose = parent @ pose_matrix(visual.findtext('pose'))
-            marker = Marker(ns='oak_overview',id=len(result)+1)
+            marker = Marker(ns=namespace,id=len(result)+1)
             marker.header.frame_id = 'world'
             marker.pose.position.x,marker.pose.position.y,marker.pose.position.z = pose[:3,3].tolist()
             q = Rotation.from_matrix(pose[:3,:3]).as_quat().tolist()

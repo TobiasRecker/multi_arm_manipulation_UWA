@@ -20,18 +20,24 @@ case "${1:-view}" in
   reload)
     exec ros2 service call /uwa_cell/oak_overview/reload std_srvs/srv/Trigger '{}'
     ;;
-  view)
-    if systemctl --user is-active --quiet uwa-cell-overview-view; then
+  view|view-usb)
+    view_unit=uwa-cell-overview-view
+    topic=/uwa_cell/oak_overview/rgb/image_raw
+    if [[ "${1:-view}" == view-usb ]]; then
+      view_unit=uwa-cell-usb-view
+      topic=/uwa_cell/oak_usb/rgb/image_raw
+    fi
+    if systemctl --user is-active --quiet "$view_unit"; then
       echo 'The overview image viewer is already open.'
       exit 0
     fi
-    systemd-run --user --unit=uwa-cell-overview-view --collect \
+    systemd-run --user --unit="$view_unit" --collect \
       --property=KillSignal=SIGINT --property=KillMode=mixed --property=TimeoutStopSec=10 \
       --setenv="DISPLAY=${DISPLAY:-:0}" \
-      /usr/bin/bash "$script_dir/overview.sh" view-run
+      /usr/bin/bash "$script_dir/overview.sh" view-run "$topic"
     ;;
   view-run)
-    exec ros2 run rqt_image_view rqt_image_view /uwa_cell/oak_overview/rgb/image_raw
+    exec ros2 run rqt_image_view rqt_image_view "${2:-/uwa_cell/oak_overview/rgb/image_raw}"
     ;;
   coverage)
     shift
@@ -41,5 +47,5 @@ case "${1:-view}" in
     shift
     exec ros2 run uwa_cell_gazebo overview_check "$@"
     ;;
-  *) echo "Usage: bash $0 {start [layout.yaml]|reload|view|coverage|check}" >&2; exit 2 ;;
+  *) echo "Usage: bash $0 {start [layout.yaml]|reload|view|view-usb|coverage|check}" >&2; exit 2 ;;
 esac

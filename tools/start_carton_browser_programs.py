@@ -73,6 +73,15 @@ def check_scene(scene):
         raise ValueError('The work area changed or another motion review is open.')
 
 
+def require_playing(records, arms):
+    for arm in arms:
+        runtime = records[arm]['status']['runtime_state']
+        if runtime != 2:
+            state = 'STOPPED' if runtime == 1 else f'runtime_state={runtime}'
+            raise RuntimeError(f'{arm}: ros.urp reported {state} during External Control setup. '
+                               'No motion goal sent. Check UWA Robot Power → Safety log.')
+
+
 def prepare_start_holds(client, scene, evidence):
     """Take only missing initial holds. A later phase must retain its own holds."""
     check_scene(scene)
@@ -111,8 +120,7 @@ def prepare_start_holds(client, scene, evidence):
         changed = [arm for arm, status in before.items() if client.records[arm]['status'] != status]
         if changed:
             raise RuntimeError('Native arm state changed during hold setup. Check Safety log for ' + ', '.join(changed))
-    # A stop RPC or an older cached status cannot confirm the handoff.
-    client.health()
+    # Confirm the whole cell from the supervisor, including the retained arms.
     after = retained_holds(client.supervisor, ROBOT_IDS)
     evidence['holds_after'] = after
     if after['issues']:
@@ -142,6 +150,7 @@ def main():
         try:
             client.connect()
             client.wait(lambda: client.witness is not None, timeout=3., health=True)
+            require_playing(client.records, [arm for arm in ARMS if arm not in arms])
             evidence['holds_before'] = retained_holds(client.supervisor, ROBOT_IDS)
             if arms or evidence['holds_before']['issues']:
                 check_unloaded_grippers(client)
@@ -151,6 +160,9 @@ def main():
                 check_scene(args.scene_session)
                 start_ros_programs_held(client, args.output, problem, evidence, save,
                                         browser_play=(args.scene_session, arms))
+            client.health()
+            evidence['native_after_setup'] = {arm: client.records[arm]['status'] for arm in ARMS}
+            require_playing(client.records, ARMS)
         except Exception as error:
             evidence['error'] = str(error)
             raise

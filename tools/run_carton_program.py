@@ -354,6 +354,15 @@ exec cat -- "$1/observed/observations.json"
     observations.write_text(logged_command(command, out / "n100-snapshot.log", 25, separate_stdout=True))
     logged_command(offline_tool("prepare_carton_hardware.py", "--validate-planning-snapshot", observations),
                    out / "check-snapshot.log", 20)
+    # Generic offline planning accepts a stopped program. This live snapshot
+    # follows the explicit Play step and must describe the two arms that will run.
+    states = load_json(observations)["arms"]
+    for arm in ("right_front", "right_rear"):
+        runtime = states[arm]["samples"][-1]["runtime_state"]
+        if runtime != 2:
+            state = "STOPPED" if runtime == 1 else f"runtime_state={runtime}"
+            raise RuntimeError(f"{arm}: ros.urp reported {state} after External Control setup. "
+                               "Carton setup stopped before the photo and motion. Check UWA Robot Power → Safety log.")
     return observations
 
 
@@ -512,6 +521,8 @@ exec /usr/bin/python3 -u {shlex.quote(str(CELL / 'tools/run_carton_cycle.py'))} 
             log.flush()
             if line.startswith(waiting):
                 progress.update(f"{stage}_review", f"Review and approve this {stage} in UWA Robot Power.")
+            elif line.startswith(f"REVIEW_ACCEPTED_{stage.upper()} "):
+                progress.update(f"n100_{stage}", f"Review accepted. Executing the {stage} step on the N100.")
         code = process.wait()
     if code == 255:
         raise RuntimeError("N100 connection was interrupted. Check Motion review and Safety log for the run state.")

@@ -21,7 +21,11 @@ FRAME = 'oak_overview_rgb_optical_frame'
 TOPIC = '/uwa_cell/oak_overview/rgb'
 
 
-def camera_config(layout):
+def camera_keys(layout):
+    return ('oak4', 'oak_usb') if layout.get('external_camera_pair') else ('oak4',)
+
+
+def camera_config(layout, camera='oak4'):
     defaults = yaml.safe_load(nominal_layout_path().read_text())['overview_camera']
     supplied = layout.get('overview_camera', {})
     if not isinstance(supplied, dict) or set(supplied) - set(defaults):
@@ -41,6 +45,37 @@ def camera_config(layout):
     for key in ('width', 'height'):
         if isinstance(cfg[key], bool) or not isinstance(cfg[key], int) or not 64 <= cfg[key] <= 8192:
             raise ValueError(f'overview_camera.{key} must be an integer in [64,8192]')
+    cfg.update(model=MODEL, frame_id=FRAME, topic=TOPIC, camera=camera)
+    pair = layout.get('external_camera_pair')
+    if pair:
+        source = pair[camera]
+        table = layout['tables']['right']
+        world_top = np.eye(4)
+        world_top[:3, :3] = Rotation.from_euler('xyz', table['rpy']).as_matrix()
+        world_top[:3, 3] = table['xyz'] + world_top[:3, 2] * table['height']
+        board_optical = np.asarray(source['T_right_charuco_optical'])
+        world_optical = world_top @ table_board_transform(layout['charuco'], 'right') @ board_optical
+        width, height = source['image_size']
+        if camera == 'oak_usb':
+            cfg.update(model='uwa_oak_usb', frame_id='oak_usb_rgb_optical_frame',
+                       topic='/uwa_cell/oak_usb/rgb', width=width//2, height=height//2)
+        k = np.array(source['K'], dtype=float)
+        for i, scale in enumerate((cfg['width']/width, cfg['height']/height)):
+            k[i] *= scale
+            k[i, 2] += (scale-1)/2
+        cfg.update(world_optical=world_optical.tolist(), board_optical=board_optical.tolist(),
+                   xyz=world_optical[:3, 3].tolist(),
+                   look_at=(world_optical[:3, 3]+1.5*world_optical[:3, 2]).tolist(),
+                   roll=float(Rotation.from_matrix(world_optical[:3,:3] @ R_SENSOR_OPTICAL.T).as_euler('xyz')[0]),
+                   camera_matrix=k.tolist(), distortion=[0.]*5,
+                   horizontal_fov=2*math.atan(cfg['width']/(2*k[0,0])),
+                   quality_status='measured_external_pair', world_registration='right_charuco',
+                   real_frame_id='real_oak4_rgb_optical_frame' if camera=='oak4' else 'real_oak_usb_rgb_optical_frame',
+                   device_id=source['device_id'], focus=source['focus'],
+                   rendering_model='pinhole; focus-specific intrinsics scaled from native sensor pixels')
+        return cfg
+    if camera != 'oak4':
+        raise ValueError(f'No external camera calibration for {camera}')
     measured = layout.get('calibration', {}).get('overview_camera')
     if measured:
         cfg['world_optical'] = measured['registration']['T_world_oak_optical']
@@ -97,9 +132,9 @@ def project(points, cfg):
     return pixels, local[:, 2]
 
 
-def coverage(layout):
-    cfg = camera_config(layout)
-    result = dict(camera=cfg, calibrated=False, quality_status=cfg.get('quality_status','nominal_design'),
+def coverage(layout, camera='oak4'):
+    cfg = camera_config(layout, camera)
+    result = dict(camera=cfg, calibrated='board_optical' in cfg, quality_status=cfg.get('quality_status','nominal_design'),
                   occlusion_checked=False, tables={}, boards={})
     for table_id, t in layout['tables'].items():
         table = np.eye(4)
@@ -135,17 +170,17 @@ def coverage(layout):
 
 def model_sdf(cfg, *, image_sensors=True):
     root = ET.Element('sdf', version='1.9')
-    model = ET.SubElement(root, 'model', name=MODEL)
+    model = ET.SubElement(root, 'model', name=cfg['model'])
     ET.SubElement(model, 'static').text = 'true'
     link = ET.SubElement(model, 'link', name='rgb_camera')
     sensor_pose, _ = transforms(cfg)
     rpy = Rotation.from_matrix(sensor_pose[:3, :3]).as_euler('xyz')
     ET.SubElement(link, 'pose').text = ' '.join(map(str, [*sensor_pose[:3,3], *rpy]))
-    append_sdf_visuals(model, link, sensor_pose)
+    append_sdf_visuals(model, link, sensor_pose, cfg['camera'])
     if not image_sensors:return ET.tostring(root,encoding='unicode')
     sensor = ET.SubElement(link, 'sensor', name='oak_rgb', type='camera')
     for key, value in [('always_on','true'), ('update_rate',str(cfg['rate'])),
-                       ('topic',TOPIC+'/image_raw'), ('frame_id',FRAME)]:
+                       ('topic',cfg['topic']+'/image_raw'), ('frame_id',cfg['frame_id'])]:
         ET.SubElement(sensor, key).text = value
     camera = ET.SubElement(sensor, 'camera')
     ET.SubElement(camera, 'horizontal_fov').text = str(cfg['horizontal_fov'])
@@ -155,7 +190,7 @@ def model_sdf(cfg, *, image_sensors=True):
     clip = ET.SubElement(camera, 'clip')
     for key in ('near','far'):
         ET.SubElement(clip,key).text = str(cfg[key])
-    ET.SubElement(camera, 'camera_info_topic').text = TOPIC+'/camera_info'
+    ET.SubElement(camera, 'camera_info_topic').text = cfg['topic']+'/camera_info'
     if 'camera_matrix' in cfg:
         k = intrinsic(cfg)
         lens = ET.SubElement(camera,'lens')
@@ -175,5 +210,6 @@ def model_sdf(cfg, *, image_sensors=True):
 def main():
     parser = argparse.ArgumentParser(description='Predict OAK overview coverage; no occlusion test')
     parser.add_argument('--layout', type=Path, default=default_layout_path())
+    parser.add_argument('--camera', choices=('oak4', 'oak_usb'), default='oak4')
     args = parser.parse_args()
-    print(json.dumps(coverage(load_layout(args.layout)), indent=2))
+    print(json.dumps(coverage(load_layout(args.layout), args.camera), indent=2))

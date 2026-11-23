@@ -177,7 +177,16 @@ def read_guard(since, end, events):
     notes = []
     for pattern in ('STOP LATCHED|MONITOR WOULD STOP|HELD CONDITION', 'NATIVE STOP REQUESTED'):
         try:
-            rows, clipped = journal_rows(since, end, pattern)
+            try:
+                rows, clipped = journal_rows(since, end, pattern)
+            except (ValueError, subprocess.TimeoutExpired) as exc:
+                # A long search can time out before journalctl flushes even
+                # the newest latch. Preserve the latest incident in that case.
+                recent = max(since, end-3600)
+                if recent == since:
+                    raise
+                notes.append(f'{pattern}: {compact(exc)}. Reading the latest hour')
+                rows, clipped = journal_rows(recent, end, pattern)
             window_rows = [row for row in rows if since <= int(row['__REALTIME_TIMESTAMP'])/1e6 <= end]
             events.extend(guard_events(window_rows, notes))
             if clipped:
@@ -213,6 +222,12 @@ def workflow_failure(record, result, failed_event):
     arms = ARM.findall(reason)
     measures = {}
     evidence = result.get('alignment_evidence') or {}
+    if 'native robot/program is not ready' in reason:
+        records = evidence.get('native_records', {})
+        for arm in arms:
+            native = records.get(arm, {}).get('status')
+            if native:
+                measures.setdefault('native_status', {})[arm] = measurement(native)
     if reason.startswith('Device epoch changed'):
         reason = reason.partition(':')[0]
         clocks = evidence.get('clock_fault_events') or []

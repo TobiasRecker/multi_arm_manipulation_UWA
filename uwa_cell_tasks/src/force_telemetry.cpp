@@ -16,6 +16,7 @@
 #include <gz/sim/Util.hh>
 #include <gz/sim/components/ContactSensorData.hh>
 #include <gz/sim/components/Joint.hh>
+#include <gz/sim/components/JointPosition.hh>
 #include <gz/sim/components/JointTransmittedWrench.hh>
 #include <gz/sim/components/Name.hh>
 
@@ -30,6 +31,11 @@ struct LoadWindow {
 class ForceTelemetry:public gz::sim::System,public gz::sim::ISystemConfigure,
   public gz::sim::ISystemPreUpdate {
   std::string namespace_,object_;
+  std::set<std::string> position_names_;
+  std::map<std::string,gz::sim::Entity> position_joints_;
+  std::string probe_joint_;
+  double peak_probe_z_{0.};
+  size_t probe_samples_{0};
   std::set<std::string> requested_;
   std::map<std::string,gz::sim::Entity> joints_;
   std::map<std::string,LoadWindow> pair_windows_,joint_windows_;
@@ -45,6 +51,11 @@ public:
     if(namespace_.rfind("/uwa_grasp_",0)!=0)throw std::runtime_error("Private simulation namespace required");
     std::istringstream input(s->Get<std::string>("joints"));std::string name;
     while(input>>name)requested_.insert(name);
+    if(s->HasElement("probe_joint")) {
+      probe_joint_=s->Get<std::string>("probe_joint");
+      std::istringstream positions(s->Get<std::string>("position_joints"));
+      while(positions>>name)position_names_.insert(name);
+    }
   }
   void PreUpdate(const gz::sim::UpdateInfo & info,gz::sim::EntityComponentManager & ecm) override {
     if(info.paused || !rclcpp::ok())return;
@@ -52,9 +63,10 @@ public:
       node_=std::make_shared<rclcpp::Node>("task_force_telemetry",namespace_);
       publisher_=node_->create_publisher<std_msgs::msg::String>("tasks/forces",rclcpp::QoS(1).best_effort());
     }
-    if(joints_.size()<requested_.size()) {
+    if(joints_.size()<requested_.size() || position_joints_.size()<position_names_.size()) {
       ecm.Each<gz::sim::components::Name,gz::sim::components::Joint>(
         [&](const auto & entity,const auto * name,const auto *) {
+          if(position_names_.count(name->Data()))position_joints_[name->Data()]=entity;
           if(requested_.count(name->Data())) {
             joints_[name->Data()]=entity;
             if(!ecm.Component<gz::sim::components::JointTransmittedWrench>(entity))
@@ -108,6 +120,10 @@ public:
       const auto & w=component->Data();const auto & f=w.force();const auto & t=w.torque();
       gz::math::Vector3d force(f.x(),f.y(),f.z()),torque(t.x(),t.y(),t.z());
       if(!force.IsFinite() || !torque.IsFinite()) {++invalid_;continue;}
+      if(name==probe_joint_) {
+        if(!probe_samples_ || f.z()>peak_probe_z_)peak_probe_z_=f.z();
+        ++probe_samples_;
+      }
       auto & stats=joint_windows_[name];for(int i=0;i<3;++i) {stats.force_integral[i]+=force[i]*dt;stats.torque_integral[i]+=torque[i]*dt;}
       stats.peak_force_norm=std::max(stats.peak_force_norm,force.Length());stats.peak_torque_norm=std::max(stats.peak_torque_norm,torque.Length());
       joint_last_[name]={{"force_n",{force.X(),force.Y(),force.Z()}},{"torque_nm",{torque.X(),torque.Y(),torque.Z()}},{"frame","joint:"+name}};
@@ -130,6 +146,17 @@ public:
       {"physics_samples",samples_},{"duplicate_manifolds_removed",duplicates_},{"missing_wrenches",missing_},{"invalid_wrenches",invalid_},
       {"contact_body_attribution_trusted",false},{"contact_loads",contacts},{"joint_reactions",joints},
       {"requested_joints",requested_},{"found_joints",joints_.size()},{"interpretation","Unsigned contact loads and joint-frame reactions; no material damage or hardware qualification."}};
+    if(!probe_joint_.empty()) {
+      Json positions=Json::object();
+      for(const auto & [name,entity]:position_joints_) {
+        const auto * q=ecm.Component<gz::sim::components::JointPosition>(entity);
+        if(q && !q->Data().empty())positions[name]=q->Data()[0];
+      }
+      report["probe_positions"]=positions;
+      report["probe_samples"]=probe_samples_;
+      report["probe_peak_z_n"]=peak_probe_z_;
+      probe_samples_=0;
+    }
     std_msgs::msg::String message;message.data=report.dump();publisher_->publish(message);
     elapsed_=0.;samples_=duplicates_=missing_=invalid_=0;pair_windows_.clear();pairs_.clear();joint_windows_.clear();joint_last_.clear();
   }

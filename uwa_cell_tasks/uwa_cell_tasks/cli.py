@@ -12,7 +12,11 @@ def main():
     sub.add_parser('skills')
     for command in ('prepare','plan'):
         p=sub.add_parser(command);p.add_argument('--output',type=Path,required=True);p.add_argument('--config',type=Path);p.add_argument('--layout',type=Path)
-        if command=='prepare':p.add_argument('--drawing-recipe',type=Path,help='Drawing reference; selects the fast Gazebo profile by default')
+        if command=='prepare':
+            p.add_argument('--skill-recipe', type=Path, help='Reactive tool operation at the drawing presentation')
+            p.add_argument('--surface-offset-mm', type=float, choices=[0., 2.], default=0.,
+                           help='Local Gazebo fixture protrusion; excluded from the skill reference')
+            p.add_argument('--drawing-recipe',type=Path,help='Drawing reference; selects the fast Gazebo profile by default')
         if command=='plan':p.add_argument('--scene',type=Path,required=True);p.add_argument('--snapshot',type=Path,required=True);p.add_argument('--observation',type=Path,required=True)
     for command in ('status','stop','preview'):
         p=sub.add_parser(command);p.add_argument('run',type=Path)
@@ -29,7 +33,17 @@ def main():
         from uwa_cell_description.configuration import load_layout
         from .scene import prepare_scene
         if args.command=='prepare':
-            result=prepare_scene(load_layout(args.layout),configuration(args.config,drawing_recipe=args.drawing_recipe),args.output)
+            cfg = configuration(args.config, drawing_recipe=args.drawing_recipe)
+            if args.skill_recipe:
+                from .seek_contact import SeekContact
+                if not cfg.get('drawing_recipe'):
+                    parser.error('--skill-recipe needs a drawing presentation via --drawing-recipe')
+                cfg['seek_contact'] = SeekContact.read(args.skill_recipe).record()
+                cfg['force_observation'] = True
+            elif args.surface_offset_mm:
+                parser.error('--surface-offset-mm needs --skill-recipe')
+            result = prepare_scene(load_layout(args.layout), cfg, args.output,
+                                   surface_offset_m=args.surface_offset_mm / 1000.)
         else:
             from .planning import TaskProblem,grasp_candidates,plan_approach
             scene=verify(json.loads((args.scene/'scene.json').read_text()))

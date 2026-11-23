@@ -94,6 +94,7 @@ class SnapshotCamera(MotionNode):
     def __init__(self,namespace,directory):
         super().__init__('task_snapshot_camera',namespace=namespace)
         self.ns=namespace;self.directory=Path(directory);self.lock=Lock();self.transport=TransportNode()
+        self.probe_capture = bool(json.loads((self.directory/'scene.json').read_text())['cfg'].get('seek_contact'))
         self.q={};self.q_stamp=0.;self.truth=None;self.received=0.;self.frames={};self.infos={};self.topics=[];self.process=None
         self.create_subscription(JointState,namespace+'/joint_states',self.joints,qos_profile_sensor_data)
         self.create_subscription(String,namespace+'/tasks/object_truth',self.object_message,qos_profile_sensor_data)
@@ -126,7 +127,7 @@ class SnapshotCamera(MotionNode):
             robot=static_visual_model((self.directory/'robot.urdf').read_text(),positions,prefix)
             root=ET.parse(self.directory/'world.sdf').getroot();world=root.find('world');world.set('name',world_name)
             for model in list(world.findall('model')):
-                if model.get('name')!='uwa_grasp_oak':world.remove(model)
+                if model.get('name') not in ('uwa_grasp_oak', 'uwa_oak_usb'):world.remove(model)
             for plugin in list(world.findall('plugin')):
                 if plugin.get('filename') not in ('gz-sim-scene-broadcaster-system',):world.remove(plugin)
             sensors=ET.SubElement(world,'plugin',filename='gz-sim-sensors-system',name='gz::sim::systems::Sensors')
@@ -141,9 +142,13 @@ class SnapshotCamera(MotionNode):
             world.append(carton)
             content=ET.tostring(root,encoding='unicode').replace('/uwa_cell/',prefix+'/')
             path=directory/'photos.sdf';path.write_text(content)
-            self.frames={c:deque(maxlen=3) for c in CAMERAS};self.infos={}
-            for camera in CAMERAS:
-                base=prefix+('/oak_overview/rgb/' if camera=='oak' else '/'+camera+'/wrist_camera/')
+            cameras = list(CAMERAS)
+            if world.find("model[@name='uwa_oak_usb']") is not None:
+                cameras.append('oak_usb')
+            self.frames={c:deque(maxlen=3) for c in cameras};self.infos={}
+            for camera in cameras:
+                external = {'oak': '/oak_overview/rgb/', 'oak_usb': '/oak_usb/rgb/'}
+                base = prefix + external.get(camera, '/'+camera+'/wrist_camera/')
                 for suffix,kind,callback in [('image_raw',Image,self.image),('camera_info',CameraInfo,self.info)]:
                     topic=base+suffix
                     if not self.transport.subscribe(kind,topic,partial(callback,camera)):raise RuntimeError('Snapshot subscription failed')
@@ -153,17 +158,20 @@ class SnapshotCamera(MotionNode):
                 # Mesa worker bursts off most CPUs used by physics/watchdogs;
                 # their existing freshness deadlines remain unchanged.
                 available=sorted(os.sched_getaffinity(0))
-                render_cpus=available[-max(1,len(available)//4):]
-                render_env=dict(os.environ,OMP_NUM_THREADS='2',OPENBLAS_NUM_THREADS='2',LP_NUM_THREADS='2')
-                render_policy=dict(cpus=render_cpus,nice=10,worker_threads=2)
-                self.process=subprocess.Popen(['nice','-n','10','taskset','-c',','.join(map(str,render_cpus)),
+                threads = 4 if self.probe_capture else 2
+                fraction = 2 if self.probe_capture else 4
+                render_cpus=available[-max(1,len(available)//fraction):]
+                render_env=dict(os.environ,OMP_NUM_THREADS='2',OPENBLAS_NUM_THREADS='2',LP_NUM_THREADS=str(threads))
+                nice = 0 if self.probe_capture else 10
+                render_policy=dict(cpus=render_cpus,nice=nice,worker_threads=threads)
+                self.process=subprocess.Popen(['nice','-n',str(nice),'taskset','-c',','.join(map(str,render_cpus)),
                     'gz','sim','-s','-r',str(path),'--headless-rendering','-v','2'],env=render_env,
                     stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
                 end=time.monotonic()+25.;snapshot=None
                 while time.monotonic()<end:
                     if self.process.poll() is not None:raise RuntimeError('Snapshot renderer exited; inspect '+str(directory/'renderer.log'))
                     with self.lock:
-                        if all(len(frames)==3 for frames in self.frames.values()):
+                        if all(len(self.frames[c])==3 for c in CAMERAS):
                             snapshot=[dict(frame) for frames in self.frames.values() for frame in frames];break
                     time.sleep(.02)
                 if snapshot is None:raise TimeoutError('Snapshot renderer did not deliver every camera')

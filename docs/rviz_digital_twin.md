@@ -21,6 +21,11 @@ enabled independently in RViz. If the scan makes comparison difficult, untick
 the scan display temporarily; its publisher remains available. Move Camera,
 Orbit and zoom retain their normal controls.
 
+Both stationary RGB cameras share the measured `right_charuco` reference in
+the calibrated cell. The blue frustum belongs to the Ethernet OAK4, the orange
+one to the USB OAK-D Pro. Toggle **External OAK cameras and viewing frustums**
+in RViz to show or hide the pair. [Frames and simulated RGB views](oak_overview.md).
+
 ## Open it
 
 Click **UWA Cell Simulation**, or from `~/UWA_ws`:

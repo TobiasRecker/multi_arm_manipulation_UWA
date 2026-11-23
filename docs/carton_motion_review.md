@@ -98,8 +98,15 @@ und offene Einfahrt und prüft beide Bahnen. Das statische Rezept wird bei
 gleicher Modell- und Quellversion wiederverwendet. Der N100 übernimmt die
 geprüfte Bahn mit unveränderten Sollwerten für **Motion review** und
 Ausführung. Nach bestätigter offener Einfahrt reicht die Bibliothek eine
-zweite aktuelle Aufnahme für die Kontaktfreigabe ein. Der Bediener
-bewertet beide Anfragen in UWA Robot Power. Ein abgelehnter oder
+zweite aktuelle Aufnahme für die Kontaktfreigabe ein. Bei einer bereits ausdrücklich geprüften oder erfolgreich ausgeführten Anfahrt
+derselben Programmrevision, Phasen- und Armgruppenfolge und desselben Tempos
+sinkt die Einstufung einmal von High auf Medium. Mit **Confident** läuft diese
+Anfahrt automatisch. Die aktuelle Kartonpose und der neue Plan werden weiterhin
+geprüft. Eine Ablehnung oder Neuplanungsanforderung für den passenden Schritt
+verlangt wieder eine Entscheidung. Der Browser zeigt an, ob eine Entscheidung
+aussteht oder die Ausführung begonnen hat. Beim Schließen bewertet der Bediener
+im Browserablauf weiterhin das Bild der aktuellen offenen Einfahrt in UWA Robot
+Power. Frühere Kontakte zählen als Erfahrung für den Greifschritt. Ein abgelehnter oder
 abgebrochener Lauf endet am betreffenden Schritt.
 
 ### Hydrogen Low als Reserve für den Bildfit

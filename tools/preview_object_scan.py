@@ -66,12 +66,16 @@ def main():
             ax.scatter(*xyz, s=40, color=color[rid])
             ax.plot(*np.array([xyz, T[:3, 3]]).T, color=color[rid], linewidth=2)
             ax.text(*xyz, ' ' + rid, color=color[rid], fontsize=10, weight='bold')
-        oak = layout['calibration']['overview_camera']['registration']['T_world_oak_optical']
-        xyz = np.asarray(oak)[:3, 3]
-        ax.scatter(*xyz, s=50, color='#d02020')
-        ax.plot(*np.array([xyz, T[:3, 3]]).T, color='#d02020', linewidth=2)
-        ax.text(*xyz, ' OAK', color='#d02020', weight='bold')
-        ax.set(xlim=(-1.1, 1.6), ylim=(-1.1, 1.1), zlim=(.7, 2.1), xlabel='World X / m', ylabel='World Y / m', zlabel='Z / m')
+        from uwa_cell_gazebo.overview import camera_config, camera_keys, transforms
+        for key in camera_keys(layout):
+            cfg = camera_config(layout, key)
+            optical = transforms(cfg)[1]
+            xyz = optical[:3, 3]
+            color_ext, label = ('#b52628', 'OAK4') if key=='oak4' else ('#925400', 'USB OAK')
+            ax.scatter(*xyz, s=50, color=color_ext)
+            ax.plot(*np.array([xyz, xyz+.45*optical[:3,2]]).T, color=color_ext, linewidth=2)
+            ax.text(*xyz, ' '+label, color=color_ext, weight='bold')
+        ax.set(xlim=(-1.1, 1.6), ylim=(-1.1, 1.1), zlim=(.7, 2.3), xlabel='World X / m', ylabel='World Y / m', zlabel='Z / m')
         ax.set_box_aspect([2.7, 2.2, 1.4])
         ax.view_init(elev=elev, azim=azim)
         ax.set_title('Common object views' if index == 0 else 'Top view', weight='bold')

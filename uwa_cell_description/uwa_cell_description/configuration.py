@@ -53,10 +53,13 @@ def load_layout(path=None):
         raise ValueError('Layout must be a YAML mapping')
     profile_path = data.get('calibration_profile')
     if 'base_layout' in data:
-        if set(data) - {'base_layout', 'calibration_profile'}:
+        if set(data) - {'base_layout', 'calibration_profile', 'external_camera_pair'}:
             raise ValueError('A calibrated layout references its base; edit geometry in the base layout')
+        camera_pair = data.get('external_camera_pair')
         base_path = (path.parent / data['base_layout']).resolve()
         data = yaml.safe_load(base_path.read_text())
+        if camera_pair is not None:
+            data['external_camera_pair'] = camera_pair
         if 'base_layout' in data:
             raise ValueError('Nested layout inheritance is not supported')
         if profile_path:

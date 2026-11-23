@@ -205,16 +205,25 @@ class DrawingModel:
                 raise ValueError(f'{a}: fixed holder error {error:.3g} m, {angle:.3g} rad')
         # Separate virtual marker geometry. The last 6 mm is a tapered point.
         tool = self.p.chains[WORKER].forward(state)
-        lengths = np.linspace(.18, PEN_LENGTH, 61)
+        probe = getattr(self, 'probe_tool', None)
+        length = probe.length_m if probe else PEN_LENGTH
+        radius = probe.tip_radius_m if probe else PEN_RADIUS
+        tip_length = 2*radius if probe else .006
+        lengths = np.linspace(.18, length, max(61, int(np.ceil((length-.18)/.002))+1))
         points = tool[:3, 3] + lengths[:, None] * tool[:3, 2]
-        radii = PEN_RADIUS * np.minimum(1., (PEN_LENGTH - lengths) / .006)
+        radii = radius * np.minimum(1., (length - lengths) / tip_length)
+        if probe:
+            # Exact radial sections of the cylindrical shaft and spherical nose.
+            axial = np.maximum(0., lengths - (length-radius))
+            radii = np.sqrt(np.maximum(0., radius**2-axial**2))
+            radii[-1] = 0.
         local = (points - pose[:3, 3]) @ pose[:3, :3]
         distances, _ = point_box_distance(local, h.dimensions / 2)
         if axial_allowance is None:
             if np.min(distances - radii) < -2e-4:
                 raise ValueError('Virtual marker body enters carton envelope')
         else:
-            if axial_allowance.get('operation') not in ('axial_feed', 'axial_retract'):
+            if axial_allowance.get('operation') not in ('axial_feed', 'axial_retract', 'seek_contact'):
                 raise ValueError('Scoped tip penetration allowance is only valid for axial_feed/axial_retract')
             frame = self.surface_frame(axial_allowance['face'])
             normal = np.asarray(frame.outward)
@@ -235,7 +244,7 @@ class DrawingModel:
             if -height > depth_limit + 2e-4:
                 raise ValueError(f'Axial tip depth {-height:.6f} m exceeds {depth_limit:.6f} m')
             # Marker shaft above the 6 mm tapered tip keeps the exact unrelaxed carton check.
-            shaft = (PEN_LENGTH - lengths) >= .006 - 1e-9
+            shaft = (length - lengths) >= tip_length - 1e-9
             if np.min(distances[shaft] - radii[shaft]) < -2e-4:
                 raise ValueError('Virtual marker shaft enters carton envelope during axial step')
             if np.min(distances[~shaft]) < -(depth_limit + 2e-4):

@@ -1,5 +1,13 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Wiederholte Bewegungsfreigabe beim Kartongriff, 23.11.2026
+
+Ausgangsbefund vor der Änderung. Lesender Abgleich mit der N100-Freigabedatenbank. Für `carton_supported_grasp` ist Vertrauen 100 gespeichert. Die Anfragen um 15:11:51 und 15:27:06 AWST hatten beide Risiko `high`, den Standardgrund „Operator review requested for this approach.“ und keinen zusätzlichen Programmstart. Beide Bedienerfreigaben wurden gespeichert. Der Browser übergibt für die Anfahrt keine Risikobewertung. Der Runner setzt dann `high`, während `Confident` höchstens `medium` automatisch übernimmt. Das gilt unabhängig von der Zahl vorheriger Freigaben. Für den Kontakt fordert dieser Browserpfad die Bedienprüfung des aktuellen Einfahrbilds an. [Bedienung](docs/carton_motion_review.md)
+
+Auf Nutzerauftrag ist das schrittbezogene Lernen für kommende Kartonstarts auf dem N100 installiert. Eine frühere Bedienerfreigabe oder ein erfolgreich abgeschlossener gleicher Schritt senkt die Unsicherheit einmal auf Medium. Der Vergleich verwendet Rezeptrevision, Prüfphase, Reihenfolge der Armgruppen und Tempo. Ein später abgebrochener, ausdrücklich genehmigter Lauf zählt als geprüft. Eine spätere Ablehnung oder Neuplanungsanfrage für den passenden Schritt verwirft diese Grundlage. Ein Kontakt mit noch ungeprüftem aktuellem Einfahrbild verlangt weiter eine Bildentscheidung. Im lesenden Nachlauf beider heutigen gespeicherten Pläne lieferte die vorhandene Bedienerfreigabe `5506221212b34d7aa9a6dc3e7c06e02b` Medium, eine geänderte Phasenfolge oder ein anderes Tempo High. Runner auf dem N100 SHA-256 `aafe3af157c870af8ef70f6faa1ebdece5b5b2c087f5deb743db5216a4103098`, Vorversion in `~/uwa-ur-runtime/review-candidates/carton-familiarity.drWJ7ndT/previous.py`. Kein realer Programmlauf zur Prüfung ausgelöst.
+
+Zur früheren Kameraanfahrdiagnose ordnet der Nutzer die gemessenen 0,262 rad/s als über dem Plan ein und hält Gelenkgeschwindigkeiten unter 0,3 rad/s für sich genommen für unbedenklich. Das ist seine Einordnung des Messwerts. Die eingestellten Fahr- und Überwachungsprofile wurden bei dieser GUI-Auskunft beibehalten.
+
 ## Haltezustand beim Start von Supported carton grasp, 23.11.2026
 
 Der Browserlauf von 15:12 AWST brach vor dem ersten Ziel der Hochanfahrt
@@ -15,7 +23,12 @@ Stillstand fehlende Verriegelungen beim Supervisor an. Der Safety Log auf
 ROSmini berücksichtigt auch die Workflowverzeichnisse der Program Library.
 28 vorhandene Offlineprüfungen bestanden. Beim erneuten realen Start um
 15:26 AWST waren alle vier Holds bereits bestätigt. Das Anfordern fehlender
-Holds wurde separat im Offline-Nachlauf geprüft.
+Holds wurde separat im Offline-Nachlauf geprüft. Nach der Bedienfreigabe
+endete der Versuch vor dem ersten Ziel. Schon um 15:26:19 AWST unterbrach
+sich das native Programm rechts vorne, kurz darauf links vorne. Der neue
+Kartonstart wertet die native Programmrückmeldung vor dem Foto aus.
+Das per SSH abgerufene Roboterprotokoll, der separate STOP rechts hinten
+und die verbliebene Diagnose stehen im Arbeitsbericht.
 [Arbeitsstand und Nachweise](work/carton-program-holds-20261123.md)
 
 ## Sechskamera-Aufbau in der Program Library, 23.11.2026
@@ -64,6 +77,13 @@ Brennweitenskala. Die Kamerazentren im rechten Musterrahmen liegen bei
 (0,9315; 0,0628; −1,2130) m und (−1,2064; 0,0868; −1,2219) m.
 Der Abstand beträgt 2,1380 m. Diese Auswertung ist eine gespeicherte
 Offline-Kalibrierung. Betriebsprofil, TF und Kartonreferenz sind separat.
+
+Alle 90 Originale mit tatsächlichem SHA-256, abgeschlossenem Gemini-Hydrogen-
+Review (High) und ausgewähltem Detektorbericht abgeglichen. 85 bestätigt,
+vier Wrist-Fotos unsicher, eines ohne sichtbares Zielboard. Alle 30 OAK-Fotos
+bestätigt. Separater Stereofit allein am mobilen 38-mm-Board ergibt 2,1222 m
+Abstand und weicht in der relativen Pose um 19,96 mm und 0,619° ab.
+[Ergebnis und Reproduktion](../../setup/calibration/external_pair_20261123/Ergebnis.md).
 
 ## ChArUco-Fotoprüfung über Antigravity, 23.11.2026
 

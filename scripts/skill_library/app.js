@@ -174,7 +174,7 @@ function actions(program) {
   } else if (cameraOnly) {
     section.append(element("p", "", "Keep the right table board fully visible and the camera still. The saved reference is shared with other programs for 12 hours from capture."));
   } else if (program.live_available) {
-    section.append(element("p", "", "Start with all four arms idle and unloaded. Start program requests any missing arm holds before planning. Review the approach and contact in UWA Robot Power."));
+    section.append(element("p", "", "Start with all four arms idle and unloaded. Start program requests any missing arm holds before planning. With Confident trust, a previously reviewed matching approach can proceed automatically. Inspect the current open-entry image in UWA Robot Power before closing."));
   } else if (program.live_blocker) {
     section.append(element("p", "", program.live_blocker));
   }

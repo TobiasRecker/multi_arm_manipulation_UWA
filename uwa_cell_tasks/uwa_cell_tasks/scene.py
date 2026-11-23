@@ -311,27 +311,29 @@ def physics_description(description):
     return ET.tostring(root,encoding='unicode')
 
 
-def add_virtual_marker_visual(description):
+def add_virtual_marker_visual(description, tool=None):
     """Show the checked virtual tool in Gazebo without adding contact forces."""
+    length, radius = (tool.length_m, tool.tip_radius_m) if tool else (.30,.003)
+    shaft_end = length-radius if tool else .294
     root = ET.fromstring(description)
     link = root.find("link[@name='left_front_tool0']")
     if link is None:
         raise ValueError('Drawing world needs left_front_tool0')
     visual = ET.SubElement(link,'visual',name='virtual_marker')
-    ET.SubElement(visual,'origin',xyz='0 0 0.237',rpy='0 0 0')
+    ET.SubElement(visual,'origin',xyz=f'0 0 {(.18+shaft_end)/2}',rpy='0 0 0')
     geometry = ET.SubElement(visual,'geometry')
-    ET.SubElement(geometry,'cylinder',radius='.003',length='.114')
+    ET.SubElement(geometry,'cylinder',radius=str(radius),length=str(shaft_end-.18))
     material = ET.SubElement(visual,'material',name='virtual_marker_orange')
     ET.SubElement(material,'color',rgba='1 0.30 0.04 1')
     tip = ET.SubElement(link,'visual',name='virtual_marker_tip')
-    ET.SubElement(tip,'origin',xyz='0 0 0.297',rpy='0 0 0')
-    ET.SubElement(ET.SubElement(tip,'geometry'),'sphere',radius='.003')
+    ET.SubElement(tip,'origin',xyz=f'0 0 {length-radius}',rpy='0 0 0')
+    ET.SubElement(ET.SubElement(tip,'geometry'),'sphere',radius=str(radius))
     ET.SubElement(ET.SubElement(tip,'material',name='virtual_marker_tip_color'),
                   'color',rgba='1 0.8 0.08 1')
     return ET.tostring(root,encoding='unicode')
 
 
-def prepare_scene(layout, cfg, directory):
+def prepare_scene(layout, cfg, directory, *, surface_offset_m=0.):
     directory = Path(directory).resolve()
     if (directory/'scene.json').exists():raise FileExistsError('Scene is immutable; prepare into a new directory')
     directory.mkdir(parents=True, exist_ok=True)
@@ -369,10 +371,20 @@ def prepare_scene(layout, cfg, directory):
         max([cfg['joint_velocity_rad_s']]+list(cfg.get('joint_velocity_overrides_rad_s',{}).values())),cfg.get('braking_acceleration_rad_s2',.5),cfg.get('finger_velocity_limit_rad_s',.05),
         cfg.get('gripper_motor_torque_limit_nm',.35), motion_arms=motion_arms,
         grip_contact_friction=cfg.get('grip_contact_friction'))
+    probe = None
+    if cfg.get('seek_contact'):
+        from .seek_contact import SeekContact, add_surface_patch
+        probe = SeekContact.from_record(cfg['seek_contact'])
     if cfg.get('drawing_recipe'):
-        description = add_virtual_marker_visual(description)
+        description = add_virtual_marker_visual(description, probe.tool if probe else None)
     (directory/'robot.urdf').write_text(description)
-    sdf = dynamic_sdf(instance, shapes, cfg); (directory/'carton.sdf').write_text(sdf)
+    sdf = dynamic_sdf(instance, shapes, cfg)
+    dims = np.max([v for shape in shapes for v in shape['vertices']],axis=0)
+    if surface_offset_m:
+        if probe is None or surface_offset_m != .002:
+            raise ValueError('Unsupported contact fixture offset')
+        sdf = add_surface_patch(sdf, probe, dims, surface_offset_m)
+    (directory/'carton.sdf').write_text(sdf)
     world = ET.Element('sdf', version='1.9'); w = ET.SubElement(world, 'world', name='uwa_grasp_lab')
     physics=ET.SubElement(w,'physics', name='default', type='ignored')
     ET.SubElement(physics,'max_step_size').text=str(cfg.get('physics_step_s',.001))
@@ -388,18 +400,29 @@ def prepare_scene(layout, cfg, directory):
     floor_link=ET.SubElement(floor,'link',name='floor')
     plane=ET.SubElement(ET.SubElement(ET.SubElement(floor_link,'collision',name='floor'),'geometry'),'plane')
     ET.SubElement(plane,'normal').text='0 0 1';ET.SubElement(plane,'size').text='30 30'
-    from uwa_cell_gazebo.overview import camera_config,model_sdf,transforms
+    from uwa_cell_gazebo.overview import camera_config, camera_keys, model_sdf, transforms
     overview_layout=deepcopy(layout)
     overview_layout['overview_camera'].update(width=2000,height=1500,rate=10.)
-    overview=camera_config(overview_layout)
-    overview_model=ET.fromstring(model_sdf(overview)).find('model');overview_model.set('name','uwa_grasp_oak');w.append(overview_model)
-    oak_joint=ET.SubElement(overview_model,'joint',name='fixed_camera_tripod',type='fixed')
-    ET.SubElement(oak_joint,'parent').text='rgb_camera';ET.SubElement(oak_joint,'child').text='tripod'
+    external_poses = {}
+    for key in camera_keys(overview_layout):
+        camera = camera_config(overview_layout, key)
+        model = ET.fromstring(model_sdf(camera)).find('model')
+        if key == 'oak4':
+            model.set('name', 'uwa_grasp_oak')
+            joint = ET.SubElement(model, 'joint', name='fixed_camera_tripod', type='fixed')
+            ET.SubElement(joint, 'parent').text = 'rgb_camera'
+            ET.SubElement(joint, 'child').text = 'tripod'
+        w.append(model)
+        external_poses[key] = transforms(camera)[1]
     if force_backend is not None:
         observer=ET.SubElement(w,'plugin',filename=str(force_backend),name='uwa_cell_tasks::ForceTelemetry')
         ET.SubElement(observer,'ros_namespace').text='/uwa_grasp_validation'
         ET.SubElement(observer,'object_model').text='uwa_grasp_carton'
         watched=[a+'_'+j+'_joint' for a in ARMS for j in ('shoulder_pan','wrist_3')]
+        if probe:
+            watched = [probe.sensor_joint]
+            ET.SubElement(observer,'probe_joint').text = probe.sensor_joint
+            ET.SubElement(observer,'position_joints').text = ' '.join(j for a in motion_arms for j in joint_names(a))
         ET.SubElement(observer,'joints').text=' '.join(watched)
     (directory/'world.sdf').write_text(ET.tostring(world,encoding='unicode'))
     from ament_index_python.packages import get_package_prefix
@@ -446,11 +469,15 @@ def prepare_scene(layout, cfg, directory):
         lift_reference_kind='uniform_material_model_centre_of_mass',
         fingertip_collision_models=finger_geometry,
         T_world_object=instance['T_world_object'], asset_sha256=instance['manifest']['files'],
-        T_world_overview_optical=transforms(overview)[1],
+        T_world_overview_optical=external_poses['oak4'], T_world_external_optical=external_poses,
         shapes=shapes, robot_sha256=hashlib.sha256(description.encode()).hexdigest(),
         controllers_sha256=hashlib.sha256(controllers.read_bytes()).hexdigest(),
         mass_and_friction_measured=False, contact_model=('torque-limited motor with native parallel gear constraints'
             if cfg['gripper_transmission']=='native_gear' else 'experimental force-limited elastic gear approximation')))
+    if probe:
+        table = layout['tables']['right']
+        record = seal(dict(record, seek_support_height_m=float(table['height']+table['xyz'][2]),
+                           fixture_surface_offset_m=surface_offset_m))
     if force_backend is not None:
         record=seal(dict(record,force_backend_binary=str(force_backend),
             force_backend_sha256=hashlib.sha256(force_backend.read_bytes()).hexdigest(),

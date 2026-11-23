@@ -2,6 +2,11 @@
 
 ## Gemeinsame Kalibrieransichten, Nutzerauftrag 23.11.2026
 
+- Beide externen Kameras mit den gemessenen optischen Posen im kalibrierten
+  Gazebo-Layout und den Zellvisualisierungen darstellen. Gemeinsamer
+  Bezug ist das rechte feste Tischboard. Auch die gedrehte Montage der
+  USB-OAK folgt der optischen Pose im nativen Bildrahmen.
+
 - Nutzerauftrag23.11.: Beobachtungsziele und gesamte Sechskamera-Aufnahme-GUI
   als **Multi-camera calibration capture** in die Program Library aufnehmen.
   Pro Start neue Anfahrwege aus aktuellen Gelenken prüfen, seriell fahren,
@@ -56,6 +61,13 @@
   Eingaben je Lauf. Die vom Bediener geprüfte Bahnrevision wird unverändert
   an die Ausführung übergeben.
 
+## Schrittvertrauen im Kartonprogramm, 23.11.2026
+
+Der Nutzer möchte für bereits ausdrücklich geprüfte oder erfolgreich ausgeführte
+Schritte des Library-Programms die Unsicherheit um eine Stufe absenken.
+Vorhandene Freigaben einbeziehen und die vom Bediener gewählte Vertrauensstufe
+beibehalten. Die Prüfung des aktuellen Einfahrbildes gehört weiterhin zum Kontakt.
+
 ## Bedarfsabhängiger UR-Programmstart, 19.11.2026
 
 - Nutzerwunsch 23.11.2026 für **Supported carton grasp**. Bei einer
@@ -86,6 +98,15 @@ angezeigten Arme und die Revision gebunden.
 - Nutzerentscheidung 20.11.2026: Vom Nutzer vorgenommene Änderungen an
   der UR- und N100-Konfiguration nur auf seinen ausdrücklichen Auftrag
   zurücksetzen. Bei Diagnosen den tatsächlich vorgefundenen Stand verwenden.
+
+## Reaktive Aufgabenschritte in Gazebo, 23.11.2026
+
+- Agenten sollen geplante Bewegungen mit wiederverwendbaren, rezeptgebundenen
+  Prozessreaktionen kombinieren können. Erster Skill ist das Antasten mit
+  virtuellem Handgelenksensor und anschließendem geplanten Rückzug.
+- Für diesen Suchvorschub sind bis zu 20 mm/s vereinbart. Anfahrt, Rückzug
+  und Transport nutzen das schnelle Gazebo-Profil. Zwei reguläre Vorführungen
+  mit nomineller und 2 mm vorstehender Oberfläche sind vereinbart.
 
 ## Nutzerentscheidung zur Gazebo-Simulation, 19.11.2026
 

@@ -20,6 +20,49 @@ from .scene import apply_object
 from .workpiece_paths import point_segment_distance
 
 
+def controller_spline(rows, knots, limits, phase_id):
+    """Joint limits and timing of the actual shared-controller interpolant."""
+    law = plan_segment(dict(kind='CARTESIAN_LINE' if len(rows)>2 else 'JOINT',
+        knots=knots.tolist(),positions=rows,check={}),
+        velocity=limits[0],acceleration=limits[1],jerk=limits[2])
+    duration = law['time_law']['duration_s']
+    # Keep the previous 4 mrad maximum travel between controller
+    # points, so speeding up preserves the spatial sweep resolution.
+    point_period = min(.04, .004 / law['smooth_bounds']['velocity_rad_s'])
+    times = np.linspace(0,duration,max(3,int(np.ceil(duration/point_period))+1))
+    values = np.stack([sample_segment(law,times,k) for k in (0,1,2)], axis=1)
+    # The controller uses exactly these quintics. Check its coefficients
+    # conservatively in Bernstein form and sample its realized geometry.
+    spline = BPoly.from_derivatives(times, values)
+    controller_scale = 1.
+    for k, limit in enumerate(limits,1):
+        poly = PPoly.from_bernstein_basis(spline.derivative(k))
+        widths = np.diff(times)
+        power = np.arange(len(poly.c)-1,-1,-1)
+        scaled = poly.c * widths[None,:,None]**power[:,None,None]
+        unit = PPoly(scaled,np.arange(len(times),dtype=float))
+        peak = np.max(abs(BPoly.from_power_basis(unit).c))
+        if k == 3 and peak > limit:
+            quadratic, linear, constant = scaled
+            vertex = np.divide(-linear,2*quadratic,
+                               out=np.zeros_like(linear),where=quadratic!=0)
+            vertex = np.clip(vertex,0.,1.)
+            peak = np.max(np.abs([constant, quadratic+linear+constant,
+                (quadratic*vertex+linear)*vertex+constant]))
+        controller_scale = max(controller_scale, (peak/limit)**(1/k))
+    # Correct only the controller polynomial's measured excess, using
+    # one time factor for all 18 axes. No lower velocity cap is used.
+    if controller_scale > 1.:
+        if controller_scale > 1.01:
+            raise ValueError(f'{phase_id}: controller interpolation cannot preserve reviewed timing')
+        times *= controller_scale
+        duration *= controller_scale
+        values[:,1] /= controller_scale
+        values[:,2] /= controller_scale**2
+        spline = BPoly.from_derivatives(times, values)
+    return times, values, spline, controller_scale
+
+
 class ContactDrawing:
     def __init__(self, path):
         recipe = verify(json.loads(Path(path).read_text()))
@@ -103,7 +146,12 @@ class ContactDrawing:
         park = np.array([start[j] for j in worker])
         cfg = problem.scene_record['cfg']
         limits = (cfg['joint_velocity_rad_s'], cfg['joint_acceleration_rad_s2'], cfg['joint_jerk_rad_s3'])
-        phases = self.connectors[:2] + self.reference['phases'] + self.connectors[2:]
+        spec = None
+        if cfg.get('seek_contact'):
+            from .seek_contact import SeekContact, ProbePath
+            spec = SeekContact.from_record(cfg['seek_contact'])
+            checker.probe_tool = spec.tool
+        phases = self.connectors[:2] + ([] if spec else self.reference['phases']) + self.connectors[2:]
         state = dict(start)
         inv = np.linalg.inv(new_offsets[ARMS[0]])
         for phase in phases:
@@ -141,44 +189,8 @@ class ContactDrawing:
                 state = updated
                 rows.append([state[j] for j in names])
             duration_ref = phase['duration_s']
-            law = plan_segment(dict(kind='CARTESIAN_LINE' if len(rows)>2 else 'JOINT',
-                knots=knots.tolist(),positions=rows,check={}),
-                velocity=limits[0],acceleration=limits[1],jerk=limits[2])
-            duration = law['time_law']['duration_s']
-            # Keep the previous 4 mrad maximum travel between controller
-            # points, so speeding up preserves the spatial sweep resolution.
-            point_period = min(.04, .004 / law['smooth_bounds']['velocity_rad_s'])
-            times = np.linspace(0,duration,max(3,int(np.ceil(duration/point_period))+1))
-            values = np.stack([sample_segment(law,times,k) for k in (0,1,2)], axis=1)
-            # The controller uses exactly these quintics. Check its coefficients
-            # conservatively in Bernstein form and sample its realized geometry.
-            spline = BPoly.from_derivatives(times, values)
-            controller_scale = 1.
-            for k, limit in enumerate(limits,1):
-                poly = PPoly.from_bernstein_basis(spline.derivative(k))
-                widths = np.diff(times)
-                power = np.arange(len(poly.c)-1,-1,-1)
-                scaled = poly.c * widths[None,:,None]**power[:,None,None]
-                unit = PPoly(scaled,np.arange(len(times),dtype=float))
-                peak = np.max(abs(BPoly.from_power_basis(unit).c))
-                if k == 3 and peak > limit:
-                    quadratic, linear, constant = scaled
-                    vertex = np.divide(-linear,2*quadratic,
-                                       out=np.zeros_like(linear),where=quadratic!=0)
-                    vertex = np.clip(vertex,0.,1.)
-                    peak = np.max(np.abs([constant, quadratic+linear+constant,
-                        (quadratic*vertex+linear)*vertex+constant]))
-                controller_scale = max(controller_scale, (peak/limit)**(1/k))
-            # Correct only the controller polynomial's measured excess, using
-            # one time factor for all 18 axes. No lower velocity cap is used.
-            if controller_scale > 1.:
-                if controller_scale > 1.01:
-                    raise ValueError(f'{phase_id}: controller interpolation cannot preserve reviewed timing')
-                times *= controller_scale
-                duration *= controller_scale
-                values[:,1] /= controller_scale
-                values[:,2] /= controller_scale**2
-                spline = BPoly.from_derivatives(times, values)
+            times, values, spline, controller_scale = controller_spline(rows, knots, limits, phase_id)
+            duration = float(times[-1])
             checks = np.linspace(0,duration,2*len(times)-1)
             error = 0.
             operation = phase.get('operation')
@@ -248,3 +260,8 @@ class ContactDrawing:
                           controller_time_factor=controller_scale)
             self.trajectories.append(motion)
             write_json(Path(output)/'drawing-trajectories'/f'{phase_id}.json',motion)
+            if spec and phase_id == 'worker_to_drawing_start':
+                self.probe = ProbePath(spec, checker, names, inv, state, limits)
+                for step in self.probe.compile():
+                    self.trajectories.append(step)
+                    write_json(Path(output)/'drawing-trajectories'/f"{step['phase']}.json", step)

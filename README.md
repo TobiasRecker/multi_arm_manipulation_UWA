@@ -503,56 +503,29 @@ The installed UR description provides an explicit UR7e configuration; its
 visual meshes are shared with UR5e upstream. The selected kinematic, physical
 and joint-limit parameters still come from the UR7e configuration.
 
-## Static OAK4 overview camera
+## External cameras in Gazebo and RViz
 
-The OAK4-D is modelled on an approximate tripod to the **right** of the cell.
-Its RGB optical centre starts at world **[1.8, -0.8, 2.0] m**, looking at
-**[0, -0.1, 0.95] m**: right/front, about 29° downward. This respects the
-user's **2 m maximum tripod height**. It is not a measured calibration.
-The nominal 67.3° horizontal FOV uses a 4000×3000 pinhole RGB image at
-3 Hz simulation time. [Detailed setup and design limits](docs/oak_overview.md).
+The default calibrated cell places the Ethernet OAK4 and the USB OAK-D Pro at
+their measured poses relative to the right printed table pattern, `right_charuco`.
+The optical centres are 2.138 m apart. RViz shows both camera housings and
+their viewing frustums under **External OAK cameras and viewing frustums**.
 
-It starts with new cell launches. For an already running cell, add it without
-restarting the robots, then open its simulated live image:
+| Camera | Simulated RGB | ROS topic prefix | Optical TF frame |
+|---|---|---|---|
+| Ethernet OAK4 | 4000 × 3000 | `/uwa_cell/oak_overview/rgb` | `oak_overview_rgb_optical_frame` |
+| USB OAK-D Pro | 2028 × 1520 | `/uwa_cell/oak_usb/rgb` | `oak_usb_rgb_optical_frame` |
+
+Each prefix exposes `image_raw` and `camera_info`. Both images retain the
+physical sensors’ native orientation. Run either viewer with the cell running.
 
 ```bash
-cd ~/UWA_ws
-bash src/multi_arm_manipulation_UWA/scripts/overview.sh start
 bash src/multi_arm_manipulation_UWA/scripts/overview.sh view
+bash src/multi_arm_manipulation_UWA/scripts/overview.sh view-usb
 ```
 
-Edit only `overview_camera` in the central layout (height, position, `look_at`,
-resolution), then apply it **without resetting any robots**:
-
-```bash
-bash src/multi_arm_manipulation_UWA/scripts/overview.sh reload
-bash src/multi_arm_manipulation_UWA/scripts/overview.sh coverage
-bash src/multi_arm_manipulation_UWA/scripts/overview.sh check \
-  --output ~/UWA_ws/setup/logs/uwa-oak-overview-check
-```
-
-The checker observes both boards without moving arms; actual robot poses can
-occlude them. The current 2 m pose detected 12/24 left/right corners in the
-checked image (reprojection RMS 0.691/0.042 px). The left board has limited
-detail reserve; this does not establish real calibration accuracy. Earlier
-3 m/2.6 m experiments exceed the actual tripod limit and are historical only.
-Two additional OAK cameras are available for future blind-spot/detail coverage;
-the first was identified over USB as **OAK-D Pro AF (RVC2)**, while the second
-remains unverified. The earlier S2-FF assumption is superseded. No mounting
-poses have been assigned yet.
-RGB and CameraInfo topics: `/uwa_cell/oak_overview/rgb/{image_raw,camera_info}`.
-TF: `world -> oak_overview_rgb_optical_frame`. The supplied RViz config includes
-the housing/tripod and frustum markers; a previously opened RViz can add a
-MarkerArray display on `/uwa_cell/oak_overview/markers`.
-
-This camera is independent of the physical Ethernet OAK. The tripod is currently
-visual-only and is not an obstacle in the hand-eye MoveIt planning scene.
-The [static-camera calibration proposal](docs/static_camera_calibration_plan.md)
-describes reference boards, camera registration, joint refinement and validation;
-it is a proposed workflow, not an implemented hardware calibration.
-The clarified goal is to **measure and compensate intentional table movement**.
-See the [updated table tracking concept](docs/table_tracking_calibration.md):
-calibrate rigid camera mounts separately, then estimate changing table relations.
+The desktop simulation and newly prepared task scenes use the calibrated
+layout automatically. Rendered RGB uses a pinhole model at half native
+resolution on each axis. [Camera setup and layout history](docs/oak_overview.md).
 
 ## Move the arms
 

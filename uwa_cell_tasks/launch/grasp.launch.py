@@ -19,7 +19,7 @@ from uwa_cell_tasks.scene import verify_scene,physics_description
 
 def setup(context):
     directory=Path(LaunchConfiguration('scene').perform(context)).resolve()
-    verify_scene(directory)
+    scene = verify_scene(directory)
     ns=LaunchConfiguration('namespace').perform(context).rstrip('/')
     if not ns.startswith('/uwa_grasp_'):raise ValueError('Use an isolated /uwa_grasp_* simulation namespace')
     layout_file=LaunchConfiguration('layout').perform(context);layout=load_layout(layout_file)
@@ -40,7 +40,12 @@ def setup(context):
     for reference in root.findall('gazebo'):
         for sensor in list(reference.findall('sensor')):reference.remove(sensor)
     description=ET.tostring(root,encoding='unicode')
-    physics_file=directory/'robot.physics.urdf';physics_file.write_text(physics_description(description))
+    physics_file=directory/'robot.physics.urdf'
+    physical = physics_description(description)
+    if scene['cfg'].get('seek_contact'):
+        from uwa_cell_tasks.seek_contact import SeekContact, add_probe_physics
+        physical = add_probe_physics(physical, SeekContact.from_record(scene['cfg']['seek_contact']))
+    physics_file.write_text(physical)
     world=directory/'world.live.sdf';wroot=ET.parse(directory/'world.sdf').getroot()
     wroot=ET.fromstring(ET.tostring(wroot,encoding='unicode').replace('/uwa_cell/',ns+'/'))
     observer=wroot.find("world/plugin[@name='uwa_cell_tasks::ForceTelemetry']")

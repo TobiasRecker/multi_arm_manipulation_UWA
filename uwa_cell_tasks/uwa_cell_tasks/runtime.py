@@ -360,7 +360,11 @@ def _run_task(directory,scene_directory,layout_file,namespace,reference):
             if drawing:
                 for path in drawing.trajectories[1:-1]:
                     store.event('RUNNING','move_object',step=path['phase'])
-                    sim.follow(path,timeout=path['duration_s']*12+20)
+                    if path['phase']=='seek_contact':
+                        from .seek_execution import execute_seek
+                        execute_seek(sim, drawing.probe, path, directory, store)
+                    else:
+                        sim.follow(path,timeout=path['duration_s']*12+20)
             if 'turned' in poses:
                 store.event('RUNNING','move_object',step='longitudinal_quarter_turn')
                 turn=recipe['motions']['turn']

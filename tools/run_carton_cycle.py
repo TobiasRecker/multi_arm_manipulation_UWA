@@ -184,12 +184,16 @@ class Workflow:
         self.report["phase"] = "WAITING_FOR_" + meta["stage"].upper() + "_REVIEW"
         self.save()
         start = time.monotonic()
-        print(f'{self.report["phase"]} {identifier}', flush=True)
         claimed = False
         try:
+            announced = False
             while not store.claim(identifier):
+                if not announced:
+                    print(f'{self.report["phase"]} {identifier}', flush=True)
+                    announced = True
                 time.sleep(.4)
             claimed = True
+            print(f'REVIEW_ACCEPTED_{meta["stage"].upper()} {identifier}', flush=True)
             active = next(r for r in store.status()["pending"] if r["id"] == identifier)
             self.report["events"].append(dict(phase=self.report["phase"], duration_s=time.monotonic()-start,
                                              decided_by=active["decided_by"], review_id=identifier))
@@ -430,6 +434,66 @@ def prepare_live_approach(flow, args, joint, tcp):
                             out/"registration/object-pose.json", pregrasp_m)
 
 
+def prior_library_decision(store, step, stage, speed):
+    """Find the latest matching decision, including pre-familiarity Library runs."""
+    with store.connection() as db:
+        rows = db.execute("""
+            SELECT id, operation, meta, status, actor FROM tickets
+            WHERE json_extract(meta, '$.task')=? AND json_extract(meta, '$.stage')=?
+              AND json_extract(meta, '$.speed_percent')=?
+              AND (status IN ('rejected','replan') OR
+                   (invalid=0 AND (status='done' OR
+                    (actor='operator' AND status IN ('approved','running','failed','interrupted')))))
+            ORDER BY created DESC
+        """, (TASK, stage, speed))
+        for row in rows:
+            meta = json.loads(row["meta"])
+            previous_step = meta.get("library_step")
+            if previous_step is None:
+                cycle = Path(row["operation"]).parent
+                if cycle.name != "cycle" or not cycle.parent.name.startswith("skill-library-carton-"):
+                    continue
+                try:
+                    report = read_json(cycle / "workflow.json")
+                except (OSError, ValueError):
+                    continue
+                if (report.get(stage + "_review") != row["id"] or not report.get("staged_approach")
+                        or report.get("program", {}).get("sha256") != step["program_sha256"]):
+                    continue
+                groups = db.execute("""
+                    SELECT json_extract(g.value,'$.phase'), json_extract(g.value,'$.arms')
+                    FROM tickets, json_each(preview,'$.groups') AS g WHERE tickets.id=?
+                    ORDER BY g.key
+                """, (row["id"],))
+                previous_step = dict(program_sha256=step["program_sha256"],
+                                     groups=[[phase, json.loads(arms)] for phase, arms in groups])
+            if previous_step == step:
+                if row["status"] in {"rejected", "replan"}:
+                    return None
+                return row["id"]
+    return None
+
+
+def assess_library_step(flow, store, meta, preview, *, visual_confirmed=False):
+    if not flow.report.get("staged_approach") or flow.report["program"]["id"] != "carton-supported-v1":
+        return
+    step = dict(program_sha256=flow.report["program"]["sha256"],
+                groups=[[group["phase"], group["arms"]] for group in preview["groups"]])
+    meta["library_step"] = step
+    previous = prior_library_decision(store, step, meta["stage"], meta["speed_percent"])
+    if previous:
+        meta["step_uncertainty"] = "medium"
+        meta["prior_review"] = previous
+        reason = "This program step was previously approved or completed."
+        if meta["stage"] == "contact" and not visual_confirmed:
+            reason += " Step uncertainty is medium. Inspect the current open-entry image before closing."
+        else:
+            meta["risk"] = "medium"
+            reason += " Familiarity lowers the assessment from high to medium."
+        # Preserve coordination details from the motion planner.
+        meta["reason"] = "\n".join([reason, *meta["reason"].splitlines()[1:]])
+
+
 def approach(flow, args, store):
     out = flow.out
     status = store.status()
@@ -451,6 +515,8 @@ def approach(flow, args, store):
                                   bool(starts))
     meta["program_start_arms"] = starts
     meta["scene_session"] = status["session_id"]
+    if not args.risk:
+        assess_library_step(flow, store, meta, preview)
     with flow.approval(store, meta, preview) as identifier:
         for (name, tool, source, value), bundle, sha in zip(runners, paths, meta["components"], strict=True):
             store.check_active(identifier, sha)
@@ -492,6 +558,8 @@ def close_after_entry(flow, args, store):
                 components=[component], entry_state_sha256=state_sha, capture_sha256=image["original_sha256"],
                 explicit_regular_start=bool(starts), program_start_arms=starts, scene_session=flow.report["scene_session"],
                 arms=["right_front","right_rear"], requires_area=True)
+    if not args.risk:
+        assess_library_step(flow, store, meta, preview, visual_confirmed=args.visual_confirmed)
     with flow.approval(store, meta, preview) as identifier:
         flow.phase("close", "carton_gripper_phase.py", "close", "--state", state_path, "--output", out/"grasp",
                    "--execute", "--visual-confirmed", "--review-id", identifier,

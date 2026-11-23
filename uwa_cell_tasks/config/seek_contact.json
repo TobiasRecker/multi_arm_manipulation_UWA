@@ -1,0 +1,11 @@
+{
+  "skill": "seek_contact",
+  "arm": "left_front",
+  "tool": {"length_m": 0.30, "tip_radius_m": 0.003},
+  "face": "y_max",
+  "uv_m": [0.022, 0.0],
+  "clearance_m": 0.005,
+  "travel_m": 0.008,
+  "speed_m_s": 0.020,
+  "threshold_n": 2.0
+}

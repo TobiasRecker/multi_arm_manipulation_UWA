@@ -1,4 +1,39 @@
-# Statische OAK4-D als Übersichtskamera
+# Externe OAK-Kameras in der simulierten Zelle
+
+Seit dem 23.11.2026 enthält das Standardlayout die gemessenen Posen beider
+externen RGB-Kameras. Bezugspunkt ist die obere linke Musterecke des rechten
+festen Tischboards (`right_charuco`). Bei versetztem oder gedrehtem Modell-
+tisch folgen beide virtuellen Kameras diesem Bezug. Der Ethernet-OAK4 sind
+Fokus 107 und 4000 × 3000 Simulationspixel zugeordnet, der USB-OAK-D Pro
+Fokus 112 und 2028 × 1520. Gazebo rendert mit halbierter nativer Auflösung
+und entsprechend skaliertem Hauptpunkt und Brennweite. Das Lochkameramodell
+liefert unverzeichnete RGB-Bilder in der ursprünglichen Sensororientierung.
+
+Öffnen der Ansichten bei laufender Zell-Simulation:
+
+```bash
+bash src/multi_arm_manipulation_UWA/scripts/overview.sh view
+bash src/multi_arm_manipulation_UWA/scripts/overview.sh view-usb
+```
+
+Die ROS-Präfixe sind `/uwa_cell/oak_overview/rgb` und `/uwa_cell/oak_usb/rgb`
+mit `image_raw` und `camera_info`. TF verbindet die beiden optischen Frames
+direkt mit `right_charuco`; die Anzeige-Aliasse beginnen mit `real_`. RViz
+abonniert für beide Gehäuse, Beschriftungen und Sichtpyramiden gemeinsam
+`/uwa_cell/oak_overview/markers`. Die USB-OAK verwendet das OAK-D-PRO-Mesh aus
+`depthai_descriptions`. Der OAK4-Dreifuß ist eine schematische Visualisierung.
+Für das USB-Gehäuse ist die Kamerapose gemessen, der mechanische Halter separat.
+
+Die Posen stehen im kalibrierten [Zelllayout](../uwa_cell_description/config/cell_layout_calibrated.yaml),
+mit Quellenhash der Auswertung. Die relative Translation unterscheidet sich bei
+der unabhängigen Gegenrechnung am mobilen Board um 20 mm, die Orientierung um
+0,62°. [Messbericht](../../../setup/calibration/external_pair_20261123/Ergebnis.md) ·
+[Gerenderte Ansichten](../../../setup/calibration/external_pair_20261123/gazebo_kameraansichten.jpg).
+
+## Historischer OAK4-Entwurf vom 9.11.2026
+
+Die folgenden Angaben beschreiben das nominale Vergleichslayout und den
+früheren Prüfstand.
 
 Nutzerziel vom **2026-11-09**: reale OAK4-D neben dem Tisch auf einem Stativ,
 aktuell rechts, nach unten auf beide Tischplatten gerichtet. Die genaue Montage
@@ -10,9 +45,9 @@ Die erste wurde per USB als **OAK-D Pro AF (RVC2)** identifiziert; die zweite
 ist noch ungeprüft. Die frühere Vermutung „beide OAK-D-S2-FF“ ist damit überholt.
 Montage und Einbindung als zusätzliche Zellkameras bleiben offen.
 
-## Ausgangspose und Optik
+### Nominale Ausgangspose und Optik
 
-Einzige dauerhafte Konfigurationsquelle ist `overview_camera` in
+Konfigurationsquelle für den nominalen Entwurf ist `overview_camera` in
 `uwa_cell_description/config/cell_layout.yaml`. Alle Positionen sind Weltkoordinaten
 in Metern, X rechts, Y hinten, Z oben. `xyz` bezeichnet das optische Zentrum des
 RGB-Sensors, `look_at` einen Zielpunkt, `roll` die Drehung um die Blickachse.

@@ -63,7 +63,7 @@ Visualization Manager:
       Name: Mount and robot frames
       Enabled: false
     - Class: rviz_default_plugins/MarkerArray
-      Name: OAK overview camera and frustum
+      Name: External OAK cameras and viewing frustums
       Enabled: true
       Topic:
         Value: /uwa_cell/oak_overview/markers
