@@ -1,6 +1,7 @@
 const content = document.querySelector("#content");
 const main = document.querySelector("main");
 const navigation = document.querySelector("nav a");
+const cameraProgramId = "oak4-camera-calibration-v1";
 const timestamp = new Intl.DateTimeFormat("en-AU", {
   hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
   timeZone: "Australia/Perth",
@@ -46,6 +47,26 @@ function selectedProgram() {
   return state.programs.find(program => programRoute(program.id).slice(1) === route) ?? null;
 }
 
+function programsFromCatalog(programs) {
+  // An already-open Robot Power window can keep an older server process.
+  // Its existing calibration action runs the same current camera-only worker.
+  if (programs.some(program => program.id === cameraProgramId)) return programs;
+  const source = programs.find(program => program.id === "carton-supported-v1" && program.calibrate_available);
+  if (!source) return programs;
+  return [{ ...source, id: cameraProgramId, execution_program: source.id, kind: "camera_calibration",
+    title: "OAK4 camera calibration", device: "Ethernet OAK4", object: "Right table ChArUco board", arms: [],
+    description: "Determine the OAK4 camera pose and share the right table reference with other programs for 12 hours.",
+    demo_available: false, live_available: false,
+    stages: [{ id: "oak_calibration", title: "Capture and determine the camera pose",
+      description: "Search focus and exposure, fit the right table board and save the checked reference for 12 hours." }],
+  }, ...programs.map(program => ({ ...program, camera_program: cameraProgramId }))];
+}
+
+function normalizeRun(run) {
+  return run?.mode === "calibrate" && run.program === "carton-supported-v1"
+    ? { ...run, program: cameraProgramId, legacy_camera_api: true } : run;
+}
+
 async function request(url, options) {
   const response = await fetch(url, { cache: "no-store", ...options });
   const result = await response.json();
@@ -74,7 +95,10 @@ function cartonImage(program) {
 
 function details(program) {
   const list = element("dl", "facts");
-  for (const [term, value] of [["Workpiece", program.object], ["Arms", program.arms.join(" · ")]]) {
+  const facts = program.kind === "camera_calibration"
+    ? [["Device", program.device], ["Reference", program.object], ["Validity", "12 hours from capture"], ["Operation", "Camera only"]]
+    : [["Workpiece", program.object], ["Arms", program.arms.join(" · ")]];
+  for (const [term, value] of facts) {
     const item = element("div");
     item.append(element("dt", "", term), element("dd", "", value));
     list.append(item);
@@ -89,9 +113,22 @@ function programCard(program) {
   else card.classList.add("text-only");
   const copy = element("div", "program-copy");
   copy.append(element("h2", "", program.title), element("p", "", program.description), details(program));
+  if (program.kind === "camera_calibration") copy.append(cameraReference(program));
   copy.append(link(programRoute(program.id), "button primary", "Open program"));
   card.append(copy);
   return card;
+}
+
+function cameraReference(program) {
+  const running = state.run?.mode === "calibrate" && state.run.state === "running";
+  const valid = !running && program.camera_valid_until && new Date(program.camera_valid_until).getTime() > Date.now();
+  const text = running ? "CALIBRATION RUNNING · The previous reference is revoked."
+    : valid ? `REFERENCE VALID · Until ${expiryDate.format(new Date(program.camera_valid_until))} AWST`
+    : "CALIBRATION REQUIRED · No valid camera reference available.";
+  const node = element("p", "camera-reference", text);
+  node.dataset.referenceProgram = program.id;
+  node.setAttribute("role", "status");
+  return node;
 }
 
 function workflow(program) {
@@ -126,22 +163,29 @@ function startButton(program, mode, label, style) {
 function actions(program) {
   const section = element("section", "panel actions");
   section.append(element("h2", "", "Run program"));
-  if (program.live_available) {
+  const cameraOnly = program.kind === "camera_calibration";
+  if (cameraOnly) {
+    section.append(element("p", "", "Keep the right table board fully visible and the camera still. The saved reference is shared with other programs for 12 hours from capture."));
+  } else if (program.live_available) {
     section.append(element("p", "", "Start the physical procedure and review its motion in UWA Robot Power."));
   } else if (program.live_blocker) {
     section.append(element("p", "", program.live_blocker));
   }
   if (program.calibrate_available) {
-    const validUntil = program.camera_valid_until
-      ? `Camera reference valid until ${expiryDate.format(new Date(program.camera_valid_until))} AWST.` : "";
-    section.append(element("p", "", [validUntil, "Recalibrate after moving the camera or the table board."].filter(Boolean).join(" ")));
+    section.append(cameraReference(program), element("p", "", "Recalibrate after moving the camera or the table board."));
+  } else if (cameraOnly && program.live_blocker) {
+    section.append(element("p", "feedback", program.live_blocker));
   }
   const demoText = "The offline demo uses saved inputs. It plans motion without connecting to the cell.";
   if (program.demo_available) section.append(element("p", "", demoText));
   const buttons = element("div", "run-buttons");
-  buttons.append(startButton(program, "live", "Start program", "primary"));
-  if (program.calibrate_available) buttons.append(startButton(program, "calibrate", "Calibrate OAK4", "secondary"));
-  buttons.append(startButton(program, "demo", "Run offline demo", program.live_available ? "secondary" : "primary"));
+  if (cameraOnly) {
+    buttons.append(startButton(program, "calibrate", "Start calibration", "primary"));
+  } else {
+    buttons.append(startButton(program, "live", "Start program", "primary"));
+    if (program.camera_program) buttons.append(link(programRoute(program.camera_program), "button secondary", "Open camera calibration"));
+    if (program.demo_available) buttons.append(startButton(program, "demo", "Run offline demo", program.live_available ? "secondary" : "primary"));
+  }
   section.append(buttons);
   const message = element("p", "feedback");
   message.id = "action-feedback";
@@ -199,6 +243,7 @@ function summarizeResult(result) {
   const evidence = element("dl", "evidence");
   const rows = [
     ["Camera reference", result.calibration],
+    ["Valid until", result.valid_until ? `${expiryDate.format(new Date(result.valid_until))} AWST` : null],
     ["Carton pose", result.pose],
     ["Motion plan", result.plan],
     ["Contact", result.contact],
@@ -225,14 +270,16 @@ function summarizeResult(result) {
 }
 
 function artifactLinks(run) {
-  if (run.mode !== "demo" || run.state === "running" || !run.result?.artifacts) return null;
+  if (!["demo", "calibrate"].includes(run.mode) || run.state === "running" || !run.result?.artifacts) return null;
   const list = element("ul", "artifact-links");
   list.setAttribute("aria-label", "Saved camera previews");
   for (const [key, label] of [
+    ["camera_preview", "Camera calibration preview"],
     ["oak_preview", "OAK4 pose preview"],
     ["right_front_preview", "Right front wrist"],
     ["right_rear_preview", "Right rear wrist"],
   ]) {
+    if (run.legacy_camera_api && key === "camera_preview") continue;
     if (!run.result.artifacts[key]) continue;
     const item = element("li");
     const image = link(`/api/runs/${encodeURIComponent(run.id)}/artifacts/${key}`, "text-link", label);
@@ -299,6 +346,13 @@ function updateStatus() {
 
 function updateActions() {
   const program = selectedProgram();
+  for (const node of document.querySelectorAll("[data-reference-program]")) {
+    const owner = state.programs.find(item => item.id === node.dataset.referenceProgram);
+    if (owner) {
+      const updated = cameraReference(owner);
+      if (updated.textContent !== node.textContent) node.replaceWith(updated);
+    }
+  }
   const blocked = Boolean(state.pending) || state.run?.state === "running";
   for (const button of document.querySelectorAll("[data-mode]")) {
     button.disabled = blocked || !program[`${button.dataset.mode}_available`];
@@ -359,7 +413,7 @@ async function poll() {
   const run = state.run;
   if (!run || run.state !== "running") return;
   try {
-    state.run = await request(`/api/runs/${encodeURIComponent(run.id)}`);
+    state.run = normalizeRun(await request(`/api/runs/${encodeURIComponent(run.id)}`));
     state.connectionError = "";
   } catch (error) {
     state.connectionError = `Run status unavailable. Retrying. ${error.message}`;
@@ -376,11 +430,11 @@ async function start(program, mode) {
   state.pending = mode;
   updateActions();
   try {
-    state.run = await request("/api/runs", {
+    state.run = normalizeRun(await request("/api/runs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ program: program.id, mode }),
-    });
+      body: JSON.stringify({ program: program.execution_program || program.id, mode }),
+    }));
     state.connectionError = "";
     updateStatus();
     poll();
@@ -398,8 +452,8 @@ async function loadCatalog() {
   render();
   try {
     const catalog = await request("/api/catalog");
-    state.programs = catalog.programs;
-    state.run = catalog.active_run;
+    state.programs = programsFromCatalog(catalog.programs);
+    state.run = normalizeRun(catalog.active_run);
   } catch (error) {
     state.catalogError = `Could not load the library. ${error.message}`;
   } finally {
@@ -418,4 +472,12 @@ window.addEventListener("hashchange", () => {
   render();
   main.focus();
 });
+let lastExpiryRefresh = 0;
+setInterval(() => {
+  if (!state.loading && Date.now() - lastExpiryRefresh > 30000 && state.programs.some(program => program.camera_valid_until &&
+      new Date(program.camera_valid_until).getTime() <= Date.now())) {
+    lastExpiryRefresh = Date.now();
+    loadCatalog();
+  }
+}, 1000);
 loadCatalog();

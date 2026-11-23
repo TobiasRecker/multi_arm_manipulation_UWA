@@ -65,14 +65,16 @@ fordert deshalb eine Sichtprüfung an. [Webtest und Ergebnis](../../../setup/tas
 
 ### Ablauf an der realen Zelle
 
-**Calibrate OAK4** erfasst einmalig die festen Tischboards mit dem
+Das separate Library-Programm **OAK4 camera calibration → Start calibration**
+erfasst einmalig die festen Tischboards mit dem
 ChArUco-Fotomodus. Das rechte Board und die zum Standardfoto passenden
 Intrinsics bilden die Kamerareferenz für diesen Kartonablauf. Die Bibliothek
 zeigt die Ablaufzeit in AWST. Die Referenz gilt zwölf Stunden ab der Aufnahme.
 Bei verstellter Kamera oder verschobenem Tischboard vor einem Greiflauf
-erneut **Calibrate OAK4** wählen. Ein neuer Kalibriervorgang ersetzt die
+erneut das [Kalibrierprogramm](camera_library_program.md) starten. Ein neuer Kalibriervorgang ersetzt die
 vorherige Sitzung. Bis eine gültige Referenz vorliegt, ist **Start program**
 deaktiviert. Der Kalibriervorgang benötigt nur die OAK4.
+Die Kartondetailseite verlinkt über **Open camera calibration** darauf.
 
 **Start program** prüft Arbeitsbereich und Tempo. Der N100 liest die
 External-Control-Bereitschaft der beiden rechten Arme und sendet bei Bedarf

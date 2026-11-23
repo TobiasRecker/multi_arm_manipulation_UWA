@@ -21,6 +21,7 @@ REPO = Path(__file__).resolve().parents[1]
 WORKSPACE = REPO.parents[1]
 CELL = REPO.relative_to(WORKSPACE)
 PROGRAM = "carton-supported-v1"
+CAMERA_PROGRAM = "oak4-camera-calibration-v1"
 INTRINSICS = Path("setup/calibration/oak_capture_proposal_20261118/calibration_candidate_v1/oak_pose_candidate.json")
 LIVE_PROFILE = CELL / "uwa_cell_motion/config/hardware_carton_supported_trend.yaml"
 RECIPE_CACHE = WORKSPACE / "setup/skill_library/carton-recipes"
@@ -305,11 +306,25 @@ def calibrate_camera(progress, config_path):
     directory = Path(result["directory"]).resolve(strict=True)
     if result.get("mode") != "charuco" or Path(result["metadata"]).resolve() != directory / "metadata.json":
         raise ValueError("Expected a native ChArUco capture and its metadata.")
+    progress.update("camera_reference", "Determining the camera pose from the right table board and matching optics.")
     session = create_session(directory, config["intrinsics"], requested_at=requested)
     write_session(progress.output / "camera-session.json", session)
+    import cv2
+    image = cv2.imread(str(directory / 'right/pose/standard.png'))
+    if image is None:
+        raise ValueError('The saved camera calibration image cannot be decoded.')
+    preview = cv2.resize(image, (1280, 960))
+    cv2.rectangle(preview, (0, 0), (1280, 52), (255, 255, 255), -1)
+    cv2.putText(preview, f"Right board: {session['right_marker_count']} markers | "
+                f"check RMS {session['held_out_rms_px']:.2f}px", (15, 34),
+                cv2.FONT_HERSHEY_SIMPLEX, .8, (0, 0, 0), 2)
+    if not cv2.imwrite(str(progress.output / 'camera-preview.jpg'), preview):
+        raise ValueError('Could not save the camera calibration preview.')
+    progress.update("camera_publish", "Publishing the checked camera reference for 12 hours from capture.")
     write_session(session_path, session)
     return {"calibration": f"Right table · {session['right_marker_count']} markers · "
-            f"{session['held_out_rms_px']:.2f} px held-out RMS", "valid_until": session["valid_until"]}
+            f"{session['held_out_rms_px']:.2f} px held-out RMS", "valid_until": session["valid_until"],
+            "valid_from": session["valid_from"], "artifacts": {"camera_preview": "camera-preview.jpg"}}
 
 
 def upload(remote, local_file, log_path):
@@ -483,6 +498,8 @@ def transfer_approach(remote, target_workspace, plan, image, metadata, config, o
 
 def request_review(progress, remote_run, stage, *args):
     command = n100(f"""source {shlex.quote(str(CELL / 'scripts/control_env.bash'))}
+# Avoid competing with the controller-manager and guard callbacks on the N100.
+export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
 exec /usr/bin/python3 -u {shlex.quote(str(CELL / 'tools/run_carton_cycle.py'))} "$@"
 """, "--output", remote_run, "--execute", *args)
     waiting = f"WAITING_FOR_{stage.upper()}_REVIEW "
@@ -557,17 +574,20 @@ def run_live(program, progress, config_path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("demo", "live", "calibrate"), required=True)
-    parser.add_argument("--program", choices=(PROGRAM,), required=True)
+    parser.add_argument("--program", choices=(PROGRAM, CAMERA_PROGRAM), required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--live-config", type=Path)
     args = parser.parse_args()
+    if args.program == CAMERA_PROGRAM and args.mode != "calibrate":
+        parser.error("The OAK4 camera calibration program uses --mode calibrate.")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     marker = output / ".program-run"
     with marker.open("x"):
         pass
     progress = Progress(output)
-    progress.update("setup", "Starting the selected carton program.")
+    progress.update("setup", "Starting OAK4 camera calibration." if args.program == CAMERA_PROGRAM
+                    else "Starting the selected carton program.")
     try:
         if args.mode == "demo":
             result = run_demo(args.program, progress)

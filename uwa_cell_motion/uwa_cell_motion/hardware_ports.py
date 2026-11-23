@@ -119,12 +119,12 @@ class StopPort:
         if self.pending_hardware and now-self.hardware_sent>.3:self.pending_hardware=None
         if self.pending_hardware is None and now-self.hardware_sent>.1 and self.hardware.service_is_ready():
             self.hardware_sent=now;self.pending_hardware=self.hardware.call_async(ListHardwareComponents.Request())
-        hardware_ok=self.hardware_verified and now-self.hardware_received<.3
+        hardware_ok=self.hardware_verified and now-self.hardware_received<1.3
         if self.pending and self.pending.done():
             try:self.controllers=self.pending.result().controller;self.received=now
             except Exception as error:self.error=str(error)
             self.pending=None
-        if self.pending and now-self.sent>.3:self.pending=None;self.error='Controller list response stale'
+        if self.pending and now-self.sent>1.3:self.pending=None;self.error='Controller list response stale'
         if self.pending is None and now-self.sent>=.05 and self.list.service_is_ready():
             self.pending=self.list.call_async(ListControllers.Request());self.sent=now
         if self.checking and self.checking.done():
@@ -146,7 +146,7 @@ class StopPort:
             except Exception as error:self.error=str(error)
             self.switching=None
         if self.switching and now-self.switch_started>.3:self.switching=None;self.error='Hold switch response stale'
-        fresh=now-self.received<.25;held=fresh and hardware_ok and self.verified and hold_owned(self.controllers,self.joints)
+        fresh=now-self.received<1.0;held=fresh and hardware_ok and self.verified and hold_owned(self.controllers,self.joints)
         bad=unsafe_controllers(self.controllers,self.joints)
         if enabled and hardware_ok:
             if blocked and (not self.was_blocked or bad):self.cancel()

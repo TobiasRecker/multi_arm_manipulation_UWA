@@ -34,6 +34,9 @@ angezeigten Arme und die Revision gebunden.
   Schließen von Browser oder GUI verfügbar. Bestehende Schutzstopps sind
   davon getrennt. Bei unerwartetem `STOPPED` den Auslöser im N100-Safety-Log
   zuordnen und nachvollziehbar benennen.
+- Nutzerentscheidung 20.11.2026: Vom Nutzer vorgenommene Änderungen an
+  der UR- und N100-Konfiguration nur auf seinen ausdrücklichen Auftrag
+  zurücksetzen. Bei Diagnosen den tatsächlich vorgefundenen Stand verwenden.
 
 ## Nutzerentscheidung zur Gazebo-Simulation, 19.11.2026
 
@@ -59,6 +62,13 @@ angezeigten Arme und die Revision gebunden.
   Mit bis zu 1 rad/s je Armgelenk und Echtzeitfaktor 1 als Ziel wiederverwenden.
 
 ## Aufgabenbezogene Freigabe im Kartonpiloten, 19.11.2026
+
+- Die Programmbibliothek führt seit20.11.2026 das eigene Programm
+  `oak4-camera-calibration-v1` / **OAK4 camera calibration**. Es nutzt nur die
+  Kamera und veröffentlicht die gemeinsame rechte Boardreferenz für12Stunden
+  ab Aufnahme. Andere Programme lesen dieselbe Sitzung; Nutzung verlängert
+  die Frist nicht. Bei Kamera-/Boardverstellung neu kalibrieren. Diese
+  Sitzung von globaler Intrinsics-/Basisprofiländerung unterscheiden.
 
 - Nutzerentscheidung 20.11.2026. Das Kartonprogramm nutzt eine separate
   ChArUco-Kamerareferenz zum rechten Tischboard für zwölf Stunden ab Aufnahme.

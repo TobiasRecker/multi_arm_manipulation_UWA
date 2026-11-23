@@ -1,5 +1,86 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Eigenes Kamerakalibrierprogramm in der Library,20.11.2026
+
+- Nutzer beauftragt, den ChArUco-Suchdienst als eigenes Library-Programm
+  aufzunehmen und die ermittelte Kamerapose zwölf Stunden für andere Programme
+  gültig zu markieren. Der bestehende Karton-Zusatzknopf wurde zu einer
+  eigenständigen Karte **OAK4 camera calibration** mit eigener Programm-ID
+  `oak4-camera-calibration-v1`, Detailseite und **Start calibration** ergänzt.
+- Der vorhandene Kamera-only-Ablauf bleibt: neue ChArUco-Aufnahme, rechte
+  Boardpose mit passender Optik und eingefrorenen Basisbindungen prüfen,
+  Ergebnisvorschau erzeugen und gemeinsame Sitzung atomar veröffentlichen.
+  Keine N100-Vorprüfung/Play-/Arm-/Greiferbefehle aus dem Kameraprogramm.
+  Veröffentlichung erst nach vollständiger Vorschau/Ergebnisablage.
+- Sitzung weiterhin zentral `setup/skill_library/carton-camera-session.json`;
+  bestehender Name für alle bisherigen Verbraucher erhalten. Kartonprogramm
+  verwendet dieselbe12h-Referenz ohne erneute Boardprüfung im Kartonbild.
+  API-Katalog nennt den Referenzstatus und Zeitraum, UI zeigt explizit
+  REFERENCE VALID/CALIBRATION REQUIRED und AWST-Ablaufdatum. Nutzung verlängert
+  die Frist nicht; bei Kamera-/Boardverstellung ausdrücklich neu kalibrieren.
+- Softwareprüfung:6gezielte Offline-Tests für getrennten Katalogeintrag,
+  ausschließlich Kalibriermodus, Startdispatch, exakte12h-Grenze und atomare
+  Veröffentlichung inklusive Vorschaufehler. JavaScript-Syntax und native/
+  ältere Katalogzuordnung im Node-VM geprüft. Bestehende lokale Änderungen
+  zur N100-Threadbegrenzung in run_carton_program.py erhalten.
+- Laufenden untätigen Webprozess auf8780 gezielt unter identischer Adresse/
+  Konfiguration neu geladen, jetzt `uwa-program-library.service` mit
+  `KillMode=process`. Power-GUI und ihr eigener Server wurden nicht beendet;
+  neue Frontend-Dateien zeigen den Programmeintrag auch für deren ältere
+  laufende Server über den bestehenden Kalibriermodus. Keine UR-Runtimeänderung.
+- Browserzugriff über CUA war nicht verfügbar; API-/Programmprüfung läuft
+  unabhängig davon. Nachweise `setup/tasks/camera_library_program_20261120/`.
+- Abschließender realer API-Lauf `043a0df2880b41a69d08370275014118` mit der
+  neuen Programm-ID erfolgreich:17rechte Marker/1,53px Prüf-RMS. Aufnahme-
+  referenz20.11.17:50:42,834520 bis21.11.05:50:42,834520 AWST, exakt43200s.
+  Beide Katalogprogramme und die gemeinsame Sitzung melden denselben Zeitraum.
+  Gemeinsame Datei und Laufkopie sind SHA256-identisch, Vorschau-Endpunkt
+  liefert JPEG, Kamerasperre nach Abschluss unabhängig frei geprüft.
+  Laufphasen ausschließlich setup/oak_calibration/camera_reference/
+  camera_publish/done. Keine Roboter gestartet oder bewegt. Bedienung
+  [camera_library_program.md](docs/camera_library_program.md).
+
+## Laufende UR-Wächter auf dem N100, 20.11.2026, 17:45 AWST
+
+- Lesende SSH-Inventur bestätigte einen aktiven systemd-Benutzerdienst
+  `uwa-hardware-motion.service` mit drei Schutzprozessen im Hardwaremodus
+  (`--armed`): `hardware_guard`, `hardware_supervisor`, `hardware_watchdog`.
+- Alle drei verwenden relativ zu `~/uwa-ur-runtime/src/multi_arm_manipulation_UWA/`
+  das Profil `uwa_cell_motion/config/hardware_carton_supported_trend.yaml` und
+  `config/hardware_inventory.yaml`. Die transiente Unit liegt unter
+  `/run/user/1000/systemd/transient/uwa-hardware-motion.service` und hatte
+  keine Drop-ins. Die Inventur belegt den Prozessstand.
+- `hardware_supervisor` überwacht je Arm `list_controllers` über
+  [`StopPort.tick()`](uwa_cell_motion/uwa_cell_motion/hardware_ports.py#L113).
+  Auf dem N100 im installierten Quellpfad lesend bestätigt: Eine bestätigte
+  Liste gilt unter 250 ms als frisch, eine noch offene Anfrage wird nach
+  über 300 ms verworfen, der Mindestabstand zwischen Anfragen ist 50 ms.
+  Diese Werte stehen im Code. `heartbeat_timeout_s: 0.25` und
+  `hold_config_max_age_s: 1.0` im aktiven YAML betreffen separate Prüfungen.
+
+## Native STOP bei verspäteter Controllerliste, 20.11.2026, 17:36 AWST
+
+- Weblauf `b10edbd8a8764868b1be6d9018eef802`: beide Kartonarme spielten
+  beim Eingang der Motion review. Während der Einrichtung der genehmigten
+  Hochanfahrt veranlasste der N100-Supervisor um 17:36:17,316 für
+  `right_front` einen STOP. Die letzte Controllerliste war 261,721 ms alt
+  bei einer Grenze von 250 ms. Die Hold-Konfiguration war 21,934 ms alt
+  und gültig. Um 17:36:17,347 fiel die ROS-Reverse-Verbindung ab. Beide
+  rechten Arme hatten 0 s Bewegung über 0,003 rad/s. Im Ergebnis stehen
+  keine Arm- oder Fingerbefehle. Der spätere Status meldete `right_front`
+  STOPPED und `right_rear` weiterhin PLAYING.
+- Der Browser startet N100-Ausführungsprozesse für Fahrt- und Kontaktreview
+  jetzt mit je einem OpenBLAS-/OpenMP-Thread. Ein kleiner Vergleich auf
+  dem N100 bestätigte für NumPy/SciPy vier Threads ohne und einen mit
+  Begrenzung. Die Browser-Übergabe wurde offline geprüft. Konkurrenz um
+  CPU-Zeit ist plausibel, die Ursache der verspäteten Controllerliste
+  ist offen und die Wirkung auf einen neuen Live-Lauf steht aus.
+- Regulärer Dashboard-STOP läuft weiter über die explizite Bedienaktion
+  **Standby**. Der protokollierte STOP stammt aus der Schutzfunktion.
+  Die Schutzkette wurde bei dieser Diagnose nicht geändert.
+  [N100-Journal](../../setup/tasks/uwa_program_library/b10edbd8a8764868b1be6d9018eef802/n100-high-guard-exact.log) ·
+  [Ausführungsbeleg](../../setup/tasks/uwa_program_library/b10edbd8a8764868b1be6d9018eef802/n100-high-result.json)
+
 ## Browser-Play für beide Kartonarme bestätigt, 20.11.2026, 17:28 AWST
 
 - Bedienperson startete den Weblauf `b10edbd8a8764868b1be6d9018eef802`

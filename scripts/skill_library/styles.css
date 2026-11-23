@@ -260,6 +260,16 @@ main:focus { outline: none; }
 .program-identity figure { min-height: 0; aspect-ratio: 2 / 1; }
 .program-identity .facts { padding: 1rem 1.25rem; }
 .run-buttons { display: flex; flex-wrap: wrap; gap: .65rem; }
+.camera-reference {
+  width: 100%;
+  padding: .8rem 1rem;
+  border: 2px solid #152730;
+  border-radius: .3rem;
+  color: #111;
+  background: #fff;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
 
 .feedback {
   color: #842323;

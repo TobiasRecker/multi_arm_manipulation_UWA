@@ -17,12 +17,12 @@ from uuid import uuid4
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 from carton_camera_session import validate_session
-from run_carton_program import live_inputs
+from run_carton_program import live_inputs, CAMERA_PROGRAM
 
 WORKSPACE = ROOT.parents[1]
 PROGRAM_ID = "carton-supported-v1"
 RUN_ID = re.compile(r"[a-f0-9]{32}")
-PREVIEWS = {"oak_preview", "right_front_preview", "right_rear_preview"}
+PREVIEWS = {"oak_preview", "right_front_preview", "right_rear_preview", "camera_preview"}
 STATIC = {
     "/": (ROOT / "scripts/skill_library/index.html", "text/html; charset=utf-8"),
     "/index.html": (ROOT / "scripts/skill_library/index.html", "text/html; charset=utf-8"),
@@ -38,6 +38,14 @@ STAGES = [
     {"id": "motion_review", "title": "Review the approach", "description": "Review the current paths in UWA Robot Power before real motion."},
     {"id": "wrist", "title": "Inspect the grasp alignment", "description": "Measure the visible carton rim in archived wrist-camera images. Real contact uses a fresh OAK4 entry photo."},
     {"id": "contact_review", "title": "Close and hold", "description": "Review the actual entry before closing both grippers on the supported carton."},
+]
+CAMERA_STAGES = [
+    {"id": "oak_calibration", "title": "Find and capture the boards",
+     "description": "Search focus and exposure, then capture native OAK4 board images. Keep the camera and boards still."},
+    {"id": "camera_reference", "title": "Determine the camera pose",
+     "description": "Use the right table board and matching focus intrinsics to determine the camera reference."},
+    {"id": "camera_publish", "title": "Share the reference for 12 hours",
+     "description": "Save the checked reference for other programs. Recalibrate after moving the camera or board."},
 ]
 
 
@@ -86,7 +94,8 @@ class Runs:
             session = validate_session(read_json(path), config["intrinsics"])
         except (OSError, ValueError, KeyError, TypeError):
             return {"calibrate_available": True, "live_blocker": "The OAK4 camera reference expired or is invalid. Recalibrate the camera."}
-        return {"calibrate_available": True, "live_blocker": None, "camera_valid_until": session["valid_until"]}
+        return {"calibrate_available": True, "live_blocker": None,
+                "camera_valid_from": session["valid_from"], "camera_valid_until": session["valid_until"]}
 
     def catalog(self):
         camera = self.camera_status()
@@ -94,9 +103,18 @@ class Runs:
                        description="Both right arms grasp the known Avocado carton at its measured pose and hold it on the table.",
                        object="Avocado carton", arms=["Right front", "Right rear"], stages=STAGES,
                        demo_available=True, live_available=camera["live_blocker"] is None, **camera)
+        program['camera_program'] = CAMERA_PROGRAM
+        calibration = dict(id=CAMERA_PROGRAM, kind="camera_calibration", title="OAK4 camera calibration",
+            description="Determine the OAK4 camera pose from the right ChArUco table board and share it with other programs for 12 hours.",
+            object="Right table ChArUco board", arms=[], device="Ethernet OAK4", stages=CAMERA_STAGES,
+            demo_available=False, live_available=False, **camera)
         latest = max((path for path in self.directory.glob("*/run.json") if RUN_ID.fullmatch(path.parent.name)),
                      key=lambda path: path.stat().st_mtime, default=None)
-        return dict(programs=[program], active_run=self.get(latest.parent.name) if latest else None)
+        return dict(programs=[calibration, program],
+                    camera_reference=dict(status="valid" if camera.get('camera_valid_until') else "required",
+                        valid_from=camera.get('camera_valid_from'), valid_until=camera.get('camera_valid_until'),
+                        program=CAMERA_PROGRAM),
+                    active_run=self.get(latest.parent.name) if latest else None)
 
     def get(self, identifier):
         if RUN_ID.fullmatch(identifier) is None:
@@ -146,7 +164,8 @@ class Runs:
         write_json(directory / "exit.json", dict(code=code, at=now()))
 
     def start(self, program, mode):
-        if program != PROGRAM_ID or mode not in ("demo", "live", "calibrate"):
+        allowed = {PROGRAM_ID: {"demo", "live", "calibrate"}, CAMERA_PROGRAM: {"calibrate"}}
+        if program not in allowed or mode not in allowed[program]:
             raise ValueError("Choose a program and execution mode from the library.")
         with (self.directory / ".run.lock").open("a") as lease:
             try:

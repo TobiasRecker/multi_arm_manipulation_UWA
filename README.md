@@ -1,5 +1,9 @@
 # UWA four-arm laboratory cell
 
+The program library includes [OAK4 camera calibration](docs/camera_library_program.md)
+as a separate camera-only program. It publishes a checked right-table reference
+for twelve hours, shared with the carton program; the library displays its expiry.
+
 **UWA Robot Power → Motion review** shows the carton pilot’s planned arm
 groups, risk assessment, speed limits, RViz playback and contact photograph.
 The operator can try the archived task in a local mock session. See the
