@@ -1,5 +1,49 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Hydrogen-Nachmessung für Supported carton grasp, 23.11.2026
+
+Der Library-Bildpfad gibt Hydrogen Low den verworfenen Fit mit Fehlermaßen
+und Modelloverlay. Hydrogen kann im selben Dialog bis zu drei Messungen
+über Bildregion oder sichtbare Vorderwandecken anfordern. Der lokale
+geometrische Fit verwendet die Originalpixel. Auf dem vorher verworfenen
+Bild ergaben sich zwei gültige Hypothesen mit 2,535 mm und 0,559°
+gegenseitiger Abweichung. Die Offline-Bahnprüfung fand gemeinsame
+Hochanfahrt und Einfahrt für rechts vorne und rechts hinten. 19 Tests
+bestanden. Registrierungsquelle auf ROSmini und N100 abgeglichen. Ein
+neuer realer Griff steht aus.
+[Bilddialog, Fit und Bahnprüfung](work/carton-hydrogen-feedback-20261123.md)
+
+## Kraftabhängiger Kontaktsuch-Skill in Gazebo, 23.11.2026
+
+`seek_contact` kombiniert geplante Vorposition, Zustellung bis zur
+tarierten axialen Handgelenkskraft und geprüften Rückzug aus gemessenen
+Gelenkständen. Zwei vollständige Home-Kartonläufe mit gleichem Rezept,
+2 N Schwelle und 20 mm/s Prozessvorschub erreichten DONE. Die lokal
+um 2 mm vorstehende Fläche wurde nach 3,355 statt 5,348 mm erkannt.
+Beide Kontaktpaare bestätigten den Treffer und beide Kartons wurden
+abgesetzt. 10-ms-Auslösewerte 26,0/29,9 N, Physikschrittspitzen
+175,5/196,2 N. Kraftgeregeltes Zeichnen ist weiter offen.
+[Bedienung](docs/seek_contact.md) · [Kraft-Weg-Vergleich und Rohdaten](../../setup/tasks/seek_contact_20261123/report/report.md)
+
+## Externe Kameras in Gazebo und Zellansichten, 23.11.2026
+
+Die Kalibrierung aus den 15 Sechskamerasätzen ist im Standardlayout für
+Simulation und Darstellung übernommen. TF hängt beide optischen Zentren an
+`right_charuco`. Das aktuelle Modell ergibt in `world` die Zentren
+(1,2870; 0,0372; 2,1160) m und (−0,8509; 0,0132; 2,1249) m.
+Gazebo-Modelle, CameraInfo, die beiden RViz-Sichtpyramiden und die statischen
+TFs wurden in einer separat gerenderten, ruhenden Zelle ausgelesen. Die
+relative Transformation stimmt numerisch mit der Posendatei überein.
+[Gerenderte Ansichten](../../setup/calibration/external_pair_20261123/gazebo_kameraansichten.jpg)
+und [Bedienung](docs/oak_overview.md). Die USB-OAK hat einen eigenen
+RGB-Bildstrom und das Gehäuse aus `depthai_descriptions`. Neue
+Greifszenen, Karton- und Zeichnungs-Vorschauen berücksichtigen die Kameras.
+Die parallel laufende Greifsimulation behielt ihren gespeicherten Weltstand.
+Die zwei älteren Offline-Prüfungen zur vollständigen Tischabdeckung des
+nominalen Entwurfs und zur OAK-Pose des historischen Basisprofils vom
+12.11. scheitern identisch auf dem unveränderten Quellstand. Die übrigen
+17 Prüfungen der beiden bestehenden Kameratestdateien sind erfolgreich.
+
 ## Wiederholte Bewegungsfreigabe beim Kartongriff, 23.11.2026
 
 Ausgangsbefund vor der Änderung. Lesender Abgleich mit der N100-Freigabedatenbank. Für `carton_supported_grasp` ist Vertrauen 100 gespeichert. Die Anfragen um 15:11:51 und 15:27:06 AWST hatten beide Risiko `high`, den Standardgrund „Operator review requested for this approach.“ und keinen zusätzlichen Programmstart. Beide Bedienerfreigaben wurden gespeichert. Der Browser übergibt für die Anfahrt keine Risikobewertung. Der Runner setzt dann `high`, während `Confident` höchstens `medium` automatisch übernimmt. Das gilt unabhängig von der Zahl vorheriger Freigaben. Für den Kontakt fordert dieser Browserpfad die Bedienprüfung des aktuellen Einfahrbilds an. [Bedienung](docs/carton_motion_review.md)
@@ -27,8 +71,17 @@ Holds wurde separat im Offline-Nachlauf geprüft. Nach der Bedienfreigabe
 endete der Versuch vor dem ersten Ziel. Schon um 15:26:19 AWST unterbrach
 sich das native Programm rechts vorne, kurz darauf links vorne. Der neue
 Kartonstart wertet die native Programmrückmeldung vor dem Foto aus.
-Das per SSH abgerufene Roboterprotokoll, der separate STOP rechts hinten
-und die verbliebene Diagnose stehen im Arbeitsbericht.
+Das per SSH abgerufene Pendantlog bestätigt einen Empfangstimeout auf
+`reverse_socket` rechts vorne. Die geladene Konfiguration nennt 40 ms.
+Der genaue Ort der Telegrammlücke ist offen. Die Protokolle und der
+separate spätere STOP rechts hinten stehen im Arbeitsbericht.
+
+Passive Aufzeichnung am 23.11. beim regulären Wiederanlauf um 16:13 AWST.
+Die Reverse-Verbindung rechts vorne blieb über 2 min 35 s offen.
+Der größte gemessene Abstand ausgehender Pakete betrug 11,923 ms.
+Der Lauf endete schon bei der OAK4-Posebestimmung. Standard- und
+Hydrogen-Fenster lieferten für das aktuelle Bild keine gültige Lage
+mit Tischauflage. [Messbericht](work/carton-program-holds-20261123.md)
 [Arbeitsstand und Nachweise](work/carton-program-holds-20261123.md)
 
 ## Sechskamera-Aufbau in der Program Library, 23.11.2026

@@ -1,6 +1,9 @@
 # Start des tischgestützten Kartongriffs
 
-Stand 23.11.2026, in Bearbeitung. Codex untersucht den Library-Lauf
+Stand 23.11.2026, Startkorrektur, Logdiagnose und passive Vergleichsmessung
+abgeschlossen. Die Ursache der früheren Telegrammlücke und der reale Griff
+sind offen.
+Codex untersuchte den Library-Lauf
 `01fdc7a4a84c4fd4b580ccd949b15c09`, den Start unter unbeladenen Holds
 und die Meldungen im Browser und Safety Log. Betroffen sind der Kartonstart,
 die Ausführungsdiagnose und die Bedienanleitung. Kein Dienstneustart geplant.
@@ -59,3 +62,47 @@ Safety meldete NORMAL. Der lokale Safety Log zeigt nun auch jüngere
 Guard-Verriegelungen, wenn die Suche über die gesamten 24 Stunden ausläuft.
 [Zeitfenster](../../../setup/tasks/carton-holds-20261123/journal-followup.txt) und
 [Safety Log](../../../setup/tasks/carton-holds-20261123/safety-second-final.json).
+
+Nach ausdrücklicher Zustimmung zur Protokollspeicherung über Dashboard
+bestätigte die seriennummerngeprüfte rechte vordere Steuerbox `Log saved to disk`.
+Der danach per SSH gelesene Pendantverlauf nennt um **08:26:02,551 Roboterzeit**
+einen Timeout beim Warten auf ein Kommando auf `reverse_socket` und um
+08:26:02,552 das Ende von `ros`. Derselbe Text steht im früheren Vorfall um
+07:32:02,284 Roboterzeit. Der erste neue Eintrag entspricht dem
+N100-Ereignis um 15:26:19 AWST. Der aktive rechte vordere Manager lief
+mit 500 Hz, im geladenen Robotermodell standen `non_blocking_read=True`,
+Reverse-Port 53001 und `robot_receive_timeout=0.04` Sekunden. Die genaue
+Paketlücke und ihre Entstehung zwischen RTDE-Empfang, Treiberausgabe und
+Netz sind nicht aufgezeichnet. Die Zehnminutenwerte der Ethernetfehler sind
+null, die 21,99 % CPU-Leerlauf im selben Fenster sind ein Mittelwert.
+Der nächste gezielte Nachweis braucht Zeitstempel des ausgehenden Reverse-
+und eingehenden RTDE-Verkehrs. Auf dem N100 ist tcpdump vorhanden,
+eine sudo-Abfrage für das Werkzeug verlangt interaktive Authentifizierung.
+[Gespeicherter Pendantverlauf](../../../setup/tasks/carton-holds-20261123/right-front-history-flushed.txt)
+
+Nutzerauftrag 23.11.2026 zur passiven Netzwerkaufzeichnung. Seit 16:11 AWST
+erfasst tcpdump auf dem N100 maximal fünf Minuten die TCP-Kopfzeilen für
+rechts vorne auf der Roboternetz-Schnittstelle `enp5s0`, isoliert auf
+Reverse-Port 53001 und RTDE-Port 30004. Der Operator authentifizierte sich
+im sichtbaren SSH-Terminal. Vor der Aufzeichnung meldete rechts vorne
+`ros.urp` als STOPPED bei nativer Safety NORMAL. Der lesende Socketabgleich
+ordnet den lokalen RTDE-Port 35586 dem Controller-Manager und 36450 der
+Guard-RTDE-Verbindung zu.
+
+Die Aufzeichnung reicht bis 16:16:03 AWST. Beim regulären Library-Lauf
+`cd940bec4d5d4f16a58a92a3b1df3069` öffnete rechts vorne um 16:13:28 AWST
+die Reverse-Verbindung. Es folgten 76.633 ausgehende TCP-Pakete mit Nutzdaten.
+Der größte Abstand am N100-Messpunkt betrug **11,923 ms**, ohne beobachteten
+Verbindungsabbau. Die RTDE-Verbindung des Treibers zeigte maximal **25,560 ms**,
+etwa 3,5 s vor Aufbau der Reverse-Verbindung. Nach dem Messfenster meldete
+das Dashboard beide rechten Programme PLAYING. Die Aufzeichnung endete am
+Zeitlimit mit Status 137 und ohne tcpdump-Verluststatistik. Die gespeicherten
+Zeitstempel decken das vorgesehene Fenster ab.
+[Auswertung](../../../setup/tasks/carton-holds-20261123/reverse-capture.nRwLDebh/summary.json)
+
+Der reale Lauf endete um 16:14:22 AWST bei der OAK4-Registrierung vor
+der Fahrplanung. Standardfenster und Hydrogen-Fenster lieferten jeweils null
+auf der Tischauflage gültige Fits. Der beste Standardversuch lag bei
+6,599 px RMS und 6,5 px Grenze. Fokus 107 und 25 ms Belichtung waren wie
+im erfolgreichen Bildfit vom 15:26-Lauf. ISO änderte sich von 229 auf 253.
+[Bildfit](../../../setup/tasks/uwa_program_library/cd940bec4d5d4f16a58a92a3b1df3069/registration/registration.json)

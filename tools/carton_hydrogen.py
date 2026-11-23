@@ -1,4 +1,4 @@
-"""Use Hydrogen Low to suggest search windows, never a robot-frame pose."""
+"""Use Hydrogen Low to guide repeated, locally checked carton measurements."""
 
 import asyncio
 from base64 import b64decode, b64encode
@@ -17,6 +17,7 @@ SIGNATURE_SIZE = (48, 36)
 MAX_SCENE_DIFFERENCE = 3.0
 MODEL = "gemini-4-hydrogen"
 EFFORT = "low"
+MAX_MEASUREMENTS = 3
 REPO = Path(__file__).resolve().parents[1]
 AGY = REPO.parents[1] / "setup/agent_tools/antigravity/agy"
 PROMPT = REPO / "docs/agent_trials/PROMPT_CARTON_VISION.md"
@@ -90,14 +91,41 @@ def valid_box(box):
 def parse_answer(raw):
     fenced = re.fullmatch(r"```(?:json)?\s*(\{.*\})\s*```", raw.strip(), re.DOTALL | re.IGNORECASE)
     answer = json.loads(fenced[1] if fenced else raw)
-    if not isinstance(answer, dict) or set(answer) != {"status", "box_2d", "front_box_2d"}:
+    required = {"status", "box_2d", "front_box_2d"}
+    if not isinstance(answer, dict) or not required <= answer.keys() <= required | {"front_quad_2d"}:
         raise ValueError("Unexpected Hydrogen response schema.")
     status, box, front = (answer[key] for key in ("status", "box_2d", "front_box_2d"))
-    if status == "found" and valid_box(box) and (front is None or valid_box(front)):
+    quad = answer.get("front_quad_2d")
+    if status == "found" and valid_box(box) and (front is None or valid_box(front)) and valid_front_quad(quad, box):
         return answer
-    if status in ("absent", "uncertain") and box is None and front is None:
+    if status in ("absent", "uncertain") and box is None and front is None and quad is None:
         return answer
     raise ValueError("Invalid Hydrogen status or image coordinates.")
+
+
+def valid_front_quad(quad, box):
+    if quad is None:
+        return True
+    if not isinstance(quad, list) or len(quad) != 4:
+        return False
+    top, left, bottom, right = box
+    if not all(isinstance(point, list) and len(point) == 2
+               and all(type(value) is int and 0 <= value <= 1000 for value in point)
+               and top-20 <= point[0] <= bottom+20 and left-20 <= point[1] <= right+20 for point in quad):
+        return False
+    # The perspective warp expects four convex, clockwise points in x/y image order.
+    points = [(x, y) for y, x in quad]
+    edges = [(b[0]-a[0], b[1]-a[1]) for a, b in zip(points, points[1:]+points[:1])]
+    return all(ax*by-ay*bx > 0 for (ax, ay), (bx, by) in zip(edges, edges[1:]+edges[:1]))
+
+
+def native_front_quad(answer):
+    quad = answer.get("front_quad_2d")
+    if quad is None:
+        return None
+    x0, y0, x1, y1 = IMAGE_WINDOW
+    return tuple(round(value, 3) for y, x in quad
+                 for value in (x0 + (x1-x0)*x/1000, y0 + (y1-y0)*y/1000))
 
 
 def search_windows(answer):
@@ -157,9 +185,33 @@ class ACP:
         raise RuntimeError(f"Antigravity exited during {method}. See hydrogen-stderr.log.")
 
 
-async def request_answer(jpeg, stderr_path, evidence):
+def image_block(jpeg):
+    return {"type": "image", "mimeType": "image/jpeg", "data": b64encode(jpeg).decode("ascii")}
+
+
+def feedback_blocks(registration):
+    report = json.loads((registration / "registration.json").read_text())
+    valid = [attempt for attempt in report["attempts"] if "support_fit_rms_px" in attempt]
+    best = sorted(valid, key=lambda attempt: attempt["support_fit_rms_px"] / attempt["registration_threshold_px"])[:3]
+    fields = ("roi", "method", "inliers", "support_fit_rms_px", "registration_threshold_px")
+    evidence = dict(error=report.get("error"), valid_supported_fits=sum(a['support_fit_pass'] for a in valid),
+                    best=[{key: attempt[key] for key in fields if key in attempt} for attempt in best])
+    text = ("Lokale Messung auf den nativen Pixeln: " + json.dumps(evidence) + "\n"
+            "Die Bildansicht bleibt der gleiche Tischbildausschnitt. Türkis zeigt das rückprojizierte "
+            "Kartonmodell des besten Fits, falls vorhanden. Wähle für die nächste Messung "
+            "ein begründet korrigiertes Rechteck oder ein genaueres Viereck der bedruckten Vorderwand. "
+            "Gib dieselbe JSON-Struktur zurück. Wiederhole keine unveränderte Messanfrage. "
+            "Karton gefunden und genaue Pose bestimmt sind zwei verschiedene Befunde.")
+    blocks = [{"type": "text", "text": text}]
+    overlay = registration / "fit-feedback.jpg"
+    if overlay.is_file():
+        blocks.append(image_block(overlay.read_bytes()))
+    return blocks, evidence
+
+
+async def measure_with_hydrogen(jpeg, out, initial_registration, measure, evidence):
     started = time.monotonic()
-    with TemporaryDirectory(prefix="uwa-carton-hydrogen-") as isolated, stderr_path.open("wb") as stderr:
+    with TemporaryDirectory(prefix="uwa-carton-hydrogen-") as isolated, (out / "hydrogen-stderr.log").open("wb") as stderr:
         process = await asyncio.create_subprocess_exec(
             str(AGY), "acp", "--include-default-customizations=false", "--disable-telemetry",
             cwd=isolated, stdin=-1, stdout=-1, stderr=stderr,
@@ -181,20 +233,45 @@ async def request_answer(jpeg, stderr_path, evidence):
                 if selected.get("model") != MODEL or selected.get("thought_level") != EFFORT:
                     raise RuntimeError("Antigravity did not select Hydrogen Low.")
                 evidence["setup_s"] = time.monotonic() - started
-            started = time.monotonic()
-            try:
-                async with asyncio.timeout(20):
-                    result = await client.request("session/prompt", {**params, "prompt": [
-                        {"type": "text", "text": PROMPT.read_text()},
-                        {"type": "image", "mimeType": "image/jpeg", "data": b64encode(jpeg).decode("ascii")},
-                    ]})
-            finally:
-                evidence["prompt_s"] = time.monotonic() - started
-                evidence["tool_activity"] = client.used_tools
-            evidence["stop_reason"] = result.get("stopReason")
-            if result.get("stopReason") != "end_turn" or client.used_tools:
-                raise RuntimeError("Antigravity did not finish an image-only response.")
-            return "".join(client.text).strip()
+            blocks = [{"type": "text", "text": PROMPT.read_text()}, image_block(jpeg)]
+            feedback, summary = feedback_blocks(initial_registration)
+            blocks += feedback
+            evidence["initial_fit"] = summary
+            requests = set()
+            for number in range(1, MAX_MEASUREMENTS + 1):
+                item = {"round": number}
+                evidence["rounds"].append(item)
+                client.text.clear()
+                started = time.monotonic()
+                try:
+                    async with asyncio.timeout(20):
+                        result = await client.request("session/prompt", {**params, "prompt": blocks})
+                finally:
+                    item["prompt_s"] = time.monotonic() - started
+                    item["tool_activity"] = client.used_tools
+                item["stop_reason"] = result.get("stopReason")
+                if item["stop_reason"] != "end_turn" or client.used_tools:
+                    raise RuntimeError("Antigravity did not finish an image-only response.")
+                answer = parse_answer("".join(client.text).strip())
+                item["answer"] = answer
+                if answer["status"] != "found":
+                    raise ValueError(f"Hydrogen Low reported {answer['status']}.")
+                windows = search_windows(answer)
+                quad = native_front_quad(answer)
+                item["roi"], item["face_roi"], item["front_quad_native"] = *windows, quad
+                if number == 1:
+                    evidence.update(answer=answer, roi=windows[0], face_roi=windows[1])
+                request = (*map(tuple, windows), quad)
+                if request in requests:
+                    raise ValueError("Hydrogen Low repeated the same carton measurement request.")
+                requests.add(request)
+                pose, registration = measure(number, windows, quad)
+                item["registration"] = str(registration.relative_to(out))
+                if pose is not None:
+                    item["fit_accepted"] = True
+                    return pose, windows, quad
+                blocks, item["fit"] = feedback_blocks(registration)
+            raise ValueError(f"No valid supported carton pose after {MAX_MEASUREMENTS} Hydrogen-guided measurements.")
         finally:
             process.stdin.close()
             try:
@@ -205,24 +282,17 @@ async def request_answer(jpeg, stderr_path, evidence):
                 await process.communicate()
 
 
-def suggest_windows(preview, out):
-    evidence = {"model": MODEL, "effort": EFFORT}
+def guide_measurements(preview, out, initial_registration, measure):
+    evidence = {"model": MODEL, "effort": EFFORT, "rounds": []}
     try:
         jpeg = BytesIO()
         preview.save(jpeg, format="JPEG", quality=89, optimize=True)
-        raw = asyncio.run(request_answer(jpeg.getvalue(), out / "hydrogen-stderr.log", evidence))
-        answer = parse_answer(raw)
-        evidence["answer"] = answer
-        if answer["status"] != "found":
-            raise ValueError(f"Hydrogen Low reported {answer['status']}.")
-        windows = search_windows(answer)
-        evidence["roi"], evidence["face_roi"] = windows
-        return windows
+        return asyncio.run(measure_with_hydrogen(jpeg.getvalue(), out, initial_registration, measure, evidence))
     except TimeoutError as error:
         evidence["error"] = "Hydrogen Low timed out."
         raise ValueError(evidence["error"]) from error
     except (ValueError, RuntimeError, OSError, KeyError, TypeError) as error:
         evidence["error"] = str(error)
-        raise ValueError(f"Hydrogen Low could not supply a search window. {error}") from error
+        raise ValueError(f"Hydrogen-guided carton fit ended. {error}") from error
     finally:
         (out / "hydrogen.json").write_text(json.dumps(evidence, indent=2) + "\n")

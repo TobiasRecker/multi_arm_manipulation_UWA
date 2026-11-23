@@ -23,6 +23,12 @@ Explicit `joint_velocity_overrides_rad_s` remain bound to individual right-arm
 joints and their full stopping budgets. No limit is automatically relaxed.
 The complete 90° roll remains unqualified at 5×.
 
+
+The first force-triggered tool skill is `seek_contact`. Its recipe uses a
+workpiece surface, tool TCP, process feed and axial wrist-force threshold.
+The Gazebo demo joins the measured hit to a planned retraction.
+[Recipe, commands and evidence](seek_contact.md)
+
 ## Exploration objective (clarified2026-11-16)
 
 Use contact simulation to explore fast task execution and find the limiting

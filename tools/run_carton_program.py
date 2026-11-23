@@ -369,8 +369,12 @@ exec cat -- "$1/observed/observations.json"
 class CartonFitRejected(ValueError):
     """The camera inputs were valid, but the current carton fit was rejected."""
 
+    def __init__(self, message, registration):
+        super().__init__(message)
+        self.registration = registration
 
-def register_attempt(config, out, recipe, image, metadata, windows, suffix=""):
+
+def register_attempt(config, out, recipe, image, metadata, windows, suffix="", *, feedback=False, quad=None):
     options = []
     if config.get("camera_session"):
         options.extend(["--camera-session", out / "camera-session.json"])
@@ -378,6 +382,10 @@ def register_attempt(config, out, recipe, image, metadata, windows, suffix=""):
         options.extend(["--camera-reference-pose", reference])
     if config.get("planar_texture"):
         options.append("--planar-texture")
+    if feedback:
+        options.extend(["--feedback-viewport", *carton_hydrogen.IMAGE_WINDOW])
+    if quad is not None:
+        options.extend(["--front-quad", *quad])
 
     registration = out / f"registration{suffix}"
     roi, face_roi = windows
@@ -396,7 +404,7 @@ def register_attempt(config, out, recipe, image, metadata, windows, suffix=""):
                 "Fewer than two valid supported image-pose hypotheses",
                 "Supported image hypotheses disagree",
             ):
-                raise CartonFitRejected(f"OAK4 registration failed. {reason}") from error
+                raise CartonFitRejected(f"OAK4 registration failed. {reason}", registration) from error
             if reason:
                 raise ValueError(f"OAK4 registration failed. {reason}") from error
         raise
@@ -426,20 +434,31 @@ def register_current_carton(config, progress, recipe, image, metadata, *, window
                 progress.update("oak_registration", "Trying the standard search windows on the current OAK4 image.")
 
     try:
-        return register_attempt(config, out, recipe, image, metadata, default_windows)
+        return register_attempt(config, out, recipe, image, metadata, default_windows, feedback=True)
     except CartonFitRejected as primary_error:
-        progress.update("oak_registration", "The standard image fit was rejected. Asking Hydrogen Low for search windows.")
+        progress.update("oak_registration", "The standard carton fit was rejected. Asking Hydrogen to locate the carton or its front wall.")
+
+        def measure(number, windows, quad):
+            progress.update("oak_registration", f"Measuring the current photo with Hydrogen guidance (pass {number}).")
+            suffix = "-hydrogen" if number == 1 else f"-hydrogen-{number}"
+            try:
+                pose = register_attempt(config, out, recipe, image, metadata, windows, suffix,
+                                        feedback=True, quad=quad)
+            except CartonFitRejected as rejected:
+                progress.update("oak_registration", "Sending Hydrogen the rejected fit and its overlay for targeted refinement.")
+                return None, rejected.registration
+            return pose, pose.parent
+
         try:
             if preview is None:
                 preview = carton_hydrogen.tabletop_preview(image)
                 signature = carton_hydrogen.scene_signature(preview)
-            windows = carton_hydrogen.suggest_windows(preview, out)
+            pose, windows, quad = carton_hydrogen.guide_measurements(preview, out, primary_error.registration, measure)
         except (ValueError, OSError) as error:
             raise ValueError(f"{primary_error} {error}") from error
-        progress.update("oak_registration", "Checking the suggested windows against the current OAK4 image.")
-        pose = register_attempt(config, out, recipe, image, metadata, windows, "-hydrogen")
         try:
-            carton_hydrogen.save_windows(window_cache, calibration_sha, signature, windows)
+            if quad is None:
+                carton_hydrogen.save_windows(window_cache, calibration_sha, signature, windows)
         except OSError as error:
             print(f"Could not save carton search windows: {error}", flush=True)
         return pose

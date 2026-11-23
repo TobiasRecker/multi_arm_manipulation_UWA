@@ -35,7 +35,8 @@ def render(scene_directory,plan_path,output,layout=None):
             [(-t['width']/2,-t['length']/2),(t['width']/2,-t['length']/2),(t['width']/2,t['length']/2),(-t['width']/2,t['length']/2)]])
         tables.append(dict(name=name,corners=(corners@tf[:3,:3].T+tf[:3,3]).tolist()))
     data=dict(frames=frames,radii={a:np.round(r,4).tolist() for a,r in problem.spheres.radii.items()},
-        vertices=vertices,faces=faces,tables=tables,camera=np.array(scene['T_world_overview_optical'])[:3,3].tolist(),
+        vertices=vertices,faces=faces,tables=tables,
+        cameras=scene.get('T_world_external_optical', {'oak4': scene['T_world_overview_optical']}),
         duration=elapsed,scene_sha256=scene['sha256'],plan_sha256=plan['sha256'])
     template=Path(__file__).with_suffix('.html').read_text()
     output.write_text(template.replace('__DATA__',json.dumps(data,separators=(',',':'))))

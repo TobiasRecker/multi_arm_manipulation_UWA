@@ -268,6 +268,11 @@ angezeigten Arme und die Revision gebunden.
   dürfen bei gleicher Kamerakalibrierung und ähnlicher Aufnahme lokal
   wiederverwendet werden. Die Pose wird je Lauf aus den aktuellen
   Originalpixeln mit der vorhandenen geometrischen Prüfung berechnet.
+- Nutzerauftrag 23.11.2026. Hydrogen soll bei einem verworfenen Kartonfit
+  das gemessene Ergebnis und ein Overlay erhalten und gezielt eine weitere
+  Messung anfordern können. Bildregion oder Vorderwandecken dürfen die
+  Merkmalsuche führen. Der lokale Fit verwendet die native Aufnahme und
+  die vorhandenen Kriterien für Tischauflage, Projektion und Übereinstimmung.
 - Nutzerziel: schnelles einfaches LLM soll mit wiederverwendbaren Bausteinen
   möglichst zügig ein Aufgabenprogramm erstellen. Optional ein bis zwei
   erklärte Teleoperations-/Handführungsbeispiele mit Kameras, UR-Posen und

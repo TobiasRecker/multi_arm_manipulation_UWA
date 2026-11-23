@@ -67,3 +67,11 @@ Spitze-Wand-Kontakt wird separat ausgewertet. Ein regulär abgefahrener
 Suchweg ohne Schwellentreffer beendet den Schritt mit `travel_exhausted`.
 Fehlende Messabdeckung, Bedienabbruch und Controllerfehler haben eigene
 Ergebnisse. Die nächste Bewegung setzt einen bestätigten Treffer voraus.
+
+## Vorführung vom 23. November 2026
+
+Beide Läufe endeten mit `DONE`. Die vorstehende Wand löste 1,993 mm
+früher aus. Messergebnisse, Modellgrenzen und Quelldaten stehen im
+[Laufbericht](../../../setup/tasks/seek_contact_20261123/report/report.md).
+Den Vergleich kann man mit `tools/compare_seek_contact.py NOMINELL/run
+VORSTEHEND/run AUSGABE` aus den beiden Laufverzeichnissen neu erzeugen.

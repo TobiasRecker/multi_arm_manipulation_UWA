@@ -529,6 +529,10 @@ resolution on each axis. [Camera setup and layout history](docs/oak_overview.md)
 
 ## Move the arms
 
+The Gazebo carton harness supports force-triggered contact search at a held
+workpiece. [Skill recipe, operating instructions and measured comparison](docs/seek_contact.md)
+
+
 [Real carton commissioning preparation](docs/carton_hardware_commissioning.md)
 now includes shared ROS Robotiq services/actions, native observations and two
 successful real empty partial-travel tests. A factory-model-checked path to the

@@ -33,7 +33,7 @@ def validate_visible_board_projection(obj, uv, Tcb, K, D):
                 board_span_m=np.ptp(obj,axis=0).tolist())
 
 
-def planar_texture_candidates(tracker,image,K,D,stretches):
+def planar_texture_candidates(tracker,image,K,D,stretches, *, pixel_map=None, reprojection_scale=None):
     """Affine feature views; every pose is checked in the original pixels."""
     scale=min(1.,tracker.width/image.shape[1]);results=[]
     for stretch in stretches:
@@ -51,9 +51,57 @@ def planar_texture_candidates(tracker,image,K,D,stretches):
             matches=list(chosen.values())
             if len(matches)<24:continue
             points=np.asarray([model[m.trainIdx]for m in matches]);pixels=np.asarray([keypoints[m.queryIdx].pt for m in matches])/np.array([scale,scale*stretch])
-            result=estimate(points,pixels,K,D,threshold=4./scale)
+            if pixel_map is not None:
+                pixels = cv2.perspectiveTransform(pixels[None], pixel_map)[0]
+            result=estimate(points,pixels,K,D,threshold=4./(reprojection_scale or scale))
             results.append((result,dict(surface=int(surface),vertical_feature_stretch=stretch,feature_interpolation="linear")))
     return results or [(PoseResult('LOST',reason='No planar texture correspondences'),{})]
+
+
+def rectified_front_candidates(tracker, image, K, D, quad, dimensions, roi):
+    """Rectify an approximate image quadrilateral and fit native image points."""
+    corners = np.asarray(quad, dtype=np.float32).reshape(4, 2)
+    height, width = image.shape[:2]
+    if (not np.isfinite(corners).all() or not cv2.isContourConvex(corners)
+            or cv2.contourArea(corners, oriented=True) < 1000
+            or not ((0 <= corners) & (corners < [width, height])).all()):
+        raise ValueError('The suggested front wall must be a clockwise quadrilateral in the native image')
+    size = tracker.width, round(tracker.width * dimensions[2] / dimensions[0])
+    w, h = size
+    target = np.float32([[.05*w, .06*h], [.95*w, .06*h], [.95*w, .94*h], [.05*w, .94*h]])
+    to_rectified = cv2.getPerspectiveTransform(corners, target)
+    face = cv2.warpPerspective(image, to_rectified, size, flags=cv2.INTER_LINEAR)
+    x0, y0, x1, _ = roi
+    to_roi = np.array([[1, 0, -x0], [0, 1, -y0], [0, 0, 1]]) @ np.linalg.inv(to_rectified)
+    camera = K.copy()
+    camera[0, 2] -= x0
+    camera[1, 2] -= y0
+    scale = min(1., tracker.width / (x1 - x0))
+    gray = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
+    variants = [('original', gray), ('clahe', cv2.createCLAHE(clipLimit=2., tileGridSize=(12, 6)).apply(gray))]
+    for name, pixels in variants:
+        results = planar_texture_candidates(tracker, pixels, camera, D, (1., 1.2, 1.4),
+                                            pixel_map=to_roi, reprojection_scale=scale)
+        for result, method in results:
+            yield result, dict(method, method='rectified_front_wall', preprocessing=name)
+
+
+def carton_overlay(image, camera_pose, K, D, dimensions, *, viewport=None):
+    """Draw the fitted carton and return a reduced diagnostic image."""
+    if viewport is None:
+        viewport = (0, 0, image.shape[1], image.shape[0])
+    x0, y0, x1, y1 = viewport
+    preview = image[y0:y1, x0:x1].copy()
+    if camera_pose is not None:
+        length, width, height = dimensions
+        points = np.array([[x, y, z] for z in (0, height) for y in (0, width) for x in (0, length)])
+        pixels = cv2.projectPoints(points, cv2.Rodrigues(camera_pose[:3, :3])[0],
+                                   camera_pose[:3, 3], K, D)[0].reshape(-1, 2)
+        for start, end in [(0,1),(0,2),(1,3),(2,3),(4,5),(4,6),(5,7),(6,7),(0,4),(1,5),(2,6),(3,7)]:
+            corners = np.rint(pixels[[start, end]] - [x0, y0]).astype(int)
+            cv2.line(preview, tuple(corners[0]), tuple(corners[1]), (255, 255, 0), 10)
+    scale = min(1120 / preview.shape[1], 1000 / preview.shape[0])
+    return cv2.resize(preview, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
 
 
 def load_photo_reference(path,shape,focus,intrinsics):
@@ -145,9 +193,21 @@ def register(a):
         if not ok or brms>=2.:raise ValueError('Fixed right-board reprojection failed')
         Twc=Twb@np.linalg.inv(Tcb)
         reference_source = 'Current fixed right board + adopted base bindings'
+    asset = REPO/'uwa_cell_description/assets/carton_avocado_v1/asset.json'
+    dimensions = json.loads(asset.read_text())['dimensions_m']
     Tcw=np.linalg.inv(Twc);attempts=[];fits=[];photo_reference=None
+    best_feedback = None
+    front_quad = getattr(a, 'front_quad', None)
+    viewport = getattr(a, 'feedback_viewport', None)
+    if viewport:
+        x0, y0, x1, y1 = viewport
+        if not 0 <= x0 < x1 <= image.shape[1] or not 0 <= y0 < y1 <= image.shape[0]:
+            raise ValueError('Feedback viewport outside native image')
+    if front_quad and (getattr(a, 'verification_image', None) or getattr(a, 'photo_reference', None)):
+        raise ValueError('Front wall refinement expects a single current photo')
     if getattr(a,'photo_reference',None):photo_reference=load_photo_reference(a.photo_reference,image.shape,focus,a.intrinsics)
     def accept_supported(r,method,roi,width):
+        nonlocal best_feedback
         x0,y0,x1,y1=roi
         item=dict(roi=list(roi),width=width,status=r.status,inliers=r.inliers,rms_px=None if not np.isfinite(r.rms_px)else r.rms_px,reason=r.reason,**method);attempts.append(item)
         if r.status!='VALID':return
@@ -158,6 +218,8 @@ def register(a):
             T=Tcw@world(v);return (cv2.projectPoints(points,cv2.Rodrigues(T[:3,:3])[0],T[:3,3],K,D)[0].reshape(-1,2)-pixels).ravel()
         fit=least_squares(fun,v0,loss='soft_l1',f_scale=3.,xtol=1e-12,ftol=1e-12,gtol=1e-12,max_nfev=200);rms=float(np.sqrt(np.mean(np.sum(fun(fit.x).reshape(-1,2)**2,axis=1))));threshold=4./min(1.,width/(x1-x0));item.update(support_fit_rms_px=rms,registration_threshold_px=threshold,support_fit_pass=rms<=threshold)
         if item['support_fit_pass']:fits.append(world(fit.x))
+        if viewport and (best_feedback is None or rms/threshold < best_feedback[0]):
+            best_feedback = rms/threshold, Tcw @ world(fit.x), len(attempts)-1
 
     def add_contrast_hypotheses(current, verification_path=None):
         # Enhance the printed face before resampling. Pixel coordinates and
@@ -194,6 +256,10 @@ def register(a):
         for r,method in candidates:accept_supported(r,method,roi,width)
     if contrast_fallback and len(fits) < (1 if verification_path else 2):
         add_contrast_hypotheses(image)
+    if front_quad:
+        tracker = TexturePose(a.reference, width=1600)
+        for result, method in rectified_front_candidates(tracker, image, K, D, front_quad, dimensions, a.face_roi):
+            accept_supported(result, method, a.face_roi, tracker.width)
     first_observation_fits=len(fits)
     if verification_path:
         verification=cv2.imread(str(a.verification_image));meta=json.loads(a.verification_metadata.read_text())
@@ -229,6 +295,8 @@ def register(a):
             binding = per_arm_camera_binding(description, registration, Tcw @ T)
             validate_per_arm_binding(description, binding)
             sources = [a.image, a.metadata, a.intrinsics, a.description, a.reference, Path(__file__), *camera_sources]
+            if front_quad:
+                sources.append(asset)
             if verification_path:
                 sources.extend((verification_path, a.verification_metadata))
             if photo_reference is not None:
@@ -237,9 +305,14 @@ def register(a):
                            source_inputs={str(p.resolve()):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources})
             (out/'object-pose.json').write_text(json.dumps(binding,indent=2)+'\n')
             report.update(success=True,T_world_object=T.tolist(),object_pose=str(out/'object-pose.json'))
-            dims=json.loads((REPO/'uwa_cell_description/assets/carton_avocado_v1/asset.json').read_text())['dimensions_m'];L,W,H=dims;points=np.array([[x,y,z]for z in (0,H)for y in (0,W)for x in (0,L)]);co=Tcw@T;px=cv2.projectPoints(points,cv2.Rodrigues(co[:3,:3])[0],co[:3,3],K,D)[0].reshape(-1,2)
+            L,W,H=dimensions;points=np.array([[x,y,z]for z in (0,H)for y in (0,W)for x in (0,L)]);co=Tcw@T;px=cv2.projectPoints(points,cv2.Rodrigues(co[:3,:3])[0],co[:3,3],K,D)[0].reshape(-1,2)
             for i,j in [(0,1),(0,2),(1,3),(2,3),(4,5),(4,6),(5,7),(6,7),(0,4),(1,5),(2,6),(3,7)]:cv2.line(image,tuple(np.rint(px[i]).astype(int)),tuple(np.rint(px[j]).astype(int)),(0,255,255),9)
             cv2.rectangle(image,(0,0),(image.shape[1],250),(0,0,0),-1);cv2.putText(image,'CURRENT SUPPORTED CARTON / IMAGE REGISTRATION ONLY',(80,165),cv2.FONT_HERSHEY_SIMPLEX,3,(255,255,255),7);cv2.imwrite(str(out/'pose-preview.jpg'),cv2.resize(image,(1600,1200)));report['preview']=str(out/'pose-preview.jpg')
+    if viewport and best_feedback is not None:
+        _, candidate, index = best_feedback
+        preview = out/'fit-feedback.jpg'
+        cv2.imwrite(str(preview), carton_overlay(image, candidate, K, D, dimensions, viewport=viewport))
+        report['fit_feedback'] = dict(preview=str(preview), attempt=index)
     (out/'registration.json').write_text(json.dumps(report,indent=2,allow_nan=False)+'\n');print(json.dumps(report,indent=2));return 0 if report['success']else 1
 
 
@@ -250,6 +323,8 @@ if __name__=='__main__':
     ap.add_argument('--verification-metadata',type=Path)
     ap.add_argument('--photo-reference',type=Path,help='SHA-bound successful historical image observation; estimate a new pose from forward/backward-verified CURRENT pixels, never return its old pose')
     ap.add_argument('--planar-texture',action='store_true',help='Affine feature views with per-panel planar consensus; unchanged inlier, residual and hypothesis-agreement limits')
+    ap.add_argument('--front-quad', nargs=8, type=float, help='Approximate clockwise front wall corners in native pixels')
+    ap.add_argument('--feedback-viewport', nargs=4, type=int, help='Native image crop for rejected-fit overlays')
     camera = ap.add_mutually_exclusive_group()
     camera.add_argument('--camera-reference-pose',type=Path,help='Complete earlier camera registration validated against current visible markers')
     camera.add_argument('--camera-session',type=Path,help='Current 12-hour ChArUco camera reference; still fit the carton from current images')

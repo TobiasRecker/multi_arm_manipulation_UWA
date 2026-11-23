@@ -26,7 +26,15 @@ function draw(){canvas.width=canvas.clientWidth*devicePixelRatio;canvas.height=c
  const transform=p=>[0,1,2].map(i=>f.pose[i][3]+p.reduce((s,v,j)=>s+f.pose[i][j]*v,0));
  if(document.getElementById('carton').checked){const vertices=data.vertices.map(p=>project(transform(p)));for(const face of data.faces){const pts=face.map(i=>vertices[i]);primitives.push({depth:pts.reduce((s,p)=>s+p[2],0)/3,draw:()=>{ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fillStyle='#d7a66b';ctx.fill();ctx.strokeStyle='#8a5c28';ctx.lineWidth=.5;ctx.stroke();}});}}
  primitives.sort((a,b)=>a.depth-b.depth).forEach(p=>p.draw());
- const centre=transform([.2,.17,.08]),tip=transform([.2,.17,.38]);line(centre,tip,'#ffe47c',4);label(tip,'OPEN','#ffe47c');label(data.camera,'OAK','#ffe47c');line(data.camera,centre,'#ffe47c');
+ const centre=transform([.2,.17,.08]),tip=transform([.2,.17,.38]);line(centre,tip,'#ffe47c',4);label(tip,'OPEN','#ffe47c');
+ for (const [key, pose] of Object.entries(data.cameras)) {
+   const origin = pose.slice(0,3).map(row => row[3]);
+   const tip = pose.slice(0,3).map(row => row[3] + .30*row[2]);
+   const color = key === 'oak4' ? '#72baff' : '#ffac60';
+   label(origin, key === 'oak4' ? 'Ethernet OAK4' : 'USB OAK-D Pro', color);
+   line(origin, tip, color, 4);
+   if (key === 'oak4') line(origin, centre, '#ffe47c');
+ }
  document.getElementById('clock').textContent=f.time.toFixed(1)+' / '+data.duration.toFixed(1)+' planned s';slider.value=frame;status.textContent=(playing?'PLAYING':t>=data.duration?'PREVIEW COMPLETE':'PAUSED')+' — '+f.phase+' — model preview only';}
 function pause(){playing=false;document.getElementById('play').textContent='Play preview';}
 document.getElementById('play').onclick=()=>{if(playing)pause();else{if(t>=data.duration){t=0;frame=0;}playing=true;last=performance.now();document.getElementById('play').textContent='Pause preview';}draw();};

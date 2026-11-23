@@ -109,7 +109,7 @@ im Browserablauf weiterhin das Bild der aktuellen offenen Einfahrt in UWA Robot
 Power. Frühere Kontakte zählen als Erfahrung für den Greifschritt. Ein abgelehnter oder
 abgebrochener Lauf endet am betreffenden Schritt.
 
-### Hydrogen Low als Reserve für den Bildfit
+### Hydrogen Low für gezielte Nachmessungen
 
 ROSmini verwendet zuerst die festen Suchfenster. Wenn bereits erfolgreiche
 Hydrogen-Fenster gespeichert sind und der aktuelle Tischbildausschnitt bei
@@ -120,12 +120,21 @@ aktuellen nativen OAK4-Pixeln.
 Fehlen im Standardfit genügend gültige, zusammenpassende Hypothesen,
 schickt ROSmini einen verkleinerten Tischbildausschnitt und die
 [feste Anweisung](agent_trials/PROMPT_CARTON_VISION.md) über Antigravity an
-Gemini 4 Hydrogen Low. Das Modell liefert Bildrechtecke. ROSmini validiert
-das JSON, leitet daraus Suchfenster ab und berechnet die Pose erneut.
-Bei erfolgreichem Fit speichert ROSmini die Fenster und eine kleine
-Helligkeitssignatur für spätere Aufnahmen. Im Laufordner zeigen
-`registration-reused/` und `registration-hydrogen/`, welche Fenster
-verwendet wurden. `hydrogen.json` enthält Modellantwort und gemessene Anfragezeit.
+Gemini 4 Hydrogen Low. Das Modell erhält die Fehlermaße und, soweit ein
+Fit vorliegt, die Rückprojektion des Kartonmodells. Es kann die Bildregion
+korrigieren oder die vier sichtbaren Ecken der bedruckten Vorderwand
+angeben. ROSmini kann damit die Wand für die Merkmalssuche entzerren.
+Die gefundenen Punkte werden in die nativen Bildkoordinaten zurückgeführt.
+Der vorhandene Fit prüft daraus Lage und Drehwinkel bei Tischauflage.
+Bei einer Ablehnung erhält Hydrogen die Messwerte und das Overlay im
+gleichen Dialog für maximal drei geführte Messungen. Die Library übernimmt
+die Pose, sobald die bestehenden Bildfit- und Übereinstimmungskriterien
+erfüllt sind.
+
+War allein die Änderung der Fenster ausreichend, speichert ROSmini die
+Fenster und eine kleine Helligkeitssignatur für spätere Aufnahmen.
+`hydrogen.json` enthält Antworten und Messpfade je Runde.
+`registration-hydrogen*/` enthält die vollständigen Fits und Overlays.
 
 Die Reserve wird auf ROSmini durch `setup/skill_library/carton-hydrogen.enabled`
 aktiviert und nutzt daneben `carton-hydrogen-windows.json`. Sie gilt für

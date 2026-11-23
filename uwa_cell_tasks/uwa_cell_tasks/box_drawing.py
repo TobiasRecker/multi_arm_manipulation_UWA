@@ -614,7 +614,13 @@ class DrawingModel:
         for _, transform, half in self.holding.environment_boxes:
             corners = np.array(list(itertools.product(*[[-x, x] for x in half])))
             boxes.append((corners @ transform[:3, :3].T + transform[:3, 3]).tolist())
-        payload.update(arms=list(ROBOT_IDS), holders=list(HOLDERS), worker=WORKER,
+        # Relate the measured external cameras to the board in this replay model.
+        from uwa_cell_description.configuration import load_layout
+        pair = load_layout()['external_camera_pair']
+        board = self.p.spheres.geometry.fk.frames(self.state)['right_charuco']
+        cameras = {key: (board @ pair[key]['T_right_charuco_optical']).tolist()
+                   for key in ('oak4', 'oak_usb')}
+        payload.update(cameras=cameras, arms=list(ROBOT_IDS), holders=list(HOLDERS), worker=WORKER,
                        radii={arm: values.tolist() for arm, values in self.p.spheres.radii.items()},
                        triangles=(self.holding.triangles-self.holding.dimensions/2).tolist(), boxes=boxes)
         template = Path(__file__).resolve().parents[2] / 'tools/box_drawing_viewer.html'

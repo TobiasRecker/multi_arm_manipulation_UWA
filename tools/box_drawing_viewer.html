@@ -38,6 +38,15 @@ function line(a,b,c,w=1){a=project(a);b=project(b);ctx.strokeStyle=c;ctx.lineWid
 function transform(p,T){return T.slice(0,3).map(r=>r[0]*p[0]+r[1]*p[1]+r[2]*p[2]+r[3])}
 function local(p,T){return[0,1,2].map(k=>[0,1,2].reduce((s,i)=>s+T[i][k]*(p[i]-T[i][3]),0))}
 function draw(){let r=devicePixelRatio||1;canvas.width=canvas.clientWidth*r;canvas.height=canvas.clientHeight*r;scale=Math.min(canvas.width,canvas.height)/3.2*zoom;ctx.clearRect(0,0,canvas.width,canvas.height);for(let i=-1.5;i<=1.5;i+=.25){line([i,-1.5,0],[i,1.5,0],'#536b88');line([-1.5,i,0],[1.5,i,0],'#536b88')}
+for (const [key, pose] of Object.entries(data.cameras || {})) {
+  const origin = pose.slice(0,3).map(row => row[3]);
+  const tip = pose.slice(0,3).map(row => row[3] + .30*row[2]);
+  const color = key === 'oak4' ? '#72baff' : '#ffac60';
+  line(origin, tip, color, 4);
+  const [x,y] = project(origin);
+  ctx.fillStyle=color; ctx.font=(14*r)+'px system-ui';
+  ctx.fillText(key === 'oak4' ? 'Ethernet OAK4' : 'USB OAK-D Pro', x+5*r, y-5*r);
+}
 for(let b of data.boxes)for(let i=0;i<8;i++)for(let m of[1,2,4])if(!(i&m))line(b[i],b[i|m],'#b9c6d9');let f=current();
 let shapes=data.triangles.map(tri=>{let p=tri.map(v=>project(transform(v,f.pose)));return{kind:'triangle',p,depth:p.reduce((s,v)=>s+v[2],0)/3}});
 for(let a of data.arms)f.world[a].forEach((p,i)=>{p=project(p);shapes.push({kind:'sphere',p,depth:p[2],radius:data.radii[a][i]*scale,colour:colours[a]})});shapes.sort((a,b)=>a.depth-b.depth);
