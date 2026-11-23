@@ -1,0 +1,9 @@
+{
+  "id": "multi-camera-calibration-capture-v1",
+  "title": "Multi-camera calibration capture",
+  "targets": "config/view_designs/mobile_board_volume_20261123.yaml",
+  "command_cap_rad_s": 0.09,
+  "arm_order": ["left_front", "left_rear", "right_front", "right_rear"],
+  "board": "mobile",
+  "calibration_solved": false
+}

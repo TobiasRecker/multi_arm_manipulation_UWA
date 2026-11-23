@@ -97,6 +97,8 @@ function details(program) {
   const list = element("dl", "facts");
   const facts = program.kind === "camera_calibration"
     ? [["Device", program.device], ["Reference", program.object], ["Validity", "12 hours from capture"], ["Operation", "Camera only"]]
+    : program.kind === "multi_camera_capture"
+    ? [["Cameras", program.device], ["Board", program.object], ["Motion", "Four arms in sequence · 0.09 rad/s"], ["Result", "Calibration images and robot states"]]
     : [["Workpiece", program.object], ["Arms", program.arms.join(" · ")]];
   for (const [term, value] of facts) {
     const item = element("div");
@@ -164,10 +166,15 @@ function actions(program) {
   const section = element("section", "panel actions");
   section.append(element("h2", "", "Run program"));
   const cameraOnly = program.kind === "camera_calibration";
-  if (cameraOnly) {
+  const multiCamera = program.kind === "multi_camera_capture";
+  if (multiCamera) {
+    section.append(element("p", "", "Start capture setup plans new paths from the current joints and moves the four unloaded arms to the saved observation poses, then opens the six-camera window. Prepare all four arms with UWA Robot Power and release the work area first."));
+    section.append(element("p", "", "Open capture GUI uses the existing poses and sends no robot motion. An open six-camera window is reused. Record several stationary mobile-board views; solving and activating the joint calibration is a separate step."));
+    if (!program.setup_available) section.append(element("p", "feedback", "Robot setup is available from the N100-enabled UWA Robot Power library."));
+  } else if (cameraOnly) {
     section.append(element("p", "", "Keep the right table board fully visible and the camera still. The saved reference is shared with other programs for 12 hours from capture."));
   } else if (program.live_available) {
-    section.append(element("p", "", "Start the physical procedure and review its motion in UWA Robot Power."));
+    section.append(element("p", "", "Start with all four arms idle and unloaded. Start program requests any missing arm holds before planning. Review the approach and contact in UWA Robot Power."));
   } else if (program.live_blocker) {
     section.append(element("p", "", program.live_blocker));
   }
@@ -179,7 +186,10 @@ function actions(program) {
   const demoText = "The offline demo uses saved inputs. It plans motion without connecting to the cell.";
   if (program.demo_available) section.append(element("p", "", demoText));
   const buttons = element("div", "run-buttons");
-  if (cameraOnly) {
+  if (multiCamera) {
+    buttons.append(startButton(program, "setup", "Start capture setup", "primary"),
+      startButton(program, "gui", "Open capture GUI", "secondary"));
+  } else if (cameraOnly) {
     buttons.append(startButton(program, "calibrate", "Start calibration", "primary"));
   } else {
     buttons.append(startButton(program, "live", "Start program", "primary"));
@@ -223,7 +233,8 @@ function runState(run) {
     ["motion_review", "contact_review"].includes(run.phase);
   const label = waiting ? "REVIEW REQUIRED" :
     ({ running: "RUNNING", succeeded: "COMPLETE", failed: "FAILED" }[run.state] || "UNKNOWN");
-  const mode = { live: "CELL", demo: "OFFLINE DEMO", calibrate: "OAK4 CALIBRATION" }[run.mode];
+  const mode = { live: "CELL", demo: "OFFLINE DEMO", calibrate: "OAK4 CALIBRATION",
+    setup: "CAPTURE SETUP", gui: "CAPTURE GUI" }[run.mode];
   return `${mode} · ${label}`;
 }
 
@@ -242,6 +253,9 @@ function verdict(code) {
 function summarizeResult(result) {
   const evidence = element("dl", "evidence");
   const rows = [
+    ["Robot poses", result.motion],
+    ["Capture window", result.gui],
+    ["Capture session", result.session],
     ["Camera reference", result.calibration],
     ["Valid until", result.valid_until ? `${expiryDate.format(new Date(result.valid_until))} AWST` : null],
     ["Carton pose", result.pose],

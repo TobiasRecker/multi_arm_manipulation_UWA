@@ -103,6 +103,11 @@ def follow_frozen(client, plan, record):
 
 def main(args):
     require_domain('hardware')
+    def check_area():
+        if getattr(args, 'area_session', None):
+            from observe_calibration_start import released_area
+            released_area(args.area_session)
+    check_area()
     sequence,plans=checked_plans(args.plans.resolve(),args.sequence_sha256,args.command_cap)
     args.output.mkdir(parents=True,exist_ok=False)
     records=[]
@@ -151,6 +156,7 @@ def main(args):
                 if len(startup)!=4 or any(r['code']!='ready' for r in startup):raise RuntimeError('Native ROS program startup not confirmed')
                 print('PERSISTENT_CONNECTION_AND_FOUR_PROGRAMS_READY',flush=True)
             for plan in plans:
+                check_area()
                 rid=plan['request']['selected'][0]
                 print(json.dumps(dict(event='ARM_START',arm=rid,planned_s=plan['trajectory']['duration_s'])),flush=True)
                 record=dict(arm=rid,success=False,phase='CONNECT',frozen_trajectory=True,
@@ -180,4 +186,5 @@ if __name__=='__main__':
     p.add_argument('--plans',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
     p.add_argument('--sequence-sha256',required=True);p.add_argument('--command-cap',type=float,required=True)
     p.add_argument('--prepare-stopped-programs',action='store_true',help='Build persistent connection before explicit reset/Play of prepared stopped programs')
+    p.add_argument('--area-session',help='Existing operator work-area release, rechecked before each arm')
     main(p.parse_args())

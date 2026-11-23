@@ -342,7 +342,7 @@ source "$2/scripts/control_env.bash"
 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 /usr/bin/python3 "$2/tools/start_carton_browser_programs.py" --output "$1" \
   --config "$3" --scene-session "$4"
 """, remote, CELL, LIVE_PROFILE, scene)
-    progress.update("snapshot", "Checking External Control and starting the stopped carton programs on the N100 if needed.")
+    progress.update("snapshot", "Preparing holds on the four idle arms and checking External Control on the two carton arms.")
     logged_command(command, out / "n100-browser-play.log", 75)
     progress.update("snapshot", "Reading the four arms and grippers for planning.")
     command = n100("""source "$2/scripts/control_env.bash"

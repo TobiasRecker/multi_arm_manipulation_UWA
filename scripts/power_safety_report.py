@@ -264,7 +264,14 @@ def workflows(workspace, since, end, events):
     scanned, issues = 0, []
     try:
         for group in tasks.iterdir():
-            if not group.name.startswith('carton') or group.is_symlink() or not group.is_dir():
+            if group.is_symlink() or not group.is_dir():
+                continue
+            if group.name.startswith('skill-library-carton-'):
+                cycle = group/'cycle'
+                if not cycle.is_symlink() and (cycle/'workflow.json').is_file():
+                    paths.add(cycle/'workflow.json')
+                continue
+            if not group.name.startswith('carton'):
                 continue
             direct = group/'workflow.json'
             if direct.is_file():
@@ -313,7 +320,7 @@ def workflows(workspace, since, end, events):
                           record.get('motion_review')) if key)
         except (OSError, ValueError, KeyError, TypeError, AttributeError, OverflowError) as exc:
             issues.append(f'{path.relative_to(tasks)}: {compact(exc,70)}')
-    detail = f'{len(candidates[:128])} recent workflow files inspected under {tasks}/carton*'
+    detail = f'{len(candidates[:128])} recent carton workflow files inspected under {tasks}'
     return source('Carton workflows','partial' if issues else ('ok' if paths else 'missing'),
                   detail+('. '+'. '.join(issues[:3]) if issues else '')), covered, runs
 

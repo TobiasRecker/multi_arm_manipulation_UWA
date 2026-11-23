@@ -28,6 +28,9 @@ class Worker(QtCore.QThread):
     def __init__(self, rig):
         super().__init__()
         self.rig = rig
+        if hasattr(rig, 'ws'):
+            from .capture_window import register_window
+            register_window(rig.ws, rig.session, rig.cameras)
         self.commands = queue.Queue()
         self.quit_requested = False
         self.live = True
@@ -449,6 +452,11 @@ class Window(QtWidgets.QMainWindow):
         (self.rig.session / 'latest-set.txt').write_text(report['directory'] + '\n')
 
     def refresh(self):
+        from .capture_window import take_activation
+        if hasattr(self.rig, 'ws') and take_activation(self.rig.ws):
+            self.showNormal()
+            self.raise_()
+            self.activateWindow()
         if hasattr(self.rig, 'gemini_registration') and self.reports and time.monotonic() >= self.next_gemini_check:
             self.next_gemini_check = time.monotonic() + 1.5
             last = Path(next(reversed(self.reports)))
@@ -554,6 +562,9 @@ class Window(QtWidgets.QMainWindow):
             self.pause.setEnabled(False)
             event.ignore()
         else:
+            if hasattr(self.rig, 'ws'):
+                from .capture_window import unregister_window
+                unregister_window(self.rig.ws)
             event.accept()
 
     def on_finished(self):

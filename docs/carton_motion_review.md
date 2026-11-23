@@ -76,10 +76,16 @@ vorherige Sitzung. Bis eine gültige Referenz vorliegt, ist **Start program**
 deaktiviert. Der Kalibriervorgang benötigt nur die OAK4.
 Die Kartondetailseite verlinkt über **Open camera calibration** darauf.
 
-**Start program** prüft Arbeitsbereich und Tempo. Der N100 liest die
-External-Control-Bereitschaft der beiden rechten Arme und sendet bei Bedarf
-Play für das geladene `ros.urp`. Dafür müssen Arbeitsbereich, Stillstand,
-offene unbeladene Greifer und die bestehenden Haltezustände bestätigt sein.
+**Start program** bei vier freien, unbeladenen Armen verwenden. Der N100
+prüft Arbeitsbereich, Tempo und External Control. Auch bei laufendem
+`ros.urp` benötigt der Kartonablauf vier bestätigte Halteregler und vier
+gesetzte Verriegelungen. Fehlen beim Start Verriegelungen, liest der N100
+alle vier Greifer und fordert die fehlenden Holds beim Supervisor an, sobald
+Stillstand, offene Greifer und verfügbare Überwachung bestätigt sind.
+Für die rechten Arme sendet er bei Bedarf das reguläre Play. Eine spätere
+verlorene Haltebestätigung erscheint mit Phase, Arm und fehlendem Nachweis
+im Laufstatus. **UWA Robot Power → Safety log** zeigt den zugehörigen
+Library-Lauf und ob zuvor eine Bewegung beobachtet wurde.
 Bei einer erforderlichen weiteren Vorbereitung meldet der Browser den
 betroffenen Arm und dessen Zustand. Fehlt ein ROS-Lesedienst für einen
 Greifer, nennt die Meldung den betroffenen Dienst.

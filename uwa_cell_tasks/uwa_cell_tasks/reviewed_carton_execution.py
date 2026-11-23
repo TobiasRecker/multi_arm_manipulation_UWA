@@ -325,8 +325,10 @@ def run_bundle(problem, bundle, args, output, report, *, client_type, observer_t
                 client.wait(lambda:unloaded_guard_ready(client.guard),3.,health=True)
                 _start_matches(problem, client, group['start'])
                 holds = retained_holds(client.supervisor, ROBOT_IDS)
-                if not holds['resource_holds_confirmed'] or not holds['latches_confirmed']:
-                    raise RuntimeError('Confirmed all-arm holds required at the reviewed phase boundary')
+                if holds['issues']:
+                    segment['supervisor_at_hold_failure'] = client.supervisor
+                    raise RuntimeError(f"Before {bundle['phase']} group {i+1}, no goal sent for this group. "
+                                       + '. '.join(holds['issues']) + '. Check UWA Robot Power → Safety log.')
                 if extra_collision:
                     client.wait(lambda:_force_windows_ready(observers,client.cfg['state_timeout_s']),
                                 3.,health=True)
@@ -344,8 +346,10 @@ def run_bundle(problem, bundle, args, output, report, *, client_type, observer_t
                             raise RuntimeError(answer.message)
                         client.wait(lambda:arm not in client.guard['blocked_arms'] and arm not in client.supervisor['blocked_arms'],3.,health=True)
                     holds = retained_holds(client.supervisor,set(ROBOT_IDS)-arm_set)
-                    if not holds['resource_holds_confirmed'] or not holds['latches_confirmed']:
-                        raise RuntimeError('Nonparticipating arms lost a retained hold')
+                    if holds['issues']:
+                        segment['supervisor_at_hold_failure'] = client.supervisor
+                        raise RuntimeError('Nonparticipating arm hold lost before goal dispatch. '
+                                           + '. '.join(holds['issues']))
                     _start_matches(problem, client, group['start'])
                     force_refs = {}
                     if extra_collision:

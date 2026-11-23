@@ -52,6 +52,8 @@ def prepare(args):
             variants=[value+k*2*np.pi for k in range(-2,3) if lo<=value+k*2*np.pi<=hi]
             wanted=value if rid=='right_front' and n.endswith('shoulder_pan_joint') else min(variants,key=lambda v:abs(v-state[n]))
             q.append(wanted)
+        if max(abs(state[n]-v) for n,v in zip(joint_names(rid),q)) <= .0005:
+            continue  # Already within the existing frozen-start tolerance.
         request=dict(schema_version=1,start=state,goals={rid:q})
         plan=problem.plan(request,'rrtconnect',seed=2300+number)
         if not plan['success']:
@@ -78,7 +80,7 @@ def prepare(args):
             portable_binding=dict(canonical_collision_signature=canonical,
                 n100_context_sha256=hashlib.sha256(args.context.read_bytes()).hexdigest(),
                 exact_planner_modules=remote['modules'],geometry_changed=False,
-                user_authorization='23Nov2026: sequential observation poses after completed N100 transition'))
+                user_authorization='Multi-camera calibration capture: serial observation poses, task-specific 0.09 rad/s cap'))
         file=output/f'{number:02d}-{rid}.json';dump(file,plan)
         segments.append(dict(arm=rid,plan=file.name,sha256=hashlib.sha256(file.read_bytes()).hexdigest(),duration_s=plan['trajectory']['duration_s'],
             target_rad=q,coordination=plan['coordination'],metrics=plan['metrics']))

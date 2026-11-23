@@ -1,5 +1,11 @@
 # UWA four-arm laboratory cell
 
+**Program library → [Multi-camera calibration capture](docs/multi_camera_library_program.md)**
+prepares all four observation poses with freshly planned serial paths and opens
+the native six-camera capture GUI. **Open capture GUI** also works separately.
+The program records calibration data; solving and activating the joint camera
+calibration remains a separate step.
+
 The program library includes [OAK4 camera calibration](docs/camera_library_program.md)
 as a separate camera-only program. It publishes a checked right-table reference
 for twelve hours, shared with the carton program; the library displays its expiry.

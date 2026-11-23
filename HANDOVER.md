@@ -1,5 +1,70 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Haltezustand beim Start von Supported carton grasp, 23.11.2026
+
+Der Browserlauf von 15:12 AWST brach vor dem ersten Ziel der Hochanfahrt
+ab. Im letzten nativen Messwert standen alle vier Arme bei 0 rad/s. Eine
+spätere Abfrage ergab vier freigegebene Arme ohne Ressourcenhold. Bei
+bereits laufendem External Control übersprang der alte Startpfad die
+Haltevorbereitung. Der bisherige Phasenbericht enthielt die auslösenden
+Supervisorflags nicht. [Laufbericht](../../setup/tasks/carton-holds-20261123/high-result.json)
+
+Auf dem N100 sind Kartonstart und Phasendiagnose aktualisiert. Der Browser
+prüft die Holds vor Foto und Planung und fordert bei bestätigtem unbeladenem
+Stillstand fehlende Verriegelungen beim Supervisor an. Der Safety Log auf
+ROSmini berücksichtigt auch die Workflowverzeichnisse der Program Library.
+28 vorhandene Offlineprüfungen bestanden. Beim erneuten realen Start um
+15:26 AWST waren alle vier Holds bereits bestätigt. Das Anfordern fehlender
+Holds wurde separat im Offline-Nachlauf geprüft.
+[Arbeitsstand und Nachweise](work/carton-program-holds-20261123.md)
+
+## Sechskamera-Aufbau in der Program Library, 23.11.2026
+
+Nutzerauftrag: den erfolgreichen Aufbau mit vier Beobachtungsposen und der
+Sechskamera-GUI dauerhaft als Programm speichern. Eigene Karte **Multi-camera
+calibration capture** (`multi-camera-calibration-capture-v1`), zusätzlich zur
+kamerareinen **OAK4 camera calibration**. **Start capture setup** exportiert
+aktuelle, lesende RTDE-Zustände und die N100-Modellbindung, plant auf ROSmini
+neue Wege, führt die SHA-gebundene serielle Folge über den vorhandenen
+HardwareClient aus und öffnet danach die normale native GUI. Alle Arme müssen
+vorbereitet, unbeladen und der Arbeitsraum freigegeben sein. Kein automatisches
+Power/Reset/Standby. **Open capture GUI** funktioniert ohne Robotervorbereitung
+oder gültige OAK4-Referenz. Ein bekanntes aktives Fenster wird wiederverwendet;
+die PID wird mit ihrer Prozessstartzeit geprüft.
+
+Die auftragsbezogenen0,09rad/s bleiben erhalten, aktive Grenzen unverändert.
+Laufkopien der zwei Hilfsskripte werden separat auf den N100 übertragen; keine
+Installation der parallel bearbeiteten Guard-Dateien. Bestehende Zielstellungen
+innerhalb der bisherigen0,0005rad-Starttoleranz werden ausgelassen.
+Keine neue gemeinsame Kalibrierung oder12h-Gültigkeit durch Öffnen der GUI.
+[Bedienung und Abgrenzung](docs/multi_camera_library_program.md).
+
+Prüfung23.11.:30 Tests für Library-Routing, Fehlerreihenfolge, Fenster-
+Wiederverwendung und bestehende Board-/Sechskamera-/Dauerstream-GUI erfolgreich;
+Python-Kompilierung, JavaScript-Syntax und `git diff --check` ebenfalls.
+Die untätige ROSmini-Bedienoberfläche samt Library-Server wurde neu geladen.
+Am laufenden API sind alle drei Karten vorhanden und beide neuen Aktionen
+verfügbar. Keine neue Roboterfahrt oder Kameraaufnahme für diese Einbindung.
+Die Browser-Fernansicht war nicht erreichbar; die neue Webseite wurde deshalb
+nicht visuell abgenommen. Der reale automatische Library-Gesamtlauf wurde
+nicht erneut ausgeführt; die frühere Vierarmfahrt bleibt dessen bisheriger
+Hardware-Nachweis.
+
+## Externe Kameras im rechten Tischboardrahmen, 23.11.2026
+
+Sitzung `six_camera_mobile/20261123_143953_b34a17a2`, 15 Sätze. Auf
+ROSmini liegen die Auswertung und die beiden titanpc-Messprotokolle unter
+`setup/calibration/external_pair_20261123/`. Die Extrinsiken beziehen sich
+auf die optischen Zentren der unverändert orientierten nativen Farbbilder.
+Ursprung von `right_charuco` ist die obere linke Musterecke. Z weist in
+die Platte. Die Messung verwendet beide festen Muster mit 40-mm-Feldern.
+Ihre gegenseitige Lage ist frei geschätzt. OAK4 bei Fokus 107 mit vorhandenem
+8000×6000-Profil, USB-OAK bei Fokus 112 mit 4056×3040 und neu bestimmter
+Brennweitenskala. Die Kamerazentren im rechten Musterrahmen liegen bei
+(0,9315; 0,0628; −1,2130) m und (−1,2064; 0,0868; −1,2219) m.
+Der Abstand beträgt 2,1380 m. Diese Auswertung ist eine gespeicherte
+Offline-Kalibrierung. Betriebsprofil, TF und Kartonreferenz sind separat.
+
 ## ChArUco-Fotoprüfung über Antigravity, 23.11.2026
 
 UWA Camera Capture registriert seine neuen Sitzungen bei der persistenten

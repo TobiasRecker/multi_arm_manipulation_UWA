@@ -47,13 +47,30 @@ def retained_holds(supervisor, arms):
 
     Caller checks current packet freshness through HardwareClient.health().
     """
-    arms=set(arms);ports=supervisor.get('ports',{})
-    trusted=(supervisor.get('armed') is True and supervisor.get('witness_available') is True and
-             all(ports.get(r,{}).get(k) is True for r in arms for k in
-                 ('manager_fresh','hardware_mode_verified','hold_config_verified')))
-    return dict(resource_holds_confirmed=trusted and arms<=set(supervisor.get('held_arms',[])) and
-                all(ports.get(r,{}).get('held') is True for r in arms),
-                latches_confirmed=trusted and arms<=set(supervisor.get('blocked_arms',[])),
+    arms = sorted(arms)
+    ports = supervisor.get('ports', {})
+    verification = []
+    if supervisor.get('armed') is not True:
+        verification.append('supervisor not armed')
+    if supervisor.get('witness_available') is not True:
+        verification.append('watchdog unavailable')
+    for key, label in [('manager_fresh', 'controller manager stale or missing'),
+                       ('hardware_mode_verified', 'hardware mode unverified'),
+                       ('hold_config_verified', 'hold configuration unverified')]:
+        missing = [arm for arm in arms if ports.get(arm, {}).get(key) is not True]
+        if missing:
+            verification.append(f"{label} ({', '.join(missing)})")
+    unheld = [arm for arm in arms if arm not in supervisor.get('held_arms', [])
+              or ports.get(arm, {}).get('held') is not True]
+    unlatched = [arm for arm in arms if arm not in supervisor.get('blocked_arms', [])]
+    issues = list(verification)
+    if unheld:
+        issues.append(f"hold controller unconfirmed ({', '.join(unheld)})")
+    if unlatched:
+        issues.append(f"stop latch unconfirmed ({', '.join(unlatched)})")
+    return dict(resource_holds_confirmed=not verification and not unheld,
+                latches_confirmed=not verification and not unlatched,
+                verification_issues=verification, unlatched_arms=unlatched, issues=issues,
                 source='Existing supervisor holds retained; no stop RPC sent')
 
 

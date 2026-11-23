@@ -2,6 +2,19 @@
 
 ## Gemeinsame Kalibrieransichten, Nutzerauftrag 23.11.2026
 
+- Nutzerauftrag23.11.: Beobachtungsziele und gesamte Sechskamera-Aufnahme-GUI
+  als **Multi-camera calibration capture** in die Program Library aufnehmen.
+  Pro Start neue Anfahrwege aus aktuellen Gelenken prüfen, seriell fahren,
+  danach die GUI öffnen. Separates **Open capture GUI** ohne Roboterfahrt.
+  Die taskbezogenen0,09rad/s für diese Kamera-Anfahrten beibehalten.
+  Bestehende Kamerasitzung wiederverwenden. Gemeinsame Datenerfassung von
+  gelöster Kalibrierung und der separaten OAK4-Zwölfstundenreferenz unterscheiden.
+
+- Nutzerentscheidung vom 23.11.2026. Für die beiden externen Farbkameras ist
+  das rechte feste Tischboard (Frame `right_charuco`) vorerst der gemeinsame
+  Bezugspunkt. Die optischen Kameraposen und ihre relative Transformation
+  mit der jeweiligen Fokusstellung und nativen Bildorientierung angeben.
+
 - Für die Sechs-Kamera-GUI alle vier Wrists und beide OAKs während der
   aktiven Sitzung aufnahmebereit halten. Laut Nutzer gibt es währenddessen
   keine andere Kameranutzung. Ein Klick soll je Kamera ein frisches natives
@@ -44,6 +57,11 @@
   an die Ausführung übergeben.
 
 ## Bedarfsabhängiger UR-Programmstart, 19.11.2026
+
+- Nutzerwunsch 23.11.2026 für **Supported carton grasp**. Bei einer
+  Sperre im Laufstatus die betroffene Phase, die Arme und die konkret
+  fehlende Bestätigung nennen. Fehlende anfängliche Holds von einem
+  Verlust der Holds während der freigegebenen Fahrt unterscheiden.
 
 Kartonpilot auf dem N100: Beim manuellen Pilotpfad mit optionalem Play vor
 der Fahrt den wirklichen Bedarf verwenden. Die Zustimmung ist an die

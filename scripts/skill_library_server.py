@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 from carton_camera_session import validate_session
 from run_carton_program import live_inputs, CAMERA_PROGRAM
+from run_multi_camera_program import PROGRAM as MULTI_CAMERA_PROGRAM
 
 WORKSPACE = ROOT.parents[1]
 PROGRAM_ID = "carton-supported-v1"
@@ -110,7 +111,16 @@ class Runs:
             demo_available=False, live_available=False, **camera)
         latest = max((path for path in self.directory.glob("*/run.json") if RUN_ID.fullmatch(path.parent.name)),
                      key=lambda path: path.stat().st_mtime, default=None)
-        return dict(programs=[calibration, program],
+        multi_camera = dict(id=MULTI_CAMERA_PROGRAM, kind='multi_camera_capture', title='Multi-camera calibration capture',
+            description='Prepare the four wrist-camera observation poses, then record the mobile ChArUco board with four wrists and both OAK cameras.',
+            object='Mobile A4 ChArUco board', arms=['Left front', 'Left rear', 'Right front', 'Right rear'],
+            device='Four wrists · Ethernet OAK4 · N100 USB OAK', setup_available=self.live_config is not None,
+            gui_available=True, demo_available=False, live_available=False,
+            stages=[dict(id='snapshot', title='Read the current start', description='Use fresh N100 joint states. Prepare unloaded arms and release the work area in UWA Robot Power first.'),
+                dict(id='planning', title='Plan and check the approach', description='Plan new paths to the saved observation goals on ROSmini. Task command cap: 0.09 rad/s.'),
+                dict(id='positioning', title='Position the four arms', description='Move left front, left rear, right front and right rear in sequence with the existing N100 protection.'),
+                dict(id='capture_gui', title='Record six-camera board views', description='Open or reuse UWA Camera Capture. Hold the mobile board still for each CAPTURE ALL SIX; solve the calibration separately.')])
+        return dict(programs=[calibration, multi_camera, program],
                     camera_reference=dict(status="valid" if camera.get('camera_valid_until') else "required",
                         valid_from=camera.get('camera_valid_from'), valid_until=camera.get('camera_valid_until'),
                         program=CAMERA_PROGRAM),
@@ -164,7 +174,8 @@ class Runs:
         write_json(directory / "exit.json", dict(code=code, at=now()))
 
     def start(self, program, mode):
-        allowed = {PROGRAM_ID: {"demo", "live", "calibrate"}, CAMERA_PROGRAM: {"calibrate"}}
+        allowed = {PROGRAM_ID: {"demo", "live", "calibrate"}, CAMERA_PROGRAM: {"calibrate"},
+                   MULTI_CAMERA_PROGRAM: {'setup', 'gui'}}
         if program not in allowed or mode not in allowed[program]:
             raise ValueError("Choose a program and execution mode from the library.")
         with (self.directory / ".run.lock").open("a") as lease:
@@ -172,7 +183,9 @@ class Runs:
                 fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError as error:
                 raise RuntimeError("Another library run is already active.") from error
-            if mode != "demo":
+            if program == MULTI_CAMERA_PROGRAM and mode == 'setup' and self.live_config is None:
+                raise ValueError('Start the N100-enabled UWA Robot Power library to prepare the real arms.')
+            if mode in {'live', 'calibrate'}:
                 camera = self.camera_status()
                 if mode == "live" and camera["live_blocker"]:
                     raise ValueError(camera["live_blocker"])
@@ -181,9 +194,13 @@ class Runs:
             identifier = uuid4().hex
             output = self.directory / identifier
             output.mkdir()
-            command = [sys.executable, str(ROOT / "tools/run_carton_program.py"),
-                       "--program", program, "--mode", mode, "--output", str(output)]
-            if mode != "demo":
+            if program == MULTI_CAMERA_PROGRAM:
+                command = [sys.executable, str(ROOT / 'tools/run_multi_camera_program.py'),
+                           '--mode', mode, '--output', str(output)]
+            else:
+                command = [sys.executable, str(ROOT / "tools/run_carton_program.py"),
+                           "--program", program, "--mode", mode, "--output", str(output)]
+            if mode in {'live', 'calibrate'}:
                 command.extend(["--live-config", str(self.live_config)])
             started_at = now()
             with (output / "run.log").open("wb") as log:
