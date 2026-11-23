@@ -65,12 +65,13 @@ class OutputReader:
 
 
 class RtdeCaptureMonitor:
-    def __init__(self,workspace,directory,arms):
+    def __init__(self,workspace,directory,arms,*,sample_log=None):
         from match_ur_hardware.profiles import load_profiles
         path=Path(workspace)/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml'
         profiles=load_profiles(path);inventory=yaml.safe_load(path.read_text())['robots']
         self.audit=StationarityAudit({rid:profiles[rid]['joint_names'] for rid in arms})
-        self.log=(Path(directory)/'joint_samples.jsonl').open('w');self.directory=Path(directory)
+        self.directory=Path(directory)
+        self.log=sample_log if sample_log is not None else (self.directory/'joint_samples.jsonl').open('w')
         self.stopped=threading.Event();self.log_lock=threading.Lock();self.readers=[]
         def read(rid):
             reader=None;previous=None
@@ -104,7 +105,7 @@ class RtdeCaptureMonitor:
             time.sleep(.025)
         raise RuntimeError('Fresh stationary RTDE output unavailable for all selected arms')
 
-    def finish(self):
+    def finish(self, *, save_report=True):
         self.audit.check_freshness(time.monotonic());self.stopped.set();self.thread.join(timeout=1)
         for worker in self.workers:worker.join(timeout=3)
         if any(w.is_alive() for w in self.workers):
@@ -112,4 +113,6 @@ class RtdeCaptureMonitor:
         self.log.close();report=self.audit.summary()
         report.update(joint_samples='joint_samples.jsonl',telemetry_source='output-only RTDE30004',
             timestamp_kind='controller output timestamp plus host monotonic receipt; not exposure synchronization')
-        (self.directory/'stationarity.json').write_text(json.dumps(report,indent=2)+'\n');return report
+        if save_report:
+            (self.directory/'stationarity.json').write_text(json.dumps(report,indent=2)+'\n')
+        return report

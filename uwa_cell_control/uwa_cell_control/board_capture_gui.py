@@ -1,5 +1,6 @@
 """English multi-camera ChArUco viewer; no robot control API."""
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 import hashlib
 import json
@@ -20,6 +21,7 @@ class Worker(QtCore.QThread):
     frame = QtCore.Signal(str, bytes, object)
     message = QtCore.Signal(str)
     result = QtCore.Signal(object)
+    frames_acquired = QtCore.Signal(float)
     camera_error = QtCore.Signal(str, str)
 
     def __init__(self, rig):
@@ -31,6 +33,11 @@ class Worker(QtCore.QThread):
         self.detector = MobileBoard(rig.board_config)
         self.sequences = {}
         self.wrist_usage = ExitStack()
+        self.continuous = getattr(rig, 'continuous', False)
+        self.capture_job = None
+        self.writer = None
+        if self.continuous:
+            rig.on_frames_acquired = self.frames_acquired.emit
 
     def wrist_live(self, active):
         self.wrist_usage.close()
@@ -45,7 +52,8 @@ class Worker(QtCore.QThread):
                 raise
 
     def publish(self, name, jpeg, metadata):
-        image = cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_COLOR)
+        decode = cv2.IMREAD_REDUCED_COLOR_2 if self.continuous and name in self.rig.wrist_cameras else cv2.IMREAD_COLOR
+        image = cv2.imdecode(np.frombuffer(jpeg, np.uint8), decode)
         observation, annotated = self.detector.observe(image)
         if name == 'oak_usb':
             annotated = cv2.rotate(annotated, cv2.ROTATE_180)
@@ -57,6 +65,9 @@ class Worker(QtCore.QThread):
             payload_sha256=hashlib.sha256(jpeg).hexdigest()))
 
     def run(self):
+        if self.continuous:
+            self.run_continuous()
+            return
         try:
             self.message.emit('PREPARING · Applying the selected fixed-focus profile…')
             self.wrist_live(True)
@@ -131,11 +142,76 @@ class Worker(QtCore.QThread):
             except Exception as error:
                 self.message.emit('FAILED · Wrist LEDs could not be switched off: ' + str(error))
 
+    def run_continuous(self):
+        try:
+            self.message.emit('PREPARING · Starting six native camera streams…')
+            self.rig.lock_focus()
+            self.rig.start_streams()
+            with ThreadPoolExecutor(max_workers=1) as writer:
+                self.writer = writer
+                while not self.quit_requested:
+                    if self.capture_job is not None and self.capture_job.done():
+                        finished = self.capture_job
+                        self.capture_job = None
+                        self.result.emit(finished.result())
+                    try:
+                        command, value = self.commands.get_nowait()
+                    except queue.Empty:
+                        command, value = None, None
+                    if command == 'live' and self.capture_job is None:
+                        self.live = value
+                        self.sequences.clear()
+                        if value:
+                            self.rig.lock_focus()
+                            self.rig.start_streams()
+                            self.message.emit('PREPARING · Waiting for six live camera streams…')
+                        else:
+                            self.rig.stop_streams()
+                            self.message.emit('PAUSED · Cameras released. Resume to take photos.')
+                    if self.live:
+                        for name, stream in self.rig.streams.items():
+                            if self.quit_requested or not self.commands.empty():
+                                break
+                            try:
+                                jpeg, meta = stream.read()
+                                sequence = meta['device_sequence'] if name in self.rig.wrist_cameras else meta['sequence']
+                                if sequence == self.sequences.get(name):
+                                    continue
+                                self.sequences[name] = sequence
+                                self.publish(name, jpeg, dict(meta, kind='LIVE NATIVE STREAM'))
+                            except Exception as error:
+                                self.camera_error.emit(name, str(error))
+                    self.msleep(20)
+                if self.capture_job is not None:
+                    self.result.emit(self.capture_job.result())
+                self.writer = None
+        except Exception as error:
+            self.message.emit('FAILED · ' + str(error))
+        finally:
+            try:
+                self.rig.stop_streams()
+            except Exception as error:
+                self.message.emit('FAILED · Releasing camera streams: ' + str(error))
+            try:
+                self.rig.restore_focus()
+            except Exception as error:
+                self.message.emit('FAILED · Camera settings: ' + str(error))
+
+    def trigger(self, native, click_time):
+        if self.continuous:
+            # Dispatch from the button immediately even during preview decoding.
+            self.rig.requested_monotonic = click_time
+            self.capture_job = self.writer.submit(self.rig.capture_all)
+        else:
+            self.commands.put(('capture', native))
+
 
 class Window(QtWidgets.QMainWindow):
     def __init__(self, rig):
         super().__init__()
         self.rig = rig
+        self.continuous = getattr(rig, 'continuous', False)
+        self.frames_elapsed = None
         self.camera_names = getattr(rig, 'cameras', CAMERAS)
         self.count_label = {3: 'THREE', 5: 'FIVE', 6: 'SIX'}.get(len(self.camera_names), str(len(self.camera_names)))
         self.data, self.pixmaps, self.errors, self.changes = {}, {}, {}, {}
@@ -224,16 +300,18 @@ class Window(QtWidgets.QMainWindow):
         layout.addWidget(self.action)
         controls = QtWidgets.QHBoxLayout()
         self.mode = QtWidgets.QComboBox()
-        self.mode.addItems(['Native photos: Wrist 2592×1944 + OAK 8000×6000',
-                            'Quick photos: Wrist 640×480 + OAK 8000×6000'])
+        self.mode.addItem('Native photos: Wrist 2592×1944 + OAK 8000×6000')
+        if not self.continuous:
+            self.mode.addItem('Quick photos: Wrist 640×480 + OAK 8000×6000')
         if 'oak_usb' in self.camera_names:
             for index in range(self.mode.count()):
                 self.mode.setItemText(index,self.mode.itemText(index)+' + USB OAK 4056×3040')
         controls.addWidget(self.mode)
         self.capture = QtWidgets.QPushButton('CAPTURE ALL ' + self.count_label)
+        self.capture.setEnabled(not self.continuous)
         self.capture.clicked.connect(self.take)
         controls.addWidget(self.capture)
-        self.pause = QtWidgets.QPushButton('Pause live view')
+        self.pause = QtWidgets.QPushButton('Release cameras' if self.continuous else 'Pause live view')
         self.pause.setCheckable(True)
         self.pause.clicked.connect(self.toggle_live)
         controls.addWidget(self.pause)
@@ -248,12 +326,16 @@ class Window(QtWidgets.QMainWindow):
             (' Turn the board toward different camera pairs between captures. USB display is rotated; raw photos are unchanged.'
              if 'oak_usb' in self.camera_names else ''))
         note.setWordWrap(True)
+        if self.continuous:
+            note.setText('Hold the board until FRAMES ACQUIRED. You can then move it while the photos are saved. '
+                         'Each camera captures its next native frame on request, using its own clock.')
         layout.addWidget(note)
         self.worker = Worker(rig)
         self.worker.frame.connect(self.on_frame)
         self.worker.message.connect(self.on_message)
         self.worker.camera_error.connect(self.on_error)
         self.worker.result.connect(self.on_result)
+        self.worker.frames_acquired.connect(self.on_frames_acquired)
         self.worker.finished.connect(self.on_finished)
         self.worker.start()
         self.timer = QtCore.QTimer(self)
@@ -264,6 +346,7 @@ class Window(QtWidgets.QMainWindow):
         if self.busy or self.closing:
             return
         self.busy = True
+        self.frames_elapsed = None
         self.started = time.monotonic()
         self.previous_sets = set(self.rig.session.glob('set_*'))
         self.capture_directory = None
@@ -275,7 +358,13 @@ class Window(QtWidgets.QMainWindow):
         self.pause.setEnabled(False)
         self.mode.setEnabled(False)
         self.action.setText('RECEIVED · Capture all ' + self.count_label.lower() + ' requested. HOLD STILL.')
-        self.worker.commands.put(('capture', self.mode.currentIndex() == 0))
+        self.worker.trigger(self.mode.currentIndex() == 0, self.started)
+
+    def on_frames_acquired(self, elapsed):
+        self.frames_elapsed = elapsed
+        self.action.setText('All six frames acquired. You may move the board while the photos are saved.')
+        self.capture_state.setStyleSheet('background:#8effa2;color:#000;font-size:26px;font-weight:bold;padding:10px;border:3px solid #fff;')
+        self.refresh()
 
     def on_message(self, text):
         self.action.setText(text)
@@ -294,7 +383,13 @@ class Window(QtWidgets.QMainWindow):
 
     def toggle_live(self, checked):
         self.action.setText('RECEIVED · Pausing live view…' if checked else 'RECEIVED · Resuming live view…')
-        self.pause.setText('Resume live view' if checked else 'Pause live view')
+        if self.continuous:
+            self.pause.setText('Resume cameras' if checked else 'Release cameras')
+            self.data.clear()
+            self.errors.clear()
+            self.capture.setEnabled(False)
+        else:
+            self.pause.setText('Resume live view' if checked else 'Pause live view')
         self.worker.commands.put(('live', not checked))
 
     def on_frame(self, name, jpeg, metadata):
@@ -313,8 +408,8 @@ class Window(QtWidgets.QMainWindow):
         self.busy = False
         self.reports[report['directory']] = report
         self.update_totals()
-        self.capture.setEnabled(True)
-        self.pause.setEnabled(True)
+        self.capture.setEnabled(not self.closing)
+        self.pause.setEnabled(not self.closing)
         self.mode.setEnabled(True)
         if report['all_captured']:
             counts = ', '.join(name + ': ' + str(r['observation']['corners']) + '/24'
@@ -387,6 +482,8 @@ class Window(QtWidgets.QMainWindow):
         if 'oak_usb' in self.camera_names:
             count = sum(current)
             self.overall.setText(f'{count}/6 CAMERAS SEE BOARD · Hold still for capture; turn board toward other pairs between sets')
+            if self.busy and self.frames_elapsed is not None:
+                self.overall.setText('FRAME CAPTURE COMPLETE · You may turn the board for the next set')
         self.overall.setStyleSheet('background:' + ('#8effa2' if ready else '#ffe066') +
             ';color:#000;font-size:19px;font-weight:bold;padding:8px;')
         if self.busy:
@@ -409,12 +506,23 @@ class Window(QtWidgets.QMainWindow):
             phase = 'Checking stationarity / resuming preview' if len(records) == len(self.camera_names) else 'Taking photos'
             self.progress.setFormat(f'{saved}/{len(self.camera_names)} photos saved · {failed} failed · {phase}')
             self.capture_state.setText(f'RUNNING · HOLD STILL · {elapsed:.0f} s · {saved}/{len(self.camera_names)} photos saved')
+            if self.continuous and self.frames_elapsed is not None:
+                self.capture_state.setText(f'FRAMES ACQUIRED in {self.frames_elapsed:.2f} s · You may move the board · Saving photos')
+                self.progress.setFormat(f'{saved}/{len(self.camera_names)} photos checked')
             for name in self.camera_names:
                 record = records.get(name)
                 self.states[name].setText('PHOTO SAVED · Awaiting set checks' if record and record.get('success') else
                     'PHOTO FAILED · See result' if record else 'CAPTURE PENDING / RUNNING')
         else:
             self.capture.setText('CAPTURE ALL ' + self.count_label)
+            if self.continuous:
+                live = (not self.closing and self.worker.isRunning() and not self.pause.isChecked()
+                        and all(name in self.data and name not in self.errors and
+                                time.time() - self.data[name]['received'] < 8 for name in self.camera_names))
+                self.capture.setEnabled(live)
+                if live and not self.reports:
+                    self.capture_state.setText('READY · Six native camera streams running')
+                    self.action.setText('Ready to capture. Hold the board still and press CAPTURE ALL SIX.')
 
     def closeEvent(self, event):
         if self.worker.isRunning():
@@ -444,6 +552,7 @@ def main():
     p.add_argument('--workspace', type=Path, default=Path(os.environ.get('UWA_WS', Path.home() / 'UWA_ws')))
     p.add_argument('--output', type=Path)
     p.add_argument('--capture-only', action='store_true')
+    p.add_argument('--single-shot', action='store_true', help='Use the original single-shot camera sessions in the GUI')
     p.add_argument('--quick', action='store_true', help='Capture-only: use wrist VGA rather than native HD')
     p.add_argument('--five-cameras', action='store_true', help='Four wrists plus OAK; separate object-scan focus profile')
     p.add_argument('--six-cameras', action='store_true', help='Four wrists plus Ethernet OAK4 and N100 USB OAK')
@@ -469,7 +578,12 @@ def main():
             args.output = args.workspace / 'setup/calibration/six_camera_mobile'
     elif args.cameras and 'oak_usb' in args.cameras:
         options['optics_path'] = args.workspace / 'src/multi_arm_manipulation_UWA/config/digitization/six_camera_capture.yaml'
-    rig = CaptureRig(args.workspace, args.output, board=args.board or ('both' if args.five_cameras else 'mobile'),telemetry_source=args.telemetry_source, keep_camera_settings=args.keep_camera_settings, **options)
+    rig_type = CaptureRig
+    if (set(options.get('cameras', ())) == set(SIX_CAMERAS)
+            and not args.capture_only and not args.single_shot):
+        from .board_capture_session import ContinuousCaptureRig
+        rig_type = ContinuousCaptureRig
+    rig = rig_type(args.workspace, args.output, board=args.board or ('both' if args.five_cameras else 'mobile'),telemetry_source=args.telemetry_source, keep_camera_settings=args.keep_camera_settings, **options)
     if args.capture_only:
         try:
             rig.lock_focus()

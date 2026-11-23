@@ -90,7 +90,7 @@ class StationarityAudit:
 
 
 class CaptureMonitor:
-    def __init__(self, workspace, directory, arms):
+    def __init__(self, workspace, directory, arms, *, sample_log=None):
         from match_ur_hardware.profiles import load_profiles
         from rclpy.context import Context
         from rclpy.executors import SingleThreadedExecutor
@@ -101,7 +101,7 @@ class CaptureMonitor:
         self.profiles = load_profiles(Path(workspace) / 'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml')
         self.audit = StationarityAudit({rid: self.profiles[rid]['joint_names'] for rid in arms})
         self.directory = Path(directory)
-        self.log = (self.directory / 'joint_samples.jsonl').open('w')
+        self.log = sample_log if sample_log is not None else (self.directory / 'joint_samples.jsonl').open('w')
         self.context = Context()
         rclpy.init(args=[], context=self.context, domain_id=66, signal_handler_options=SignalHandlerOptions.NO)
         self.node = rclpy.create_node('uwa_object_photo_audit', context=self.context)
@@ -149,7 +149,7 @@ class CaptureMonitor:
             time.sleep(.05)
         raise RuntimeError('Four-arm stationary telemetry unavailable; no object photos requested')
 
-    def finish(self):
+    def finish(self, *, save_report=True):
         self.audit.check_freshness(time.monotonic())
         self.stopped.set()
         self.thread.join(timeout=2)
@@ -161,7 +161,8 @@ class CaptureMonitor:
         self.log.close()
         report = self.audit.summary()
         report['joint_samples'] = 'joint_samples.jsonl'
-        (self.directory / 'stationarity.json').write_text(json.dumps(report, indent=2, allow_nan=False) + '\n')
+        if save_report:
+            (self.directory / 'stationarity.json').write_text(json.dumps(report, indent=2, allow_nan=False) + '\n')
         return report
 
 

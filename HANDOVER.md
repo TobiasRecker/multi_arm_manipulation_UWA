@@ -1,5 +1,31 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Laufzeit der nativen Mehrkameraaufnahme, 23.11.2026
+
+Vorhandene Messdaten für die Frage nach einer Sekunde vom Klick bis zur
+Aufnahme ausgewertet. Die Sechser-GUI gibt beide OAK-Vorschauen frei, erfasst
+die vier Wrists parallel und ruft danach OAK4 und USB-OAK nacheinander auf.
+Die OAK4 wurde wegen früherer Startfehler bei gleichzeitigen nativen
+Wrist-Aufträgen zurückgestellt. Jedes Kamerabild wird vor Abschluss seines
+Auftrags gespeichert und auf das Board ausgewertet.
+
+- Am 18.11. dauerten 14 erfolgreich gespeicherte Fünfersätze in
+  `five_camera/` und `five_camera_pose/` zwischen 34,31 und 46,20 s
+  (Median 36,08 s, je Manifest). In einem Satz entfielen 3,88 s auf den
+  Vorlauf, 13,51 s auf die parallelen Wrists, 15,39 s auf die OAK4 und
+  2,77 s auf den Abschluss. Die OAK4 belichtete darin 16,7 ms.
+  [Fünfersatz mit Zeitstempeln](../../setup/calibration/oak_capture_proposal_20261118/five_camera_pose/20261118_140754_8caebf54/set_141026_915496/manifest.json)
+- Beim separaten rechten vorderen Wrist-Test lagen 0,20 s zwischen erstem
+  und letztem gespeicherten Bild der Dreierserie. Von 15,27 s am Host
+  entfielen 9,36 s auf die Wiederherstellung von Visiondienst und Einstellungen.
+  [Wrist-Messung](../../setup/calibration/wrist_speed_led_20261112/fast_led_comparison_2_right_front.json)
+- USB-OAK am 23.11. im GUI-Einzeltest auf dem N100 14,03 s, davon 4,00 s
+  zwischen erstem Anlaufbild und gewähltem Vollbild bei 30 ms Belichtung.
+  Der anschließende Dateitransfer nach ROSmini und die Boardauswertung
+  kommen hinzu. Eine gemeinsame Klick-bis-fertig-Messung für sechs Kameras
+  liegt in diesen Daten noch aus.
+  [USB-Aufnahmebericht](../../setup/calibration/mobile_volume_20261123/usb-gui-check-02/photo/native/metadata.json)
+
 ## Vier Handkameras für mobiles Board, 23.11.2026
 
 - Folgeauftrag des Nutzers: nach abgeschlossener N100-Umstellung alle vier

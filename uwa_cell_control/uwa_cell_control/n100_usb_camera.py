@@ -1,8 +1,11 @@
 """Camera-only N100 transport with exclusive SDK lease and orderly release."""
 import json
+import os
+import queue
 from pathlib import Path
 import shlex
 import shutil
+import struct
 import subprocess
 import threading
 import time
@@ -22,6 +25,7 @@ class N100UsbCamera:
         self.latest = None
         self.error = None
         self.lock = threading.RLock()
+        self.pending = None
 
     def ssh(self):
         return ['ssh','-F',str(self.config),'-o','BatchMode=yes','-o','ConnectTimeout=8',
@@ -33,12 +37,14 @@ class N100UsbCamera:
             'uwa-camera/'+script,*map(str,args)])
 
     def start(self):
-        if self.child is not None and self.child.poll() is None:
-            return
+        if self.child is not None:
+            if self.child.poll() is None:
+                return
+            self._close_transport()
         self.output.mkdir(parents=True,exist_ok=True)
         self.latest = self.error = None
         self.log = (self.output/'preview.log').open('ab',buffering=0)
-        self.child = subprocess.Popen([*self.ssh(),self.command('usb_oak_board_preview.py',
+        self.child = subprocess.Popen([*self.ssh(),self.command('usb_oak_board_stream.py',
             '--device-id',self.device_id,'--focus',self.focus)],stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,stderr=self.log)
         self.reader = threading.Thread(target=self._receive, args=(self.child,),daemon=True)
@@ -50,26 +56,39 @@ class N100UsbCamera:
                 header = child.stdout.readline()
                 if not header:
                     break
-                if not header.startswith(b'UWA_FRAME '):
-                    continue  # SDK startup text is not an image header.
-                meta = json.loads(header[len(b'UWA_FRAME '):])
-                length = meta['bytes']
-                if not isinstance(length,int) or not 0 < length < 8_000_000:
-                    raise ValueError('Invalid USB preview packet length')
-                payload = bytearray()
-                while len(payload)<length:
-                    part = child.stdout.read(length-len(payload))
-                    if not part:
-                        raise EOFError('Incomplete USB preview image')
-                    payload.extend(part)
-                if meta['device_id'] != self.device_id or meta['lens_position'] != self.focus:
-                    raise ValueError('USB preview identity/focus mismatch')
-                meta.update(remote_received=meta['received'],received=time.time(),
-                    display_rotation_deg=self.display_rotation_deg)
-                with self.lock:
-                    self.latest = bytes(payload),meta,time.monotonic()
+                kind, _, data = header.partition(b' ')
+                if kind not in (b'UWA_FRAME', b'UWA_ACQUIRED', b'UWA_PHOTO', b'UWA_ERROR'):
+                    if self.log:
+                        self.log.write(header)
+                    continue  # SDK startup messages share stdout.
+                meta = json.loads(data)
+                payload = None
+                if kind in (b'UWA_PHOTO', b'UWA_FRAME'):
+                    length = meta.pop('bytes')
+                    limit = 40_000_000 if kind == b'UWA_PHOTO' else 8_000_000
+                    if not isinstance(length, int) or not 0 < length <= limit:
+                        raise ValueError('Invalid USB image packet length')
+                    payload = child.stdout.read(length)
+                    if len(payload) != length:
+                        raise EOFError('Incomplete USB camera image')
+                if kind == b'UWA_FRAME':
+                    if meta['device_id'] != self.device_id or meta['lens_position'] != self.focus:
+                        raise ValueError('USB preview identity/focus mismatch')
+                    meta.update(remote_received=meta['received'], received=time.time(),
+                        display_rotation_deg=self.display_rotation_deg, bytes=len(payload))
+                    with self.lock:
+                        self.latest = payload, meta, time.monotonic()
+                else:
+                    with self.lock:
+                        if self.pending and self.pending[0] == meta['request_id']:
+                            self.pending[1].put((kind, meta, payload))
         except Exception as error:
             self.error = str(error)
+        finally:
+            with self.lock:
+                if self.pending:
+                    self.pending[1].put((b'UWA_ERROR',
+                        {'error': self.error or 'N100 USB worker closed during capture'}, None))
 
     def read(self):
         with self.lock:
@@ -94,17 +113,87 @@ class N100UsbCamera:
                 child.wait(timeout=30)
             except subprocess.TimeoutExpired:
                 raise RuntimeError('N100 USB preview release unconfirmed; native capture cancelled')
-        if self.reader:
-            self.reader.join(timeout=2)
-        if self.log:
-            self.log.close();self.log=None
-        self.child = None
-        self.latest = None
+        self._close_transport()
         if child.returncode != 0:
             raise RuntimeError('N100 USB preview ended abnormally; check '+str(self.output/'preview.log'))
 
-    def capture(self, directory):
-        """One native raw photo; the preview must have released its own lease."""
+    def _close_transport(self):
+        if self.reader:
+            self.reader.join(timeout=2)
+            self.reader = None
+        for pipe in (self.child.stdin, self.child.stdout):
+            if pipe is not None:
+                pipe.close()
+        if self.log:
+            self.log.close()
+            self.log = None
+        self.child = None
+        self.latest = None
+
+    def capture(self, directory, *, on_acquired=None):
+        """Capture the next fresh native frame, or a released cold one-shot for CLI callers."""
+        if self.child is None:
+            result = self._capture_single(directory)
+            if on_acquired:
+                on_acquired()
+            return result
+        with self.lock:
+            if self.error or self.child.poll() is not None:
+                raise RuntimeError(self.error or 'N100 USB session has ended')
+            if self.pending:
+                raise RuntimeError('N100 USB session already capturing')
+            request_id = str(uuid.uuid4())
+            replies = queue.Queue()
+            self.pending = (request_id, replies)
+        try:
+            self.child.stdin.write((request_id + '\n').encode())
+            self.child.stdin.flush()
+            acquired = None
+            while True:
+                try:
+                    kind, metadata, payload = replies.get(timeout=45)
+                except queue.Empty as error:
+                    raise TimeoutError('N100 USB session did not complete snapshot') from error
+                if kind == b'UWA_ERROR':
+                    raise RuntimeError(metadata['error'])
+                if kind == b'UWA_ACQUIRED':
+                    if acquired is not None:
+                        raise ValueError('Duplicate N100 USB acquisition acknowledgement')
+                    acquired = metadata['sequence']
+                    if on_acquired:
+                        on_acquired()
+                elif kind == b'UWA_PHOTO':
+                    if (acquired is None or metadata['photo']['sequence'] != acquired
+                        or metadata['device_id'] != self.device_id or metadata['photo']['lens_position'] != self.focus
+                        or metadata['native_size'] != [4056, 3040] or metadata['exposure_start_after_request_s'] <= 0):
+                        raise ValueError('N100 USB native frame identity, sequence, size, focus or time mismatch')
+                    return self._save(directory, metadata, payload)
+        finally:
+            with self.lock:
+                self.pending = None
+
+    def _save(self, directory, metadata, payload):
+        if (payload[:8] != b'\x89PNG\r\n\x1a\n' or payload[12:16] != b'IHDR'
+                or len(payload) < 24 or struct.unpack('>II', payload[16:24]) != (4056, 3040)):
+            raise ValueError('Invalid native USB PNG')
+        directory = Path(directory)
+        native = directory/'native'
+        native.mkdir()
+        image = native/'native.png'
+        image.write_bytes(payload)
+        factory = metadata.pop('factory_calibration')
+        (native/'factory-calibration.json').write_text(json.dumps(factory, sort_keys=True, indent=2))
+        reduced = cv2.imread(str(image), cv2.IMREAD_REDUCED_COLOR_2)
+        if reduced is None or not cv2.imwrite(str(native/'preview.jpg'),
+                cv2.resize(reduced, (1600, round(3040*1600/4056))), [cv2.IMWRITE_JPEG_QUALITY, 94]):
+            raise ValueError('Cannot read or preview the native USB PNG')
+        (native/'metadata.json').write_text(json.dumps(metadata, indent=2) + '\n')
+        destination = directory/'image.png'
+        os.link(image, destination)
+        return destination, metadata
+
+    def _capture_single(self, directory):
+        """Original native one-shot for consumers without a running GUI session."""
         self.stop()
         remote = 'uwa-camera/results/gui-'+uuid.uuid4().hex
         result = subprocess.run([*self.ssh(),self.command('usb_oak_photo.py',

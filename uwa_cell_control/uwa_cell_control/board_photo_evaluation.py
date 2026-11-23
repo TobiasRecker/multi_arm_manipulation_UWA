@@ -184,7 +184,7 @@ def image_audit(rows, board_config):
                 board_roi_fraction_gray_ge250=float(np.mean(gray >= 250)),
                 board_roi_fraction_gray_le5=float(np.mean(gray <= 5)))
             del image, gray
-            if name != 'oak4':
+            if 'native_burst' in record:
                 burst = record['native_burst']
                 directory_burst = Path(burst['directory'])
                 frame_observations = []

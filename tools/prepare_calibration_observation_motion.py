@@ -24,6 +24,9 @@ from uwa_cell_control.parallel_scan import collision_signature
 def prepare(args):
     output=args.output.resolve();output.mkdir(parents=True,exist_ok=False)
     remote=json.loads(args.context.read_text());snapshot=json.loads(args.snapshot.read_text())
+    cap=args.command_cap or remote['config']['command_velocity_limit_rad_s']
+    if not 0 < cap <= remote['config']['command_velocity_limit_rad_s']:
+        raise ValueError('Command cap must be positive and within the active hardware profile')
     if snapshot.get('execution_mode')!='hardware':raise ValueError('Actual hardware snapshot required')
     if any(r.get('status',{}).get('robot_mode')!=7 for r in snapshot['source_records'].values()):
         raise ValueError('All drives must report actual RUNNING joints; powered-off zeros are not a start')
@@ -54,6 +57,19 @@ def prepare(args):
         if not plan['success']:
             dump(output/f'{number:02d}-{rid}-failed.json',plan)
             raise ValueError(rid+': '+plan.get('error','planning failed'))
+        # Uniform time scaling preserves the already validated geometric path,
+        # reduces every commanded velocity/acceleration and changes no guard
+        # configuration. This cap needs its explicit task-specific user consent.
+        scale=cap/remote['config']['command_velocity_limit_rad_s']
+        if scale != 1.:
+            for point in plan['trajectory']['points']:
+                point['time']/=scale
+                point['velocities']=[v*scale for v in point['velocities']]
+                point['accelerations']=[a*scale*scale for a in point['accelerations']]
+            plan['trajectory']['duration_s']/=scale
+            plan['metrics']['planned_duration_s']=plan['trajectory']['duration_s']
+        plan['compiled_command_limit_rad_s']=cap
+        plan['offline_compiler_sha256']=hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
         # Only path strings / hashes expressing identical verified geometry
         # are rebound. All waypoints, limits, timing and checked states stay exact.
         plan.update(inventory=remote['inventory'],hardware_binding=remote['hardware_binding'],
@@ -64,12 +80,12 @@ def prepare(args):
                 exact_planner_modules=remote['modules'],geometry_changed=False,
                 user_authorization='23Nov2026: sequential observation poses after completed N100 transition'))
         file=output/f'{number:02d}-{rid}.json';dump(file,plan)
-        segments.append(dict(arm=rid,plan=file.name,duration_s=plan['trajectory']['duration_s'],
+        segments.append(dict(arm=rid,plan=file.name,sha256=hashlib.sha256(file.read_bytes()).hexdigest(),duration_s=plan['trajectory']['duration_s'],
             target_rad=q,coordination=plan['coordination'],metrics=plan['metrics']))
         state=dict(state,**dict(zip(joint_names(rid),q)))
         print(json.dumps(segments[-1]),flush=True)
     dump(output/'sequence.json',dict(kind='serial_four_arm_observation_sequence',segments=segments,
-        start=snapshot['start'],target=state,command_velocity_limit_rad_s=remote['config']['command_velocity_limit_rad_s'],
+        start=snapshot['start'],target=state,command_velocity_limit_rad_s=cap,
         total_duration_s=sum(s['duration_s'] for s in segments),
         current_start_must_be_rechecked=True,robot_commands_sent=False))
 
@@ -77,4 +93,5 @@ def prepare(args):
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
     for key in ('snapshot','context','targets','output'):p.add_argument('--'+key,type=Path,required=True)
+    p.add_argument('--command-cap',type=float,help='Task-specific lower cap, only with explicit user authorization')
     prepare(p.parse_args())

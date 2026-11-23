@@ -2,6 +2,11 @@
 
 ## Gemeinsame Kalibrieransichten, Nutzerauftrag 23.11.2026
 
+- Für die Sechs-Kamera-GUI alle vier Wrists und beide OAKs während der
+  aktiven Sitzung aufnahmebereit halten. Laut Nutzer gibt es währenddessen
+  keine andere Kameranutzung. Ein Klick soll je Kamera ein frisches natives
+  Bild sichern. Die Wrist-Dienste erst bei Freigabe der Kameras wiederherstellen.
+
 - Vier Handkameras sollen die Mitte zwischen den Tischen aus möglichst
   großem, noch für das mobile A4-ChArUco-Board brauchbarem Abstand sehen.
   Gemeinsames Kalibriervolumen, Markerauflösung und zugänglichen Raum
@@ -14,6 +19,10 @@
   Arme **nacheinander** in diese geprüften Beobachtungsposen fahren. Danach
   die vorhandene Aufnahme-GUI um die N100-USB-OAK erweitern und öffnen.
   Diese Reihenfolge ist für diesen Auftrag ausdrücklich gewünscht.
+- Nutzerfreigabe23.11. nach realem Geschwindigkeitsstopp: für genau diese
+  vier Kamera-Anfahrten Sollgeschwindigkeit **0,09rad/s** verwenden. Aktive
+  Überwachung und bestehendes Hardwareprofil bleiben bei0,1rad/s. Keine
+  pauschale Tempoänderung für andere Aufgaben daraus ableiten.
 
 ## Rechneraufteilung für reale URs, 20.11.2026
 

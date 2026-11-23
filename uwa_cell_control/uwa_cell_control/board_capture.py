@@ -235,6 +235,7 @@ class OakPreview:
 
 
 class CaptureRig:
+    continuous = False
     cameras = CAMERAS
     wrist_cameras = CAMERAS[:-1]
     audit_stationarity = False
@@ -457,18 +458,21 @@ class CaptureRig:
                     focus_unchanged=settings['focus'] == after['focus'] and settings['focusAuto'] == after['focusAuto'])
                 if not record['focus_unchanged']:
                     raise RuntimeError('Wrist focus changed during capture; saved image is diagnostic only')
-            image = cv2.imread(str(image_path))
-            observation, annotated = MobileBoard(self.board_config).observe(image)
-            scale = min(1., 1200 / annotated.shape[1])
-            cv2.imwrite(str(directory / 'annotated.jpg'), cv2.resize(annotated, None, fx=scale, fy=scale))
-            record.update(success=True, image=image_path.name, observation=observation,
-                sha256=hashlib.sha256(image_path.read_bytes()).hexdigest())
+            self.observe_photo(directory, image_path, record)
         except Exception as error:
             record['error'] = str(error)
         record.update(finished_at=utc(), finished_monotonic=time.monotonic(),
             timestamp_kind='host request/completion window; not exposure synchronization')
         write_json(directory / 'record.json', record)
         return record
+
+    def observe_photo(self, directory, image_path, record):
+        image = cv2.imread(str(image_path))
+        observation, annotated = MobileBoard(self.board_config).observe(image)
+        scale = min(1., 1200 / annotated.shape[1])
+        cv2.imwrite(str(directory / 'annotated.jpg'), cv2.resize(annotated, None, fx=scale, fy=scale))
+        record.update(success=True, image=image_path.name, observation=observation,
+            sha256=hashlib.sha256(image_path.read_bytes()).hexdigest())
 
     def capture_monitor(self, directory):
         from .capture_telemetry import ProcessCaptureMonitor
@@ -482,15 +486,7 @@ class CaptureRig:
         finally:
             self.busy.release()
 
-    def _capture_all(self, native=True, resume_preview=False):
-        directory = self.session / ('set_' + datetime.now().strftime('%H%M%S_%f'))
-        directory.mkdir()
-        report = dict(schema=1, started_at=utc(), cameras={}, selected_cameras=list(self.cameras), board=self.board_config,
-            hardware_synchronized=False, instruction='Hold board and cameras still during the entire acquisition',
-            calibration_applied=False)
-        report['optical_profiles'] = dict(wrist=self.fixed_settings, oak_manual_focus=self.preview.focus)
-        if 'oak_usb' in self.cameras:
-            report['optical_profiles']['usb_oak_manual_focus'] = self.usb.focus
+    def acquire_set(self, directory, report, native):
         monitor = None
         try:
             stop_previews(self)
@@ -520,6 +516,24 @@ class CaptureRig:
                     except Exception as error:
                         report['cameras'][name] = dict(success=False, error=str(error))
             report['telemetry_after'] = self.telemetry()
+        finally:
+            if monitor is not None:
+                try:
+                    report['stationarity'] = monitor.finish()
+                except Exception as error:
+                    report['stationarity'] = dict(stationarity_confirmed=False, error=str(error))
+
+    def _capture_all(self, native=True, resume_preview=False):
+        directory = self.session / ('set_' + datetime.now().strftime('%H%M%S_%f'))
+        directory.mkdir()
+        report = dict(schema=1, started_at=utc(), cameras={}, selected_cameras=list(self.cameras), board=self.board_config,
+            hardware_synchronized=False, instruction='Hold board and cameras still during the entire acquisition',
+            calibration_applied=False)
+        report['optical_profiles'] = dict(wrist=self.fixed_settings, oak_manual_focus=self.preview.focus)
+        if 'oak_usb' in self.cameras:
+            report['optical_profiles']['usb_oak_manual_focus'] = self.usb.focus
+        try:
+            self.acquire_set(directory, report, native)
             report['endpoint_joint_delta_rad'] = {}
             for name in self.wrist_cameras:
                 before = report['telemetry_before']['arms'].get(name)
@@ -530,11 +544,6 @@ class CaptureRig:
         except Exception as error:
             report['error'] = str(error)
         finally:
-            if monitor is not None:
-                try:
-                    report['stationarity'] = monitor.finish()
-                except Exception as error:
-                    report['stationarity'] = dict(stationarity_confirmed=False, error=str(error))
             if self.audit_stationarity:
                 report['stationary_set_confirmed'] = report.get('stationarity', {}).get('stationarity_confirmed', False)
                 write_json(directory / 'stationarity.json', report.get('stationarity', dict(
@@ -562,6 +571,6 @@ class CaptureRig:
                    report['cameras'][pair[1]]['observation'].get('board_id')]
             report['has_shared_board_pair'] = bool(report['shared_board_pairs'])
             write_json(directory / 'manifest.json', report)
-            if resume_preview:
+            if resume_preview and not self.continuous:
                 start_previews(self)
         return report
