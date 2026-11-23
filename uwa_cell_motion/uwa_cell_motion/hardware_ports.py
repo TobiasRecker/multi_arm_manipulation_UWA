@@ -87,11 +87,13 @@ class StopPort:
         self.cancels={};self.was_blocked=False
         self.stationary_hold = False
         self.cell_held_quiet = False
+        self.quiet_partial_hold = False
         self.reusing_hold = False
         self.refresh_for_release = False
         self.list_observed_from = self.hardware_observed_from = self.parameters_observed_from = -math.inf
         self.hold_invalidated = time.monotonic()
         self.quiet_transition_until = -math.inf
+        self.duplicate_activity_until = -math.inf
         self.activity_holding = False
         self.activity_state = None
         self.activity_publishers = 0
@@ -113,8 +115,14 @@ class StopPort:
             self.cancels[path]=node.create_client(CancelGoal,path,callback_group=group)
         path=ns+'/ur_robot_state_helper/set_mode/_action/cancel_goal'
         self.cancels[path]=node.create_client(CancelGoal,path,callback_group=group)
-    def invalidate_hold_evidence(self, *, quiet_readback=False):
+    def invalidate_hold_evidence(self, *, quiet_readback=False, duplicate_activity=False):
         self.hold_invalidated = time.monotonic()
+        if not duplicate_activity:
+            self.duplicate_activity_until = -math.inf
+        elif self.quiet_partial_hold and self.reusing_hold:
+            # A second identical notification cannot renew this deadline until
+            # live replies to all three readbacks have re-established the Hold.
+            self.duplicate_activity_until = self.hold_invalidated + .25
         if quiet_readback and self.reusing_hold and self.cell_held_quiet:
             # Bound readback after a matching notification or expected Play. Repeated
             # events cannot extend the window without new replies from all three services.
@@ -123,10 +131,15 @@ class StopPort:
             self.quiet_transition_until = -math.inf
         self.reusing_hold = False
 
-    def manager_activity(self, msg):
-        state = tuple(tuple(sorted((item.name, item.state.label) for item in group))
-                      for group in (msg.controllers, msg.hardware_components))
-        self.invalidate_hold_evidence(quiet_readback=state == self.activity_state)
+    def manager_activity(self, msg, info):
+        gid = info.get('publisher_gid')
+        state = None
+        if gid and gid.get('implementation_identifier') and any(gid.get('data', ())):
+            lifecycle = tuple(tuple(sorted((item.name, item.state.id, item.state.label) for item in group))
+                              for group in (msg.controllers, msg.hardware_components))
+            state = (gid['implementation_identifier'], bytes(gid['data']), msg.header.frame_id, lifecycle)
+        identical = state is not None and state == self.activity_state and self.activity_publishers == 1
+        self.invalidate_hold_evidence(quiet_readback=identical, duplicate_activity=identical)
         self.activity_state = state
         self.activity_holding = any(c.name == HOLD and c.state.label == 'active' for c in msg.controllers)
 
@@ -195,6 +208,10 @@ class StopPort:
             if client.service_is_ready():client.call_async(CancelGoal.Request())
     def tick(self,blocked,enabled,*,allow_native=True):
         now=time.monotonic()
+        if blocked != self.was_blocked:
+            self.invalidate_hold_evidence()
+        if not (blocked and self.stationary_hold and self.quiet_partial_hold):
+            self.duplicate_activity_until = -math.inf
         if self.pending_hardware and now-self.hardware_sent>.3:
             self.hardware.remove_pending_request(self.pending_hardware)
             self.pending_hardware=None
@@ -239,7 +256,8 @@ class StopPort:
         # An unchanged event in an already latched, quiet cell wakes the readers.
         # Retain the previous binding briefly while they answer. A mismatch, lost
         # publisher, motion or explicit release immediately ends this allowance.
-        reading_back = (now <= self.quiet_transition_until and blocked and self.cell_held_quiet
+        reading_back = (blocked and ((self.cell_held_quiet and now <= self.quiet_transition_until)
+                                     or now <= self.duplicate_activity_until)
                         and self.stationary_hold and self.activity_holding and self.activity_publishers == 1
                         and self.hardware_verified and self.verified and not self.error and self.switching is None
                         and hold_owned(self.controllers,self.joints) and not unsafe_controllers(self.controllers,self.joints))

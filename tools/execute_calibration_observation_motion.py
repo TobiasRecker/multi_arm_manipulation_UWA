@@ -11,6 +11,8 @@ import importlib
 import json
 from pathlib import Path
 import time
+import sys
+import threading
 
 import numpy as np
 from action_msgs.msg import GoalStatus
@@ -22,6 +24,8 @@ from uwa_cell_motion.hardware_execution import HardwareClient
 from uwa_cell_motion.hardware_model import HardwareProblem
 from uwa_cell_motion.hardware_state import require_domain
 from uwa_cell_tasks.reviewed_carton_execution import _build_goal, _start_matches, _monitor
+from uwa_cell_motion.common import ROBOT_IDS
+from std_srvs.srv import Trigger
 
 
 def checked_plans(folder, digest, cap):
@@ -108,26 +112,66 @@ def main(args):
         for plan in plans:
             if problem.binding!=plan['hardware_binding'] or problem.spheres.geometry.assets!=plan['mesh_sha256'] or problem.cfg!=plan['config']:
                 raise ValueError('Active hardware model/assets/configuration changed; recompile')
-        for plan in plans:
-            rid=plan['request']['selected'][0]
-            print(json.dumps(dict(event='ARM_START',arm=rid,planned_s=plan['trajectory']['duration_s'])),flush=True)
-            record=dict(arm=rid,success=False,phase='CONNECT',frozen_trajectory=True,
-                command_limit_rad_s=args.command_cap,guard_limit_rad_s=problem.cfg['velocity_limit_rad_s'])
-            began=time.monotonic();client=HardwareClient(problem,'hardware',[rid])
-            try:
-                client.connect();follow_frozen(client,plan,record)
-            except BaseException as error:
-                record.update(error=str(error))
-                if client.owned:record['stop_result']=client.stop(client.owned)
-            finally:
-                record.update(total_wall_s=time.monotonic()-began,guard_status=client.guard,
-                    supervisor_status=client.supervisor)
-                dump(args.output/('result-'+rid+'.json'),record)
-                client.destroy_node();records.append(record)
-                dump(args.output/'sequence-result.json',dict(complete=all(r['success'] for r in records) and len(records)==len(plans),
-                    results=[{k:r.get(k) for k in ('arm','success','phase','error','total_wall_s','dispatch_to_target_s')} for r in records]))
-            print(json.dumps({k:record.get(k) for k in ('arm','success','phase','error','total_wall_s','dispatch_to_target_s')}),flush=True)
-            if not record['success']:raise RuntimeError('Sequence stopped at '+rid+': '+record.get('error','unknown failure'))
+        selected=[p['request']['selected'][0] for p in plans]
+        # Serial jobs keep all actions/readers/managers alive across arm changes.
+        # Construct/discover while native programs are STOPPED, before releasing
+        # the existing holds, so graph allocation cannot interrupt a live start.
+        client=HardwareClient(problem,'hardware',selected)
+        reset_clients={r:client.create_client(Trigger,'/uwa_cell/collision_supervisor/'+r+'/reset') for r in ROBOT_IDS} if args.prepare_stopped_programs else {}
+        try:
+            if args.prepare_stopped_programs:
+                client.connect(guard=False)
+                until=time.monotonic()+2
+                while time.monotonic()<until:client.spin_once(timeout_sec=.01)
+                if (set(client.records)!=set(ROBOT_IDS) or any(r['status']['runtime_state']!=1 or r['status']['robot_mode']!=7 for r in client.records.values())
+                        or set(client.guard.get('stationary_arms',[]))!=set(ROBOT_IDS)):
+                    raise RuntimeError('Fresh, stopped, stationary native programs required before connection-preserving preparation')
+                for arm,c in reset_clients.items():
+                    if not c.wait_for_service(timeout_sec=3.):raise RuntimeError('Reset service unavailable')
+                    f=c.call_async(Trigger.Request());client.wait(f.done,6.)
+                    if not f.result().success:raise RuntimeError(f.result().message)
+                    client.wait(lambda:arm not in client.supervisor['blocked_arms'] and arm not in client.guard['blocked_arms']
+                        and not client.supervisor['ports'][arm]['held'],4.)
+                if client.supervisor['blocked_arms'] or client.guard['blocked_arms']:
+                    raise RuntimeError('Full-cell applied release required')
+                sys.path.insert(0,str(Path(first['inventory']).parents[1]/'scripts'))
+                from ur_bringup import run_arm,load_arms,Blocked
+                startup=[];done=threading.Event()
+                def only_play(step):
+                    if step!='play':raise Blocked('separate_preparation_required','Only prepared stopped ROS programs may be started')
+                def start_programs():
+                    try:
+                        for arm in load_arms(Path(first['inventory'])).values():
+                            row=run_arm(arm,True,before_write=only_play);startup.append(row)
+                            if row['code']!='ready':break
+                    finally:done.set()
+                worker=threading.Thread(target=start_programs,daemon=True);worker.start()
+                while not done.is_set():client.spin_once(timeout_sec=.01)
+                dump(args.output/'startup.json',startup)
+                if len(startup)!=4 or any(r['code']!='ready' for r in startup):raise RuntimeError('Native ROS program startup not confirmed')
+                print('PERSISTENT_CONNECTION_AND_FOUR_PROGRAMS_READY',flush=True)
+            for plan in plans:
+                rid=plan['request']['selected'][0]
+                print(json.dumps(dict(event='ARM_START',arm=rid,planned_s=plan['trajectory']['duration_s'])),flush=True)
+                record=dict(arm=rid,success=False,phase='CONNECT',frozen_trajectory=True,
+                    command_limit_rad_s=args.command_cap,guard_limit_rad_s=problem.cfg['velocity_limit_rad_s'])
+                began=time.monotonic()
+                try:
+                    client.connect();follow_frozen(client,plan,record)
+                except BaseException as error:
+                    record.update(error=str(error))
+                    if client.owned:record['stop_result']=client.stop(client.owned)
+                finally:
+                    record.update(total_wall_s=time.monotonic()-began,guard_status=client.guard,
+                        supervisor_status=client.supervisor)
+                    dump(args.output/('result-'+rid+'.json'),record);records.append(record)
+                    dump(args.output/'sequence-result.json',dict(complete=all(r['success'] for r in records) and len(records)==len(plans),
+                        results=[{k:r.get(k) for k in ('arm','success','phase','error','total_wall_s','dispatch_to_target_s')} for r in records]))
+                print(json.dumps({k:record.get(k) for k in ('arm','success','phase','error','total_wall_s','dispatch_to_target_s')}),flush=True)
+                if not record['success']:raise RuntimeError('Sequence stopped at '+rid+': '+record.get('error','unknown failure'))
+        finally:
+            for c in reset_clients.values():client.destroy_client(c)
+            client.destroy_node()
     print('ALL_FOUR_OBSERVATION_POSES_REACHED',flush=True)
 
 
@@ -135,4 +179,5 @@ if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--plans',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
     p.add_argument('--sequence-sha256',required=True);p.add_argument('--command-cap',type=float,required=True)
+    p.add_argument('--prepare-stopped-programs',action='store_true',help='Build persistent connection before explicit reset/Play of prepared stopped programs')
     main(p.parse_args())

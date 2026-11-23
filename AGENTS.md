@@ -7,6 +7,13 @@
   keine andere Kameranutzung. Ein Klick soll je Kamera ein frisches natives
   Bild sichern. Die Wrist-Dienste erst bei Freigabe der Kameras wiederherstellen.
 
+- Nutzerauftrag vom 23.11.2026 zur Markerprüfung: Jedes gespeicherte
+  Kamerafoto aus UWA Camera Capture automatisch mit Gemini Hydrogen in
+  Antigravity prüfen. OpenCV misst am unveränderten Original. Gemini
+  kontrolliert die Bildbefunde und kann bei schwierigen Ansichten eine
+  gezielte Nachmessung anfordern. Codex vergleicht die ersten Fotos
+  unabhängig, die laufende Auswertung verwendet das Antigravity-Konto.
+
 - Vier Handkameras sollen die Mitte zwischen den Tischen aus möglichst
   großem, noch für das mobile A4-ChArUco-Board brauchbarem Abstand sehen.
   Gemeinsames Kalibriervolumen, Markerauflösung und zugänglichen Raum

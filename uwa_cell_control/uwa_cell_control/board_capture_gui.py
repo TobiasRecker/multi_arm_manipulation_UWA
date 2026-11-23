@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import queue
+import sqlite3
 import sys
 import time
 
@@ -258,6 +259,13 @@ class Window(QtWidgets.QMainWindow):
         self.last_result.setStyleSheet('background:#fff;color:#000;font-size:17px;font-weight:bold;padding:7px;')
         capture_summary.addWidget(self.last_result, 2)
         layout.addLayout(capture_summary)
+        self.gemini_status = QtWidgets.QLabel()
+        self.gemini_status.setWordWrap(True)
+        self.gemini_status.setStyleSheet('background:#fff;color:#111;font-size:16px;font-weight:bold;padding:4px;')
+        self.gemini_status.setVisible(hasattr(rig, 'gemini_registration'))
+        self.gemini_status.setText(getattr(rig, 'gemini_registration', ''))
+        self.next_gemini_check = 0.
+        layout.addWidget(self.gemini_status)
         self.update_totals()
         self.overall = QtWidgets.QLabel('WAITING FOR ' + self.count_label + ' CAMERAS')
         self.overall.setMinimumHeight(34)
@@ -441,6 +449,19 @@ class Window(QtWidgets.QMainWindow):
         (self.rig.session / 'latest-set.txt').write_text(report['directory'] + '\n')
 
     def refresh(self):
+        if hasattr(self.rig, 'gemini_registration') and self.reports and time.monotonic() >= self.next_gemini_check:
+            self.next_gemini_check = time.monotonic() + 1.5
+            last = Path(next(reversed(self.reports)))
+            status_file = last / 'gemini-charuco' / 'status.json'
+            try:
+                cameras = json.loads(status_file.read_text())['cameras']
+                done = sum(r['state'] == 'completed' for r in cameras.values())
+                retry = sum(r['state'] == 'retrying' for r in cameras.values())
+                uncertain = sum(r.get('verdict') == 'uncertain' for r in cameras.values())
+                self.gemini_status.setText(f'GEMINI · Last set: {done}/{len(cameras)} reviewed · {uncertain} uncertain · {retry} retrying')
+                self.gemini_status.setToolTip(str(status_file.parent))
+            except (OSError, ValueError, KeyError):
+                self.gemini_status.setText(self.rig.gemini_registration)
         current = []
         for name in getattr(self.rig, 'cameras', CAMERAS):
             meta = self.data.get(name)
@@ -584,6 +605,15 @@ def main():
         from .board_capture_session import ContinuousCaptureRig
         rig_type = ContinuousCaptureRig
     rig = rig_type(args.workspace, args.output, board=args.board or ('both' if args.five_cameras else 'mobile'),telemetry_source=args.telemetry_source, keep_camera_settings=args.keep_camera_settings, **options)
+    # Register actual camera application sessions, including custom output paths.
+    # Library callers such as simulations and unrelated scan tools own their data.
+    from .gemini_photo_queue import register_session
+    try:
+        register_session(args.workspace, rig.session)
+        rig.gemini_registration = 'GEMINI · Waiting for saved camera photos'
+    except (OSError, ValueError, sqlite3.Error) as error:
+        rig.gemini_registration = 'GEMINI REGISTRATION FAILED · ' + str(error)
+        print(rig.gemini_registration, file=sys.stderr)
     if args.capture_only:
         try:
             rig.lock_focus()

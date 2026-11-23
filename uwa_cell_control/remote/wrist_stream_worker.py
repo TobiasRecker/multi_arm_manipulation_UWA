@@ -69,7 +69,9 @@ def restoration_watchdog(directory, service, settings, original_mode):
                 break
             except Exception as error:
                 result = dict(restore_ok=False, error=str(error))
-        vision.save(os.path.join(directory, 'restoration.json'), result)
+        report = os.path.join(directory, 'restoration.json')
+        vision.save(report+'.tmp', result)
+        os.rename(report+'.tmp', report)
     finally:
         os._exit(0)
 

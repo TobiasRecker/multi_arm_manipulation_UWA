@@ -347,9 +347,9 @@ class HardwareSupervisor(MotionNode):
             now=time.monotonic()
             blocked=self.core.tick(now)
             if not self.guard.fresh(now,self.cfg['heartbeat_timeout_s']):self.core.blocked.update(ROBOT_IDS);self.core.reason='GUARD LOST'
-            if self.core.last:
-                expired=expired_pair_leases(self.core.last,now,self.cfg)
-                if expired:self.core.blocked.update(expired);self.core.reason='PAIR SUPERVISION EXPIRED'
+            decision = self.core.last
+            expired = expired_pair_leases(decision, now, self.cfg) if decision else set()
+            if expired:self.core.blocked.update(expired);self.core.reason='PAIR SUPERVISION EXPIRED'
             witness_fresh = self.witness.fresh(now, self.cfg['heartbeat_timeout_s'])
             if not witness_fresh or self.witness.value.get('tripped',True):self.core.blocked.update(ROBOT_IDS);self.core.reason='WATCHDOG LOST OR TRIPPED'
             # A progressing tripped witness owns the Dashboard fallback. It can
@@ -364,9 +364,16 @@ class HardwareSupervisor(MotionNode):
                               and 0 <= now - state[2] <= self.cfg['state_timeout_s']}
             blocked = set(self.core.blocked)
             ports = {}
-            cell_held_quiet = blocked == set(ROBOT_IDS) and set(stationary) == blocked and set(program_states) == blocked
+            all_quiet = set(stationary) == set(ROBOT_IDS) and set(program_states) == set(ROBOT_IDS)
+            cell_held_quiet = all_quiet and blocked == set(ROBOT_IDS)
+            quiet_partial_hold = (all_quiet and 0 < len(blocked) < len(ROBOT_IDS) and guard_fresh and witness_fresh
+                and self.witness.value.get('tripped') is False and decision is self.guard.value
+                and not expired and decision.get('faults') == [] and decision.get('stop_adapter_available') is True
+                and decision.get('model_match') is True and program_states == self.program_states
+                and [p.get('arms') for p in decision['pairs']] == [list(pair) for pair in PAIRS])
             for rid, port in self.ports.items():
                 port.cell_held_quiet = cell_held_quiet
+                port.quiet_partial_hold = quiet_partial_hold and rid in blocked
                 previous, current = self.program_states.get(rid), program_states.get(rid)
                 if previous != current:
                     program_started = (cell_held_quiet and previous and current and previous[0] == current[0]

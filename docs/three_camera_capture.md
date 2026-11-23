@@ -1,5 +1,42 @@
 # Mobile-board photos with the two right wrists and OAK4
 
+## Automatic Gemini marker review
+
+Every saved camera photograph in a registered **UWA Camera Capture** session
+gets a background review by **Gemini 4 Hydrogen High** through Antigravity.
+The camera application can keep capturing and can close while the queue works.
+It also registers sessions in custom output directories. The running desktop
+session that began at 14:39 AWST on 23 November 2026 was registered in place.
+
+For each photograph OpenCV measures marker IDs and all four marker vertices,
+plus interpolated ChArUco IDs and corners in original sensor pixels. Hydrogen
+sees the whole field of view, a measurement overlay and image details.
+It can request a second measurement on native pixels in a crop or on a
+perspective-corrected board. It then chooses the evidenced pass per board and
+records its visual assessment. Coordinates, source SHA-256, detector passes,
+model selection and review are saved beside the set. The capture manifest
+retains the original GUI observations and stationarity evidence.
+
+Open the set's **gemini-charuco/status.json** for per-camera progress. Each
+completed entry links to its **review.json**. Follow its `final_report`
+filename for the selected native pixel measurements. A checked revision can
+also link back to its initial review. An `uncertain` assessment means the
+available evidence warrants another look. Fewer than 12 noncollinear ChArUco
+corners can still identify the board while falling short of the acquisition
+quality threshold. New windows show progress for the last set in English.
+
+The ROSmini user service is `uwa-gemini-charuco.service`. Its persistent queue
+is under `setup/calibration/gemini_charuco_queue/` and resumes after login or
+a service restart. Temporary errors appear as `retrying`. The service uses
+the existing Antigravity login. From the workspace, inspect it with
+`systemctl --user status uwa-gemini-charuco.service` or read the queue with
+`python3 src/multi_arm_manipulation_UWA/uwa_cell_control/uwa_cell_control/gemini_photo_queue.py --workspace "$PWD" status`.
+The [Gemini instructions and toolbox](../tools/charuco_agent/GEMINI.md) describe
+the output and the handling of partial boards and duplicate markers.
+To reinstall the service on this workstation, use
+`systemctl --user enable --now "$PWD/setup/systemd/uwa-gemini-charuco.service"`
+from the workspace root.
+
 ## Six-camera acquisition, 23 November 2026
 
 The application-menu entry now selects four wrists, Ethernet OAK4 and the
@@ -11,26 +48,38 @@ bash src/multi_arm_manipulation_UWA/scripts/camera_capture.sh \
   --six-cameras --board mobile --telemetry-source rtde --keep-camera-settings
 ```
 
-All six panels provide live previews and **CAPTURE ALL SIX** saves native
-wrist2592×1944, OAK4 8000×6000 and USB4056×3040 originals. The USB panel is
-rotated180° for the inverted mount; saved raw images and detected corner
-coordinates stay in sensor orientation. The USB preview is1280×960/2fps,
-transported by an owned SSH worker using the existing `~/uwa-camera/.camera.lock`.
-Pause, capture and window close stop that worker and wait for release. The
-native USB photograph uses the previously verified camera-only photo tool.
-No robot-control API is added to this GUI.
+The six-camera window keeps all six native streams open. Wait for **READY**,
+hold the board still and press **CAPTURE ALL SIX**. All six cameras receive
+parallel requests for a new frame. **FRAMES ACQUIRED** means you can move
+the board. **DONE** means the files, board observations and manifest have
+been saved. The button becomes available again for the next set.
+
+The saved originals are 2592×1944 wrist JPEGs, an 8000×6000 Ethernet OAK4
+PNG and a 4056×3040 USB OAK PNG. Only the USB panel is rotated 180° for its
+inverted mount. Raw pixels and detected corner coordinates use the sensor
+orientation. Each wrist hands over its video device once for the session.
+Both OAKs derive previews and photos from the same native stream. Use
+**Release cameras** to make all six available to other applications. This or
+closing the window returns each wrist to its Robotiq vision service.
+**Resume cameras** opens a new streaming session.
 
 The acquisition profile is `config/digitization/six_camera_capture.yaml`:
 LF245/LR406/RF435/RR388, OAK4 107, USB112. These are acquisition settings,
 not new calibration results. USB focus112 intrinsics still need independent
-calibration. The N100 needs `usb_oak_board_preview.py` and `usb_oak_photo.py`
-from the OAK repository in its own `~/uwa-camera/` folder. The normal N100
-SSH profile is used; no camera or robot driver is started by this GUI.
+calibration. The N100 uses `usb_oak_board_stream.py` from the OAK repository in
+`~/uwa-camera/` for continuous acquisition and `usb_oak_photo.py` for single
+shots. The desktop entry selects the existing output-only RTDE observer for
+the stationarity audit. It collects the settling history in advance and logs
+the acquisition window with each set.
 
-Both external previews are released before capture. With four wrists selected,
-their native jobs run together, followed by external OAK photos. Hold the board
-still until the visible **DONE** status; these exposures are not synchronized.
-Sessions are stored under `setup/calibration/six_camera_mobile/`.
+Sessions are stored under `setup/calibration/six_camera_mobile/`. Each manifest
+records `frame_confirmed_after_s` for each camera and
+`all_frames_received_after_s` for the last confirmation measured from the GUI
+click. A confirmation means the worker has selected the new frame. File
+transfer, encoding and board detection can still be underway. Exposure clocks
+are independent. Add `--single-shot` to open the earlier GUI with its
+temporary camera sessions and optional VGA wrist mode. The one-off CLI
+`--capture-only` also uses temporary sessions.
 
 Turn the single-sided board toward different camera pairs between sets.
 Six-camera session counters accept a complete, stationary set with at least one

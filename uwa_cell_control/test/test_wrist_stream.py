@@ -116,17 +116,46 @@ int main(void) {
                          driver.SEQUENCE_OFFSET,driver.MEMORY_OFFSET,driver.MAP_OFFSET,driver.LENGTH_OFFSET]
 
 
-def test_controller_restores_when_capture_owner_exits_without_cleanup(monkeypatch, tmp_path):
-    monkeypatch.syspath_prepend(str(REMOTE))
-    import wrist_stream_worker as worker
-    monkeypatch.setattr(worker,'restore_camera',lambda *args: dict(mode={'verified':True}))
-    dead = os.fork()
-    if dead == 0:
-        worker.restoration_watchdog(str(tmp_path),'camera-service',{'focus':1},None)
-        os._exit(1)  # Simulate abrupt process loss without closing/releasing explicitly.
-    os.waitpid(dead,0)
+def test_controller_restores_when_capture_owner_exits_without_cleanup(tmp_path):
+    # Use a dedicated Python interpreter just like the remote ssh session.
+    script = """import os,sys
+sys.path.insert(0,sys.argv[1])
+import wrist_stream_worker as worker
+worker.restore_camera = lambda *args: dict(mode={'verified':True})
+worker.restoration_watchdog(sys.argv[2],'camera-service',{'focus':1},None)
+os._exit(1)
+"""
+    child = subprocess.run([sys.executable, '-c', script, str(REMOTE), str(tmp_path)])
+    assert child.returncode == 1
     report = tmp_path/'restoration.json'
     due = time.monotonic()+3
     while not report.is_file() and time.monotonic()<due:
         time.sleep(.01)
     assert json.loads(report.read_text()) == {'restore_ok':True,'restoration':{'mode':{'verified':True}}}
+
+
+def test_snapshot_flushes_queued_and_in_progress_frames(monkeypatch):
+    from types import SimpleNamespace
+    monkeypatch.syspath_prepend(str(REMOTE))
+    import wrist_stream_worker as worker
+    events = iter(([4], [4], [4], [0, 4], [4], [0]))
+    queued = iter(([4], [4], []))
+    commands = iter((b'C', b'X'))
+    sent = []
+    class Camera:
+        fd = 4
+        maps = [None]*4
+        sequence = 0
+        def dequeue(self, copy_image):
+            self.sequence += 1
+            return {'device_sequence':self.sequence}, b'jpeg' if copy_image else None
+    def poll(fds, writes, errors, timeout):
+        return (next(queued) if len(fds) == 1 else next(events), [], [])
+    monkeypatch.setattr(worker, 'select', SimpleNamespace(select=poll))
+    monkeypatch.setattr(worker, 'os', SimpleNamespace(read=lambda *args: next(commands)))
+    monkeypatch.setattr(worker, 'send', lambda header, data=None: sent.append((header,data)))
+    monkeypatch.setattr(worker, 'checked_controls', lambda camera, focus: {'focus_absolute':focus})
+    worker.stream(Camera(), {}, {}, 245)
+    assert [header['event'] for header,_ in sent] == ['ready','frame']
+    # Three warmup frames, two queued frames and the currently exposing frame.
+    assert sent[1][0]['device_sequence'] == 7 and sent[1][1] == b'jpeg'

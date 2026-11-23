@@ -1,4 +1,5 @@
 """Keep the existing read-only photo audit ready between multi-camera triggers."""
+from collections import deque
 from datetime import datetime, timezone
 import multiprocessing
 from pathlib import Path
@@ -12,13 +13,19 @@ class SetSampleLog:
     def __init__(self):
         self.file = None
         self.lock = threading.Lock()
+        self.recent = deque()
 
     def open(self, directory):
         with self.lock:
             self.file = (Path(directory) / 'joint_samples.jsonl').open('x')
+            self.file.writelines(line for _, line in self.recent)
 
     def write(self, line):
         with self.lock:
+            now = time.monotonic()
+            self.recent.append((now, line))
+            while self.recent and self.recent[0][0] < now - 1.:
+                self.recent.popleft()
             if self.file is not None:
                 self.file.write(line)
 
@@ -57,10 +64,11 @@ def observe(connection, workspace, directory, arms, source):
             if command == 'stop':
                 break
             try:
-                if not monitor.thread.is_alive() or any(
-                        not worker.is_alive() for worker in getattr(monitor, 'workers', ())):
-                    raise RuntimeError('Photo telemetry disconnected')
+                disconnected = not monitor.thread.is_alive() or any(
+                    not worker.is_alive() for worker in getattr(monitor, 'workers', ()))
                 if command == 'begin':
+                    if disconnected:
+                        raise RuntimeError('; '.join(sorted(audit.violations)) or 'Photo telemetry disconnected')
                     if audit.armed:
                         raise RuntimeError('Photo telemetry is already recording a set')
                     # Let the existing monitor prove its settling interval from live history.
@@ -72,6 +80,8 @@ def observe(connection, workspace, directory, arms, source):
                     with audit.lock:
                         if not audit.armed:
                             raise RuntimeError('No photo telemetry window is active')
+                        if disconnected:
+                            audit.violations.add('Photo telemetry disconnected during acquisition')
                         audit.check_freshness(time.monotonic())
                         value = audit.summary()
                         value.update(endpoint_after=endpoint(audit, source),
@@ -142,6 +152,9 @@ class SessionPhotoTelemetry:
                 if self.child.is_alive():
                     self.child.terminate()
                     self.child.join(2)
+                if self.child.is_alive():
+                    self.child.kill()
+                    self.child.join()
         finally:
             self.channel.close()
             self.child = self.channel = None

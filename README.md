@@ -65,8 +65,13 @@ left-rear activation waits for its ongoing calibration to finish.
 See [timings, lighting controls and rollout](docs/wrist_speed_led_2026-11-12.md).
 
 **UWA Camera Capture** now shows the mobile A4 board from all four wrist
-cameras, Ethernet OAK4 and the USB OAK on N100, with a single button for native
-photographs. The USB display is rotated for its inverted mount; raw photos stay
+cameras, Ethernet OAK4 and the USB OAK on N100. All six run in native mode
+throughout the session. Press **CAPTURE ALL SIX** and hold the board until
+**FRAMES ACQUIRED**. You can reposition it while the images are being saved.
+Gemini 4 Hydrogen reviews each saved photo in the background using native
+OpenCV marker measurements. Per-camera results and uncertainty are available
+in the set's `gemini-charuco/status.json`.
+The USB display is rotated for its inverted mount; raw photos stay
 unchanged. Open it from the
 application menu or run `bash src/multi_arm_manipulation_UWA/scripts/camera_capture.sh`.
 Use `--six-cameras --board mobile --telemetry-source rtde --keep-camera-settings`
