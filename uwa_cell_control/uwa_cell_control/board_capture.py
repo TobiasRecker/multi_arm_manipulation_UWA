@@ -23,6 +23,24 @@ from .wrist_hd import NativeCapture, LeftFrontNativeCapture, SSH, control_path
 
 CAMERAS = ('right_front', 'right_rear', 'oak4')
 FIVE_CAMERAS = ('left_front', 'left_rear', 'right_front', 'right_rear', 'oak4')
+SIX_CAMERAS = FIVE_CAMERAS + ('oak_usb',)
+EXTERNAL_CAMERAS = ('oak4', 'oak_usb')
+
+
+def start_previews(rig):
+    for preview in getattr(rig, 'previews', {'oak4': rig.preview}).values():
+        preview.start()
+
+
+def stop_previews(rig):
+    errors = []
+    for preview in getattr(rig, 'previews', {'oak4': rig.preview}).values():
+        try:
+            preview.stop()
+        except Exception as error:
+            errors.append(str(error))
+    if errors:
+        raise RuntimeError('; '.join(errors))
 
 
 def write_session_focus(camera, *, focus, auto):
@@ -230,10 +248,10 @@ class CaptureRig:
         self.inventory = yaml.safe_load((repo / 'config/hardware_inventory.yaml').read_text())
         self.cameras = tuple(cameras)
         if (not self.cameras or len(set(self.cameras)) != len(self.cameras) or
-                set(self.cameras) - set(FIVE_CAMERAS) or 'oak4' not in self.cameras):
+                set(self.cameras) - set(SIX_CAMERAS) or 'oak4' not in self.cameras):
             raise ValueError('Select distinct supported cameras including oak4')
-        self.wrist_cameras = tuple(name for name in self.cameras if name != 'oak4')
-        self.audit_stationarity = set(self.cameras) == set(FIVE_CAMERAS)
+        self.wrist_cameras = tuple(name for name in self.cameras if name not in EXTERNAL_CAMERAS)
+        self.audit_stationarity = set(self.wrist_cameras) == set(FIVE_CAMERAS[:-1])
         from uwa_cell_description.configuration import load_layout
         layout = load_layout()
         self.board_config = (yaml.safe_load((repo / 'uwa_cell_description/config/mobile_charuco_a4.yaml').read_text())
@@ -271,6 +289,11 @@ class CaptureRig:
                 note='Stored OAK registration; fixed robot base references follow the active profile. No new calibration performed.'))
         self.preview = OakPreview(self.ws, self.inventory['cameras']['oak4'], self.session / 'preview',
                                   self.optics['oak_manual_focus'])
+        self.previews = {'oak4': self.preview}
+        if 'oak_usb' in self.cameras:
+            from .n100_usb_camera import N100UsbCamera
+            self.usb = N100UsbCamera(self.ws, self.session/'usb-preview',self.optics['usb_oak_manual_focus'])
+            self.previews['oak_usb'] = self.usb
         self.busy = threading.Lock()
         self.original_settings = {}
         self.fixed_settings = {}
@@ -384,7 +407,7 @@ class CaptureRig:
                 context.try_shutdown()
 
     def capture_one(self, name, directory, native=True):
-        camera = self.wrist(name) if name != 'oak4' else None
+        camera = self.wrist(name) if name in self.wrist_cameras else None
         with getattr(camera, 'activity', nullcontext)():
             return self._capture_one(name, directory, native)
 
@@ -405,6 +428,11 @@ class CaptureRig:
                 shutil.copy2(source, image_path)
                 record.update(source='oak4_native_8000x6000_single', original=result,
                     camera_metadata=json.loads(Path(result['metadata']).read_text()))
+            elif name == 'oak_usb':
+                image_path, metadata = self.usb.capture(directory)
+                record.update(source='n100_usb_oak_native_4056x3040_single',camera_metadata=metadata,
+                    display_rotation_deg=180, raw_orientation='unaltered sensor coordinates',
+                    intrinsics_status=f'Factory/SDK optics; focus{self.usb.focus} accuracy not independently validated')
             else:
                 camera = self.wrist(name)
                 identity = camera.request('/hello')
@@ -461,18 +489,20 @@ class CaptureRig:
             hardware_synchronized=False, instruction='Hold board and cameras still during the entire acquisition',
             calibration_applied=False)
         report['optical_profiles'] = dict(wrist=self.fixed_settings, oak_manual_focus=self.preview.focus)
+        if 'oak_usb' in self.cameras:
+            report['optical_profiles']['usb_oak_manual_focus'] = self.usb.focus
         monitor = None
         try:
-            self.preview.stop()
+            stop_previews(self)
             if self.audit_stationarity:
                 monitor = self.capture_monitor(directory)
                 monitor.wait_still()
             report['telemetry_before'] = self.telemetry()
             # OAK startup failed under concurrent native wrist transactions.
             # A stationary five-camera set need not expose simultaneously.
-            deferred_oak = tuple(self.cameras) == FIVE_CAMERAS
-            parallel = [name for name in self.cameras if not (deferred_oak and name == 'oak4')]
-            report['acquisition_order'] = 'parallel wrists, then OAK' if deferred_oak else 'parallel selected cameras'
+            deferred_oak = set(self.wrist_cameras) == set(FIVE_CAMERAS[:-1])
+            parallel = [name for name in self.cameras if not (deferred_oak and name in EXTERNAL_CAMERAS)]
+            report['acquisition_order'] = 'parallel wrists, then external OAK cameras' if deferred_oak else 'parallel selected cameras'
             with ThreadPoolExecutor(max_workers=len(parallel)) as pool:
                 futures = {pool.submit(self.capture_one, name, directory / name, native): name for name in parallel}
                 for future in as_completed(futures):
@@ -482,10 +512,13 @@ class CaptureRig:
                     except Exception as error:
                         report['cameras'][name] = dict(success=False, error=str(error))
             if deferred_oak:
-                try:
-                    report['cameras']['oak4'] = self.capture_one('oak4', directory / 'oak4', native)
-                except Exception as error:
-                    report['cameras']['oak4'] = dict(success=False, error=str(error))
+                for name in self.cameras:
+                    if name not in EXTERNAL_CAMERAS:
+                        continue
+                    try:
+                        report['cameras'][name] = self.capture_one(name, directory / name, native)
+                    except Exception as error:
+                        report['cameras'][name] = dict(success=False, error=str(error))
             report['telemetry_after'] = self.telemetry()
             report['endpoint_joint_delta_rad'] = {}
             for name in self.wrist_cameras:
@@ -520,7 +553,15 @@ class CaptureRig:
                 r['observation']['usable'] for r in report['cameras'].values())
             report['all_full'] = report['all_captured'] and all(
                 r['observation']['full'] for r in report['cameras'].values())
+            from itertools import combinations
+            report['shared_board_cameras'] = [n for n in self.cameras
+                if report['cameras'].get(n,{}).get('success') and
+                   report['cameras'][n].get('observation',{}).get('usable')]
+            report['shared_board_pairs'] = [list(pair) for pair in combinations(report['shared_board_cameras'],2)
+                if report['cameras'][pair[0]]['observation'].get('board_id') ==
+                   report['cameras'][pair[1]]['observation'].get('board_id')]
+            report['has_shared_board_pair'] = bool(report['shared_board_pairs'])
             write_json(directory / 'manifest.json', report)
             if resume_preview:
-                self.preview.start()
+                start_previews(self)
         return report

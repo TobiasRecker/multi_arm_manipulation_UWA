@@ -64,10 +64,14 @@ right front18.2→15.3s, left front16.5→13.7s. LEDs follow shared photo/video 
 left-rear activation waits for its ongoing calibration to finish.
 See [timings, lighting controls and rollout](docs/wrist_speed_led_2026-11-12.md).
 
-**UWA Camera Capture** shows mobile-A4-board visibility from both right wrist
-cameras and OAK4, with a single button for native photographs. Open it from the
+**UWA Camera Capture** now shows the mobile A4 board from all four wrist
+cameras, Ethernet OAK4 and the USB OAK on N100, with a single button for native
+photographs. The USB display is rotated for its inverted mount; raw photos stay
+unchanged. Open it from the
 application menu or run `bash src/multi_arm_manipulation_UWA/scripts/camera_capture.sh`.
-See [three-camera acquisition, focus and saved datasets](docs/three_camera_capture.md).
+Use `--six-cameras --board mobile --telemetry-source rtde --keep-camera-settings`
+for the six-camera CLI session; the bare CLI preserves the original three-camera
+mode. See [camera acquisition, focus and saved datasets](docs/three_camera_capture.md).
 The [first six-set offline evaluation](docs/three_camera_photo_evaluation_2026-11-12.md)
 contains a diagnostic OAK/front-wrist pose estimate and explains the remaining
 intrinsics and independent-validation limits. No calibration is activated by it.

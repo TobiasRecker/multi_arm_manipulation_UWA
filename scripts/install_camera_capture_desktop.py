@@ -10,8 +10,8 @@ target.mkdir(parents=True, exist_ok=True)
 script = str(repo / 'scripts/camera_capture.sh').replace('\\', '\\\\').replace('"', '\\"').replace('`', '\\`').replace('$', '\\$')
 entry = target / 'uwa-camera-capture.desktop'
 entry.write_text('[Desktop Entry]\nType=Application\nName=UWA Camera Capture\n'
-    'Comment=Mobile ChArUco visibility and photos from two wrist cameras and OAK4\n'
-    f'Exec=/usr/bin/bash "{script}"\nIcon=camera-photo\n'
+    'Comment=Mobile ChArUco photos from four wrist cameras and both OAK cameras\n'
+    f'Exec=/usr/bin/bash "{script}" --six-cameras --board mobile --telemetry-source rtde --keep-camera-settings\nIcon=camera-photo\n'
     'Terminal=false\nCategories=Education;Graphics;\nStartupNotify=true\n')
 subprocess.run(['update-desktop-database', str(target)], capture_output=True, check=False)
 print(entry)

@@ -13,7 +13,7 @@ import cv2
 import numpy as np
 from python_qt_binding import QtCore, QtGui, QtWidgets
 
-from .board_capture import CAMERAS, FIVE_CAMERAS, CaptureRig, MobileBoard
+from .board_capture import CAMERAS, FIVE_CAMERAS, SIX_CAMERAS, CaptureRig, MobileBoard, start_previews, stop_previews
 
 
 class Worker(QtCore.QThread):
@@ -47,6 +47,9 @@ class Worker(QtCore.QThread):
     def publish(self, name, jpeg, metadata):
         image = cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_COLOR)
         observation, annotated = self.detector.observe(image)
+        if name == 'oak_usb':
+            annotated = cv2.rotate(annotated, cv2.ROTATE_180)
+            metadata = dict(metadata, display_rotation_deg=180)
         scale = min(1., 1050 / annotated.shape[1])
         annotated = cv2.resize(annotated, None, fx=scale, fy=scale)
         preview = cv2.imencode('.jpg', annotated)[1].tobytes()
@@ -58,7 +61,7 @@ class Worker(QtCore.QThread):
             self.message.emit('PREPARING · Applying the selected fixed-focus profile…')
             self.wrist_live(True)
             self.rig.lock_focus()
-            self.rig.preview.start()
+            start_previews(self.rig)
             self.message.emit('LIVE VIEW STARTING · Hold the object and reference board still.')
             while not self.quit_requested:
                 try:
@@ -79,9 +82,9 @@ class Worker(QtCore.QThread):
                     self.live = value
                     self.wrist_live(value)
                     if value:
-                        self.rig.preview.start()
+                        start_previews(self.rig)
                     else:
-                        self.rig.preview.stop()
+                        stop_previews(self.rig)
                     self.message.emit('LIVE · Wrist LEDs active while viewing.' if value else
                         'PAUSED · Wrist LEDs released (other viewers may keep them on). OAK released. Images are snapshots.')
                 if self.quit_requested:
@@ -93,8 +96,9 @@ class Worker(QtCore.QThread):
                     if self.quit_requested or not self.commands.empty():
                         break
                     try:
-                        if name == 'oak4':
-                            jpeg, meta = self.rig.preview.read()
+                        if name in ('oak4','oak_usb'):
+                            preview = getattr(self.rig,'previews',{'oak4':self.rig.preview})[name]
+                            jpeg, meta = preview.read()
                             if meta['sequence'] == self.sequences.get(name):
                                 continue
                             self.sequences[name] = meta['sequence']
@@ -115,7 +119,7 @@ class Worker(QtCore.QThread):
             self.message.emit('FAILED · ' + str(error))
         finally:
             try:
-                self.rig.preview.stop()
+                stop_previews(self.rig)
             except Exception as error:
                 self.message.emit('Preview shutdown: ' + str(error))
             try:
@@ -133,7 +137,7 @@ class Window(QtWidgets.QMainWindow):
         super().__init__()
         self.rig = rig
         self.camera_names = getattr(rig, 'cameras', CAMERAS)
-        self.count_label = {3: 'THREE', 5: 'FIVE'}.get(len(self.camera_names), str(len(self.camera_names)))
+        self.count_label = {3: 'THREE', 5: 'FIVE', 6: 'SIX'}.get(len(self.camera_names), str(len(self.camera_names)))
         self.data, self.pixmaps, self.errors, self.changes = {}, {}, {}, {}
         self.busy = self.closing = False
         self.reports = {}
@@ -186,7 +190,7 @@ class Window(QtWidgets.QMainWindow):
         self.labels, self.states, self.details = {}, {}, {}
         for index, name in enumerate(self.camera_names):
             column = QtWidgets.QVBoxLayout()
-            label = QtWidgets.QLabel(name.replace('_', ' ').upper())
+            label = QtWidgets.QLabel('USB OAK · N100 · DISPLAY 180°' if name == 'oak_usb' else name.replace('_', ' ').upper())
             label.setStyleSheet('font-size:20px;font-weight:bold;')
             column.addWidget(label)
             self.labels[name] = QtWidgets.QLabel('Waiting for camera…')
@@ -222,6 +226,9 @@ class Window(QtWidgets.QMainWindow):
         self.mode = QtWidgets.QComboBox()
         self.mode.addItems(['Native photos: Wrist 2592×1944 + OAK 8000×6000',
                             'Quick photos: Wrist 640×480 + OAK 8000×6000'])
+        if 'oak_usb' in self.camera_names:
+            for index in range(self.mode.count()):
+                self.mode.setItemText(index,self.mode.itemText(index)+' + USB OAK 4056×3040')
         controls.addWidget(self.mode)
         self.capture = QtWidgets.QPushButton('CAPTURE ALL ' + self.count_label)
         self.capture.clicked.connect(self.take)
@@ -237,7 +244,9 @@ class Window(QtWidgets.QMainWindow):
         note = QtWidgets.QLabel('Hold the board still for the ENTIRE capture (up to ~1 minute). '
             'Photos are NOT exposure-synchronized. Native mode briefly pauses wrist video. '
             'Focus is held for this session. Intrinsics must match focus and resolution. '
-            'Board detection is not a calibration quality check.')
+            'Board detection is not a calibration quality check.' +
+            (' Turn the board toward different camera pairs between captures. USB display is rotated; raw photos are unchanged.'
+             if 'oak_usb' in self.camera_names else ''))
         note.setWordWrap(True)
         layout.addWidget(note)
         self.worker = Worker(rig)
@@ -278,7 +287,8 @@ class Window(QtWidgets.QMainWindow):
     def update_totals(self):
         reports = list(self.reports.values())
         saved = sum(bool(r.get('all_captured')) for r in reports)
-        usable = sum(bool(r.get('all_usable')) and r.get('stationary_set_confirmed') is not False for r in reports)
+        usable = sum(bool(r.get('has_shared_board_pair') if 'oak_usb' in self.camera_names else r.get('all_usable'))
+                     and r.get('all_captured') and r.get('stationary_set_confirmed') is not False for r in reports)
         photos = sum(bool(c.get('success')) for r in reports for c in r.get('cameras', {}).values())
         self.totals.setText(f'THIS SESSION · {saved} complete sets · {usable} usable sets · {photos} saved photos · {len(reports) - usable} sets need review')
 
@@ -310,7 +320,9 @@ class Window(QtWidgets.QMainWindow):
             counts = ', '.join(name + ': ' + str(r['observation']['corners']) + '/24'
                                for name, r in report['cameras'].items())
             text = f'DONE · {len(report["cameras"])} photos saved. ' + counts
-            if not report['all_usable']:
+            if 'oak_usb' in self.camera_names:
+                text += ' · Shared board: '+', '.join(report.get('shared_board_cameras',[]))
+            elif not report['all_usable']:
                 text += ' · INCOMPLETE SHARED BOARD VIEW'
             if report.get('stationary_set_confirmed') is False:
                 text = 'FAILED STATIONARITY AUDIT · Images saved for diagnosis only. ' + text
@@ -320,7 +332,7 @@ class Window(QtWidgets.QMainWindow):
             text += ' ' + report.get('error', '')
         self.action.setText(text + '\n' + report['directory'])
         complete = report['all_captured'] and report.get('stationary_set_confirmed') is not False
-        usable = complete and report.get('all_usable', False)
+        usable = complete and (report.get('has_shared_board_pair',False) if 'oak_usb' in self.camera_names else report.get('all_usable', False))
         outcome = 'DONE · Usable board views' if usable else 'DONE · Board views need review' if complete else 'FAILED · Review diagnostics'
         self.last_result.setText(f'LAST CAPTURE · Set {len(self.reports)} · {outcome}')
         self.last_result.setToolTip(text + '\n' + report['directory'])
@@ -372,6 +384,9 @@ class Window(QtWidgets.QMainWindow):
         ready = len(current) == len(self.camera_names) and all(current)
         self.overall.setText('ALL ' + self.count_label + ' DETECT REFERENCE BOARD · Capture to check native detail (hold still)' if ready else
             'CHECK SHARED VIEW · Show the selected reference board to all cameras; full board is best')
+        if 'oak_usb' in self.camera_names:
+            count = sum(current)
+            self.overall.setText(f'{count}/6 CAMERAS SEE BOARD · Hold still for capture; turn board toward other pairs between sets')
         self.overall.setStyleSheet('background:' + ('#8effa2' if ready else '#ffe066') +
             ';color:#000;font-size:19px;font-weight:bold;padding:8px;')
         if self.busy:
@@ -431,13 +446,14 @@ def main():
     p.add_argument('--capture-only', action='store_true')
     p.add_argument('--quick', action='store_true', help='Capture-only: use wrist VGA rather than native HD')
     p.add_argument('--five-cameras', action='store_true', help='Four wrists plus OAK; separate object-scan focus profile')
-    p.add_argument('--cameras', nargs='+', choices=FIVE_CAMERAS, help='Selected distinct cameras including oak4')
+    p.add_argument('--six-cameras', action='store_true', help='Four wrists plus Ethernet OAK4 and N100 USB OAK')
+    p.add_argument('--cameras', nargs='+', choices=SIX_CAMERAS, help='Selected distinct cameras including oak4')
     p.add_argument('--keep-camera-settings', action='store_true', help='Retain useful focus/settings on exit and record their readback')
     p.add_argument('--board', choices=('mobile', 'left', 'right', 'both'), help='Default mobile, or both tables with --five-cameras')
     p.add_argument('--telemetry-source',choices=('ros','rtde'),default='ros',help='Stationarity observer; rtde only subscribes to controller outputs')
     args = p.parse_args()
-    if args.five_cameras and args.cameras:
-        p.error('--five-cameras and --cameras are mutually exclusive')
+    if sum(bool(v) for v in (args.five_cameras,args.six_cameras,args.cameras)) > 1:
+        p.error('--five-cameras, --six-cameras and --cameras are mutually exclusive')
     options = {}
     if args.cameras:
         options['cameras'] = tuple(args.cameras)
@@ -446,6 +462,13 @@ def main():
             'src/multi_arm_manipulation_UWA/config/digitization/five_camera_capture.yaml')
         if args.output is None:
             args.output = args.workspace / 'setup/digitization/five_camera'
+    if args.six_cameras:
+        options = dict(cameras=SIX_CAMERAS,optics_path=args.workspace /
+            'src/multi_arm_manipulation_UWA/config/digitization/six_camera_capture.yaml')
+        if args.output is None:
+            args.output = args.workspace / 'setup/calibration/six_camera_mobile'
+    elif args.cameras and 'oak_usb' in args.cameras:
+        options['optics_path'] = args.workspace / 'src/multi_arm_manipulation_UWA/config/digitization/six_camera_capture.yaml'
     rig = CaptureRig(args.workspace, args.output, board=args.board or ('both' if args.five_cameras else 'mobile'),telemetry_source=args.telemetry_source, keep_camera_settings=args.keep_camera_settings, **options)
     if args.capture_only:
         try:

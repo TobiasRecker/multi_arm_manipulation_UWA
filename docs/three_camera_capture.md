@@ -1,5 +1,46 @@
 # Mobile-board photos with the two right wrists and OAK4
 
+## Six-camera acquisition, 23 November 2026
+
+The application-menu entry now selects four wrists, Ethernet OAK4 and the
+USB OAK-D Pro AF on N100. The original three/five-camera CLI modes remain
+available. Start the six-camera session explicitly with:
+
+```bash
+bash src/multi_arm_manipulation_UWA/scripts/camera_capture.sh \
+  --six-cameras --board mobile --telemetry-source rtde --keep-camera-settings
+```
+
+All six panels provide live previews and **CAPTURE ALL SIX** saves native
+wrist2592×1944, OAK4 8000×6000 and USB4056×3040 originals. The USB panel is
+rotated180° for the inverted mount; saved raw images and detected corner
+coordinates stay in sensor orientation. The USB preview is1280×960/2fps,
+transported by an owned SSH worker using the existing `~/uwa-camera/.camera.lock`.
+Pause, capture and window close stop that worker and wait for release. The
+native USB photograph uses the previously verified camera-only photo tool.
+No robot-control API is added to this GUI.
+
+The acquisition profile is `config/digitization/six_camera_capture.yaml`:
+LF245/LR406/RF435/RR388, OAK4 107, USB112. These are acquisition settings,
+not new calibration results. USB focus112 intrinsics still need independent
+calibration. The N100 needs `usb_oak_board_preview.py` and `usb_oak_photo.py`
+from the OAK repository in its own `~/uwa-camera/` folder. The normal N100
+SSH profile is used; no camera or robot driver is started by this GUI.
+
+Both external previews are released before capture. With four wrists selected,
+their native jobs run together, followed by external OAK photos. Hold the board
+still until the visible **DONE** status; these exposures are not synchronized.
+Sessions are stored under `setup/calibration/six_camera_mobile/`.
+
+Turn the single-sided board toward different camera pairs between sets.
+Six-camera session counters accept a complete, stationary set with at least one
+shared usable board pair; they do not require all six cameras to see the front
+at once. Manifests retain strict `all_usable`, plus `shared_board_cameras`,
+`shared_board_pairs` and `has_shared_board_pair`. Pairs must refer to the same
+board ID. Detection is an acquisition aid, not a calibration quality result.
+
+## Original three-camera mode
+
 The **UWA Camera Capture** app is camera-only. It does not power, brake-release,
 start programs or move any robot. It recognizes the **mobile A4 board** only:
 DICT_4X4_100, IDs75–91, 7×5 squares of38mm, markers28mm. The fixed tableboards

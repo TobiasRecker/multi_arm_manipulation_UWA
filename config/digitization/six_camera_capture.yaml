@@ -1,0 +1,9 @@
+schema: 1
+# Native acquisition settings; no new intrinsics or extrinsics activated.
+wrist_manual_focus:
+  left_front: 245
+  left_rear: 406
+  right_front: 435
+  right_rear: 388
+oak_manual_focus: 107
+usb_oak_manual_focus: 112

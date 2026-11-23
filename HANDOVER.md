@@ -1,5 +1,155 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Vier Handkameras für mobiles Board, 23.11.2026
+
+- Folgeauftrag des Nutzers: nach abgeschlossener N100-Umstellung alle vier
+  URs der Reihe nach in die berechneten Posen fahren, danach die vorhandene
+  Aufnahme-GUI um die zweite OAK erweitern und öffnen. Ausführung nun
+  ausdrücklich beauftragt, weiterhin bestehende Offline-/native Prüfungen.
+  Betriebswechsel laut separatem Nachweis13:45AWST abgeschlossen.
+- Reguläre Vorbereitung lud auf LR/RF/RR`ros.urp` mit dessen
+  `tobias.installation`. Alle drei meldeten darauf`CONFIRM_SAFETY`; kein
+  Power/Brake/Play an diesen drei Armen gesendet. Nutzer um Prüfung und
+  Bestätigung direkt an den drei Pendants gebeten. LF bereits
+  `RUNNING/NORMAL`, Programm weiterhin`STOPPED`. Noch keine Trajektorie.
+- GUI-Erweiterung fertig: sechs Quellen, USB-Vorschau über eigene
+  N100-SSH-Sitzung mit gemeinsamer Kamera-Lease, native4056×3040-Aufnahme
+  über vorhandenen Fotopfad. USB-Anzeige180°, Rohbilder unverändert.
+  Explizites Profil`config/digitization/six_camera_capture.yaml` mit OAK4
+  Fokus107, USB112, vorhandenen nativen Handkamera-Fokuswerten. Bestehende
+  drei/fünf Kameramodi erhalten.28 gezielte Softwaretests bestanden,
+  Paket`uwa_cell_control` inLyrical erfolgreich neu gebaut. Startmenüeintrag
+  auf`--six-cameras --board mobile --telemetry-source rtde --keep-camera-settings`
+  aktualisiert. Fenster wie beauftragt erst nach den Armfahrten öffnen.
+- Echter USB-Nachweis`usb-gui-check-02/`: Vorschau1280×960 mit korrekter ID
+  und Fokus112, geordnet beendet, anschließend natives4056×3040-Foto.
+  Nachher Kamera geschlossen/Lease frei, Werkskalibrierung vor/nach gleich.
+  Ein initialer Fehler der reinen SDK-Lesung nach Pipelineende wurde auf
+  Leseprüfung vor Pipelineende korrigiert; erster Fehlerbefund bleibt erhalten.
+  UI-Layout mit sechs Feldern zusätzlich offline angesehen, Snapshot
+  `six-camera-layout.png` ist ausdrücklich gespeicherte/synthetische Vorschau.
+- Weiteres für Anfahrt vorbereitet:
+  `tools/prepare_calibration_observation_motion.py` prüft alle vier seriellen
+  Abschnitte mit dem vorhandenen PTP-Prüfer aufROSmini. N100 exportierte seine
+  aktive Modell-/Konfigurationsbindung; kanonische Geometrie, Mesh-Hashes
+  und acht Planermodul-Hashes stimmten mitROSmini überein. Nachweis
+  `execution-01/portable-binding-check.json`; bestehendes Tempo0,1rad/s.
+  Zielpläne noch nicht erzeugt: native`CONFIRM_SAFETY`-Bestätigung für die drei
+  Arme fehlt, dadurch noch kein verwendbarer eingeschalteter Vierarmstart.
+  Programme weiterSTOPPED, keine Trajektorie gesendet.
+- Nach Pendant-Freigabe: normale Antriebsvorbereitung ohnePlay über
+  `execution-01/prepare_drives.py`; vorPlay unbeladene Holds an echte
+  Driver-/RTDE-Winkel neu binden (bestehendes N100-Werkzeug
+  `setup/tasks/carton_motion_review_20261119/rebind-current-hold.py`).
+  Frischen Hardware-Snapshot mit aktivem Kartonprofil erzeugen, alle vier
+  Abschnitte offline prüfen; dann bestehenden expliziten Software-Reset,
+  reguläresPlay und unveränderte geprüfte Einzelpläne nacheinander ausführen.
+  Keine nativen Schutzbestätigungen automatisieren und keine alten ausgeschalteten
+  Nullwerte als physischen Start verwenden. Operative Hilfsskripte liegen auf
+  N100 in`~/uwa-camera/`; Ergebnis-/Modellablage dort im isoliertenUR-Workspace
+  `setup/calibration/mobile_volume_20261123/execution-01/`.
+
+- Nutzerauftrag: alle vier Handkameras auf den Raum zwischen den Tischen
+  ausrichten, möglichst großer noch lesbarer Boardabstand und großes
+  gemeinsames Kalibriervolumen. Danach bewegtes mobiles Board für die vier
+  Handkameras und beide OAKs aufnehmen. „Nicht auflösen“ wurde als vermuteter
+  Tippfehler für weiterhin auflösbare Marker benannt.
+- Offline-Suche `tools/design_calibration_volume.py` auf titanpc mit
+  eingefrorener Geometrie des Profils `hardware_20261118_base_fixed_v1`.
+  Native Handkamera-Intrinsics 2592×1944 aus vorhandenen Artefakten, kein
+  Hochskalieren von VGA. A4 297×210 mm, Marker 28 mm. Planungsbudget:
+  mindestens 28 px/Marker bei 45° Neigung und Faktor 0,9 auf die nominelle
+  Projektion. Dies ist ein Entwurfskriterium, kein Erkennungsnachweis.
+- Lesender N100-Status bei Vorbereitung: left_front `NO_CONTROLLER`,
+  die anderen drei `POWER_OFF`, alle Programme `STOPPED`, keine gesendeten
+  Bedienkommandos. Damit keine verbindliche Anfahrt ab aktuellem Zustand;
+  keine Programme, Treiber oder Schutzdienste für diesen Auftrag verändert.
+- Eingaben und Ergebnisse unter
+  `setup/calibration/mobile_volume_20261123/`. Noch keine neue Kalibrierung
+  aktiviert. Die USB-OAK ist kopfüber montiert; die tatsächliche Drehung muss
+  in ihre Extrinsik eingehen. Ihre aktuellen Intrinsics bei Fokus112 sind
+  noch zu bestimmen. Die externe gemeinsame Sicht ist erst mit frischen
+  Extrinsiken beider OAKs quantifizierbar. Links vorne ist die optische
+  Hand-Auge-Anbindung im aktiven Modell nominal, die Armbasis fest übernommen.
+- Ergebnis: vier Kameras world XYZ jeweils (±0,95, ±0,85, 1,50) m,
+  Abstand zur Arbeitsmitte1,294 m. Bildzentrierung mit den nativen K/D
+  vergrößerte den regelmäßigen gemeinsamen Entwurfsquader von40×40×15 auf
+  **50×50×25 cm**. Boardmitte world X/Y±0,25, Z1,20–1,45 m. Rasterabschätzung,
+  kein bewiesenes globales Optimum und kein Erkennungsnachweis; gilt zunächst
+  für die vier Handkameras. FCL-Endstellung frei, alle Greiferöffnungen
+  berücksichtigt; kleinster konservativer Armhüllenabstand0,667 m, bestehende
+  40-mm-Anforderung erfüllt. 680 IK-Starts auf titanpc,138 Einzelkandidaten,
+  zehn pro Arm im Vergleich,29s Suchlauf. Geometrie und Quaderauswertung
+  zusätzlich kurz lokal geprüft.
+- **RF-Umlaufentscheidung19.11. berücksichtigt:** endgültiges Ziel
+  shoulder_pan+51,9° statt historisch−308,1°. Keine Rückkehr zum abgewickelten
+  Basiskabel-Umlauf. Rohsuche unverändert in`search-06/`; endgültige Datei
+  `proposal.json` enthält die explizite Modulo-Korrektur und wurde erneut
+  per FK/FCL geprüft. Kein historischer Such-Seed ist ein aktueller Fahrstart.
+- Kompakte Ziele in`config/view_designs/mobile_board_volume_20261123.yaml`,
+  weiterhin`executable:false`. [Entwurf, Abstände, Vorschau und Aufnahmeablauf](../../setup/calibration/mobile_volume_20261123/README.md).
+  Anfahrt ab aktuellem Start und parallele Ausführbarkeit noch offen wegen
+  fehlendem gültigem Vierarmzustand. Keine reale Fahrt erfolgt. Statische
+  Boardanker verbinden die Kameras mit dem Arbeitsraum; unabhängige
+  bewegungsbasierte Hand-Auge-Bestimmung bzw. Prüfung braucht verschiedene
+  Armstellungen. Die bestehende Fünfkameramaske bindet die sechste Quelle
+  (N100-USB-OAK) noch nicht automatisch ein.
+
+## N100-Treiber und Stoppverwaltung in Betrieb, 23.11.2026, 13:45 AWST
+
+- Links vorne liefert wieder aktuelle RTDE-Daten. Der Nutzer bestätigte
+  die Arme unbeladen und die Zelle frei. Vier Treiberdienste nacheinander
+  bei aktivem Schutz gewechselt, jeden Hold erneut provisioniert und
+  bestätigt. Der reguläre Stopppfad des Schutzdiensts bestätigte den Halt.
+  Neue Guard-Invocation `7d44ce47a3374b6587dcdd0d284282c5`,
+  unverändertes Kartonprofil und RR-Priorität 20. Alle vier Manager laden
+  die geprüfte URCL-Bibliothek `6d862c646678…`. Der Greiferadapter liefert
+  vier frische Registerbeobachtungen mit ursprünglichem Lesezeitpunkt.
+  Rücksicherung `~/uwa-ur-runtime/review-candidates/vor-ur-driver-guard-20261123.nb5lzt61/`.
+- Bei der Abschlussprüfung war der Modell-Publisher links hinten zunächst
+  für den Guard unsichtbar. Nach erneutem Start des betroffenen Treiberdiensts
+  entsprachen alle sechs veröffentlichten Gelenktransformationen exakt
+  dem Zellmodell. In 20 s alle 884 empfangenen Supervisorzustände mit vier Holds
+  und ruhenden Verwaltungsabfragen, alle 362 empfangenen Guardzustände mit
+  vier mechanisch ruhenden Armen und nativ gestoppten Programmen.
+  Keine aktuellen Guardfehler. Watchdog weiterhin verriegelt, kein Reset.
+  Links vorne steht auf RUNNING/NORMAL, die drei anderen Arme auf POWER_OFF.
+- Zwei 15-s-Messungen vor dem Wechsel und im Endstand ergaben 95,32 und
+  66,12 % Hostlast, 164,34 und 100,56 % eines Kerns für den Schutzdienst,
+  1.024 und 30 offene Deskriptoren pro Manager, 93 und 0 protokollierte
+  native STOP-Anforderungen sowie 9.907 und 0 Treiberjournalzeilen.
+  Der reguläre ROSmini-Offline-Compiler stimmt in allen 27 Prüferkomponenten
+  mit dem N100 überein. Keine Fahrt oder Greiferbewegung ausgelöst.
+  [Betriebsstand, Zeitfenster und Belege](work/n100-ueberwachung-20261123.md).
+
+## Vorbereitung der N100-Treiber- und Stoppkorrektur, 23.11.2026
+
+- N100-Ablage `~/uwa-ur-runtime/review-candidates/ur-driver-guard-20261123.71r24erk/`.
+  Übertragene Dateien und operativer Ausgangsstand per SHA-256 geprüft.
+  Die Kandidatenbibliothek schließt fehlgeschlagene TCP-Verbindungen und
+  behandelt den RTDE-Wiederanlauf samt Meldungen. 24 vorhandene
+  Loopback-Tests bestanden. Alle 97 vom echten N100-Hardwareplugin
+  benötigten URCL-Symbole sind vorhanden, die Prüfung mit `ldd -r` direkt
+  auf dem N100 ergab vollständige Auflösung auf den Kandidaten.
+- Supervisor und unabhängiger Watchdog teilen die Stoppzuständigkeit.
+  Weitere native STOPs entfallen bei frischem physischem Nachweis von
+  Programmstopp und Armruhe. Ungeklärte Arme und Prozessausfälle behalten
+  ihren Rückfall. Die drei Verwaltungsabfragen ruhen beim bestätigten,
+  exklusiven stationären Hold und wachen bei Änderungen oder Freigabe auf.
+  Der vorhandene Vierarm-Mock bestand alle 17 Prüfpunkte, auch die Übernahme
+  eines laufenden Fake-Auftrags. Gesonderte Replays decken native Zustände,
+  falsche und verspätete Rückmeldungen sowie die Rücklesefrist ab.
+- Bei identischer Paarpose entfällt die neue Distanzrechnung. Bei geringen
+  Änderungen genügt häufig die exakte Berechnung für 32 Kugelpaare.
+  8.480 archivbasiert verglichene Paarbefunde stimmten feldweise überein.
+  Die Ruheauswertung wird je Arm und Guard-Takt einmal erstellt. Die
+  Greifer-Lesewiederholung und die Zwei-Sekunden-Frist bei der offenen
+  Einfahrt sind im Kandidaten enthalten. Die Korrektur für einen verlorenen
+  Vorschauexport gehört zur GUI auf ROSmini.
+- Bei der Vorbereitung fehlten links vorne frische RTDE-Daten. Die spätere
+  Übernahme und der Vorher-/Nachhervergleich stehen im vorstehenden
+  Betriebsstand. [Softwareprüfung und Ausgangsmessung](work/n100-ueberwachung-20261123.md).
+
 ## Last der realen UR-Überwachung und der vier Treiber, 23.11.2026
 
 - Lesende N100-Stichprobe um 11:50 AWST über 15,02 s im Fehlerzustand.
@@ -20,6 +170,13 @@
 
 ## N100-Wächterwechsel wartet auf RTDE links vorne, 23.11.2026
 
+- Nutzerbeobachtung vom 23.11.: Links vorne bootete mit abgezogenem externem
+  Netzwerkkabel normal. Die anschließende lesende N100-Abfrage um 13:16:52 AWST
+  erreichte den UR wieder (`RUNNING`, Safety `NORMAL`, `ros.urp STOPPED`).
+  Der Wächter-Zustandsstrom lieferte anschließend zwei fortlaufende RTDE-
+  Quellzeitstempel, jüngster Messwert rund 46 ms alt. Das bestätigt die
+  Wiederherstellung nach dem Boot. Der Auslöser beim verbundenen Start ist offen.
+
 - Pendant-Foto des Nutzers: PolyScope meldete `IncompatibleClassChangeError`
   im `ControllerConnectionThread` bei `RTDEClient.makeConnection`, mit
   `IOUtil.close` am Anfang des Stacktraces. Der Statusbericht wurde laut
@@ -29,6 +186,16 @@
   abgerufen. ZIP-Prüfung und SHA-256-Abgleich bestanden. `summary.log`
   bestätigt den Stacktrace. Die genaue Fehlerursache ist offen.
   [Statusbericht](../../setup/logs/uwa-control/exports/left-front-20261123/recording20261123_12_13_57.zip)
+- Offline-Auswertung des Statusberichts: `URControl.log.0` meldet am 23.11.
+  um 12:12:48,404 laut Steuerbox-Uhr erstmals `urEthernetDriver: Lost eth package`,
+  danach Timeouts. Der erste protokollierte RTDE-Client verbindet sich erst
+  um 12:12:50,096. Ab 12:13:31 folgt ein weiterer URControl-Startabschnitt,
+  in dem die Zustände `CONFIRM_SAFETY` und `DISCONNECTED` erscheinen. Die
+  PolyScope-Ausnahme folgt um 12:13:57,307. `log_history.txt` enthält dieselbe
+  Ausnahmeklasse bereits nach den Startsequenzen um 10:50 und 11:24. Kein
+  konkreter Kommunikationsendpunkt lässt sich aus den Paketwarnungen zuordnen.
+  Nächster Trennversuch nach Freigabe: kontrollierter Steuerbox-Start mit
+  Antrieben aus und getrenntem externem Roboternetz, danach Logs vergleichen.
 
 - Zum erneut beauftragten Wechsel stimmt die vorbereitete `hardware_ports.py`
   auf dem N100 weiterhin per SHA-256 mit der lokalen Datei überein. Dienst

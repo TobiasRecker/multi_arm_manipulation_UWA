@@ -1,5 +1,20 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Gemeinsame Kalibrieransichten, Nutzerauftrag 23.11.2026
+
+- Vier Handkameras sollen die Mitte zwischen den Tischen aus möglichst
+  großem, noch für das mobile A4-ChArUco-Board brauchbarem Abstand sehen.
+  Gemeinsames Kalibriervolumen, Markerauflösung und zugänglichen Raum
+  berücksichtigen. Zielgruppe: vier Handkameras, Ethernet-OAK4 und USB-OAK
+  am N100. Endstellungen von geprüften Anfahrwegen unterscheiden.
+- Bestehende, vom Nutzer übernommene Armbasisbindungen verwenden. Eine
+  Aufnahmefolge mit bewegtem Board bei festen Armen von einer unabhängigen
+  Hand-Auge-Bestimmung mit verschiedenen Armstellungen unterscheiden.
+- Folgeauftrag23.11.: Nach abgeschlossenem N100-Betriebswechsel alle vier
+  Arme **nacheinander** in diese geprüften Beobachtungsposen fahren. Danach
+  die vorhandene Aufnahme-GUI um die N100-USB-OAK erweitern und öffnen.
+  Diese Reihenfolge ist für diesen Auftrag ausdrücklich gewünscht.
+
 ## Rechneraufteilung für reale URs, 20.11.2026
 
 - Nutzerentscheidung: N100 betreibt die UR-ROS-Treiber, Regelung, Ausführung
@@ -311,7 +326,14 @@ angezeigten Arme und die Revision gebunden.
   und ihre N100-Last kritisch prüfen. Die Antwortzeit der Controllerliste
   getrennt von Ressourcenbesitz, Reglerfunktion und gemessener Bewegung
   beurteilen. Zusätzliche Wächter bedürfen ausdrücklicher Zustimmung.
-  [Bewertung des operativen Stands](work/n100-ueberwachung-20261123.md).
+  Unveränderte Armpaare sollen keine vollständige Abstandsrechnung auslösen.
+  Für kleine Encoderänderungen darf die Rechenarbeit sinken, wenn der
+  tatsächliche Mindestabstand und das auslösende Körperpaar nachweislich
+  mit der Vollrechnung übereinstimmen. Vorübergehende Ausfälle beim Lesen
+  von Greifer- und Anzeigedaten tolerieren. Eine Wiederholung gilt für die
+  Leseabfrage. Eine verspätete Nachricht erneuert weder die ursprüngliche
+  Gerätebeobachtung noch die Freigabe eines Fahr- oder Greifbefehls.
+  [Prüfung und Reparaturstand](work/n100-ueberwachung-20261123.md).
 
 - Bei einem konkreten Abbruch zuerst den aktuellen N100-Bericht aus **Safety log** oder dem passenden lokalen Export lesen und den betroffenen Versuch über dessen Workflowpfad zuordnen. Den aktiven [N100-Wächterstand](../../setup/n100/ur-runtime/README.md#guard-protokoll-auf-dem-n100) verwenden. Den aktuellen Interlockstatus vor einer Fahrt separat prüfen.
 

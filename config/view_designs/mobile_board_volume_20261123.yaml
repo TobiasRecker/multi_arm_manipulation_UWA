@@ -1,0 +1,50 @@
+schema_version: 1
+purpose: Offline endpoint proposal for mobile A4 calibration board; no executable
+  trajectory
+executable: false
+profile: hardware_20261118_base_fixed_v1
+source_proposal: /home/rosmatch/UWA_ws/setup/calibration/mobile_volume_20261123/proposal.json
+source_sha256: 7235b939afef9e3ad413b4d4e9cd9d60a2f38ba776289ccbc6a80e01363e8bfb
+targets_rad:
+  left_front:
+  - 0.6172558829316833
+  - -2.8048575208192936
+  - 0.6440367143543777
+  - -0.25953178052600173
+  - -1.4827997283991925
+  - 3.0651238114925556
+  left_rear:
+  - -3.3453603935510476
+  - -2.9553567163912557
+  - 0.7851146156291136
+  - -0.19262781733914577
+  - -1.97840330939325
+  - -2.780776204074525
+  right_front:
+  - 0.905899726334555
+  - -0.16814575483579763
+  - -0.7906160412358015
+  - -2.837643212552971
+  - 1.5244976166447717
+  - -3.1035908315999965
+  right_rear:
+  - -1.34647150614389
+  - -0.19470683020901486
+  - -0.7168908734935429
+  - -2.927855289696631
+  - 1.9789577352161176
+  - 2.81998663156737
+target_centre_world_m:
+- 0.0
+- 0.0
+- 1.28
+sampled_common_box_world_bounds_m:
+- - -0.25
+  - -0.25
+  - 1.2000000000000002
+- - 0.25
+  - 0.25
+  - 1.4500000000000002
+approach_status: Missing fresh four-arm start; LF NO_CONTROLLER and other drives off
+joint_winding_note: RF shoulder pan uses near-zero revolution adopted by user19Nov;
+  never replay old -360deg winding.
