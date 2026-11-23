@@ -29,6 +29,7 @@ from uwa_cell_motion.hardware_execution import HardwareClient
 from uwa_cell_motion.single_execution import follow
 from uwa_cell_motion.hardware_state import require_domain,signature,Peer
 from uwa_cell_gripper_control.api import endpoint
+from uwa_cell_gripper_control.client import read_register_status
 from uwa_cell_gazebo.charuco_views import Chain
 from hardware_stop_probe import Observer
 
@@ -71,7 +72,13 @@ class ApproachClient(HardwareClient):
             wait_service_spinning(client,self.spin_once)
         except TimeoutError as error:
             raise TimeoutError(f'Hardware service discovery timed out: {name}') from error
-        future=client.call_async(request);self.wait(future.done,5.)
+        future=client.call_async(request)
+        try:
+            self.wait(future.done,5.)
+        except TimeoutError:
+            if name.endswith('/gripper/read'):
+                client.remove_pending_request(future)
+            raise
         self.service_timings.append(dict(service=name,duration_s=time.monotonic()-started))
         return future.result()
 
@@ -97,9 +104,8 @@ def approach_resources(problem, arms, client_type=ApproachClient, observer_type=
 
 
 def read_gripper_status(client, arm):
-    response=client.service(Trigger,endpoint(arm,'hardware')+'/read',Trigger.Request())
-    if not response.success:raise RuntimeError(response.message)
-    return json.loads(response.message)
+    path=endpoint(arm,'hardware')+'/read'
+    return read_register_status(path, lambda: client.service(Trigger,path,Trigger.Request()))
 
 
 def reviewed_command(args, phase, problem, source, start, end, selected, make_parts, output, report,

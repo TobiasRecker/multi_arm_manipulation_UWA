@@ -10,7 +10,9 @@ def fake():
     now=time.monotonic();core=Interlock(.25);core.receive(dict(instance='guard',sequence=1,blocked_arms=[],reset_sequence=0,state='CLEAR'),now)
     server=SimpleNamespace(reset_lock=threading.Lock(),lock=threading.RLock(),core=core,cfg=dict(heartbeat_timeout_s=.25),armed=True,
         guard=SimpleNamespace(fresh=lambda *a:True),witness=SimpleNamespace(fresh=lambda *a:True,value=dict(tripped=False)),
-        ports={r:SimpleNamespace(verified=True,hardware_verified=True,received=now,hardware_received=now)for r in ROBOT_IDS},
+        ports={r:SimpleNamespace(verified=True, hardware_verified=True, received=now, hardware_received=now,
+            parameter_received=now, list_observed_from=now, hardware_observed_from=now,
+            parameters_observed_from=now, hold_invalidated=now) for r in ROBOT_IDS},
         reset_guard=object(),reset_witness=object(),calls=[])
     def request(peer):
         server.calls.append(peer)

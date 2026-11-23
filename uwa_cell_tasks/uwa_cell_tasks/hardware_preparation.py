@@ -65,7 +65,7 @@ class GripperObserver:
     def snapshot(self):
         start = time.monotonic()
         registers = {name: self.get(name) for name in VARIABLES}
-        return dict(registers=registers, read_duration_s=time.monotonic()-start,
+        return dict(registers=registers, read_started_monotonic_s=start, read_duration_s=time.monotonic()-start,
                     activated=registers['ACT'] == 1 and registers['STA'] == 3,
                     fault_free=registers['FLT'] == 0,
                     object_detected=registers['OBJ'] in (1, 2),

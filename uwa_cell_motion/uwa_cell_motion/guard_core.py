@@ -66,7 +66,7 @@ class GuardState:
     def stationary(self, rid, now):
         return self.stationarity_evidence(rid,now)['confirmed']
 
-    def evaluate(self, pairs, now, source_now):
+    def evaluate(self, pairs, now, source_now, *, fresh_stationary_arms=None):
         faults = list(self.external_faults)
         for rid,record in self.records.items():
             limits=joint_velocity_limits(self.cfg,rid,len(record['v']))
@@ -97,7 +97,10 @@ class GuardState:
             if not any(c['arms']==fault['arms'] and c['reason']==fault['reason'] for c in self.causes):
                 self.causes.append(dict(fault,source_time_s=source_now))
             self.latched.update(fault['arms'])
-        stopped = all(self.stationary(rid, now) and self.fresh(rid,now,source_now) for rid in self.latched)
+        if fresh_stationary_arms is None:
+            stopped = all(self.stationary(rid, now) and self.fresh(rid,now,source_now) for rid in self.latched)
+        else:
+            stopped = self.latched.issubset(fresh_stationary_arms)
         state = 'STATE STALE' if any(f['reason']=='STATE STALE' for f in faults) else (
             'STOPPED' if stopped and self.latched else 'STOPPING' if self.latched else 'CLEAR')
         return dict(state=state, blocked_arms=sorted(self.latched), faults=faults,latched_causes=list(self.causes),

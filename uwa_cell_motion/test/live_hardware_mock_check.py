@@ -145,7 +145,7 @@ def check(output,config_path=None):
             start(False);time.sleep(1.)
             assert not any(m.switch_calls for m in managers);result['monitor_has_no_controller_or_native_commands']=True
             close();start(True)
-            client=HardwareClient(model,'mock',['left_front','right_front','left_rear'])
+            client=HardwareClient(model,'mock',ROBOT_IDS)
             client.connect(guard=False)
             client.wait(lambda:set(client.supervisor['held_arms'])==set(ROBOT_IDS),10.)
             def wait(seconds):

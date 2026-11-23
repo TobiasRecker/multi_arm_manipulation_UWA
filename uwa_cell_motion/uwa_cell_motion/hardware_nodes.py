@@ -37,6 +37,18 @@ def decode(message):
     except (ValueError,TypeError):return {}
 
 
+def fresh_native_stops(peer, now, cfg):
+    """Measured STOPPED program and stationary arm, bounded by original RTDE age."""
+    if not peer.fresh(now, cfg['heartbeat_timeout_s']):
+        return {}
+    stamps = peer.value.get('native_stopped_at', {})
+    if not isinstance(stamps, dict):
+        return {}
+    return {arm: stamp for arm, stamp in stamps.items()
+            if arm in ROBOT_IDS and type(stamp) in (int, float)
+            and 0 <= now - stamp <= cfg['state_timeout_s']}
+
+
 class GuardJournal:
     """Report a newly latched arm separately from another fault during its hold."""
     def __init__(self):
@@ -122,6 +134,10 @@ class HardwareGuard(MotionNode):
         if self.supervisor.receive(value,time.monotonic(),self.hardware_signature,self.armed):self.supervisor_status=value
     def update(self,now):
         records,errors=self.source.snapshot();faults=[]
+        self.native_program_states = {
+            arm: [record['epoch'], record['status']['runtime_state'], min(record['received'], record['source_stamp'])]
+            for arm, record in records.items() if arm not in errors
+        }
         for rid,record in records.items():
             status=record['status'];affected=sorted({r for pair in PAIRS if rid in pair for r in pair})
             if status['safety_mode'] not in (1,2):faults.append(dict(arms=affected,reason='NATIVE SAFETY STOP: '+rid))
@@ -158,14 +174,20 @@ class HardwareGuard(MotionNode):
         self.last_tick_start=now
         pilot_status = dict(state='PILOT_UNAVAILABLE' if self.armed else 'MONITOR_ONLY',
                             exclusive_commands_proved=False, error=self.pilot_error)
+        program_states = {}
+        evidence, stationary = {}, []
         try:
-            world,available=self.update(now);status=self.core.evaluate(self.pairs,now,now)
+            world,available=self.update(now)
+            evidence = {r:self.core.stationarity_evidence(r, now) for r in ROBOT_IDS}
+            stationary = [r for r in ROBOT_IDS if evidence[r]['confirmed'] and self.core.fresh(r, now, now)]
+            status=self.core.evaluate(self.pairs,now,now,fresh_stationary_arms=stationary)
             if self.pilot_channel is not None:
-                status['stationary_arms'] = [r for r in ROBOT_IDS if self.core.fresh(r,now,now) and self.core.stationary(r,now)]
+                status['stationary_arms'] = stationary
                 extra,pilot_status = self.pilot_channel.tick(now,self.records,status,self.supervisor_status,available)
                 if extra:
                     self.core.external_faults.extend(extra)
-                    status = self.core.evaluate(self.pairs,now,now)
+                    status = self.core.evaluate(self.pairs,now,now,fresh_stationary_arms=stationary)
+            program_states = self.native_program_states
         except Exception as error:
             self.core.latched.update(ROBOT_IDS);world={};available=False
             status=dict(state='STATE STALE',blocked_arms=list(ROBOT_IDS),faults=[dict(arms=list(ROBOT_IDS),
@@ -180,11 +202,19 @@ class HardwareGuard(MotionNode):
                 budget_ms=1000/self.cfg['rate_hz'],callback_overruns=self.tick_overruns),
             model_signature=self.signature,model_match=all(self.model_match.values()),guard_config_signature=self.hardware_signature,
             source_time_s=now,stop_adapter_available=available,state_ages_s={r:now-v['received'] for r,v in self.records.items()},
-            stationary_arms=[r for r in ROBOT_IDS if self.core.fresh(r,now,now) and self.core.stationary(r,now)],
-            stationarity_evidence={r:self.core.stationarity_evidence(r,now) for r in ROBOT_IDS},
+            stationary_arms=stationary, stationarity_evidence=evidence,
             runtime_label=self.mode.upper()+('\nSTOP-GUARD-ARMED' if self.armed else '\nMONITOR-ONLY')+
                 ('\nStop-reserve:OFF (GEOMETRIC ONLY)' if self.cfg.get('stopping_reserve_policy')=='geometric_only' else '\nStop-reserve:UNMEASURED')+'\nTool:opening-envelope',
             model_uncertainty='World/table anchors provisional; hardware stop reserve unmeasured; gripper opening unobserved')
+        status['native_program_states'] = {
+            arm: state for arm, state in program_states.items() if self.core.fresh(arm, now, now)
+        }
+        # A quiet position trend may coexist with a raw speed fault. Never
+        # suppress a stop on the strength of contradictory motion evidence.
+        speed_faults = {arm for fault in status['faults'] for arm in fault['arms']
+                        if fault['reason'] in ('SPEED LIMIT', 'REVIEWED JOINT/TCP SPEED OR STATE INVALID')}
+        status['native_stopped_at'] = {arm: state[2] for arm, state in status['native_program_states'].items()
+                                       if state[1] == 1 and arm in status['stationary_arms'] and arm not in speed_faults}
         self.publisher.publish(String(data=json.dumps(status,allow_nan=False)))
         try:
             for event, causes in self.journal.events(status, now, self.armed):
@@ -225,7 +255,9 @@ class HardwareSupervisor(MotionNode):
         self.directory=tempfile.TemporaryDirectory(prefix='uwa-hardware-supervisor-');self.problem=HardwareProblem(self.directory.name,cfg,inventory,layout)
         self.cfg,self.mode,self.armed=cfg,mode,armed;self.signature=signature(self.problem,mode)
         self.instance=str(uuid.uuid4());self.sequence=0;self.guard=Peer();self.witness=Peer();self.lock=threading.RLock();self.group=ReentrantCallbackGroup()
-        self.core=Interlock(cfg['heartbeat_timeout_s']);self.reset_lock=threading.Lock();self.stopping_since={};self.ports={r:StopPort(self,p,cfg,mode,self.group) for r,p in self.problem.profiles.items()}
+        self.core=Interlock(cfg['heartbeat_timeout_s']);self.reset_lock=threading.Lock();self.stopping_since={}
+        self.ports={r:StopPort(self,p,cfg,mode,self.group,observe_manager=True) for r,p in self.problem.profiles.items()}
+        self.program_states = {}
         self.publisher=self.create_publisher(String,'/uwa_cell/collision_supervisor/status',1)
         self.markers=self.create_publisher(MarkerArray,'/uwa_cell/collision_supervisor/markers',1)
         self.geometry_markers=self.create_publisher(MarkerArray,'/uwa_cell/collision_guard/markers',1)
@@ -257,26 +289,55 @@ class HardwareSupervisor(MotionNode):
     def reset(self,request,response,arms=None):
         if not self.reset_lock.acquire(blocking=False):
             response.success=False;response.message='Another explicit reset is already in progress';return response
+        candidates = {}
+        def eligible(now):
+            return {r for r,p in candidates.items() if p.verified and p.hardware_verified
+                    and min(p.list_observed_from,p.hardware_observed_from,p.parameters_observed_from) >= p.hold_invalidated
+                    and now-p.received <= .25 and now-p.hardware_received <= .25
+                    and now-p.parameter_received <= self.cfg.get('hold_config_max_age_s', .3)}
         try:
             with self.lock:
                 now=time.monotonic()
                 if not self.guard.fresh(now,self.cfg['heartbeat_timeout_s']) or not self.witness.fresh(now,self.cfg['heartbeat_timeout_s']):raise RuntimeError('Supervision unavailable')
             if self.armed:
-                candidates=self.ports.values() if arms is None else [self.ports[r] for r in arms]
-                ready=[p.verified and p.hardware_verified and time.monotonic()-p.received<=.25 and time.monotonic()-p.hardware_received<=.25 for p in candidates]
-                if not (any(ready) if arms is None else all(ready)):raise RuntimeError('No provisioned fresh matching manager available for requested release')
+                candidates = self.ports if arms is None else {r:self.ports[r] for r in arms}
+                # A latched stationary Hold may have spent hours without a list RPC.
+                # Request live readback without clearing that Hold or releasing the lockout.
+                deadline = time.monotonic() + 1.3
+                with self.lock:
+                    for port in candidates.values():
+                        port.refresh_for_release = True
+                while True:
+                    with self.lock:
+                        now = time.monotonic()
+                        ready = eligible(now)
+                        if ready and (arms is None or ready == arms):
+                            break
+                    if now >= deadline:
+                        raise RuntimeError('No provisioned fresh matching manager available for requested release')
+                    time.sleep(.02)
             self.request(self.reset_witness)
             end=time.monotonic()+1.
             while self.witness.value.get('tripped',True):
                 if time.monotonic()>end:raise RuntimeError('Watchdog reset status unavailable')
                 time.sleep(.005)
             with self.lock:
-                if not self.core.request_reset(time.monotonic(),arms=arms):raise RuntimeError('Guard reset not eligible')
-            answer=self.request(self.reset_guard);response.success=True;response.message=answer.message+'; supervisor release limited to '+(', '.join(sorted(arms)) if arms is not None else 'all eligible arms')+'; no trajectory/program activated'
+                now = time.monotonic()
+                if not self.guard.fresh(now,self.cfg['heartbeat_timeout_s']) or not self.witness.fresh(now,self.cfg['heartbeat_timeout_s']):
+                    raise RuntimeError('Supervision unavailable')
+                ready = eligible(now) if self.armed else arms
+                if self.armed and (not ready or arms is not None and ready != arms):
+                    raise RuntimeError('Matching manager readback expired before release')
+                if not self.core.request_reset(now,arms=ready):raise RuntimeError('Guard reset not eligible')
+            answer=self.request(self.reset_guard);response.success=True;response.message=answer.message+'; supervisor release limited to '+(', '.join(sorted(ready)) if ready is not None else 'all eligible arms')+'; no trajectory/program activated'
         except Exception as error:
             with self.lock:self.core.pending_reset=None
             response.success=False;response.message=str(error)
-        finally:self.reset_lock.release()
+        finally:
+            with self.lock:
+                for port in candidates.values():
+                    port.refresh_for_release = False
+            self.reset_lock.release()
         return response
     def tick(self):
         with self.lock:
@@ -289,23 +350,51 @@ class HardwareSupervisor(MotionNode):
             if self.core.last:
                 expired=expired_pair_leases(self.core.last,now,self.cfg)
                 if expired:self.core.blocked.update(expired);self.core.reason='PAIR SUPERVISION EXPIRED'
-            if not self.witness.fresh(now,self.cfg['heartbeat_timeout_s']) or self.witness.value.get('tripped',True):self.core.blocked.update(ROBOT_IDS);self.core.reason='WATCHDOG LOST OR TRIPPED'
-            blocked=set(self.core.blocked);ports={r:p.tick(r in blocked,self.armed) for r,p in self.ports.items()};held=[r for r,p in ports.items() if p['held']]
+            witness_fresh = self.witness.fresh(now, self.cfg['heartbeat_timeout_s'])
+            if not witness_fresh or self.witness.value.get('tripped',True):self.core.blocked.update(ROBOT_IDS);self.core.reason='WATCHDOG LOST OR TRIPPED'
+            # A progressing tripped witness owns the Dashboard fallback. It can
+            # take over ROS holds as well if this supervisor stops progressing.
+            delegated = witness_fresh and self.witness.value.get('tripped') is True
+            stopped_at = fresh_native_stops(self.guard, now, self.cfg)
+            guard_fresh = self.guard.fresh(now, self.cfg['heartbeat_timeout_s'])
+            stationary = (self.guard.value or {}).get('stationary_arms', [])
+            native_states = self.guard.value.get('native_program_states', {}) if guard_fresh else {}
+            program_states = {arm: state[:2] for arm, state in native_states.items()
+                              if isinstance(state, list) and len(state) == 3 and type(state[2]) in (int, float)
+                              and 0 <= now - state[2] <= self.cfg['state_timeout_s']}
+            blocked = set(self.core.blocked)
+            ports = {}
+            cell_held_quiet = blocked == set(ROBOT_IDS) and set(stationary) == blocked and set(program_states) == blocked
+            for rid, port in self.ports.items():
+                port.cell_held_quiet = cell_held_quiet
+                previous, current = self.program_states.get(rid), program_states.get(rid)
+                if previous != current:
+                    program_started = (cell_held_quiet and previous and current and previous[0] == current[0]
+                                       and previous[1] == 1 and current[1] == 2)
+                    port.invalidate_hold_evidence(quiet_readback=bool(program_started))
+                if not cell_held_quiet:
+                    port.quiet_transition_until = -float('inf')
+                port.stationary_hold = rid in program_states and rid in stationary
+                ports[rid] = port.tick(rid in blocked, self.armed, allow_native=not delegated and rid not in stopped_at)
+            self.program_states = program_states
+            held = [r for r, port in ports.items() if port['held']]
             if self.armed:
                 failed=[r for r,p in ports.items() if not p['manager_fresh'] or not p['hardware_mode_verified'] or not p['hold_config_verified']]
                 if failed:
                     affected={r for pair in PAIRS if set(pair)&set(failed) for r in pair};self.core.blocked.update(affected);self.core.reason='ARM STOP ADAPTER UNAVAILABLE'
-                    for rid in affected-blocked:ports[rid]=self.ports[rid].tick(True,True)
+                    for rid in affected-blocked:
+                        ports[rid] = self.ports[rid].tick(True, True, allow_native=not delegated and rid not in stopped_at)
                     blocked=set(self.core.blocked);held=[r for r,p in ports.items() if p['held']]
                 for rid in ROBOT_IDS:
-                    guard_fresh=self.guard.fresh(now,self.cfg['heartbeat_timeout_s'])
                     if standstill_deadline_expired(self.stopping_since,rid,now,blocked=rid in blocked,
-                            guard_fresh=guard_fresh,reported_stationary=rid in (self.guard.value or {}).get('stationary_arms',[]),
+                            guard_fresh=guard_fresh,reported_stationary=rid in stationary,
                             quiet_stamp=(self.guard.value or {}).get('evaluated_monotonic_s',-float('inf')),
-                            latency=self.cfg['stop_latency_s']):
+                            latency=self.cfg['stop_latency_s']) and not delegated:
                         detail=(self.guard.value or {}).get('stationarity_evidence',{}).get(rid)
                         self.ports[rid].native_stop(f'Blocked arm: no fresh standstill evidence within stop latency; guard_fresh={guard_fresh}; evidence={detail}')
             self.sequence+=1;status=packet(self.signature,self.armed,self.instance,self.sequence,state=self.core.reason,blocked_arms=sorted(blocked),held_arms=held,
+                native_stopped_at=stopped_at,
+                native_stop_pending=[r for r,p in self.ports.items() if p.native_thread and p.native_thread.is_alive()],
                 guard_config_signature=self.signature,interlock_confirmed=self.armed and blocked<=set(held),ports=ports,
                 guard_age_s=None if not self.guard.value else now-self.guard.value['evaluated_monotonic_s'],
                 witness_available=self.witness.fresh(now,self.cfg['heartbeat_timeout_s']),monitor_only=not self.armed,
@@ -324,24 +413,53 @@ class HardwareWatchdog(MotionNode):
         self.cfg,self.mode,self.armed=cfg,mode,armed;self.signature=signature(self.problem,mode);self.peer=Peer()
         self.instance=str(uuid.uuid4());self.sequence=0;self.tripped=False;self.began=time.monotonic()
         self.ports={r:StopPort(self,p,cfg,mode) for r,p in self.problem.profiles.items()}
+        self.guard = Peer()
+        self.hold_errors = {}
         self.publisher=self.create_publisher(String,'/uwa_cell/hardware_watchdog/status',1)
         self.create_subscription(String,'/uwa_cell/collision_supervisor/status',lambda msg:self.peer.receive(decode(msg),time.monotonic(),self.signature,self.armed),1)
+        self.create_subscription(String, '/uwa_cell/collision_guard/decision', self.receive_guard, 1)
         self.create_service(Trigger,'/uwa_cell/hardware_watchdog/reset',self.reset)
         self.wall_clock=Clock(clock_type=ClockType.STEADY_TIME);self.create_timer(.02,self.tick,clock=self.wall_clock)
+    def receive_guard(self, msg):
+        # The supervisor normally forwards original RTDE timestamps. During
+        # takeover use the existing guard decision independently of that process.
+        now = time.monotonic()
+        if self.tripped and not self.peer.fresh(now, self.cfg['heartbeat_timeout_s']):
+            self.guard.receive(decode(msg), now, self.signature, self.armed)
     def reset(self,request,response):
         response.success=self.peer.fresh(time.monotonic(),self.cfg['heartbeat_timeout_s'])
-        if response.success:self.tripped=False;self.publish()
+        if response.success:
+            self.tripped=False
+            self.publish(self.peer.value.get('native_stop_pending', ()))
         response.message='Watchdog reset; program/motion remains inactive' if response.success else 'Supervisor unavailable';return response
-    def publish(self):
+    def publish(self, supervisor_pending=()):
         pending=[r for r,p in self.ports.items() if p.native_thread is not None and p.native_thread.is_alive()]
+        pending=sorted(set(pending).union(supervisor_pending))
         self.sequence+=1;self.publisher.publish(String(data=json.dumps(packet(self.signature,self.armed,self.instance,self.sequence,tripped=self.tripped,native_stop_pending=pending))))
     def tick(self):
-        if time.monotonic()-self.began>self.cfg['heartbeat_timeout_s'] and not self.peer.fresh(time.monotonic(),self.cfg['heartbeat_timeout_s']):self.tripped=True
+        now = time.monotonic()
+        fresh = self.peer.fresh(now, self.cfg['heartbeat_timeout_s'])
+        if now - self.began > self.cfg['heartbeat_timeout_s'] and not fresh:
+            self.tripped = True
         if self.tripped and self.armed:
-            for port in self.ports.values():
-                port.tick(True,True)
-                port.native_stop('Independent watchdog: supervisor heartbeat unavailable/tripped')
-        self.publish()
+            supervisor_holding = fresh and set(self.peer.value.get('blocked_arms', ())) == set(ROBOT_IDS)
+            stopped_at = fresh_native_stops(self.peer if fresh else self.guard, now, self.cfg)
+            for arm, port in self.ports.items():
+                if arm not in stopped_at:
+                    port.native_stop('Independent watchdog: supervisor heartbeat unavailable/tripped')
+            if not supervisor_holding:
+                for arm, port in self.ports.items():
+                    # A failed controller RPC must not interrupt the ongoing
+                    # Dashboard fallback for this or any other arm.
+                    try:
+                        port.tick(True, True, allow_native=False)
+                        self.hold_errors.pop(arm, None)
+                    except RuntimeError as error:
+                        detail = str(error)
+                        if self.hold_errors.get(arm) != detail:
+                            self.get_logger().error(f'{arm}: watchdog resource hold unavailable: {detail}')
+                        self.hold_errors[arm] = detail
+        self.publish(self.peer.value.get('native_stop_pending', ()) if fresh else ())
 
 
 def run(role,cfg,inventory,layout=None,mode='mock',armed=False):

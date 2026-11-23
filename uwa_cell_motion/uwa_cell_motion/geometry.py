@@ -9,6 +9,7 @@ import numpy as np
 
 from uwa_cell_control.scan_separation import Geometry, Body
 from .common import PAIRS,arm_velocity_limit,joint_velocity_limits,BODY_RESERVE_MODEL
+from .stopping_reserve import GeometricPairQuery, body_budgets, critical_pair, sphere_distances
 
 
 def box_spheres(lo, hi, spacing):
@@ -62,9 +63,8 @@ class SphereModel:
                                           spheres=len(r), method='exact sphere primitive' if body.kind=='sphere' else 'complete local AABB slice circumspheres'))
             self.local[rid], self.radii[rid] = np.asarray(centres), np.asarray(radii)
             self.links[rid], self.motion_radii[rid] = links, np.asarray(motion)
-        # Cache is used only by offline/planning threshold checks. Keys include
-        # every upstream moving/mimic source, so changed tools/ancestors cannot
-        # silently reuse frozen geometry. Each model instance owns its cache.
+        # The entire upstream chain, including mimic drivers, identifies one
+        # arm's world geometry. Each model owns its own bounded caches.
         joints={j[0]:j for j in self.geometry.fk.joints};dependencies={'world':set()}
         def source(name):
             mimic=joints[name][6]
@@ -73,13 +73,17 @@ class SphereModel:
             dependencies[child]=dependencies[parent]|({source(name)} if kind in ('revolute','continuous','prismatic') else set())
         self.planning_dependencies={r:tuple(sorted(set().union(*(dependencies[l] for l in self.links[r])))) for r in names}
         self._planning_cache={}
+        self._guard_pair_distances={}
+        self._guard_geometric_queries={pair:GeometricPairQuery() for pair in PAIRS}
         self.planning_stats=dict(cache_hits=0,cache_misses=0,pair_queries=0,prefilter_clear=0,fine_queries=0)
 
-    def planning_world(self,positions):
+    def planning_world(self,positions,partial=False):
         required={j for n in self.names.values() for j in n}
-        if not required<=positions.keys() or not np.isfinite([positions[j] for j in required]).all():
+        present=required & positions.keys()
+        if (not partial and present!=required) or not np.isfinite([positions[j] for j in present]).all():
             raise ValueError('Missing/nonfinite measured arm or gripper joints')
-        keys={r:tuple(positions.get(j,0.) for j in deps) for r,deps in self.planning_dependencies.items()}
+        keys={r:tuple(positions.get(j,0.) for j in deps) for r,deps in self.planning_dependencies.items()
+              if not partial or all(j in positions for j in self.names[r])}
         if not all(np.isfinite(k).all() for k in keys.values()):raise ValueError('Nonfinite upstream joint state')
         changed=[r for r,k in keys.items() if r not in self._planning_cache or self._planning_cache[r][0]!=k]
         frames=self.geometry.fk.frames(positions) if changed else None
@@ -107,7 +111,6 @@ class SphereModel:
         the arm box. A clear box pair proves every fine sphere pair clear.
         Recompute budgets/bounds per call; cache only state-bound geometry.
         """
-        from .stopping_reserve import critical_pair
         margin=cfg['model_margin_m']
         if not np.isfinite(margin) or margin<0:raise ValueError('Invalid model margin')
         world,_=self.planning_world(positions)
@@ -137,10 +140,10 @@ class SphereModel:
             result[rid] = np.einsum('nij,nj->ni', transforms[:, :3, :3], centres)+transforms[:, :3, 3]
         return result
 
-    def nearest(self, world, a, b):
-        delta = world[a][:, None, :]-world[b][None, :, :]
-        clearances = np.linalg.norm(delta, axis=2)-self.radii[a][:, None]-self.radii[b][None, :]
-        i, j = np.unravel_index(np.argmin(clearances), clearances.shape)
+    def nearest(self, world, a, b, distances=None):
+        if distances is None:
+            distances=sphere_distances(world[a],world[b],self.radii[a],self.radii[b])
+        clearances,(i,j),_=distances
         direction=world[b][j]-world[a][i];length=np.linalg.norm(direction)
         direction=direction/length if length>1e-12 else np.array([1.,0.,0.])
         return dict(clearance_m=float(clearances[i, j]), sphere_indices=[int(i), int(j)],
@@ -162,7 +165,6 @@ class SphereModel:
         return speed*latency+braking, speed
 
     def body_budget(self,rid,velocities,age,cfg):
-        from .stopping_reserve import body_budgets
         caps=joint_velocity_limits(cfg,rid,len(velocities))
         v=np.asarray(velocities,float).copy()
         for index in getattr(self,'enveloped_dofs',{}).get(rid,()):
@@ -172,18 +174,36 @@ class SphereModel:
             caps[index]=0.
         return body_budgets(self.motion_radii[rid],v,caps,age,cfg)
 
+    def _guard_distances(self,world,a,b,margin):
+        # planning_world returns the same read-only array while every source
+        # coordinate is exactly equal. Keep just the latest matrix per pair.
+        left,right=world[a],world[b]
+        entry=self._guard_pair_distances.get((a,b))
+        if entry is None or entry[0] is not left or entry[1] is not right or entry[2]!=margin:
+            entry=(left,right,margin,sphere_distances(left,right,self.radii[a],self.radii[b],margin))
+            self._guard_pair_distances[a,b]=entry
+        return entry[3]
+
     def pairs(self, positions, velocities, ages, cfg,partial=False):
-        world = self.world(positions,partial=partial)
-        if cfg.get('stopping_reserve_model')==BODY_RESERVE_MODEL:
-            from .stopping_reserve import critical_pair
-            budgets={r:self.body_budget(r,velocities[r],ages[r],cfg) for r in world}
-            return world,[critical_pair(a,b,world,self.radii,self.links,budgets,cfg)
-                for a,b in PAIRS if a in world and b in world]
-        budgets = {rid: self.arm_budget(rid, velocities[rid], ages[rid], cfg) for rid in world}
+        world = self.planning_world(positions,partial=True)[0] if partial else self.world(positions)
+        body_specific=cfg.get('stopping_reserve_model')==BODY_RESERVE_MODEL
+        margin=cfg['model_margin_m'] if body_specific and cfg.get('stopping_reserve_policy')=='geometric_only' else None
+        budget=self.body_budget if body_specific else self.arm_budget
+        budgets={r:budget(r,velocities[r],ages[r],cfg) for r in world}
         result = []
         for a, b in PAIRS:
             if a not in world or b not in world:continue
-            nearest = self.nearest(world, a, b)
+            distances = minimum = None
+            if partial:
+                if margin is None:
+                    distances = self._guard_distances(world,a,b,margin)
+                else:
+                    minimum = self._guard_geometric_queries[a,b].minimum(
+                        world[a], world[b], self.radii[a], self.radii[b], margin)
+            if body_specific:
+                result.append(critical_pair(a,b,world,self.radii,self.links,budgets,cfg,distances,minimum))
+                continue
+            nearest = self.nearest(world,a,b,distances)
             threshold = cfg['model_margin_m']+budgets[a][0]+budgets[b][0]
             result.append(dict(arms=[a, b], threshold_m=threshold,
                                relative_speed_bound_m_s=budgets[a][1]+budgets[b][1], **nearest))

@@ -12,6 +12,24 @@ from uwa_cell_gripper_interfaces.action import GripperCommand
 from .api import ARMS, OPEN, CLOSE, SET_OPENING, ACTIVATE, endpoint, raw_target, nominal_opening_percent, nominal_force_raw
 
 
+def read_register_status(path, request):
+    """Retry a missing read once. Return the first actual device report as is."""
+    failures = []
+    for _ in range(2):
+        try:
+            response = request()
+        except (TimeoutError, ConnectionError) as error:
+            failures.append(str(error))
+            continue
+        if response.success:
+            status = json.loads(response.message)
+            if failures:
+                status['first_read_error'] = failures[0]
+            return status
+        failures.append(response.message)
+    raise RuntimeError(f'{path}: both register reads failed (first: {failures[0]}, second: {failures[1]})')
+
+
 class GripperClient:
     """Owns one ROS client node. Construction/close never actuate or release."""
     def __init__(self, arm, mode='hardware'):
@@ -48,8 +66,19 @@ class GripperClient:
         client=self.services[name]
         # Persist endpoints across reads; each request still fetches fresh
         # device status. Graph churn must not interrupt the arm managers.
-        if not client.wait_for_service(timeout_sec=10.):raise RuntimeError('Gripper service unavailable: '+self.path+'/'+name)
-        response=self.wait(client.call_async(Trigger.Request()),3.)
+        path = self.path+'/'+name
+        def request():
+            if not client.wait_for_service(timeout_sec=10.):
+                raise TimeoutError('Gripper service unavailable: '+path)
+            future = client.call_async(Trigger.Request())
+            try:
+                return self.wait(future, 3.)
+            except TimeoutError as error:
+                client.remove_pending_request(future)
+                raise TimeoutError('Gripper service response timed out: '+path) from error
+        if name == 'read':
+            return read_register_status(path, request)
+        response=request()
         if not response.success:raise RuntimeError(response.message)
         return json.loads(response.message)
 

@@ -52,6 +52,8 @@ class ReviewPanel(QtWidgets.QWidget):
         self.export = None
         self.key = None
         self.failed_export = None
+        self.export_request_key = None
+        self.retried_export = None
         self.next_action = None
         self.current = None
         self.closing_session = False
@@ -206,6 +208,8 @@ class ReviewPanel(QtWidgets.QWidget):
 
     def run(self, args):
         self.current = args
+        if args[0] == 'export':
+            self.export_request_key = self.key
         if args[0] not in ('status', 'export'):
             self.feedback.setText('Sending operator decision…')
         self.controls()
@@ -233,21 +237,31 @@ class ReviewPanel(QtWidgets.QWidget):
             self.ignore_reply = False
             self.refresh()
             return
+        if verb == 'export' and self.export_request_key != self.key:
+            self.continue_requests()
+            return
         try:
+            # The remote backend is ssh. A broken connection may leave a
+            # partial JSON document. The backend itself reports domain errors as JSON.
+            if verb == 'export' and self.remote and code == 255:
+                raise ConnectionError(error.splitlines()[-1] if error else 'SSH connection lost')
             data = json.loads(raw) if raw.strip() else {}
             if code or data.get('error'):
                 raise ValueError(data.get('error') or (error.splitlines()[-1] if error else f'Backend exited ({code})'))
             if verb == 'status':
                 self.render_status(data)
             elif verb == 'export':
-                if self.key and self.key[0] == args[2] and self.key != (data['id'], data['sha256']):
+                if self.export_request_key != (data['id'], data['sha256']):
                     raise ValueError('Export revision has changed. Refresh the request.')
                 self.render_export(data)
+                if self.retried_export == self.key:
+                    self.feedback.setText('Reviewed preview loaded after retry.')
             else:
                 self.render_status(data)
                 self.feedback.setText('Decision recorded.')
-        except (ValueError, TypeError, KeyError, IndexError) as exc:
+        except (ConnectionError, ValueError, TypeError, KeyError, IndexError) as exc:
             self.audit.emit('review connection' if verb == 'status' else 'review error', str(exc)[:700])
+            retry = verb == 'export' and isinstance(exc, ConnectionError) and self.retried_export != self.key
             if verb == 'status':
                 self.status = None
                 self.session.setText('CONNECTION LOST · Work area status unknown')
@@ -256,16 +270,22 @@ class ReviewPanel(QtWidgets.QWidget):
                 self.clear_export()
                 self.key = None
             elif verb == 'export':
-                self.failed_export = self.key
+                if retry:
+                    self.retried_export = self.key
+                else:
+                    self.failed_export = self.key
                 self.clear_export()
             self.closing_session = False
-            self.feedback.setText('Request failed · ' + str(exc)[:350])
+            self.feedback.setText(('Retrying preview transfer · ' if retry else 'Request failed · ') + str(exc)[:350])
+        self.continue_requests()
+
+    def continue_requests(self):
         self.controls()
         queued, self.next_action = self.next_action, None
         if queued and self.status:
             self.run(queued)
-        elif self.key and self.export is None and self.failed_export != self.key:
-            self.run(['export', '--id', self.key[0]])
+        else:
+            self.fetch_if_needed()
 
     def revoke_area(self):
         # Keep revocation responsive during an image transfer or outstanding decision.
@@ -379,6 +399,7 @@ class ReviewPanel(QtWidgets.QWidget):
         if changed:
             self.clear_export()
             self.failed_export = None
+            self.retried_export = None
         if not item:
             self.summary.setText('No pending motion review')
             self.details.clear()
@@ -401,7 +422,7 @@ class ReviewPanel(QtWidgets.QWidget):
             QtCore.QTimer.singleShot(0, self.fetch_if_needed)
 
     def fetch_if_needed(self):
-        if self.key and not (self.current or self.revoking or self.stopping) and self.export is None and self.key != self.failed_export:
+        if self.key and not (self.current or self.revoking or self.closing_session or self.stopping) and self.export is None and self.key != self.failed_export:
             self.run(['export', '--id', self.key[0]])
 
     def render_export(self, data):

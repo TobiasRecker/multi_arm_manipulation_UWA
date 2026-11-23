@@ -1,5 +1,60 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Last der realen UR-Überwachung und der vier Treiber, 23.11.2026
+
+- Lesende N100-Stichprobe um 11:50 AWST über 15,02 s im Fehlerzustand.
+  Von vier logischen Kernen belegte der Wächterdienst 1,62, die vier
+  Treiberdienste zusammen 1,71. Host-Auslastung 94,8 %. Das Journal enthielt
+  79 native STOP-Anforderungen des ausgelösten Watchdogs für die vier Arme
+  und 19 des Supervisors für links vorne wegen fehlender Stillstandsdaten.
+  In denselben 15 s schrieben die vier Treiberdienste 8.390 Journalzeilen.
+  Um 11:53 AWST hatten alle vier Manager wieder je 1.024/1.024 offene
+  Dateideskriptoren am Softlimit, darunter 1.009 Sockets.
+- Operative `hardware_ports.py` per Datei-SHA bestätigt (`35673c4ff3ed…`).
+  Die bereitgelegte Variante (`c8f185fa0eea…`) verlängert Fristen bei
+  gleicher Anfragerate. Vorschlag aus dem Audit: Verwaltungsabfragen an
+  Ressourcenwechsel binden, doppelte Stoppaufträge zusammenführen und
+  RTDE-/Socket-Fehler der Treiber gesondert beheben. Eine Übernahme auf
+  Hardware oder Änderung von Schutzfrequenzen war nicht Teil des Audits.
+  [Einzelprüfung, Messwerte und Belege](work/n100-ueberwachung-20261123.md).
+
+## N100-Wächterwechsel wartet auf RTDE links vorne, 23.11.2026
+
+- Pendant-Foto des Nutzers: PolyScope meldete `IncompatibleClassChangeError`
+  im `ControllerConnectionThread` bei `RTDEClient.makeConnection`, mit
+  `IOUtil.close` am Anfang des Stacktraces. Der Statusbericht wurde laut
+  Pendant am 23.11. um 12:13:57,320 erzeugt (Pendant-Uhr). Der SSH-Dienst
+  links vorne antwortet vom N100 aus. Nach ausdrücklicher Nutzerfreigabe
+  wurde der vorhandene Bericht `recording20261123_12_13_57.zip` per SSH lesend
+  abgerufen. ZIP-Prüfung und SHA-256-Abgleich bestanden. `summary.log`
+  bestätigt den Stacktrace. Die genaue Fehlerursache ist offen.
+  [Statusbericht](../../setup/logs/uwa-control/exports/left-front-20261123/recording20261123_12_13_57.zip)
+
+- Zum erneut beauftragten Wechsel stimmt die vorbereitete `hardware_ports.py`
+  auf dem N100 weiterhin per SHA-256 mit der lokalen Datei überein. Dienst
+  `uwa-hardware-motion.service` läuft weiter mit bisheriger Datei und PID 2254092.
+- Dashboard meldete alle Programme `STOPPED`, drei Arme `POWER_OFF` und
+  `left_front` `NO_CONTROLLER`. Der Wächter bestätigte Stillstand der drei
+  anderen Arme. Links vorne war der letzte RTDE-Messwert rund 65 Stunden alt.
+  Der Treiber meldete Wiederverbindungsversuche. Der Supervisor meldete vier
+  Holds, jedoch fehlt der frische Stillstandsnachweis links vorne. Daher wurde
+  der Dienstwechsel bei dieser Prüfung nicht eingeleitet.
+
+## N100-Wächterwechsel vorbereitet, 20.11.2026, 18:03 AWST
+
+- Der Nutzer beauftragte die Übernahme seiner Änderungen in `hardware_ports.py`
+  und den Wächterneustart. Alle Arme waren laut Nutzer unbeladen, niemand war
+  in der Zelle. Die Datei (SHA-256 beginnt mit `c8f185fa0eea`) und die bisherige
+  Version liegen auf dem N100 unter `~/uwa-ur-runtime/review-candidates/hardware-ports.JexhTUgr/`.
+  SHA-256 und Syntax bestätigt, zwölf bestehende isolierte Regressionen bestanden.
+- Der Stop-Client bestätigte Stillstand und erhielt für alle Arme das native
+  `Stopped`. Die Controllerlisten wurden im Stop-Client zu alt für den separaten
+  Hold-Nachweis, auch mit aktivem Kartonprofil und passendem DDS-Transport.
+  `profile-stop.json` und `matched-stop.json` im Kandidatenverzeichnis enthalten
+  die Befunde. Die operative Datei und der aktive Dienst (PID 2254092) wurden
+  nicht gewechselt. Passiver Abschlussstand: vier gemessene Stillstände und
+  vier Holds am bestehenden Supervisor, Interlock bestätigt, Watchdog ausgelöst.
+
 ## Eigenes Kamerakalibrierprogramm in der Library,20.11.2026
 
 - Nutzer beauftragt, den ChArUco-Suchdienst als eigenes Library-Programm
@@ -69,6 +124,13 @@
   rechten Arme hatten 0 s Bewegung über 0,003 rad/s. Im Ergebnis stehen
   keine Arm- oder Fingerbefehle. Der spätere Status meldete `right_front`
   STOPPED und `right_rear` weiterhin PLAYING.
+- Armweiser Archivabgleich am 23.11.: Der Safety-Report enthält für beide
+  rechten Arme veraltete Controllerlisten vor Play. Um 17:27:41 meldete
+  `right_rear` 520,762 ms bei 250 ms Grenze. Beim früheren manuellen
+  Start um 17:20:12 folgte auf die Reverse-Verbindung von `right_rear`
+  ein Watchdog-STOP und der Verbindungsabbruch. Der konkrete Programmabbruch
+  um 17:36:17 betraf `right_front`.
+  [Safety-Report](../../setup/tasks/uwa_program_library/b10edbd8a8764868b1be6d9018eef802/n100-safety-report.json)
 - Der Browser startet N100-Ausführungsprozesse für Fahrt- und Kontaktreview
   jetzt mit je einem OpenBLAS-/OpenMP-Thread. Ein kleiner Vergleich auf
   dem N100 bestätigte für NumPy/SciPy vier Threads ohne und einen mit

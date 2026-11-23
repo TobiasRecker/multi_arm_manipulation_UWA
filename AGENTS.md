@@ -305,6 +305,14 @@ angezeigten Arme und die Revision gebunden.
 
 ## Reale Bedienabläufe ohne Diagnosekaskaden (2026-11-18)
 
+- Nutzerwunsch vom 23.11.2026 zur realen Vierarmzelle: Für jede Überwachung
+  die konkrete Gefahr, den Betriebszustand, die erforderliche Reaktionszeit
+  und die Folge eines Ausfalls benennen. Verwaltungsabfragen im Stillstand
+  und ihre N100-Last kritisch prüfen. Die Antwortzeit der Controllerliste
+  getrennt von Ressourcenbesitz, Reglerfunktion und gemessener Bewegung
+  beurteilen. Zusätzliche Wächter bedürfen ausdrücklicher Zustimmung.
+  [Bewertung des operativen Stands](work/n100-ueberwachung-20261123.md).
+
 - Bei einem konkreten Abbruch zuerst den aktuellen N100-Bericht aus **Safety log** oder dem passenden lokalen Export lesen und den betroffenen Versuch über dessen Workflowpfad zuordnen. Den aktiven [N100-Wächterstand](../../setup/n100/ur-runtime/README.md#guard-protokoll-auf-dem-n100) verwenden. Den aktuellen Interlockstatus vor einer Fahrt separat prüfen.
 
 - Nutzerwunsch vom 19.11.2026: Die Ursache wiederkehrender Sperren in **UWA Robot Power** sichtbar machen. Bei der Auswertung Zeitpunkt, betroffene Arme, Auswirkung und vorhandene Messwerte zur Schwelle heranziehen. Mehrere Meldungen desselben Vorfalls und eigenständige Auslösungen unterscheiden.

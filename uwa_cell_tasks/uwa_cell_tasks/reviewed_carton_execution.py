@@ -43,15 +43,28 @@ def _build_goal(trajectory):
 
 
 def _entry_status(status):
-    return unloaded_open_status(status) and status['registers'].get('ACT')==1
+    registers = status.get('registers')
+    return (isinstance(registers, dict) and type(registers.get('POS')) is int
+            and registers.get('ACT') == 1 and unloaded_open_status(status))
+
+
+def _jaw_sample(status, received):
+    # The adapter and executor run on the same host. Older adapter versions
+    # timestamped only reception in this process.
+    stamp = status.get('read_started_monotonic_s', received)
+    if type(stamp) not in (int, float) or not 0 <= stamp <= received:
+        return received, {}
+    return stamp, status
 
 
 def _check_jaws(client, now):
     for arm,(received,status) in client.jaws.items():
         # Native status is normally published every second by each gripper.
         # A read-only preflight reply also provides a fresh initial sample.
-        if now-received>2.0 or not _entry_status(status):
-            raise RuntimeError(arm+': active open-jaw registers lost or stale')
+        if not 0 <= now-received <= 2.0 or not _entry_status(status):
+            raise RuntimeError(f'{arm}: active open-jaw registers lost or stale '
+                               f'(age={now-received:.3f}s, observed={status.get("observed")}, '
+                               f'busy={status.get("busy")}, registers={status.get("registers")})')
 
 
 class IncompleteForceWindow(RuntimeError):
@@ -253,7 +266,25 @@ def run_bundle(problem, bundle, args, output, report, *, client_type, observer_t
                     status=json.loads(msg.data)
                 except (TypeError,ValueError):
                     status={}
-                client.jaws[arm]=(time.monotonic(),status)
+                if not isinstance(status, dict):
+                    status = {}
+                now = time.monotonic()
+                sample = _jaw_sample(status, now)
+                previous = client.jaws.get(arm)
+                if previous is not None:
+                    if not _entry_status(previous[1]):
+                        # A subsequent queued status must not hide an observed
+                        # fault before the motion loop processes this batch.
+                        return
+                    if status.get('observed') is False and status.get('busy') is False and 'registers' not in status:
+                        # A missed poll cannot renew the last device sample.
+                        report.setdefault('missed_jaw_reads', {})[arm] = dict(
+                            received_monotonic_s=now, last_observation_monotonic_s=previous[0],
+                            error=status.get('error'))
+                        return
+                    if sample[0] < previous[0] and _entry_status(sample[1]):
+                        return
+                client.jaws[arm]=sample
             for arm in all_arms:
                 client.create_subscription(String,endpoint(arm,'hardware')+'/status',
                                            lambda msg,a=arm:receive(a,msg),1)
@@ -283,7 +314,7 @@ def run_bundle(problem, bundle, args, output, report, *, client_type, observer_t
                     status=read_gripper(client,arm)
                     segment['grippers_before'][arm]=status
                     if extra_collision and arm in all_arms:
-                        client.jaws[arm]=(time.monotonic(),status)
+                        client.jaws[arm]=_jaw_sample(status, time.monotonic())
                 for arm, status in segment['grippers_before'].items():
                     if not unloaded_open_status(status) or (extra_collision and arm in all_arms and status['registers']['ACT']!=1):
                         raise ValueError(arm+': reviewed unloaded/open state unavailable')
