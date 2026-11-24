@@ -1,6 +1,6 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
-## ChArUco: Empfehlung zum professionellen Neudruck, 24.11.2026
+## ChArUco: professioneller Neudruck und fertige PDFs, 24.11.2026
 
 Nutzer plant professionellen Druck und fragt nach idealer Platten-/Mustergröße
 und Pattern; freie Formate einschließlich größer als A3/A4 sind möglich.
@@ -11,7 +11,26 @@ Bevorzugter Entwurf des Agenten für die bestehende Zelle: zwei feste Platten
 550×400mm, aktive Muster500×350mm,10×7Felder à50mm/Marker36mm;
 mobil450×360mm, Muster405×315mm,9×7Felder à45mm/Marker33mm.
 ChArUco mit DICT_5X5_250, getrennten ID-Bereichen und dokumentierter Generation.
-Dies ist eine Empfehlung, keine Nutzerentscheidung oder Bestellfreigabe.
+Im Folgeauftrag beauftragt der Nutzer die entsprechenden PDFs. Die Druckdaten
+zu diesen Maßen sind erstellt; ein physischer Austausch oder eine operative
+Profilaktivierung ist damit noch nicht beauftragt.
+
+Drei einseitige Vektor-PDFs unter `output/pdf/`:
+`uwa_charuco_table_left_550x400mm_1to1.pdf` (IDs0–34),
+`uwa_charuco_table_right_550x400mm_1to1.pdf` (IDs50–84) und
+`uwa_charuco_mobile_450x360mm_1to1.pdf` (IDs100–130).
+Eingebettete Schriftarten, Endformat als Media-/Crop-/Trim-/BleedBox,
+PrintScaling=None, je100mm-Kontrollstrecken in X/Y. Eigene Definition
+`config/print_designs/charuco_professional_v1.json`, reproduzierbar mit
+`scripts/print_professional_charuco.py`.
+
+Alle finalen Seiten visuell geprüft. Der unabhängige Validator rendert die
+fertigen PDFs mit Poppler bei300dpi:101/101Marker und156/156ChArUco-Ecken
+korrekt erkannt, alle geplanten IDs vorhanden, Seitenformate/Vektorausgabe und
+beide Kontrollstrecken geprüft. Raster-Geometrieabweichungen unter0,2mm;
+dies ist kein Fertigungs- oder Genauigkeitsnachweis des späteren Ausdrucks.
+Hashes und Bericht: `output/pdf/uwa_charuco_professional_v1_{manifest,validation}.json`.
+Druckanleitung: [ChArUco PRO v1](docs/charuco_professional_print.md).
 
 Kurze Projektion mit gespeicherten Kameraposen/K/D ergibt bei der festen
 550×400mm-Platte mindestens91px Trägerrandreserve an der nahen USB-OAK-
@@ -37,15 +56,53 @@ Greifer-Schutzprüfungen. Native UR-Sicherheit und geplante Geschwindigkeiten
 bleiben unverändert. Vierarme-Pause mit ausdrücklicher Fortsetzung; 40-mm-
 Nachbararmmarge und sonstige bisherige FCL-Kontaktgrenzen erhalten.
 
-Umsetzung als separater Kandidat läuft unter
-[work/minimal-hardware-protection-20261124.md](work/minimal-hardware-protection-20261124.md).
-Neues Paket `uwa_cell_protection`, neue Ausführungsadapter sowie Robot-Power-
-Stop/Resume mit eigenem N100-Kanal. Keine echte Fahr-/Greifer-/Power-/Play-Aktion
-und kein Hardwaredienstwechsel im Rahmen dieser bisherigen Umsetzung.
-Der alte operative N100-Stand ist dadurch noch nicht ersetzt. Frühere Aussagen,
-alle alten UWA-Wächter müssten im Neubau erhalten bleiben, sind überholt.
+Implementierung und Kandidatenprüfung abgeschlossen. Neues Paket
+`uwa_cell_protection`, pausierbarer C++-JTC und gemeinsame Robot-Power-
+Stop/Resume-Bedienung mit eigenem N100-Kanal. Kartonprogramm, Kamera-Library,
+Parking, Akquisitionsfolgen und paralleler Scan nutzen im Minimalbetrieb den
+gemeinsamen Adapter statt der alten Wächter. Bestehende Bahnen und Tempi bleiben.
+
+Gebauter, inaktiver N100-Kandidat:
+`/home/rosmatch/uwa-ur-runtime/minimal-candidates/minimal.upWhPwQC`.
+Fünf Pakete erfolgreich gebaut; Quellenmanifest geprüft. Schlussregression:
+168 Pythonprüfungen und6/6 C++-/Controller-Mocktests bestanden, darunter zwei
+Vierarm-Aufgaben unmittelbar nacheinander und Pause/Fortsetzung derselben Goals.
+Bibliotheks-/Modulbindung auf N100 geprüft (JTC6.9.0, Manager6.10.1). Fünf
+archivierte Zellzustände liefern auf N100 und ROSmini gleiche Entscheidungen
+und exakt gleiche verglichene Abstände; kanonische Geometrie/Meshes und SRDF
+stimmen überein. Kleine N100-Dateistichprobe:12,1–27,0ms ungecachet bzw.
+0,035–0,057ms wiederholter Zustand; kein Live-Dauerlast- oder Anhaltenachweis.
+
+Nutzerpause wurde durch gezieltes SIGSTOP des eigenen Builds umgesetzt und
+nach ausdrücklicher Fortsetzung anhand Prozessidentitäten wieder aufgehoben.
+Der Build ist inzwischen beendet. Keine realen Arm-/Greifer-/Power-/Brake-/
+Play-Befehle und kein Hardwaredienstwechsel durch diese Arbeit. Die operative
+Runtime bleibt bis zum eigenen Betriebswechsel alt; reale Funktions-/Anhalte-
+prüfung und Aktivierung sind noch offen. Frühere Anforderungen, alle alten
+UWA-Wächter im Neubau zu erhalten, sind durch den Nutzerauftrag ersetzt.
+
+[Bedienung](docs/minimal_hardware_protection.md) ·
+[Arbeitsstand und Nachweise](work/minimal-hardware-protection-20261124.md) ·
+[Pythonprüfung](../../setup/tasks/minimal-protection-20261124/python-complete-tests.log) ·
+[C++-/Mockprüfung](../../setup/tasks/minimal-protection-20261124/cpp-final-ctest.log) ·
+[N100-Build](../../setup/tasks/minimal-protection-20261124/n100-final-build.log) ·
+[Rechnervergleich](../../setup/tasks/minimal-protection-20261124/n100-cross-host-parity.json).
 
 ## Stiftaufnahme: ArUco-Druckbogen, 24.11.2026
+
+**Folgeaufnahme17:41AWST:** Nutzer hat zwei30mm-Marker am Stift angebracht,
+oben und auf der Seite senkrecht zu den Greifflächen. Aktuelles natives
+OAK-Pro-Foto4056×3040/Fokus112 mit dem bestehenden N100-Fotowerkzeug:
+**obenID97, seitlichID96**, beide direkt in Originalpixeln erkannt.
+Kanten97 etwa60–74px,96 etwa42–75px; perspektivisch unterschiedlich verkürzt.
+Beide Marker gehören zum Stift/Adapter,97 ist trotz seiner ursprünglichen
+Druckbogenbeschriftung keine Halterreferenz. Foto, Metadaten, SHA256,
+Eckkoordinaten und180°-Anzeigedetail unter
+`setup/tasks/pen_pick_20261124/20261124-pen-markers-oakpro-01/`.
+USB-Gerät18443010314F3B1300, Factoryhash unverändert, Kamera geschlossen
+und Lease freigegeben. Keine Arm-/Greiferaktion. Sichtbarkeit in diesem
+Einzelbild bestätigt; metrische Greifpose und weitere Blickrichtungen/
+Verdeckungen noch nicht geprüft. Die folgende Empfehlung20mm ist historisch.
 
 Nutzer hat den Stift im gemeinsam entworfenen Halter auf den Tisch gestellt
 und möchte dessen Aufnahme künftig als weiteres Teilprogramm der Program

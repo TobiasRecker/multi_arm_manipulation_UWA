@@ -1,7 +1,8 @@
-"""Explicit, monitored multi-arm scan runner. No automatic Power/Brake/Play.
+"""Hash-bound multi-arm scan runner. No automatic Power/Brake/Play.
 
 Only a hash-bound plan with arbitrary-progress separation for ALL selected arms
-may run. An independent GUI heartbeat/STOP service remains active during photos.
+may run. The minimal backend uses the shared collision/pause runtime; the legacy
+backend retains its historical monitoring until the explicit runtime cutover.
 """
 import argparse
 from collections import deque
@@ -176,6 +177,8 @@ class ScanObserver(JointObserver):
 
 class ParallelMotion:
     def __init__(self,node,profiles,output,*,mock=False,require_gui=True,tracking=.005):
+        if os.environ.get('UWA_PROTECTION_BACKEND', 'legacy') == 'minimal':
+            raise RuntimeError('Legacy scan monitoring is disabled; use the shared minimal scan runner')
         import rclpy
         from rclpy.action import ActionClient
         from control_msgs.action import FollowJointTrajectory

@@ -118,6 +118,12 @@ def test_backend_selection_keeps_legacy_default(tmp_path, monkeypatch):
     assert scan.scan_runner(None, {}, tmp_path, workspace=tmp_path) == 'minimal'
 
 
+def test_minimal_mode_refuses_direct_legacy_constructor_before_any_watcher(tmp_path, monkeypatch):
+    monkeypatch.setenv('UWA_PROTECTION_BACKEND', 'minimal')
+    with pytest.raises(RuntimeError, match='Legacy scan monitoring is disabled'):
+        scan.ParallelMotion(None, {}, tmp_path)
+
+
 @pytest.mark.parametrize('backend,audit', [('minimal', False), ('legacy', True)])
 def test_camera_worker_does_not_start_standstill_audit_in_minimal(tmp_path, monkeypatch, backend, audit):
     from uwa_cell_control import board_capture, scan_camera_worker

@@ -1,11 +1,15 @@
 # ChArUco-Neudruck: Größe und Muster
 
-- Status: Beratung abgeschlossen, 24.11.2026 (Australia/Perth), Hauptagent dieses Chats.
+- Status: Druck-PDFs erstellt und geprüft, Folgeauftrag 24.11.2026 (Australia/Perth),
+  Hauptagent dieses Chats. Beratung abgeschlossen; Nutzer beauftragt nun
+  ausdrücklich die PDFs zu den empfohlenen Abmessungen und Mustern.
 - Nutzerauftrag: bisherige zwei feste A3-Boards und mobiles A4-Board für
   professionellen Druck beurteilen; Außenmaß, Musterfläche, Feld-/Markermaß
   und Pattern empfehlen. Freie Formate einschließlich größerer Platten erlaubt.
-- Bereiche: lesende Bestands-/Kameraprüfung; anschließend dieser Nachweis und
-  `HANDOVER.md`. Bestehende Konfigurationen und Kalibrierprofile erhalten.
+- Bereiche: neue Druckdefinition unter `config/print_designs/`, eigener
+  Generator/Validator unter `scripts/`, `output/pdf/`, dieser Nachweis und
+  `HANDOVER.md`/`AGENTS.md`. Bestehende aktive Boarddefinitionen und
+  Kalibrierprofile erhalten.
 - Keine Kamera-/Roboteraktion oder Dienstneustarts vorgesehen.
 - Bestand: feste Muster280×200mm (7×5,40/28mm), mobil266×190mm
   (7×5,38/28mm), alle DICT_4X4_100. A3 ist das bisherige Papierformat,
@@ -87,5 +91,35 @@ Primärquellen, abgerufen24.11.2026:
 - [Calib.io Targetfertigung](https://calib.io/products/charuco-targets):
   matte präzise bedruckte Aluverbundplatten als industrielles Beispiel.
 
-Keine Druckdatei erstellt, keine Bestellung, Profilaktivierung oder Hardware-
-aktion. Nur Arbeitsnachweis, AGENTS.md und HANDOVER.md ergänzt.
+## Erzeugte und geprüfte Druckdaten
+
+Folgeauftrag: Nutzer beauftragt ausdrücklich die entsprechenden PDFs zu den
+vorgeschlagenen Größen. Eigene Definition
+`config/print_designs/charuco_professional_v1.json`; keine Änderung der aktiven
+alten Boarddefinitionen. Drei einseitige Vektor-PDFs in Originalgröße:
+
+- `output/pdf/uwa_charuco_table_left_550x400mm_1to1.pdf`, IDs0–34.
+- `output/pdf/uwa_charuco_table_right_550x400mm_1to1.pdf`, IDs50–84.
+- `output/pdf/uwa_charuco_mobile_450x360mm_1to1.pdf`, IDs100–130.
+
+`scripts/print_professional_charuco.py` verwendet sieben Quellpixel/mm, damit
+Felder, Markerkanten, Modulbreiten und Zentrierung exakt auf dem Quellraster
+liegen, und exportiert nur Vektorrechtecke. Alle Beschriftungsfonts eingebettet,
+MediaBox/CropBox/TrimBox/BleedBox entsprechen dem finalen Plattenmaß,
+PrintScaling=None. Boardkennung und100mm-X/Y-Kontrollen liegen im äußeren
+Rand; die inneren10mm um das Muster bleiben unbedruckt.
+
+Unabhängige Prüfung mit `scripts/validate_professional_charuco.py` direkt am
+fertigen PDF, Poppler300dpi, OpenCV4.10: alle101Marker/156ChArUco-Ecken und
+richtige IDs, richtige Seitenformate, reine Vektoren und beide Kontrollachsen
+bestätigt. Maximale rasterbasierte Markerkantenabweichung0,102mm,
+Markerpositionsabweichung0,150mm, Musterrandabweichung0,024mm; alle unter
+0,2mm Rastertoleranz. Kontrollstrecken-Rasterbbox umfasst den Endstrich und
+misst100,161mm; Vektor-Abstand der Endmarken100mm. Das ist keine zugesagte
+Drucktoleranz oder reale Messgenauigkeit.
+
+Alle drei neuesten Vorschauen aus den geprüften PDF-Hashes visuell ohne
+Beschnitt/Überlagerung geprüft. Quellen-/PDF-Hashes und Maße im Manifest,
+Nachweis `output/pdf/uwa_charuco_professional_v1_validation.json`.
+Druck-/Reproduktionsanleitung: `docs/charuco_professional_print.md`.
+Keine Bestellung, Profilaktivierung, Kamera-/Roboteraktion oder Dienständerung.

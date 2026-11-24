@@ -1,4 +1,4 @@
-"""Independent high-contrast STOP/status window for the hardware scan runner."""
+"""High-contrast scan status with shared minimal or historical legacy controls."""
 import json
 import fcntl
 from pathlib import Path

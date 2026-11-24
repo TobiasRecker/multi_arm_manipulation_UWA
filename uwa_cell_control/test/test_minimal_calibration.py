@@ -1,6 +1,7 @@
 """Frozen parking/acquisition use the shared backend; no live ROS context."""
 from contextlib import contextmanager
 import json
+import sys
 from types import SimpleNamespace as Box
 
 import pytest
@@ -40,13 +41,13 @@ def test_frozen_points_use_shared_client_without_retiming_or_guards():
 @pytest.mark.parametrize('dispatch',[False,True])
 def test_interrupted_read_only_planning_does_not_pause_unrelated_motion(monkeypatch,dispatch):
     import uwa_cell_motion.hardware_model as hardware_model
-    import uwa_cell_motion.minimal_execution as execution
     calls=[]
     def interrupted(*args,**kwargs):raise KeyboardInterrupt
     fake=Box(positions=full_state(),health=lambda:None,connect=lambda:None,
         follow_group=interrupted,stop=lambda:calls.append('pause'),destroy_node=lambda:calls.append('close'))
     monkeypatch.setattr(hardware_model,'HardwareProblem',lambda *args:None)
-    monkeypatch.setattr(execution,'MinimalHardwareClient',lambda *args:fake)
+    monkeypatch.setitem(sys.modules,'uwa_cell_motion.minimal_execution',
+                        Box(MinimalHardwareClient=lambda *args:fake))
     with pytest.raises(KeyboardInterrupt):
         with minimal_calibration.checked_motion('/tmp/inventory','/tmp/layout','mock',[]) as motion:
             if dispatch:motion.follow('right_rear',points())

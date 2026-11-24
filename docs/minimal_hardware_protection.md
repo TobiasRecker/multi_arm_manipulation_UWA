@@ -87,7 +87,9 @@ bash protection.sh prepare-model --mode hardware --output prepared-protection
 ```
 
 The default build reuses the existing runtime as an underlay and builds only
-the five changed packages, sequentially at low CPU priority. `--full` is the
+the five changed packages, sequentially at low CPU priority. Package discovery
+is limited to `src/`; a candidate-root `COLCON_IGNORE` prevents a parent workspace
+from discovering the archived packages. `--full` is the
 separate full-source build. `UWA_MINIMAL_UNDERLAY` can select another existing
 install. Neither build connects to a robot. Model preparation is file-only.
 
@@ -159,8 +161,9 @@ Evidence directory on ROSmini:
   GenericSystem managers, C++ core and Python adapter; retained goal UUIDs and
   phases during pause; missing-state warning without pause; mixed velocity/JTC
   stop with no automatic restart of manual motion.
-- `cpp-package-ctest.log`: native geometry, acceleration-ramp and complete
-  mock API/recovery cases.
+- `cpp-final-ctest.log`: all six native geometry, acceleration-ramp, API/recovery
+  and actual-controller mock tests passed.
+- `python-complete-tests.log`: 168 targeted Python regressions passed.
 - Controller integration also checks future-start pause, long pause, new-goal
   rejection, recovery admission and cancel/new-task lifecycle at native scaling
   1.0 and 0.5.
@@ -169,6 +172,15 @@ Evidence directory on ROSmini:
   4.44e-16 m. ROSmini checks took about 4.96–11.27 ms uncached and 0.022–0.069 ms
   for identical cached states; these are not N100 CPU or real stopping results.
 - `gui-mock.png`: visible high-contrast mock GUI on the actual display.
+- `n100-final-build.log`: the five-package candidate build completed successfully.
+  Candidate: `/home/rosmatch/uwa-ur-runtime/minimal-candidates/minimal.upWhPwQC`.
+- `n100-validation/runtime-binding.json`: JTC 6.9.0 / controller manager 6.10.1,
+  all plugin/node/replay libraries resolved and Python modules from the candidate.
+- `n100-cross-host-parity.json`: equal canonical collision geometry, mesh contents
+  and SRDF, and identical decisions/distances for five saved states on both hosts.
+  Raw model hashes contain different host file paths. N100 file checks took
+  12.1–27.0 ms uncached and 0.035–0.057 ms for repeated identical states; this small
+  archived sample does not establish live CPU load or stopping distance.
 
 Hardware activation and physical stopping measurements are separate from these
 software and archived-data checks.

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import shlex
 import shutil
 import subprocess
@@ -234,15 +234,33 @@ def live_inputs(path, *, camera_id="oak4"):
     return config
 
 
-def n100(script, *args):
+def selected_runtime():
     backend = os.environ.get('UWA_PROTECTION_BACKEND', 'legacy')
     if backend not in ('legacy','minimal'):
         raise ValueError('Unknown protection backend')
     candidate = os.environ.get('UWA_MINIMAL_RUNTIME', '')
+    if backend == 'minimal' and candidate:
+        if not PurePosixPath(candidate).is_absolute():
+            raise ValueError('UWA_MINIMAL_RUNTIME must be an absolute N100 runtime path')
+        return Path(os.path.normpath(candidate))
+    return None
+
+
+def remote_location(relative):
+    payload = PurePosixPath(str(relative))
+    if payload.is_absolute() or '..' in payload.parts or not payload.parts:
+        raise ValueError('Remote payload must be a nonempty relative path without traversal')
+    suffix = payload.as_posix() + ('/' if str(relative).endswith('/') else '')
+    return f'{N100_HOST}:{selected_runtime() or "uwa-ur-runtime"}/{suffix}'
+
+
+def n100(script, *args):
+    candidate = selected_runtime()
+    backend = os.environ.get('UWA_PROTECTION_BACKEND', 'legacy')
     prefix = N100_WORKSPACE
     if backend == 'minimal':
         if candidate:
-            prefix += 'cd -- '+shlex.quote(candidate)+'\n'
+            prefix += 'cd -- '+shlex.quote(str(candidate))+'\n'
         prefix += 'export UWA_PROTECTION_BACKEND=minimal\n'
         prefix += 'export UWA_MINIMAL_RUNTIME="$PWD"\n'
         prefix += 'export UWA_MINIMAL_INSTALL="$PWD/install_lyrical"\n'
@@ -283,7 +301,10 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 /usr/bin/python3 -c "$2" "$1"
         command, out / "n100-preflight.log", 25, separate_stdout=True,
     ).splitlines()
     target_workspace = Path(workspace_path)
-    if not target_workspace.is_absolute() or target_workspace.name != "uwa-ur-runtime":
+    expected_runtime = selected_runtime()
+    if (not target_workspace.is_absolute() or
+            (target_workspace != expected_runtime if expected_runtime is not None
+             else target_workspace.name != "uwa-ur-runtime")):
         raise ValueError("Unexpected N100 runtime workspace.")
     status = json.loads(status_text)
     if not status.get("area_released"):
@@ -430,7 +451,7 @@ def calibrate_camera(progress, config_path):
 def upload(remote, local_file, log_path, *additional_files):
     command = [
         "/usr/bin/scp", *SSH_OPTIONS, local_file, *additional_files,
-        f"{N100_HOST}:uwa-ur-runtime/{remote}",
+        remote_location(remote),
     ]
     logged_command(command, log_path, 100)
 
@@ -666,6 +687,7 @@ def prepare_local_approach(program, progress, config, observations, status, chec
 
 
 def transfer_approach(remote, target_workspace, plan, image, metadata, config, out, checker_prefix):
+    destination = remote_location(remote+'/')
     handoff = out / "handoff"
     handoff.mkdir()
     prepared = handoff / "prepared"
@@ -692,7 +714,7 @@ def transfer_approach(remote, target_workspace, plan, image, metadata, config, o
         options.extend(["--camera-reference-pose", f"{remote}/camera-reference/object-pose.json"])
     if options:
         sources.append(reference_dir)
-    command = ["/usr/bin/scp", *SSH_OPTIONS, "-r", *sources, f"{N100_HOST}:uwa-ur-runtime/{remote}/"]
+    command = ["/usr/bin/scp", *SSH_OPTIONS, "-r", *sources, destination]
     logged_command(command, out / "upload-approach.log", 100)
     return options
 

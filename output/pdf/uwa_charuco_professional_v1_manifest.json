@@ -1,0 +1,226 @@
+{
+  "generation_id": "uwa_charuco_professional_v1",
+  "definition": "/home/rosmatch/UWA_ws/src/multi_arm_manipulation_UWA/config/print_designs/charuco_professional_v1.json",
+  "definition_sha256": "23c73f0ec06a23ad7c4f1c15843920547fd09caf00f33362c6d197dbf40e30ba",
+  "dictionary": "DICT_5X5_250",
+  "marker_border_bits": 1,
+  "legacy_pattern": false,
+  "opencv_version": "4.10.0",
+  "geometry": "Exact black vector rectangles; seven source pixels/mm; no embedded raster",
+  "annotations": "Outer white rim only; inner 10 mm rim around pattern remains blank",
+  "active_runtime_configuration_changed": false,
+  "boards": [
+    {
+      "board_id": "uwa_table_left_pro_v1",
+      "label": "TABLE LEFT",
+      "filename": "uwa_charuco_table_left_550x400mm_1to1.pdf",
+      "page_mm": [
+        550,
+        400
+      ],
+      "squares": [
+        10,
+        7
+      ],
+      "square_mm": 50,
+      "marker_mm": 36,
+      "margin_mm": 25,
+      "marker_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34
+      ],
+      "pdf": "/home/rosmatch/UWA_ws/src/multi_arm_manipulation_UWA/output/pdf/uwa_charuco_table_left_550x400mm_1to1.pdf",
+      "pattern_mm": [
+        500,
+        350
+      ],
+      "pattern_origin_on_plate_mm": [
+        25,
+        25
+      ],
+      "expected_marker_count": 35,
+      "expected_charuco_corners": 54,
+      "source_pixels_per_mm": 7,
+      "marker_module_mm": 5.142857142857143,
+      "reference_bars_mm": {
+        "x": 100,
+        "y": 100
+      },
+      "vector_rectangle_count": 439,
+      "sha256": "0692029ca7ec264983880b77616fcb8e42682a84be36c08e95b2a16a6e9d2897"
+    },
+    {
+      "board_id": "uwa_table_right_pro_v1",
+      "label": "TABLE RIGHT",
+      "filename": "uwa_charuco_table_right_550x400mm_1to1.pdf",
+      "page_mm": [
+        550,
+        400
+      ],
+      "squares": [
+        10,
+        7
+      ],
+      "square_mm": 50,
+      "marker_mm": 36,
+      "margin_mm": 25,
+      "marker_ids": [
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84
+      ],
+      "pdf": "/home/rosmatch/UWA_ws/src/multi_arm_manipulation_UWA/output/pdf/uwa_charuco_table_right_550x400mm_1to1.pdf",
+      "pattern_mm": [
+        500,
+        350
+      ],
+      "pattern_origin_on_plate_mm": [
+        25,
+        25
+      ],
+      "expected_marker_count": 35,
+      "expected_charuco_corners": 54,
+      "source_pixels_per_mm": 7,
+      "marker_module_mm": 5.142857142857143,
+      "reference_bars_mm": {
+        "x": 100,
+        "y": 100
+      },
+      "vector_rectangle_count": 438,
+      "sha256": "3695e3cc369efb76b72a2b29cca98b6ff273f23a163cb213d1814d9a9249457a"
+    },
+    {
+      "board_id": "uwa_mobile_pro_v1",
+      "label": "MOBILE",
+      "filename": "uwa_charuco_mobile_450x360mm_1to1.pdf",
+      "page_mm": [
+        450,
+        360
+      ],
+      "squares": [
+        9,
+        7
+      ],
+      "square_mm": 45,
+      "marker_mm": 33,
+      "margin_mm": 22.5,
+      "marker_ids": [
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118,
+        119,
+        120,
+        121,
+        122,
+        123,
+        124,
+        125,
+        126,
+        127,
+        128,
+        129,
+        130
+      ],
+      "pdf": "/home/rosmatch/UWA_ws/src/multi_arm_manipulation_UWA/output/pdf/uwa_charuco_mobile_450x360mm_1to1.pdf",
+      "pattern_mm": [
+        405,
+        315
+      ],
+      "pattern_origin_on_plate_mm": [
+        22.5,
+        22.5
+      ],
+      "expected_marker_count": 31,
+      "expected_charuco_corners": 48,
+      "source_pixels_per_mm": 7,
+      "marker_module_mm": 4.714285714285714,
+      "reference_bars_mm": {
+        "x": 100,
+        "y": 100
+      },
+      "vector_rectangle_count": 395,
+      "sha256": "15ac730c4868f0c302d7784ad60053ca611ebad844faf3fb46bc3fd6e92adb3c"
+    }
+  ]
+}

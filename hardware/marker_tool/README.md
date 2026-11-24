@@ -115,7 +115,7 @@ Tischboards und dem mobilen ChArUco-Board verschieden.
 | 30 mm | 38 × 38 mm | 96 | 97 |
 | 40 mm | 48 × 48 mm | 98 | 99 |
 
-ID 92 mit 20 mm ist ein erster Versuch für den Adapter. Ob diese Größe aus
+Ursprünglich war ID 92 mit 20 mm als erster Versuch vorgeschlagen. Ob diese Größe aus
 der echten Entfernung und Blickrichtung ausreichend sichtbar ist, muss am
 aktuellen Originalbild geprüft werden; keine garantierte Reichweite oder
 Millimetergenauigkeit. Größere Größen benötigen entsprechend mehr plane
@@ -145,6 +145,18 @@ des fertigen 300-dpi-Renders: 26/26 Marker im Gesamtblatt und einzeln lesbar,
 A4 und Kantenmaße geprüft. Nur digitaler Druckvorlagennachweis; keine neue
 Kameraaufnahme, kein Druck-/Roboter-/Greifversuch. Das Library-Teilprogramm
 selbst ist in dieser ersten Etappe noch nicht implementiert.
+
+**Aktueller Aufbau24.11.2026:** Der Nutzer hat zwei30mm-Marker am Stift
+angebracht. Im nativen OAK-Pro-Foto17:41AWST sind obenID97 und seitlichID96
+lesbar; die seitliche Fläche steht laut Nutzer senkrecht zu den Greifflächen.
+Beide IDs dem Stift/Adapter zuordnen, auch wenn97 auf dem Druckbogen als
+„Halter“ beschriftet war. Kanten97 etwa60–74px,96 etwa42–75px im4056×3040-
+Original, Fokus112. Aufnahme und Pixelbefund unter
+`setup/tasks/pen_pick_20261124/20261124-pen-markers-oakpro-01/` im Workspace.
+Die Anzeige ist180° gedreht; Messkoordinaten bleiben im nativen Rohbild.
+Dies bestätigt die gleichzeitige Erkennung in einer aktuellen Aufnahme;
+eine metrische Marker-zu-Greifpose-Kalibrierung und Sichtprüfung während
+der Anfahrt stehen noch aus. Keine Roboterbewegung ausgeführt.
 
 Technischer Hintergrund: [OpenCV: Detection of ArUco Markers](https://docs.opencv.org/4.13.0/d5/dae/tutorial_aruco_detection.html).
 

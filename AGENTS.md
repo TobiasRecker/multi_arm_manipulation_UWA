@@ -291,9 +291,12 @@ angezeigten Arme und die Revision gebunden.
 - Nutzerziel24.11.2026: den real auf dem Tisch bereitgestellten Stift aus
   dieser Aufnahme als weiteres Teilprogramm der Program library greifen.
   Erste beauftragte Etappe: Eignung markerloser Erkennung einschätzen und
-  einen mehrfach belegten A4-ArUco-Druckbogen bereitstellen. Die Empfehlung
-  zur Markermontage ist noch keine vom Nutzer bestätigte Montageentscheidung
-  oder geprüfte reale Greifpose. Stand und Druckbogen in `hardware/marker_tool/README.md`.
+  einen mehrfach belegten A4-ArUco-Druckbogen bereitstellen. Nutzer montierte
+  anschließend zwei30mm-Marker am Stift: oben und seitlich senkrecht zu den
+  Greifflächen. OAK-Pro-Foto24.11. bestätigt obenID97 und seitlichID96,
+  beide gehören zum Stift/Adapter. Die ursprüngliche Druckbogenbeschriftung
+  „Halter“ für97 bestimmt nicht die tatsächliche Montage. Metrischer
+  Markerbezug zur Greifpose ist noch offen. Stand in `hardware/marker_tool/README.md`.
 - Nutzer wünscht einen Greifadapter am COS-Whiteboardmarker für den
   Robotiq 2F-85 und eine Tischaufnahme mit Spitze nach unten, vertikaler
   Entnahme und Einführschräge für die Rückgabe. Verdrehung sowohl
@@ -1425,6 +1428,10 @@ angezeigten Arme und die Revision gebunden.
   Formate einschließlich größerer Platten beurteilen. Außenmaß, aktive
   Musterfläche und Feld-/Markermaß getrennt angeben. Größenempfehlungen
   sind noch keine beschlossene Umstellung der vorhandenen Boardreferenzen.
+  Folgeauftrag24.11.: PRO-v1-Druckdaten zu den empfohlenen Maßen erstellen.
+  Eigene Druckdefinition `config/print_designs/charuco_professional_v1.json`
+  mit DICT_5X5_250 verwenden; keine aktive Kalibrierung durch den PDF-Auftrag
+  umstellen. Bedienung und Druckprüfung: `docs/charuco_professional_print.md`.
   Separates mobiles UR-Board seit2026-11-11: A4-Holzträger mit plan aufgeklebtem
   Papier, Definition `uwa_cell_description/config/mobile_charuco_a4.yaml`.
   7×5 Felder38mm/Marker28mm, DICT_4X4_100 IDs75–91. Nicht mit den40mm-
