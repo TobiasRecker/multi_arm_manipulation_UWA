@@ -1,5 +1,53 @@
 # Überwachung der vier realen UR auf dem N100
 
+## Rückzug des Entlastungs-Candidates, 24.11.2026
+
+Treiber-/Socketnachlauf am15.02: Die vier bestehenden
+`ros2_control_node`-Prozesse hatten je30 offene FDs und15 Socketdeskriptoren,
+nicht das historische Softlimit von1024. Lokale URCL-Änderungen schließen
+RTDE-/TCP-Deskriptoren bei Reconnect, begrenzen Wiederholungs-Logs und
+beobachten Gerätezeitregressionen. 23 Socket-/RTDE-/Stream-CTest bestanden
+lokal mit `BUILDING_TESTS=ON`.
+Am15.02 wurden diese Quellen auf den N100 gestaged und alle18 ausgewählten
+Pakete gebaut. Die bereits laufende bewaffnete Rollback-Schutzkette wurde
+dabei nicht neu gestartet. Die Guardvereinfachung bleibt getrennt und ist
+nicht aktiviert.
+
+Der kleinere Folge-Candidate `pilot.JgH9rz4w` entfernt den zweiten
+Hardware-Watchdog-StopPort-RPC-Pfad und ruhende Manager-Polling. Er behält
+den bewährten 50-Hz-Supervisor-/Watchdog-Takt und die native Stopkette.
+154 relevante lokale Tests bestanden; der Candidate ist staged, aber nicht
+aktiviert. Der operative Kartonschutz läuft weiterhin unverändert im
+Rollbacksstand.
+
+Candidate `pilot.3avMfmBY` wurde bewaffnet geprüft. Die CPU sank in zwei
+15-s-Proben auf Guard21,2–22,1%, Supervisor19,2–19,5% und Watchdog
+10,1–10,2%. Beim regulären Dienstende blieb die vollständige vierarmige
+Hold-/Managerbestätigung nicht erhalten. Native Dashboard-Stops wurden
+quittiert, aber links vorne/rechts hinten waren nicht vollständig bestätigt.
+Der Candidate wurde verworfen. Der bewährte Schutzstand wurde mit dem
+Kartonprofil `hardware_carton_supported_trend.yaml`, 20-Hz-Guard-RTDE,
+15%-Geschwindigkeitstoleranz und 50-Hz-Supervisor-/Watchdog-Takt wieder
+hergestellt. Vier native STOPPED-Lagen und stationäre Vierarm-Holds waren
+nachgewiesen. Der Schutzdienst bleibt blockiert und wartend; keine Reset-,
+Fahr-, Programm-, Play- oder Freigabeaktion.
+
+## Vorab-Basis zur Entlastung, 24.11.2026
+
+Um 13:19 AWST lief `uwa-hardware-motion.service` weiter aktiv. Eine genaue
+15-s-Messung der unveränderten Hardware-Guardprozesse ergab 37,7 % CPU für
+den Guard, 44,7 % für den Supervisor und 21,0 % für den Watchdog. Die
+Prozessgrößen lagen bei etwa 341, 351 und 346 MiB RSS. Der systemweite
+Load Average betrug 11,93.
+
+Dieser Wert ist die Vorab-Basis für die ereignisgebundene Managerabfrage
+und den 20-Hz-Supervisor-/Watchdog-Takt. Der reale Hardwaredienst wurde
+dabei nicht verändert oder neu gestartet. Ein zusätzlicher Mock-Check des
+aktuellen Dienstinstallationsstands konnte nicht vollständig starten:
+Die Läufe meldeten einen ungültigen rclpy-Kontext. Dieser Fehler ist als
+Prüfumgebung-/Installationsbefund zu behandeln, nicht als Nachweis des
+Mockschutzes.
+
 ## Betriebswechsel am 23.11.2026
 
 **Abgeschlossen, 13:45 AWST.** Der Reparaturstand läuft auf dem N100. Der Nutzer bestätigte alle vier Arme unbeladen und die Zelle für den Wechsel frei. Vor dem Wechsel meldete links vorne wieder frische RTDE-Daten, `RUNNING/NORMAL` und `STOPPED`. Die drei anderen Arme waren ausgeschaltet und ihre Programme gestoppt. Alle vier Arme waren stationär, der alte Supervisor hielt alle vier und die Motion Review hatte keine offenen Aufträge.

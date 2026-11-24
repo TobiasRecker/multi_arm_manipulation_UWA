@@ -257,6 +257,12 @@ angezeigten Arme und die Revision gebunden.
 
 ## Physisches Zeichenwerkzeug (2026-11-19)
 
+- Nutzerziel24.11.2026: den real auf dem Tisch bereitgestellten Stift aus
+  dieser Aufnahme als weiteres Teilprogramm der Program library greifen.
+  Erste beauftragte Etappe: Eignung markerloser Erkennung einschätzen und
+  einen mehrfach belegten A4-ArUco-Druckbogen bereitstellen. Die Empfehlung
+  zur Markermontage ist noch keine vom Nutzer bestätigte Montageentscheidung
+  oder geprüfte reale Greifpose. Stand und Druckbogen in `hardware/marker_tool/README.md`.
 - Nutzer wünscht einen Greifadapter am COS-Whiteboardmarker für den
   Robotiq 2F-85 und eine Tischaufnahme mit Spitze nach unten, vertikaler
   Entnahme und Einführschräge für die Rückgabe. Verdrehung sowohl
@@ -999,6 +1005,19 @@ angezeigten Arme und die Revision gebunden.
   separaten Nutzerauftrag unverändert erhalten. Hardware-Watchdog darf keine
   zweite vollständige Manager-Inventarprüfung aufbauen; sein Rückfall bleibt
   unabhängig und nativer.
+- Candidate pilot.3avMfmBY am24.11.2026 nicht übernehmen: Live-Stopp lief
+  mit nativen Quittungen, ließ aber links vorne/rechts hinten ohne vollständige
+  Hold-Bestätigung und führte zu `ARM STOP ADAPTER UNAVAILABLE`. Bewährten
+  20-ms-Takt und periodischen Verwaltungsprüfpfad erhalten; erneute
+  Aktivierung ausschließlich nach eigenem Betriebswechsel und belastbarem
+  Vierarm-Stoppnachweis.
+- Vereinfachter Hardwarestand24.11.2026: der unabhängige Watchdog sendet im
+  Hardwarebetrieb nur den native STOP und betreibt keine zweite StopPort-
+  Managerabfragkette. StopPort-Leser laufen nur bei aktiver Verriegelung
+  oder expliziter Freigabe, nicht im ruhenden unbelasteten Zellenzustand.
+  Controllerbesitz, Hardwareplugin und Hold-Parameter werden weiterhin bei
+  Stop-, Wechsel- und Resetübergängen geprüft; diese Änderungen ersetzen
+  keine nativen UR-Stops oder die RTDE-/Stillstandsüberwachung.
 - RViz-Verlustalarme unabhängig vom Geometrieprozess anzeigen und alte Kugeln
   löschen. Ressourcenbesitz nicht als gemessenen Stillstand ausgeben. Kurze
   Zeilenumbrüche verhindern überbreite Leerzeichen des aktuellen Text-Renderers.

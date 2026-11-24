@@ -3,7 +3,7 @@ import math
 from .common import ROBOT_IDS,BODY_RESERVE_MODEL
 
 
-SUPERVISOR_PERIOD_S=.05
+SUPERVISOR_PERIOD_S=.02
 
 
 def expired_pair_leases(decision,now,cfg):

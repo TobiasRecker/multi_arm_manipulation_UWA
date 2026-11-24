@@ -85,6 +85,69 @@ STEP zeigt den montierten Adapter ohne Schrauben und Marker als drei
 CAD-Körper. Die Vorschau zeigt die angenäherte Stiftkontur im Schnitt.
 Die drei STL-Dateien sind einzeln in Drucklage und in Millimetern.
 
+## Optische Erkennung und A4-Marker, 24.11.2026
+
+Für das gewünschte Library-Teilprogramm zur Stiftaufnahme empfiehlt sich als
+erster Ansatz eine plane ArUco-Fläche am Greifadapter. Die schmale runde
+Stifthülse und wechselnde Verdeckungen erschweren eine rein geometrische
+Lagebestimmung; deren Robustheit ist ohne aktuelle Aufnahmen nicht belegt.
+Der bekannte verdrehgesicherte Sitz hilft bei der Bestimmung einer Greifpose,
+beweist aber weder den vollständigen Sitz noch die Stiftanwesenheit.
+
+Den Quadratmarker nicht um den runden Stift oder den runden Halter wickeln.
+Die gesamte Fläche muss plan und starr bleiben. Am Adapter Greifflächen,
+Schrauben, die Trennfuge und Einführgeometrie berücksichtigen. Falls dort
+keine ausreichend große freie Fläche zur Kamera zeigt, eine kleine starre
+Trägerlasche verwenden; deren Form und Montage sind noch nicht konstruiert
+oder geprüft. Ein separater Marker am Halter kann dessen Lage liefern,
+ersetzt aber keine aktuelle Prüfung des eingesetzten Stifts/Adapters.
+
+Der [A4-Druckbogen](../../output/pdf/uwa_pen_markers_A4_1to1.pdf) enthält
+26 Etiketten mit 4 mm Weißrand an jeder Seite. Die angegebene Markerkante
+umfasst den äußeren schwarzen Rand, ohne den Weißrand. Reine Schwarz-Weiß-
+Vektorgrafik, `DICT_4X4_100`, `borderBits=1`; alle IDs sind von den festen
+Tischboards und dem mobilen ChArUco-Board verschieden.
+
+| Schwarze Kante | Ausschnitt mit Weißrand | Adapter-ID | Halter-ID |
+|---|---|---|---|
+| 20 mm | 28 × 28 mm | 92 | 93 |
+| 25 mm | 33 × 33 mm | 94 | 95 |
+| 30 mm | 38 × 38 mm | 96 | 97 |
+| 40 mm | 48 × 48 mm | 98 | 99 |
+
+ID 92 mit 20 mm ist ein erster Versuch für den Adapter. Ob diese Größe aus
+der echten Entfernung und Blickrichtung ausreichend sichtbar ist, muss am
+aktuellen Originalbild geprüft werden; keine garantierte Reichweite oder
+Millimetergenauigkeit. Größere Größen benötigen entsprechend mehr plane
+Trägerfläche. Jede ID hat genau eine Größe. Doppelte IDs sind Ersatzkopien:
+pro ID nur ein Exemplar im Kamerabild, den übrigen Bogen außerhalb ablegen.
+Bei mehreren Markern auf demselben Körper unterschiedliche IDs und ihre
+starren Beziehungen erfassen.
+
+**Drucken:** A4 hoch, 100 % / Tatsächliche Größe, keine Seitenanpassung.
+Die 50-mm-Kontrollstrecke und die schwarze Markerkante mit einem Lineal
+prüfen. An den gestrichelten Linien ausschneiden und den weißen Rand
+erhalten. Matt aufkleben; reflektierendes Klebeband über dem Muster vermeiden.
+Für spätere metrische Auswertung tatsächliches Maß und starre Transformation
+vom Marker zur Greifpose aufnehmen. Ein leicht erkennbarer Marker allein
+belegt noch keine ausreichend genaue Greifpose oder Stiftspitzenkalibrierung.
+
+Reproduktion aus dem Workspace:
+
+```bash
+.venvs/charuco-print/bin/python \
+  src/multi_arm_manipulation_UWA/scripts/print_pen_markers.py
+```
+
+ID-, Maß- und Positionsmetadaten stehen in der JSON-Datei neben dem PDF.
+Der Nachweis `uwa_pen_markers_A4_validation.json` dokumentiert die Prüfung
+des fertigen 300-dpi-Renders: 26/26 Marker im Gesamtblatt und einzeln lesbar,
+A4 und Kantenmaße geprüft. Nur digitaler Druckvorlagennachweis; keine neue
+Kameraaufnahme, kein Druck-/Roboter-/Greifversuch. Das Library-Teilprogramm
+selbst ist in dieser ersten Etappe noch nicht implementiert.
+
+Technischer Hintergrund: [OpenCV: Detection of ArUco Markers](https://docs.opencv.org/4.13.0/d5/dae/tutorial_aruco_detection.html).
+
 ## Gazebo und RViz
 
 Die Zelle zeigt `marker_station` und `cos_marker_docked` als zwei

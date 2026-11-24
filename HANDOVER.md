@@ -1,5 +1,132 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Stiftaufnahme: ArUco-Druckbogen, 24.11.2026
+
+Nutzer hat den Stift im gemeinsam entworfenen Halter auf den Tisch gestellt
+und möchte dessen Aufnahme künftig als weiteres Teilprogramm der Program
+library. Zunächst beauftragt: markerlose Erkennung einschätzen und bei
+sinnvoller Markernutzung einen mehrfach belegten A4-Druckbogen erstellen.
+
+Empfehlung des Agenten: ArUco auf einer planen, starren Fläche am Adapter,
+bei Bedarf auf einer kleinen Trägerlasche; optional eigener Haltermarker.
+Keinen ebenen Quadratmarker um die runde Stifthülse wickeln. Ein Haltermarker
+weist die Stiftanwesenheit nicht nach. Ohne aktuelles Kamerabild sind weder
+die markerlose Robustheit noch die erforderliche Markerkante im realen
+Aufbau belegt. Montage/Markerbezug zur Greifpose und tatsächlicher Stiftsitz
+bleiben zu prüfen. Dies ist noch keine bestätigte Nutzerentscheidung zur Montage.
+
+Erstellt: [A4-Druckbogen](output/pdf/uwa_pen_markers_A4_1to1.pdf), eine Seite
+mit26Etiketten,20/25/30/40mm schwarzer Außenkante plus4mm Weißrand.
+DICT_4X4_100, IDs92–99 ohne Überschneidung mit den bestehenden drei Boards.
+Jede ID hat genau eine Größe; doppelte IDs sind Ersatzkopien, nur eine
+sichtbare Kopie je ID verwenden. ID92/20mm als erster Adapterversuch
+vorgeschlagen, kein nachgewiesenes Kameralimit. Anleitung und ID-Tabelle
+in [marker_tool/README.md](hardware/marker_tool/README.md).
+
+PDF visuell geprüft und bei300dpi alle26Marker im gesamten Blatt sowie
+einzeln korrekt decodiert. A4-Maß, deaktivierte Druckskalierung und gerenderte
+Kantenmaße mit<0,2mm Rasterabweichung geprüft. Dies prüft das digitale PDF,
+nicht den Ausdruck oder reale Kamera-/Greifgenauigkeit. Reproduktion mit
+`scripts/print_pen_markers.py`, Metadaten und Nachweis neben dem PDF.
+Keine Kamera-/Roboteraktion, kein Dienstneustart und noch kein ausführbares
+Stiftprogramm in der Library angelegt.
+
+## N100-Entlastungs-Candidate, 24.11.2026
+
+Nach diesem verworfenen 20-Hz-Candidate wurde eine kleinere Vereinfachung
+geprüft: Der Hardware-Watchdog betreibt keinen zweiten StopPort-/RPC-Pfad,
+sondern behält nur die unabhängige native Stop-Funktion. Der StopPort pollt
+Manager-, Hardware- und Parameterdienste nicht mehr im ruhenden unbelasteten
+Zustand. Die Abfrage wird bei Blockierung oder expliziter Freigabe erneut
+aufgenommen. Der 50-Hz-Supervisor-/Watchdog-Takt und die RTDE-/Geometrie-
+Stillstandsprüfung bleiben unverändert. 154 relevante lokale Tests bestanden.
+
+Der finalisierte Candidate `pilot.3avMfmBY` enthält die vollständigen
+Entlastungsmodule `hardware_nodes.py`, `hardware_ports.py` und `interlock.py`,
+alle Motion-Pythonmodule, Motion-Configs und das Audit-Skript. Die
+SHA-256-Prüfung und 22 Candidate-Pilottests bestanden. Isoliert bestanden
+79 Guard-/StopPort-/Reserve-/RPC-Tests auf dem N100.
+
+Ein isolierter Mockgraphstart des Candidate konnte den bestehenden
+rclpy-/ROS-Laufzeitkontext nicht herstellen und lief weiter gegen die
+operative Installation; ohne Streams ist dies kein positiver Mock-Nachweis.
+Der Overlay ist nicht aktiviert. Die laufenden echten Guard-, Supervisor-
+und Watchdog-Prozesse verwenden weiterhin die operative 50-Hz-Quelle.
+Keine Hardwareaktivierung oder reale Fahrfreigabe aus der Candidate-Prüfung
+ableiten.
+
+Candidate pilot.3avMfmBY wurde am24.11.2026 tatsächlich kurz auf dem N100
+bewaffnet. Der Guard erreichte22,1/21,2%, Supervisor19,5/19,2% und Watchdog
+10,1/10,2% in zwei 15-s-Messungen. Beim anschließenden regulären Stopp blieb
+die vierarmige Hold-Bestätigung nicht vollständig frisch: vier native Stops
+wurden quittiert, links vorne und rechts hinten meldeten keine bestätigten
+Holds. Der Candidate wird daher nicht weiter freigegeben.
+
+Der operative Stand wurde danach zurückgesetzt und mit dem absoluten Profil
+`hardware_carton_supported_trend.yaml`, RR-Priorität20 und bewaffnetem Dienst
+wieder gestartet. Alle vier Arme waren stationär und native STOPPED. Die
+Rückroll-Rücknahme nutzt wieder 20-ms-Supervisor-/Watchdog-Takte und den
+ursprünglichen periodischen Controller-/Hold-/Hardwareprüfpfad. Messung:
+Guard32,6%, Supervisor47,9%, Watchdog21,4% eines Kerns. Der Dienst bleibt
+blockiert und führt keine Fahr-/Reset-/Play- und keine Freigabefahrt aus.
+
+## Kartonablauf nach Wartungsabschluss fortgesetzt, 24.11.2026
+
+Nutzer erteilt nach der vorigen Freigabeablehnung ausdrücklich die erneute
+Freigabe zum Fortsetzen. Vor Start lesend alle vier stationären Holds,
+Verriegelungen, Interlock und Modellbindung bestätigt. Aktuelle rechte
+Driver-/Native-Abweichung maximal0,0000372rad, bestehende Grenze0,005rad.
+Watchdog nach dem dokumentierten Wartungswechsel verriegelt, keine nativen
+STOPs ausstehend; der normale Library-Start enthält den bestehenden Reset
+unter unbeladenen Holds. Beide Start-/Ablaufskripte auf ROSmini/N100 identisch.
+Normaler Start13:11:53AWST über den Button-Endpunkt der Power-Library
+Port39823, Lauf `2cc9ee00bd3040e6bb2d2a18f8ffa48b`. Browsersteuerung weiterhin
+nicht verfügbar. Vor Foto/Fahrt gesperrt, weil ein anderer regulärer UR-Start
+die vorhandene `apply.lock` hielt. Später kein weiterer Startprozess und freie
+Startsperre bestätigt; weder Sperrdatei gelöscht noch Sperre umgangen.
+Erneuter normaler Start13:13:24AWST, Lauf
+`9dfaf820af0a46339835c7f98a555adc`: Kameravergleich12,979mm/1,630° akzeptiert.
+Hochanfahrt erfolgreich und beide rechten Greifer erstmals im normalen
+Library-Ablauf vorbereitet: `ACTIVE_OPEN_HELD`, rawFOR0/SPE16. Einfahrt
+nach Annahme beider Ziele abgebrochen (`right_front: DEVICE STATE STALE`),
+keine native Fahrbewegung oberhalb0,003rad/s aufgezeichnet. Kein Kontakt.
+Der Fehler ist nach Zielversand einzuordnen, nicht vor dem ersten Ziel.
+Beim späteren Fehler-Snapshot war die letzte RF-Quelle rund0,36s alt bei
+0,20s Grenze; das Alter im ersten auslösenden Prüfschritt fehlt. RF/RR-
+Actionantworten um440775,576/440775,609s monoton, Guard meldet den Verlust
+des Ausführungsbesitzers um440775,758s. Unabhängige RTDE-Mitschnitte laufen
+dabei weiter. Nach dem Abbruch alle vier Holds, Interlock, frische Daten und
+nicht ausgelösten Watchdog getrennt bestätigt.
+
+Kurze Offline-Kostenmessung mit gespeicherten Originalmodellen auf N100:
+primäre Kollisionsprüfung4,2–11,1ms, Kartonmodell0,69–1,09ms, je sechs Aufrufe.
+Dies erklärt die Empfangslücke nicht. Keine Grenz-/Tempoänderung. Nachweise
+`setup/tasks/carton-library-debug-20261124/entry-freshness-result.json` und
+`entry-freshness-safety.json`. Nächster normaler Library-Lauf13:18:47AWST,
+`7ecbceef602c4e71864ea0cf9f354067`, mit der vorhandenen passiven180-s-
+Statusaufzeichnung auf N100 `setup/tasks/carton-driver-restart-20261124/library-record04.jsonl`.
+Ergebnis des aufgezeichneten Laufs: Abbruch HIGH vor Zielversand,
+`right_rear: native robot/program is not ready`, nativSTOPPED und keine
+Arm-/Greiferbefehle. Der Safety Log ordnet vorangegangene native STOPs der
+fehlenden Hardware-/Hold-Bestätigung rechts hinten zu. In der abgeschlossenen
+Aufzeichnung04 verliert dieser Port wiederholt kurz Manager-/Hardware-/
+Hold-Bestätigung und erhält sie nach Readback zurück; STOP-Anforderungen
+folgen teils mit1,66–6,58s altem Hardware-Readback. Kein Geschwindigkeitsfehler.
+Guard-Quellintervalle maximal51,3ms, Supervisor/Watchdog weiter nominal20ms.
+Der separate Recorder hatte gemeinsame Empfangspausen bis365ms; seine Pause
+belegt keinen gleich langen Guard-Ausfall. Daten:
+`setup/tasks/carton-library-debug-20261124/library-record04.jsonl.gz` und
+`recorded-retry-safety.json`.
+
+Der im folgenden Abschnitt beschriebene, bisher nur vorbereitete
+Entlastungsstand wurde erneut mit81 bestehenden Offline-Softwareprüfungen
+geprüft. Alle bestanden; lokale Socketprüfungen benötigten Netzwerkfreigabe
+außerhalb der Sandbox. Drei Dateien als inaktiver Kandidat auf N100:
+`~/uwa-ur-runtime/review-candidates/carton-supervisor-20261124.bumWYrPi/`.
+Manifest und vorherige aktive Dateien dort gesichert, noch keine Installation
+und kein Schutzdienstneustart. Nutzerfreigabe für den konkreten Betriebswechsel
+einschließlich regulärem Stoppen der rechten Programme wird benötigt.
+
 ## Greifervorbereitung zwischen Hochanfahrt und Einfahrt ergänzt, 24.11.2026
 
 Nach dem freigegebenen rechten Treiberneustart hat Lauf
@@ -30,7 +157,12 @@ Folgelauf `1e63657fa5ba47ffac421af983d9b441`13:06:00AWST vor Foto/Planung
 gesperrt: rechts hinten Controller-/Hardware-/Hold-Bestätigung nicht verfügbar.
 Keine neue Arm- oder Greiferaktion. Die spätere sechssekündige lesende Aufnahme
 bestätigt alle vier Holds, Verriegelungen und Hardwarezuordnungen fehlerfrei,
-Watchdog nicht ausgelöst; Ursache des zeitweisen Nachweisverlusts weiter offen.
+Watchdog in dieser Aufnahme nicht ausgelöst. Die Zeitstempel des zeitweisen
+Nachweisverlusts sind inzwischen zugeordnet. Rechts hinten begann der geplante
+Treiberneustart um 13:06:13 AWST. Um 13:06:19 meldete der gleichzeitig gestartete
+Library-Lauf die fehlende Manager-/Hold-Bestätigung; um 13:06:39 waren wieder
+vier Holds bestätigt. Der abschließende Watchdog-Zustand des gesamten
+Wartungsfensters ist im folgenden RTDE-Abschnitt dokumentiert.
 Datei `setup/tasks/carton-library-debug-20261124/latest-holds.json`.
 
 Ein weiterer Live-Start wurde durch die automatische Freigabeprüfung vor
@@ -56,13 +188,20 @@ Nach Nutzerfreigabe und vier bestätigten Holds beide laufenden rechten Programm
 
 Bei der ersten Abnahme ergab eine Abtastlücke während der ROS-Discovery rechts vorne 0,00754 rad einschließlich Unsicherheit bei nur 0,000061 rad gemessener Abweichung. In der anschließenden stationären Messung nach Verbindungsaufbau waren die Maxima einschließlich Unsicherheit rechts vorne 0,000143 rad (13 Werte), rechts hinten 0,000339 rad (12), links vorne 0,000456 rad (20) und links hinten 0,000075 rad (14). Bestehende Grenze 0,005 rad. Endstand vier native STOPPED, max. gemessene Gelenkgeschwindigkeit je Arm 0 rad/s, vier Holds, Interlock bestätigt, Watchdog nach Dienstwechsel verriegelt und keine ausstehenden nativen STOPs. Keine Bewegung im Wartungsfenster. [Messdaten und Protokolle](../../setup/tasks/ur-rtde-recovery-20261124/).
 
-## N100-Überwachung entlastet, 24.11.2026
+## N100-Entlastung vorbereitet, noch nicht aktiv, 24.11.2026
 
-Die Hardware-Überwachung wurde auf ereignisgebundene Managerabfragen umgestellt.
+Korrektur der früheren Aktivmeldung: Der folgende Stand ist im Quellbaum
+vorbereitet, aber noch nicht im laufenden N100-Schutzdienst aktiviert.
+Direktprüfung nach dem Kartonabbruch bestätigt Dienstbeginn11:18:24AWST,
+Invocation `df2859b0d71647288c6ad914312ce72e`, alte Dateien
+`hardware_nodes.py` SHA425a2455… und `hardware_ports.py` SHA684497d9… .
+Die passive Aufzeichnung bestätigt weiter50Hz für Supervisor/Watchdog.
+
+Die vorbereitete Hardware-Überwachung ist auf ereignisgebundene Managerabfragen umgestellt.
 Eine bestätigte ruhende Zelle sendet keine periodische Controller-, Hardware-
 oder Hold-Parameterliste. Beim Verbinden, Zustandswechsel, Reset oder Wieder-
 anlauf bleiben frische Abfragen und die bestehende Ressourcensperre erhalten.
-Supervisor und Watchdog publizieren jetzt mit20Hz statt50Hz. Die 20Hz-RTDE-
+Supervisor und Watchdog würden mit20Hz statt50Hz publizieren. Die 20Hz-RTDE-
 Istwerte, Gelenk-/TCP-Geschwindigkeit, 40-mm-Kollisionsprüfung, Stillstands-
 fenster und native Dashboard-Rückfälle wurden nicht gelockert. Der Watchdog
 verwendet auf Hardware keine zweite vollständige StopPort-RPC-Kette, sondern
