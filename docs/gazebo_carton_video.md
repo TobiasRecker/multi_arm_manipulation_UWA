@@ -6,6 +6,11 @@ Zellübersicht und eine mitgeführte Kartonnahansicht. Gelbe Spuren entstehen
 beim Zeichnen, sechs rote Markierungen bei den virtuellen Bohrzustellungen.
 Die Spuren bleiben im Kartonframe erhalten.
 
+Fertige Fassung: [Video,90s/1080p/30fps/2×](../../../setup/tasks/carton_video_20261124/uwa-carton-gazebo-2x.mp4)
+· [Vorschaubild](../../../setup/tasks/carton_video_20261124/video-preview.jpg).
+2711 Bilder und zehn dekodierte Stichproben geprüft; lokale Kopie stimmt
+perSHA-256 mit dem titanpc-Ergebnis überein.
+
 Quelle ist der erfolgreiche Kontaktlauf vom20.11.2026:
 `setup/tasks/house_drill_home_20261120_01/run05`, Szene`scene05`.
 Der Videoexport spielt dessen gespeicherte geprüfte **Sollbahnen** mit einer

@@ -102,9 +102,10 @@ def offline_command(*args, checker_prefix=None):
     return [
         "/bin/bash", "-c",
         'source "$1" || exit $?; if [[ -n $2 ]]; then export AMENT_PREFIX_PATH="$2:$AMENT_PREFIX_PATH"; fi; '
-        'shift 2; export ROS_DOMAIN_ID=74 ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST '
+        'export PYTHONPATH="$3/uwa_cell_motion:${PYTHONPATH:-}"; '
+        'shift 3; export ROS_DOMAIN_ID=74 ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST '
         'OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1; exec "$@"',
-        "uwa-carton-program", environment, checker_prefix or "", *args,
+        "uwa-carton-program", environment, checker_prefix or "", REPO, *args,
     ]
 
 
@@ -614,6 +615,68 @@ def register_current_carton(config, progress, recipe, image, metadata, *, window
         return pose
 
 
+def refine_cross_view(config, progress, recipe, views):
+    """Remeasure current native pixels; never waive the camera disagreement."""
+    import carton_multiview as multi
+    if not config['secondary_camera'].get('gemini_enabled') or not all(
+            views.get(name, {}).get('pose') for name in ('oak4', 'oak_usb')):
+        return
+    dimensions = load_json(REPO/'uwa_cell_description/assets/carton_avocado_v1/asset.json')['dimensions_m']
+    primary, other = [load_json(Path(views[name]['pose']))['T_world_object_candidate']
+                      for name in ('oak4', 'oak_usb')]
+    try:
+        multi.select_pose([primary, other], dimensions=dimensions)
+        return
+    except multi.PoseDisagreement as error:
+        initial_error = str(error)
+    out = progress.output/'multiview-refinement'
+    out.mkdir()
+    comparisons = []
+    view = views['oak4']
+
+    def feedback(source, name, reason):
+        target = out/name
+        target.mkdir()
+        report = load_json(source/'registration.json')
+        report['error'] = ('Single-camera fit passed; cross-view comparison after 180-degree '
+                           'symmetry alignment failed. Remeasure the visible printed wall, '
+                           'without inventing a pose or changing thresholds: ' + reason)
+        write_session(target/'registration.json', report)
+        if (source/'fit-feedback.jpg').exists():
+            shutil.copyfile(source/'fit-feedback.jpg', target/'fit-feedback.jpg')
+        return target
+
+    initial = feedback(Path(view['pose']).parent, 'initial-feedback', initial_error)
+    fit_config = dict(config, session_copy=Path(view['session'])) if view.get('session') else config
+
+    def measure(number, windows, quad):
+        progress.update('multiview_refinement', f'Remeasuring the current OAK4 printed wall (pass {number}).')
+        try:
+            pose = register_attempt(fit_config, out, recipe, Path(view['image']), Path(view['metadata']),
+                                    windows, f'-cross-view-{number}', feedback=True, quad=quad)
+        except CartonFitRejected as error:
+            return None, error.registration
+        candidate = load_json(pose)['T_world_object_candidate']
+        try:
+            _, decision = multi.select_pose([candidate, other], dimensions=dimensions)
+        except multi.PoseDisagreement as error:
+            comparisons.append(dict(round=number, accepted=False, **error.comparison))
+            return None, feedback(pose.parent, f'comparison-feedback-{number}', str(error))
+        comparisons.append(dict(round=number, accepted=True, **decision))
+        return pose, pose.parent
+
+    try:
+        result = carton_hydrogen.guide_measurements(
+            carton_hydrogen.tabletop_preview(Path(view['image'])), out, initial, measure)
+    except (ValueError, RuntimeError, OSError) as error:
+        write_session(out/'result.json', dict(success=False, error=str(error), comparisons=comparisons))
+        return  # Preserve original measurements; the normal comparison still rejects them.
+    previous = view['pose']
+    view['pose'] = str(result[0])
+    write_session(out/'result.json', dict(success=True, original_pose=previous,
+                                        pose=view['pose'], comparisons=comparisons))
+
+
 def register_multiview(config, progress, recipe, image, metadata, *, window_cache=None):
     out = progress.output
     secondary = config["secondary_camera"]
@@ -646,6 +709,7 @@ def register_multiview(config, progress, recipe, image, metadata, *, window_cach
                                                              window_cache=cache))
         except CartonFitRejected as error:
             views[name]['fit_rejected'] = str(error)
+    refine_cross_view(config, progress, recipe, views)
     manifest = out/'multiview-input.json'
     write_session(manifest, dict(description=str(recipe/'hardware.urdf'), views=views,
                                  gemini_enabled=secondary.get('gemini_enabled', False)))
@@ -692,9 +756,21 @@ def transfer_approach(remote, target_workspace, plan, image, metadata, config, o
     handoff = out / "handoff"
     handoff.mkdir()
     prepared = handoff / "prepared"
+    resources = []
+    if os.environ.get('UWA_PROTECTION_BACKEND') == 'minimal':
+        query = ("import json; from pathlib import Path; from ament_index_python.packages import get_package_share_directory; "
+                 "p=Path(get_package_share_directory('uwa_cell_description')); "
+                 "print(json.dumps(dict(share=str(p),source=str((p/'meshes/collision/2f_85/robotiq_base.stl').resolve(strict=True).parents[3]))))")
+        locations = json.loads(logged_command(n100('source "$1/scripts/control_env.bash"\npython3 -c "$2"\n', CELL, query),
+                                             out/'n100-description-share.log', 20, separate_stdout=True))
+        for kind in ('share', 'source'):
+            path = Path(locations[kind])
+            if not path.is_absolute() or '..' in path.parts:
+                raise ValueError('N100 description package returned an invalid path')
+            resources.extend(['--description-'+kind, path])
     command = offline_tool("stage_carton_plan.py", "--plan", plan, "--output", prepared,
                            "--target-root", target_workspace / remote / "prepared",
-                           "--target-workspace", target_workspace, checker_prefix=checker_prefix)
+                           "--target-workspace", target_workspace, *resources, checker_prefix=checker_prefix)
     logged_command(command, out / "stage-approach.log", 60)
 
     inputs = handoff / "input"

@@ -21,6 +21,40 @@ def pose(x=0., yaw=0.):
     return result
 
 
+@pytest.mark.parametrize('outcome', ['accepted', 'still_disagrees', 'fit_rejected'])
+def test_cross_view_remeasurement_keeps_strict_fit_and_comparison(tmp_path, monkeypatch, outcome):
+    primary = tmp_path/'primary'
+    secondary = tmp_path/'secondary'
+    candidate = tmp_path/'candidate'
+    for directory, yaw in [(primary, 2.5), (secondary, 0.),
+                           (candidate, 1. if outcome == 'accepted' else 3.)]:
+        directory.mkdir()
+        (directory/'object-pose.json').write_text(json.dumps(dict(T_world_object_candidate=pose(yaw=yaw).tolist())))
+        (directory/'registration.json').write_text(json.dumps(dict(success=True)))
+    views = {name: dict(pose=str(directory/'object-pose.json'), image='current.png', metadata='current.json')
+             for name, directory in [('oak4', primary), ('oak_usb', secondary)]}
+    original = views['oak4']['pose']
+    def register(*args, **kwargs):
+        assert args[3:5] == (Path('current.png'), Path('current.json'))
+        if outcome == 'fit_rejected':
+            raise runner.CartonFitRejected('Native pixel fit rejected', candidate)
+        return candidate/'object-pose.json'
+    def guide(preview, out, initial, measure):
+        result, evidence = measure(1, ([0, 0, 100, 100], [0, 0, 80, 80]), None)
+        if result is None:
+            raise ValueError('Bounded remeasurement unsuccessful')
+        return result, None, None
+    monkeypatch.setattr(runner, 'register_attempt', register)
+    monkeypatch.setattr(hydrogen, 'tabletop_preview', lambda path: object())
+    monkeypatch.setattr(hydrogen, 'guide_measurements', guide)
+    runner.refine_cross_view(dict(secondary_camera=dict(gemini_enabled=True)),
+                            runner.Progress(tmp_path), tmp_path/'recipe', views)
+    evidence = json.loads((tmp_path/'multiview-refinement/result.json').read_text())
+    assert evidence['success'] == (outcome == 'accepted')
+    assert views['oak4']['pose'] == (str(candidate/'object-pose.json') if outcome == 'accepted' else original)
+    assert views['oak_usb']['pose'] == str(secondary/'object-pose.json')
+
+
 def test_preferred_pose_is_unchanged_when_second_view_agrees_across_yaw_wrap():
     primary=pose(.10,179.5)
     result, decision = multi.select_pose([primary, pose(.106, -179.5)])

@@ -1,5 +1,53 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Stiftgriff in der Program library, 24.11.2026
+
+Nutzer beauftragt nach der Bildprüfung ein eigenes Programm nach Vorbild
+Supported carton grasp für **left_rear**: OpenCV/OAK Pro, Gemini-Fallback,
+Planung auf aktuelle Pose und Greifen. Nutzer bestätigt beide30mm-Quadrate
+mittig, schwarze Außenkante nachgemessen30mm und vollständigen Sitz.
+Anfangs war die Kappe aufgesetzt; auf Rückfrage für den CAD-Programmstand
+abgenommen und Stift erneut eingesetzt. Die frühe22-mm-PnP-Höhendifferenz
+ist kein bewiesener Kappeneffekt. Native Kantenanpassung reduzierte am
+frischen Foto den Fitfehler auf1,514px; Druckmaß unverändert30mm verwenden.
+
+Programm **Pick pen from holder** / `pen-left-rear-v1` mit **Inspect pen**,
+**Plan pickup only** und **Start program** angelegt. Kamera- und Planmodus
+senden keine Arm-/Greiferbefehle. Start verwendet getrennte neue Bewegungs-
+und Kontakt-/Liftprüfungen im vorhandenen Reviewstore; Kartonvertrauen wird
+nicht auf die neue Aufgabe übertragen. Aktives Schutzbackend übernehmen.
+Keine UR-Programm-/Power-/Brake-Aktion beim Anlegen oder Öffnen.
+
+Vollständige Folge wird vor der Anfahrt geprüft:150mm Vorposition, vertikale
+Einfahrt, Schließen rawFOR0/SPE16 und150mm vertikales Ausheben. Kontakt nach
+frischem Einfahrfoto. Adaptergriffreferenz46mm über CAD-Adapterdatum nahe
+dem oberen Ende; nomineller Robotiq-TCP145mm, keine neue reale TCP-Messung.
+Eigene taskbezogene Öffnungshüllen enthalten den ganzen Greiferbereich mit
+konvexen Mesh-Sweeps und analytischem Zwischenstützstellenzuschlag. Dadurch
+wird die grobe Sphärenüberdeckung am kleinen Halter vermieden; aktive
+Hardwaregeometrie, Vollzell-FCL und40-mm-Nachbararmmarge bleiben separat.
+
+Anleitung [Stiftgriff](docs/pen_grasp_library.md), Arbeitsstand
+[Programmnachweis](work/pen-grasp-library-20261124.md). Aktuelle Fotos,
+Gemini-Ausschnittantworten und Offline-Nachweise unter
+`setup/tasks/pen_pick_20261124/`. Reale Greif-/Haltekraft und Schreib-TCP
+stehen noch aus; keine erfolgte Stiftfahrt aus der Programminstallation ableiten.
+
+Finale aktuelle Plan-only-Prüfung erfolgreich:
+`setup/tasks/pen_pick_20261124/library-plan-current-02/`.
+OpenCV-Kantenfit1,5335px RMS, Anfahrt27,678s, Einfahrt8,069s, Lift8,069s,
+gesamt43,817s. Analytische Prüfung der Controllerinterpolanten bestätigt
+≤0,1rad/s und≤0,2rad/s²; TCP-Limit83,3mm/s. Vollzell-/Taskobjektprüfung,
+376 zusätzliche nicht auf dem Erzeugungsraster liegende Öffnungszustände
+über8Greiferkörper sowie portable RViz-Mesh-/Timeline-Bindung bestanden.
+Nachweis `setup/tasks/pen_pick_20261124/final-plan-validation.json`.
+Bibliothek im untätigen lokalen Minimal-Bedienfenster neu geladen, alle drei
+Aktionen im HTTP-Katalog bestätigt. Direkter GUI-Zugriff nicht verfügbar;
+keine GUI-Klicks oder reale Stiftfahrt behauptet.
+59 gezielte Tests bestanden. Run-spezifische N100-Import-/Plandateiprüfung
+bestätigt approach/entry/lift ohne Arm- oder Greiferbefehle:
+`setup/tasks/pen_pick_20261124/n100-import-and-files.json`.
+
 ## Kartonprogramm mit neuer Minimal-Runtime fortgesetzt, 24.11.2026
 
 Auf ausdrücklichen Nutzerauftrag erneut über die Program Library fortgesetzt.
@@ -13,8 +61,87 @@ Die neue GUI und ihr Library-Prozess binden ausdrücklich
 Die alten Library-Server39823/8780 nicht für reale Starts benutzt.
 Browsersteuerung weiterhin nicht verfügbar, daher normaler Button-Endpunkt
 `POST /api/runs`. Lauf `189034efca4e48a38525a929d56d3312`, Start18:29:10AWST.
-Beide Kamerareferenzen gültig. Keine Safety-Änderung oder neue Wächter;
-Ergebnis noch offen.
+Beide Kamerareferenzen gültig. Keine Safety-Änderung oder neue Wächter.
+Erster Lauf vor Kamera/Bewegung gesperrt: Ausgabe-Elternordner `setup/tasks`
+fehlte in der neuen Runtime. `run_carton_program.py` legt nun den Elternordner
+vor dem weiterhin exklusiv angelegten Laufordner an. Python-Kompilierung und
+Diffprüfung bestanden. Erneuter normaler Start18:30:14AWST,
+`6e9c53258e95489295b2cbf2408ff2bb`: Kameravergleich12,729mm/1,986° akzeptiert,
+OAK4 unverändert übernommen. Vor Versand der Bahn beim Offline-Vorbereiten
+gesperrt: installierter ROSmini-Pythonpfad enthält neues Modul
+`uwa_cell_motion.protection_backend` noch nicht. Der Offline-Launcher in
+`run_carton_program.py` bindet nun das aktuelle Motion-Quellpaket ausdrücklich
+ein; bestehender Bibliotheks-/Checkervergleich bleibt erhalten. Acht bestehende
+Library-Softwareprüfungen und tatsächlicher Modulimport über diesen Launcher
+bestanden. Keine N100- oder Safety-Datei geändert. Erneuter normaler Start
+18:32:27AWST, `70922ed93dc64c6a8f78e01c1754863f`: vor Planung wegen
+13,385mm/2,172° Kamerawiderspruch abgelehnt;30mm erfüllt, Winkel<2° nicht.
+Gezielte bestehende Hydrogen-/Native-Pixel-Nachmessung der gespeicherten
+Aufnahme ergab in Runde2 eine weiterhin streng gültige OAK4-Pose und
+14,350mm/1,458° Gegenvergleich. Keine Grenzlockerung oder Kamerabewegung.
+Nachweis `setup/tasks/carton-library-debug-20261124/minimal-fit-refinement/`.
+
+Der normale Library-Runner verwendet diese begrenzte Nachmessung nun bei zwei
+akzeptierten, aber widersprüchlichen Einzelposen: vorhandene Hydrogen-Führung,
+native Pixelmessung, maximal bestehende drei Runden. OAK4 bleibt metrische
+Quelle; Originale, Feedback und alle Vergleiche werden erhalten. Bei weiterem
+Widerspruch/ungültigem Fit bleiben Originalposen und Ablehnung bestehen.
+Keine Änderung am Safety-Programm.34 gezielte Softwareprüfungen bestanden,
+einschließlich Ablehnung trotz Nachmessung und ungültigem Einzelbildfit.
+Vollständiger Offline-Plan mit dem korrigierten Launcher bestanden:
+`setup/tasks/carton-library-debug-20261124/minimal-offline-plan/`.
+
+Die neue GUI wurde währenddessen anderweitig neu geöffnet, ihre Library liegt
+jetzt auf Port44295. Minimal-Umgebung und Runtimepfad separat bestätigt.
+Automatische Freigabeprüfung lehnte zunächst wegen früherer Importfehler ab;
+nach erneuter Vorlage der bestandenen34 Prüfungen und des vollständigen
+Offline-Plans wurde der normale Start zugelassen. Lauf
+`f675efab2f1d4ab1b23b3354334c1e85`, Start18:39:13AWST: Foto und kompletter
+Offline-Plan erfolgreich, vor Motion Review wegen eines remappten Meshpfads
+gesperrt. Der bisherige Transfer nahm alle Pakete im Kandidateninstall an;
+`uwa_cell_description` stammt tatsächlich aus dessen gemeinsamem Underlay.
+
+Transferkorrektur: tatsächlichen Paket-Share-Pfad auf N100 abfragen, nur diese
+installierten Description-Assets dorthin zuordnen. Quellen/Aufgaben bleiben im
+Kandidaten. N100-Runner akzeptiert genau sein per Ament aufgelöstes Description-
+Paket zusätzlich als gehashte Modellquelle; alle bestehenden Hash-/Bahnprüfungen
+bleiben aktiv.68 gezielte Softwareprüfungen und vollständiges dateibasiertes
+Staging des Originalplans bestanden. Nur Task-Runner auf N100 aktualisiert,
+SHA-256 `a014d929dd8712e45cb3d3be0f80ce17d59fb5918d6b7d409ff5f4c4aeedc520`;
+Vorversion unter Kandidat `setup/tasks/run_carton_cycle.before-description-share.py`.
+Keine Änderung am Schutzkern, Controller oder deren Konfiguration.
+Nachweis `setup/tasks/carton-library-debug-20261124/minimal-shared-stage/` und
+`minimal-library-regression.log`. Erneuter Start18:43:54AWST,
+`d9be7d999c2f45c08491d120d6a96706`: Meshzuordnung erfolgreich, danach vor
+Motion Review wegen fehlender `setup/tracking/models/carton_avocado_v1/reference.npz`
+gesperrt. Diese feste Aufgabenreferenz aus der bisherigen N100-Runtime in
+die neue Kandidatenablage kopiert, ohne vorhandene Datei zu überschreiben;
+auf beiden Hosts SHA-256 `db5a70a6120aeafdc249f597e53e410ed74b15d8a4da4faf6eec33fc06fb28a9`.
+Keine Safety-Datei geändert. Erneuter Start18:46:05AWST,
+`66755f694bcc4d089718fe55cd4fa522`: vor Planung bei12,228mm/2,174° abgelehnt.
+Drei gezielte Native-Pixel-Nachmessungen verblieben bei2,45–2,60°; keine
+Toleranz geändert und keine Fahrt. Wegen dieses konkreten Kamerawiderspruchs
+beide Tischboard-Kamerareferenzen separat über die Library neu aufgenommen,
+vorherige JSONs unter `setup/tasks/carton-library-debug-20261124/before-evening-camera-reference/`
+gesichert. Kamera-only-Lauf `a19cf54c42914e369cf754eebebd5048` erfolgreich:
+OAK4/Fokus107,17Marker,1,208px Prüf-RMS; USB/Fokus112,16Marker,0,978px.
+Neue12-h-Fristen ab18:49:11/18:49:17AWST bis25.11.06:49AWST. Keine globale
+Intrinsics-/Armbasisänderung. Erneuter normaler Kartonstart18:49:47AWST,
+`68e5ec8f882a4e7b9fcf4c0439457c2d`: Kameravergleich und N100-Empfang der
+Bewegungsrevision erfolgreich. HIGH vor Zielversand abgelehnt, weil die
+Mesh-Hashliste auf kopierte Kandidaten-Quelldateien zeigte, die URDF dagegen
+auf Symlink-installierte Dateien des gemeinsamen Underlays. Inhalt unverändert,
+aber Schlüssel der aufgelösten Pfade verschieden. Transfer fragt jetzt sowohl
+installierten Share als auch aufgelösten Description-Quellpfad auf N100 ab;
+alle gehashten Modellreferenzen werden konsistent dorthin gebunden. Kein
+Vergleich entfernt.68 bestehende gezielte Softwareprüfungen bestanden.
+N100-Taskrunner SHA-256
+`ce078ede719e492fe54c9c118937956cce166fc3081705885d6cabb583966d96`,
+vorige Datei `setup/tasks/run_carton_cycle.before-canonical-assets.py` im Kandidaten.
+Reines Datei-Staging nach `setup/tasks/canonical-model-check/prepared` auf N100;
+`checked_problem`-Modellprüfung dort ohne ROS-Goals gestartet. Keine neue
+Safety-Logik, kein Kern-/Controllerwechsel und weiterhin keine Armfahrt in
+diesen Integrationsversuchen.
 
 ## Sicherheitsprogramm: ausdrückliche Freigabe vor Erweiterungen, 24.11.2026
 
@@ -29,16 +156,31 @@ In diesem Arbeitsschritt ausschließlich Dokumentation ergänzt, keine Laufzeit�
 
 ## Gazebo-Video mit gelben/roten Werkstückspuren, 24.11.2026
 
-Nutzer wünscht eine anschauliche native Gazebo-Videofassung der bestehenden
-Dreiarm-Kartondemo, etwa15 Bilder/s Ablaufzeit und direkt2× beschleunigt.
-Zeichenlinien gelb, virtuelle Bohrstellen rot und am bewegten Karton gebunden.
-Die gespeicherten Sollbahnen des erfolgreichen Home-Laufs vom20.11.
-(`house_drill_home_20261120_01/run05`,54 Phasen ab Hub) werden mit
-Gazebos Ogre2-Renderbibliothek in einem getrennten titanpc-Container
-aufbereitet. Übersicht plus Werkstücknahansicht,1920×1080/30fps geplant.
-Dies ist Renderwiedergabe mit kinematischer Griffbindung, keine neue
-Kontaktphysik. Keine realen Arme oder laufenden Simulatoren werden bedient.
-Implementierung/Prüfstand: [Arbeitsstand](work/carton-video-20261124.md).
+Nutzerauftrag abgeschlossen: native Gazebo/Ogre2-Videofassung der bestehenden
+Dreiarm-Kartondemo mit gelben Zeichenlinien, sechs roten virtuellen
+Bohrstellen und mitgeführter Werkstücknahansicht.15 Bilder/s Ablaufzeit
+werden bei30fps mit2× Tempo abgespielt. Datei:
+`setup/tasks/carton_video_20261124/uwa-carton-gazebo-2x.mp4`,
+1920×1080,H.264,90,37s,12,8MB,2711 Bilder.
+
+Quelle sind die gespeicherten geprüften Sollbahnen des erfolgreichen Home-
+Laufs vom20.11. (`house_drill_home_20261120_01/run05`,54 Phasen ab Hub plus
+Anfahrt/Einfahrt). Kinematische Renderwiedergabe mit visueller
+Greiferinterpolation, keine neue Kontaktphysik oder reale Ausführung.
+17 Standbilder einschließlich Dreh-/Rückfahrübergängen visuell geprüft.
+Die Nahkamera wurde nach erster Prüfung oberhalb des Tisches geführt.
+Zehn Stichproben aus der lokalen MP4 dekodiert; Bildzahl/FPS/Format bestätigt,
+SHA-256 der Videokopie stimmt mit titanpc überein. Renderjob erfolgreich
+beendet. Quellen, Reproduktion und weitere Nachweise:
+[Videoexport](docs/gazebo_carton_video.md),
+[Arbeitsstand](work/carton-video-20261124.md).
+
+Nutzer hat das Video anschließend unter
+`https://youtu.be/YHpvsQd1fE8` veröffentlicht. Neuer englischer Eintrag auf
+seiner Projektwebsite lokal in`src/tobiasrecker.github.io` vorbereitet,
+gerendert und als`0b9b6fc` committed. Veröffentlichung auf GitHub wartet auf
+Schreibzugang (Connector403, lokal keine GitHub-Anmeldung). Stand und
+Fortsetzung im Workspace-HANDOVER.
 
 ## ChArUco: professioneller Neudruck und fertige PDFs, 24.11.2026
 

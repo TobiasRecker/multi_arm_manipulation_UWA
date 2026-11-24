@@ -71,12 +71,14 @@ def model_binding(profiles, model, configuration):
 
 
 class Staging:
-    def __init__(self, plan, recipe, output, target_root, target_workspace):
+    def __init__(self, plan, recipe, output, target_root, target_workspace, description_share=None, description_source=None):
         self.plan = plan
         self.recipe = recipe
         self.output = output
         self.target_root = require_path(target_root)
         self.target_workspace = require_path(target_workspace)
+        self.description_share = None if description_share is None else require_path(description_share)
+        self.description_source = None if description_source is None else require_path(description_source)
         if not target_root.is_relative_to(target_workspace / "setup/tasks"):
             raise ValueError("Target plan must be under the executor workspace setup/tasks")
         self.resources = {}
@@ -90,6 +92,12 @@ class Staging:
 
     def target_resource(self, source):
         require_path(source)
+        local_share = WORKSPACE/'install_lyrical/uwa_cell_description/share/uwa_cell_description'
+        if self.description_share is not None and source.is_relative_to(local_share):
+            return self.description_share/source.relative_to(local_share)
+        local_source = WORKSPACE/'src/multi_arm_manipulation_UWA/uwa_cell_description'
+        if self.description_source is not None and source.is_relative_to(local_source/'meshes'):
+            return self.description_source/source.relative_to(local_source)
         if source.is_relative_to(WORKSPACE):
             return self.target_workspace / source.relative_to(WORKSPACE)
         if source.is_relative_to(Path("/opt/ros/lyrical")):
@@ -128,7 +136,7 @@ class Staging:
         return ET.tostring(robot, encoding="unicode")
 
 
-def stage(plan, output, target_root, target_workspace):
+def stage(plan, output, target_root, target_workspace, description_share=None, description_source=None):
     workflow = read_json(plan / "workflow.json")
     if (workflow.get("phase") != "OFFLINE_APPROACH_PREPARED" or workflow.get("success") is not True
             or workflow.get("execute") is not False):
@@ -150,7 +158,7 @@ def stage(plan, output, target_root, target_workspace):
             or Path(program.get("path", "")) != source_recipe / PROGRAM.name):
         raise ValueError("Plan does not use a bound named carton recipe")
     verify_file(source_recipe / PROGRAM.name, program["sha256"])
-    staging = Staging(plan, source_recipe, output, target_root, target_workspace)
+    staging = Staging(plan, source_recipe, output, target_root, target_workspace, description_share, description_source)
 
     base = (plan / BASE_MODEL).read_text()
     frozen = (plan / COLLISION_MODEL).read_text()
@@ -260,6 +268,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("plan", "output", "target-root", "target-workspace"):
         parser.add_argument("--" + name, type=Path, required=True)
+    parser.add_argument('--description-share', type=Path,
+                        help='Executor-resolved shared uwa_cell_description package directory')
+    parser.add_argument('--description-source', type=Path,
+                        help='Executor-resolved source directory of symlink-installed description meshes')
     args = parser.parse_args()
     output = args.output.resolve()
     if output.exists():
@@ -267,7 +279,8 @@ def main():
     output.parent.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=output.parent, prefix=".carton-stage-") as temporary:
         work = Path(temporary) / "plan"
-        receipt = stage(args.plan.resolve(strict=True), work, args.target_root, args.target_workspace)
+        receipt = stage(args.plan.resolve(strict=True), work, args.target_root, args.target_workspace,
+                        args.description_share, args.description_source)
         os.rename(work, output)
     print(json.dumps({"staged": str(output), "checker_sha256": receipt["checker_sha256"],
                       "files": len(receipt["files"])}))

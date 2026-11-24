@@ -329,10 +329,16 @@ def staged_approach(flow, args, status, photo):
         path = (directory/name).resolve(strict=True)
         if Path(name).is_absolute() or not path.is_relative_to(directory) or file_sha256(path) != sha256:
             raise ValueError(f"Staged proof file changed: {name}")
+    resource_roots = [REPO.parents[1], Path('/opt/ros/lyrical')]
+    from uwa_cell_motion.protection_backend import minimal_enabled
+    if minimal_enabled():
+        from ament_index_python.packages import get_package_share_directory
+        share = Path(get_package_share_directory('uwa_cell_description'))
+        resource_roots.extend([share, (share/'meshes/collision/2f_85/robotiq_base.stl').resolve(strict=True).parents[3]])
     for name, sha256 in receipt["target_resources"].items():
         path = Path(name)
         if (not path.is_absolute() or ".." in path.parts
-                or not (path.is_relative_to(REPO.parents[1]) or path.is_relative_to("/opt/ros/lyrical"))
+                or not any(path.is_relative_to(root) for root in resource_roots)
                 or file_sha256(path) != sha256):
             raise ValueError(f"Staged model input changed: {name}")
 

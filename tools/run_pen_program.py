@@ -83,7 +83,7 @@ def observe(progress,remote):
     upload(remote+'/observe_calibration_start.py',helper,out/'upload-observer.log')
     command=n100('''test "$(sha256sum "$1/observe_calibration_start.py" | cut -d ' ' -f 1)" = "$2"
 source src/multi_arm_manipulation_UWA/scripts/control_env.bash
-OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 /usr/bin/python3 "$1/observe_calibration_start.py" --output "$1/observation"
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 /usr/bin/python3 "$1/observe_calibration_start.py" --output "$PWD/$1/observation"
 ''',remote,hashlib.sha256(helper.read_bytes()).hexdigest())
     logged_command(command,out/'observation.log',60)
     download(remote+'/observation',out,out/'download-observation.log')
@@ -108,7 +108,13 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 /usr/bin/python3 -u "$1/execute_pen_gra
             elif line.startswith('REVIEW_ACCEPTED_'):
                 progress.update('pen_positioning' if phase=='approach' else 'pen_grasp_lift','Review accepted. Executing the checked left-rear pen '+phase+'.')
         code=child.wait()
-    download(remote+'/execution',out,out/('download-'+phase+'.log'))
+    try:
+        download(remote+'/execution',out,out/('download-'+phase+'.log'))
+    except RuntimeError as error:
+        if code:
+            lines=(out/('n100-'+phase+'.log')).read_text().strip().splitlines()
+            raise RuntimeError('N100 pen '+phase+' failed before a result was saved: '+(lines[-1] if lines else str(error))) from error
+        raise
     report=json.loads((out/'execution/workflow.json').read_text())
     if code or not report.get('success'):raise RuntimeError(report.get('error') or 'N100 pen '+phase+' failed; inspect run log and Motion review')
     return report
@@ -162,7 +168,10 @@ def run(mode,progress):
         manifest=out/'execution-helpers.json'
         manifest.write_text(json.dumps({name:hashlib.sha256(path.read_bytes()).hexdigest() for name,path in files.items()},indent=2)+'\n')
         upload(remote+'/execution-helpers.json',manifest,out/'upload-helper-binding.log')
-        upload(remote+'/plans',out/'plans',out/'upload-plans.log',recursive=True)
+        handoff=out/'handoff-plans';handoff.mkdir()
+        for name in ('sequence.json','approach.json','entry.json','lift.json'):
+            shutil.copyfile(out/'plans'/name,handoff/name)
+        upload(remote+'/plans',handoff,out/'upload-plans.log',recursive=True)
         upload(remote+'/initial',photo,out/'upload-initial.log',recursive=True)
         # All entry/lift plans exist and passed before the first approach is reviewed.
         report=remote_review(progress,remote,'approach',sequence_sha)
@@ -185,7 +194,10 @@ def main():
     args=p.parse_args();args.output.mkdir(parents=True,exist_ok=True);progress=Progress(args.output)
     try:result=run(args.mode,progress)
     except Exception as error:
-        progress.update('failed',str(error),error=str(error));return 1
+        fields={}
+        if (args.output/'plans/perception/pen-preview.jpg').is_file():
+            fields['result']=dict(artifacts=dict(pen_preview='plans/perception/pen-preview.jpg'))
+        progress.update('failed',str(error),error=str(error),**fields);return 1
     messages=dict(inspect='Pen image inspection completed.',plan='Complete pen pickup planned; no robot or gripper commands.',
                   live='Pen close and lift completed; left rear remains at the lifted pose.')
     progress.update('done',messages[args.mode],result=result)

@@ -85,6 +85,9 @@ def load_sequence(folder,expected):
 
 def run(args):
     require_domain('hardware')
+    args.plans=args.plans.resolve();args.output=args.output.resolve()
+    for name in ('entry','initial'):
+        if getattr(args,name,None) is not None:setattr(args,name,getattr(args,name).resolve())
     sequence,plans=load_sequence(args.plans,args.sequence_sha256)
     args.output.mkdir(parents=True,exist_ok=True)
     state_file=args.output/'workflow.json'

@@ -70,6 +70,9 @@ def test_actual_upload_and_frozen_approach_transfer_use_candidate_destinations(t
     calls=[]
     def command(args,*unused,**kwargs):
         calls.append(args)
+        if args[0] == '/usr/bin/ssh':
+            return json.dumps(dict(share='/home/rosmatch/uwa-ur-runtime/install_lyrical/uwa_cell_description/share/uwa_cell_description',
+                                   source='/home/rosmatch/uwa-ur-runtime/src/multi_arm_manipulation_UWA/uwa_cell_description'))
         if 'stage_carton_plan.py' in str(args):
             prepared=Path(args[args.index('--output')+1])
             prepared.mkdir(parents=True)
@@ -88,9 +91,27 @@ def test_actual_upload_and_frozen_approach_transfer_use_candidate_destinations(t
     staging=calls[-2]
     assert Path(staging[staging.index('--target-root')+1])==candidate/remote/'prepared'
     assert Path(staging[staging.index('--target-workspace')+1])==candidate
+    assert Path(staging[staging.index('--description-share')+1]) == Path(
+        '/home/rosmatch/uwa-ur-runtime/install_lyrical/uwa_cell_description/share/uwa_cell_description')
     assert calls[-1][0]=='/usr/bin/scp' and '-r' in calls[-1]
     assert calls[-1][-1]==f'{program.N100_HOST}:{candidate}/{remote}/'
     assert (tmp_path/'handoff/input/standard.png').read_bytes()==b'photo'
+
+
+def test_shared_description_assets_use_executor_package_without_rebasing_task_sources(tmp_path):
+    import stage_carton_plan as staging
+    root = Path('/home/rosmatch/minimal candidate')
+    shared = Path('/home/rosmatch/uwa-ur-runtime/install_lyrical/uwa_cell_description/share/uwa_cell_description')
+    source_root = Path('/home/rosmatch/uwa-ur-runtime/src/multi_arm_manipulation_UWA/uwa_cell_description')
+    mapper = staging.Staging(tmp_path, tmp_path, tmp_path, root/'setup/tasks/test/prepared', root, shared, source_root)
+    local = staging.WORKSPACE/'install_lyrical/uwa_cell_description/share/uwa_cell_description/meshes/collision/base.stl'
+    assert mapper.target_resource(local) == shared/'meshes/collision/base.stl'
+    real_mesh = staging.WORKSPACE/'src/multi_arm_manipulation_UWA/uwa_cell_description/meshes/collision/base.stl'
+    assert mapper.target_resource(real_mesh) == source_root/'meshes/collision/base.stl'
+    calibration = staging.WORKSPACE/'src/multi_arm_manipulation_UWA/uwa_cell_description/config/calibration/right.yaml'
+    assert mapper.target_resource(calibration) == root/'src/multi_arm_manipulation_UWA/uwa_cell_description/config/calibration/right.yaml'
+    source = staging.WORKSPACE/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml'
+    assert mapper.target_resource(source) == root/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml'
 
 
 @pytest.mark.parametrize('payload',['../escape','setup/../escape','/absolute/target',''])

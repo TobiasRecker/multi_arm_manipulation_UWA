@@ -143,8 +143,9 @@ ID-, Maß- und Positionsmetadaten stehen in der JSON-Datei neben dem PDF.
 Der Nachweis `uwa_pen_markers_A4_validation.json` dokumentiert die Prüfung
 des fertigen 300-dpi-Renders: 26/26 Marker im Gesamtblatt und einzeln lesbar,
 A4 und Kantenmaße geprüft. Nur digitaler Druckvorlagennachweis; keine neue
-Kameraaufnahme, kein Druck-/Roboter-/Greifversuch. Das Library-Teilprogramm
-selbst ist in dieser ersten Etappe noch nicht implementiert.
+Kameraaufnahme, kein Druck-/Roboter-/Greifversuch bei Erstellung des Druckbogens.
+Der Folgeauftrag ist nun als [Pick pen from holder](../../docs/pen_grasp_library.md)
+mit OAK-Pro/OpenCV, Gemini-Fallback und left_rear angelegt.
 
 **Aktueller Aufbau24.11.2026:** Der Nutzer hat zwei30mm-Marker am Stift
 angebracht. Im nativen OAK-Pro-Foto17:41AWST sind obenID97 und seitlichID96

@@ -191,3 +191,29 @@ def test_reviewed_execution_order_and_no_lift_after_failed_close(tmp_path,monkey
             assert events.index('approved-motion')<events.index('approach')<events.index('activate')<events.index('open')<events.index('entry')
             assert 'close' not in events and 'lift' not in events
         else:assert events.index('approved-contact')<events.index('start-match')<events.index('close')<events.index('lift')
+
+
+def test_plan_only_stops_before_any_execution_upload_or_review(tmp_path,monkeypatch):
+    from uwa_cell_control import n100_usb_camera
+    camera_file=tmp_path/'camera.json';camera_file.write_text('{}')
+    session=tmp_path/'session.json';session.write_text('{}')
+    monkeypatch.setattr(runner,'config',lambda:(DEFINITION,dict(camera_session=session,intrinsics=camera_file,focus=112)))
+    observation=tmp_path/'observation';observation.mkdir();(observation/'snapshot.json').write_text('{"area_session":"test"}')
+    monkeypatch.setattr(runner,'observe',lambda *a:observation)
+    camera=Mock();monkeypatch.setattr(n100_usb_camera,'N100UsbCamera',lambda *a:camera)
+    monkeypatch.setattr(runner,'wait_camera',lambda *a:None)
+    monkeypatch.setattr(runner,'capture',lambda *a:tmp_path/'initial-photo')
+    monkeypatch.setattr(runner,'offline_tool',lambda *a:['planner'])
+    monkeypatch.setattr(runner,'n100',lambda *a:['review-status'])
+    def command(cmd,*a,**kw):
+        if cmd==['review-status']:return '{"settings":{"speed_percent":33.333333333333336}}'
+        assert cmd[0]=='planner' and '--snapshot' in cmd and '--context' in cmd
+        plans=tmp_path/'plans';plans.mkdir();(plans/'sequence.json').write_text('{"total_duration_s":12,"qualification":"fixture"}')
+        return ''
+    monkeypatch.setattr(runner,'logged_command',command)
+    monkeypatch.setattr(runner,'upload',Mock(side_effect=AssertionError('Plan-only must not stage execution')))
+    monkeypatch.setattr(runner,'remote_review',Mock(side_effect=AssertionError('Plan-only must not request motion or close')))
+    result=runner.run('plan',runner.Progress(tmp_path))
+    assert result['duration_s']==12 and result['arm']=='left_rear'
+    assert 'no robot or gripper commands' in result['motion'].lower()
+    camera.stop.assert_called_once()

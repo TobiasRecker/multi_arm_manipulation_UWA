@@ -55,6 +55,15 @@ Job`carton-video-final02-20261124` rendert die korrigierte Fassung.
 17 Standbilder einschließlich zehn Dreh-/Rückfahrzwischenständen erzeugt;
 die vorher verdeckten Situationen sind jetzt sichtbar. Prüfung lokaler
 JPEGs unter`setup/tasks/carton_video_20261124/preview-final02/` bestanden.
-Export und abschließender Videoabruf folgen.
+Export und Videoabruf abgeschlossen. Lokale Abgabedatei:
+`setup/tasks/carton_video_20261124/uwa-carton-gazebo-2x.mp4`.
+H.264/yuv420p,1920×1080,30fps,2711 Bilder,90,366667s,12.841.356Bytes.
+Zehn lokal dekodierte Stichproben einschließlich Drehung/Rückfahrt und
+letztem Bild erfolgreich. Video-SHA-256 lokal und auf titanpc identisch:
+`87509c953635118e1df5646cf97f97081d51dc0ad6b36f39590e7513f9808da6`.
+`video.json`, `ffprobe.json`, `.sha256` und`video-preview.jpg` im selben
+Aufgabenordner. Job erfolgreich beendet; GPU anschließend wieder0% und
+175MiB Grundbelegung. Die vollständige technische Jobkopie liegt unter
+`result/`; Eingabepaket und native Quellmodelle bleiben separat erhalten.
 
 Bedienung: [Videoexport](../docs/gazebo_carton_video.md).

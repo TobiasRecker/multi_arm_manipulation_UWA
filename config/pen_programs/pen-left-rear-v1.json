@@ -11,12 +11,25 @@
   "mount": {
     "centered_confirmed": true,
     "provenance": "User confirmed 24 November 2026: both black 30 mm squares centered on their adapter faces; pen fully seated.",
-    "top_center_m": [0, 0, 0.049],
-    "side_center_m": [0, 0.0155, 0.033],
-    "grasp_center_m": [0, 0, 0.0345],
+    "top_center_m": [
+      0,
+      0,
+      0.049
+    ],
+    "side_center_m": [
+      0,
+      0.0155,
+      0.033
+    ],
+    "grasp_center_m": [
+      0,
+      0,
+      0.046
+    ],
     "dock_base_z_m": -0.0895,
     "pen_tip_z_m": -0.079,
-    "qualification": "Centered CAD mounting assumption; adhesive thickness and actual grasp TCP not independently measured"
+    "qualification": "Centered CAD mounting assumption; adhesive thickness and actual grasp TCP not independently measured",
+    "grasp_height_reason": "Grip near the upper adapter end so the full opening sweep of both pads clears the holder rim; validate complete entry and lift."
   },
   "pregrasp_m": 0.15,
   "lift_m": 0.15,

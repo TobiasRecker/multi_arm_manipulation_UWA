@@ -1,5 +1,10 @@
 # UWA four-arm laboratory cell
 
+**Program library → [Pick pen from holder](docs/pen_grasp_library.md)**
+uses OAK Pro/OpenCV with Gemini as an ROI fallback and plans a complete
+left-rear pickup. **Inspect pen** and **Plan pickup only** send no robot or
+gripper commands. **Start program** uses separate motion and contact/lift reviews.
+
 The [Gazebo carton video exporter](docs/gazebo_carton_video.md) renders the
 archived three-arm drawing sequence with a cell view, workpiece close-up,
 yellow drawing traces and red virtual drilling marks. Native Ogre2 frames

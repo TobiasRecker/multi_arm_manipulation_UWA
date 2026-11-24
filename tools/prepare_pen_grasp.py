@@ -5,6 +5,8 @@ import hashlib
 import importlib
 import itertools
 import json
+import copy
+import struct
 from pathlib import Path
 from types import SimpleNamespace
 import xml.etree.ElementTree as ET
@@ -12,6 +14,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.spatial.transform import Rotation
+from scipy.spatial import ConvexHull
 
 from pen_grasp_vision import perceive,transform
 from carton_camera_session import validate_session
@@ -28,9 +31,59 @@ REPO=Path(__file__).resolve().parents[1]
 ARM='left_rear'
 
 
+def tight_opening_sweep(problem,root,directory):
+    """Keep the entire opening range; use convex mesh sweeps plus an analytic intersample bound.
+
+    This task-only extra scene does not change the active hardware model. Its
+    former 50mm sphere tiling is too coarse for a keyed tool holder.
+    """
+    from uwa_cell_control.scan_separation import Geometry
+    geometry=Geometry(problem.original_description,problem.names)
+    zero={j:0. for names in problem.names.values() for j in names}
+    frames0=geometry.fk.frames(zero)
+    original=ET.fromstring(problem.original_description)
+    joint=original.find(f"joint[@name='{problem.names[ARM][6]}']")
+    limit=joint.find('limit');lo,hi=float(limit.get('lower')),float(limit.get('upper'))
+    count=int(np.ceil((hi-lo)/.02));samples=np.linspace(lo,hi,count+1)
+    directory.mkdir(parents=True,exist_ok=True)
+    cleared=set();audit=[]
+    for body in geometry.bodies[ARM]:
+        if body.radii[6]<=0:continue
+        link=root.find(f"link[@name='{body.link}']")
+        if body.link not in cleared:
+            for old in list(link.findall('collision')):link.remove(old)
+            if not link.findall('visual'):
+                for visual in original.find(f"link[@name='{body.link}']").findall('visual'):link.append(copy.deepcopy(visual))
+            cleared.add(body.link)
+        inverse=np.linalg.inv(frames0[body.link]);cloud=[]
+        local=body.visual_vertices@body.fixed[:3,:3].T+body.fixed[:3,3]
+        for q in samples:
+            relative=inverse@geometry.fk.frames(dict(zero,**{problem.names[ARM][6]:float(q)}))[body.link]
+            cloud.append(local@relative[:3,:3].T+relative[:3,3])
+        cloud=np.concatenate(cloud);cloud=cloud[ConvexHull(cloud).vertices]
+        pad=float(body.radii[6]*(hi-lo)/(2*count))
+        # An axis-aligned cube contains the Lipschitz ball between samples.
+        offsets=np.asarray(list(itertools.product((-pad,pad),repeat=3)))
+        vertices=(cloud[:,None,:]+offsets).reshape(-1,3);hull=ConvexHull(vertices)
+        file=directory/f'{body.link}-{body.index}.stl'
+        with file.open('wb') as stream:
+            stream.write(b'UWA full opening convex sweep'.ljust(80,b'\0'));stream.write(struct.pack('<I',len(hull.simplices)))
+            for indices in hull.simplices:
+                tri=vertices[indices].copy();normal=np.cross(tri[1]-tri[0],tri[2]-tri[0])
+                if np.dot(normal,tri.mean(axis=0)-vertices.mean(axis=0))<0:tri=tri[::-1];normal=-normal
+                normal/=max(np.linalg.norm(normal),1e-30)
+                stream.write(struct.pack('<12fH',*normal,*tri.ravel(),0))
+        collision=ET.SubElement(link,'collision');ET.SubElement(ET.SubElement(collision,'geometry'),'mesh',filename=file.resolve().as_uri())
+        audit.append(dict(link=body.link,samples=len(samples),opening_range_rad=[lo,hi],between_sample_inflation_m=pad,
+                          sha256=hashlib.sha256(file.read_bytes()).hexdigest()))
+    dump(directory/'audit.json',dict(method='convex full-opening mesh sweeps plus analytic cube inflation',bodies=audit,
+                                    active_hardware_model_changed=False))
+
+
 def task_scene(problem, adapter, definition, directory, *, tool_adapter=None):
     """Exact CAD dock/adapter plus a conservative shaft; only intended pad/dock contacts excluded."""
     root=ET.fromstring(problem.description)
+    tight_opening_sweep(problem,root,directory/'opening-sweep')
     def link(name,parent,T,shapes):
         body=ET.SubElement(root,'link',name=name)
         joint=ET.SubElement(root,'joint',name=name+'_mount',type='fixed')
@@ -46,8 +99,10 @@ def task_scene(problem, adapter, definition, directory, *, tool_adapter=None):
     link('pen_task_dock','world',dock,[('mesh',meshes/'dock.stl',[0,0,0])])
     parent=ARM+'_tool0' if tool_adapter is not None else 'world'
     pose=tool_adapter if tool_adapter is not None else adapter
-    link('pen_task_adapter',parent,pose,[('mesh',meshes/f'adapter-{i}.stl',[0,0,0]) for i in (1,2)])
-    link('pen_task_shaft','pen_task_adapter',np.eye(4),[('cylinder',(.0105,.125),[0,0,-.0165])])
+    adapter_shapes=[('mesh',meshes/f'adapter-{i}.stl',[0,0,0]) for i in (1,2)]
+    adapter_shapes.append(('cylinder',(.0105,.029),[0,0,.0315]))  # Barrel enclosed by the adapter.
+    link('pen_task_adapter',parent,pose,adapter_shapes)
+    link('pen_task_shaft','pen_task_adapter',np.eye(4),[('cylinder',(.0105,.096),[0,0,-.031])])
     description=ET.tostring(root,encoding='unicode')
     model=CollisionModel(description,directory/'moveit')
     robot_links=[x.get('name') for x in ET.fromstring(problem.description).findall('link')]
@@ -87,6 +142,9 @@ def preview_description(xml):
         name=link.get('name')
         if name in ('pen_task_adapter','pen_task_shaft') or 'marker_station' in name or 'cos_marker_docked' in name:
             for visual in list(link.findall('visual')):link.remove(visual)
+        for collision in list(link.findall('collision')):link.remove(collision)
+        for visual in list(link.findall('visual')):
+            if any('/charuco/' in mesh.get('filename','') for mesh in visual.iter('mesh')):link.remove(visual)
     for mesh in tree.iter('mesh'):
         file=Path(mesh.get('filename').removeprefix('file://'))
         if file.is_relative_to(REPO/'uwa_cell_description'):
@@ -206,6 +264,13 @@ def compile_plan(args):
     dump(out/'search.json',dict(attempts=trials))
     if not chosen:raise ValueError('No complete collision-checked pen approach/entry/lift: '+'; '.join(trials[-4:]))
     phases,approach,contact,carried_xml,proofs=chosen
+    task_binding=dict(
+        adapter_cad_sha256=hashlib.sha256((REPO/'hardware/marker_tool/marker-werkzeug.step').read_bytes()).hexdigest(),
+        cad_meshes=json.loads((REPO/'uwa_cell_description/assets/pen_grasp_v1/manifest.json').read_text())['files'],
+        static_opening_sweep=json.loads((out/'static/opening-sweep/audit.json').read_text()),
+        carried_opening_sweep=json.loads((out/'carried/opening-sweep/audit.json').read_text()),
+        compiler_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        perception_source_sha256=hashlib.sha256((REPO/'tools/pen_grasp_vision.py').read_bytes()).hexdigest())
     segments=[]
     for name,start,traj,collision in phases:
         problem.collision=base_collision
@@ -213,7 +278,7 @@ def compile_plan(args):
         request=dict(schema_version=1,start=start,goals={ARM:traj['points'][-1]['positions']},selected=[ARM],joint_names=joint_names(ARM))
         plan=portable(dict(schema_version=1,success=True,hardware_plan=True,config=remote['config'],request=request,
             trajectory=traj,metrics=dict(full_cell_collision_checked=True,task_objects_checked=True),
-            coordination='single_arm',proof=proof),remote)
+            coordination='single_arm',proof=proof,task_geometry_binding=task_binding),remote)
         file=out/(name+'.json');dump(file,plan)
         segments.append(dict(phase=name,arm=ARM,plan=file.name,sha256=hashlib.sha256(file.read_bytes()).hexdigest(),duration_s=traj['duration_s']))
     # Scene contains the actual measured dock and pen, for operator RViz playback.
@@ -228,6 +293,7 @@ def compile_plan(args):
                  meshes=['package://uwa_cell_description/assets/pen_grasp_v1/adapter-1.stl',
                          'package://uwa_cell_description/assets/pen_grasp_v1/adapter-2.stl']),
         qualification=definition['mount']['qualification'],robot_commands_sent=False)
+    sequence['task_geometry_binding']=task_binding
     dump(out/'sequence.json',sequence)
     print(json.dumps(dict(success=True,output=str(out),duration_s=sequence['total_duration_s'])))
 

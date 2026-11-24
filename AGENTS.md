@@ -324,6 +324,17 @@ angezeigten Arme und die Revision gebunden.
 
 ## Physisches Zeichenwerkzeug (2026-11-19)
 
+- Nutzerauftrag24.11.2026: eigenes Library-Programm nach Vorbild Supported
+  carton grasp, aber Stiftaufnahme mit **left_rear**. OAK-Pro/OpenCV zuerst,
+  Gemini als Fallback für schwierige Bildbefunde, danach vollständige
+  Bahnplanung und Greifen/vertikale Entnahme. Gemini darf hierfür aktuelle
+  Stiftbilder über das vorhandene Antigravity-Konto auswerten; metrische
+  Markerecken und Pose lokal bestimmen. Anleitung `docs/pen_grasp_library.md`.
+- Nutzer bestätigt24.11.: beide schwarzen30mm-Quadrate mittig aufgeklebt,
+  Außenkante mitLineal30mm nachgemessen, Stift vollständig eingesetzt.
+  Zunächst war die Kappe auf dem Stift; für den hier vorbereiteten CAD-
+  Programmstand hat der Nutzer sie abgenommen und den Stift wieder eingesetzt.
+  Reale Montage-/TCP-Genauigkeit von diesen Nutzerangaben getrennt halten.
 - Nutzerziel24.11.2026: den real auf dem Tisch bereitgestellten Stift aus
   dieser Aufnahme als weiteres Teilprogramm der Program library greifen.
   Erste beauftragte Etappe: Eignung markerloser Erkennung einschätzen und
