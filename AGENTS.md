@@ -1421,6 +1421,10 @@ angezeigten Arme und die Revision gebunden.
   CAD-Wechsel erhalten; CAD-zu-Optik-Anker und Stativ bleiben visuelle Näherungen.
   Nur Übersichtsentität neu laden, keine Zelle/Armzustände dafür zurücksetzen.
 - ChArUco-Boards zentral je Tisch und Kameras initial darauf ausrichten.
+  Nutzerauftrag24.11.2026: professionellen Neudruck ohne Bindung an DIN-A-
+  Formate einschließlich größerer Platten beurteilen. Außenmaß, aktive
+  Musterfläche und Feld-/Markermaß getrennt angeben. Größenempfehlungen
+  sind noch keine beschlossene Umstellung der vorhandenen Boardreferenzen.
   Separates mobiles UR-Board seit2026-11-11: A4-Holzträger mit plan aufgeklebtem
   Papier, Definition `uwa_cell_description/config/mobile_charuco_a4.yaml`.
   7×5 Felder38mm/Marker28mm, DICT_4X4_100 IDs75–91. Nicht mit den40mm-

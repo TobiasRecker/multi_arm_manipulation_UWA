@@ -383,6 +383,137 @@ class ParallelMotion:
         self.node.destroy_service(self.resume_service)
 
 
+class ScanCancelled(RuntimeError):
+    """An explicit operator cancellation, separate from controller failures."""
+
+
+class MinimalParallelMotion(ParallelMotion):
+    """Keep the proved scan paths, using the single shared protection runtime."""
+    protection_backend = 'minimal'
+
+    def __init__(self, node, profiles, output, *, workspace=None, mock=False,
+                 require_gui=True, tracking=.005, problem=None, client_factory=None):
+        from std_msgs.msg import String
+        from std_srvs.srv import Trigger
+        from uwa_cell_motion.minimal_execution import MinimalHardwareClient, ROOT
+        self.profiles, self.mock = profiles, mock
+        self.output = Path(output)
+        self.output.mkdir(parents=True, exist_ok=True)
+        self.expected, self.owned, self.handles = {}, set(), {}
+        self.stop_requested = False
+        self.paused = self.resume_requested = False  # Image-review workflow only.
+        self._closing = self._connected = False
+        self._model_directory = None
+        if problem is None:
+            from uwa_cell_motion.common import config
+            from uwa_cell_motion.hardware_model import HardwareProblem
+            workspace = Path(workspace or Path.home()/'UWA_ws')
+            repository = workspace/'src/multi_arm_manipulation_UWA'
+            self._model_directory = tempfile.TemporaryDirectory(prefix='uwa-minimal-scan-')
+            problem = HardwareProblem(self._model_directory.name,
+                config(repository/'uwa_cell_motion/config/hardware_carton_supported_trend.yaml'),
+                repository/'config/hardware_inventory.yaml')
+        if digest(problem.profiles) != digest(profiles):
+            raise ValueError('Scan and shared protection client use different robot profiles')
+        owner = self
+        if client_factory is None:
+            class ScanClient(MinimalHardwareClient):
+                def spin_once(self, timeout_sec=.01):
+                    super().spin_once(timeout_sec=timeout_sec)
+                    if owner.stop_requested and not owner._closing:
+                        raise ScanCancelled('Operator canceled the scan')
+            client_factory = ScanClient
+        self.client = client_factory(problem, 'mock' if mock else 'hardware', list(profiles))
+        self.node = self.client
+        self.status_publisher = self.node.create_publisher(String, '/uwa_object_scan/status', 10)
+        self._pause_client = self.node.create_client(Trigger, ROOT+'/pause_all')
+
+        def stop(request, response):
+            self.stop_requested = True
+            if self._pause_client.service_is_ready():
+                self._pause_client.call_async(Trigger.Request())
+            response.success = True
+            response.message = 'Scan cancellation received; shared all-arm software pause requested'
+            return response
+
+        def resume(request, response):
+            response.success = self.paused and not self.stop_requested
+            if response.success:
+                self.resume_requested = True
+            response.message = 'Image review continued' if response.success else 'No image review is waiting'
+            return response
+
+        self.stop_service = self.node.create_service(Trigger, '/uwa_object_scan/stop', stop)
+        self.resume_service = self.node.create_service(Trigger, '/uwa_object_scan/resume', resume)
+
+    def spin(self, timeout=.02):
+        self.client.spin_once(timeout_sec=timeout)
+
+    def status(self, phase, **details):
+        super().status(phase, protection_backend='minimal', **details)
+
+    def guard(self):
+        if self.stop_requested:
+            raise ScanCancelled('Operator canceled the scan')
+        self.client.health()  # Shared status callbacks only, no second live guard.
+
+    def wait_ready(self, expected, timeout=20.):
+        self.expected = {rid: np.asarray(expected[rid]) for rid in self.profiles}
+        if not self._connected:
+            self.client.connect()
+            self._connected = True
+        self.guard()
+
+    def batch(self, steps):
+        self.guard()
+        # One admission check for the exact already-checked source path. There
+        # are no position/corridor tests once the goals have been dispatched.
+        for step in steps:
+            names = self.profiles[step['arm']]['joint_names']
+            measured = [self.client.positions[name] for name in names]
+            if np.max(abs(np.asarray(measured)-step['points'][0]['positions'])) > .001:
+                raise ValueError(step['arm']+': batch start differs from checked path; replan')
+        trajectories = {step['arm']: dict(joint_names=self.profiles[step['arm']]['joint_names'],
+                                         points=step['points'], duration_s=step['points'][-1]['time'])
+                        for step in steps}
+        self.owned = set(trajectories)
+        self.client.follow_group(trajectories,
+            duration_s=max(value['duration_s'] for value in trajectories.values()))
+        self.handles = dict(self.client.handles)
+        self.owned.clear()
+        self.expected.update({step['arm']: np.asarray(step['target']) for step in steps})
+
+    def deactivate(self):
+        # Successful JTC completion holds its final reference. No controller
+        # switch or forced stop is part of camera acquisition or cleanup.
+        return []
+
+    def abort(self):
+        self.stop_requested = True
+        self._closing = True
+        try:
+            result = self.client.stop()
+            self.status('PAUSE_REQUESTED', standstill_confirmed=False,
+                        message='Scan canceled; shared software pause requested', stop_result=result)
+        except Exception as error:
+            self.status('STOP_UNCONFIRMED', standstill_confirmed=False, error=str(error))
+
+    def close(self):
+        self._closing = True
+        self.client.destroy_node()
+        if self._model_directory is not None:
+            self._model_directory.cleanup()
+
+
+def scan_runner(node, profiles, output, *, workspace, require_gui=True):
+    if os.environ.get('UWA_PROTECTION_BACKEND', 'legacy') == 'legacy':
+        return ParallelMotion(node, profiles, output, require_gui=require_gui)
+    from uwa_cell_motion.protection_backend import minimal_enabled
+    if minimal_enabled():
+        return MinimalParallelMotion(node, profiles, output, workspace=workspace)
+    raise ValueError('Unsupported protection backend')
+
+
 def round_start_positions(plan, rounds, number):
     if not 1 <= number <= len(rounds):
         raise ValueError('Start round outside the checked scan')
@@ -414,7 +545,8 @@ def main():
     rclpy.init(args=[],signal_handler_options=SignalHandlerOptions.NO)
     node=rclpy.create_node('uwa_parallel_object_scan')
     profiles=load_profiles(args.workspace/'src/multi_arm_manipulation_UWA/config/hardware_inventory.yaml')
-    runner=ParallelMotion(node,profiles,args.output,require_gui=not args.check_only)
+    runner=scan_runner(node,profiles,args.output,workspace=args.workspace,require_gui=not args.check_only)
+    minimal=getattr(runner,'protection_backend',None)=='minimal'
     def stop(signum,frame):runner.stop_requested=True
     signal.signal(signal.SIGINT,stop);signal.signal(signal.SIGTERM,stop)
     rig=None
@@ -425,9 +557,10 @@ def main():
         expected=round_start_positions(plan,rounds,args.start_round)
         runner.status('PREPARING',message='Checking exact source paths, live robot states and separation proof')
         runner.wait_ready(expected)
-        for rid,p in profiles.items():
-            if any(c.name in MOTION and c.state=='active' for c in controller_list(node,p)):
-                raise RuntimeError(rid+': an existing motion controller is active; no takeover')
+        if not minimal:
+            for rid,p in profiles.items():
+                if any(c.name in MOTION and c.state=='active' for c in controller_list(node,p)):
+                    raise RuntimeError(rid+': an existing motion controller is active; no takeover')
         with tempfile.TemporaryDirectory(prefix='uwa-parallel-scan-recheck-') as directory:
             model,layout=make_model(load_layout(default_layout_path()),profiles,directory)
             if collision_signature(model.description)!=collision_signature(description):
@@ -446,6 +579,7 @@ def main():
         # Release it before the 48-MP decoder/detector allocates its buffers.
         del model
         (args.output/'source_manifest.json').write_text(json.dumps(dict(plan=str(args.plan.resolve()),
+            protection_backend='minimal' if minimal else 'legacy',
             inventory_fingerprint=digest(profiles),
             plan_sha256=hashlib.sha256(args.plan.read_bytes()).hexdigest(),analysis=str(args.analysis.resolve()),
             analysis_sha256=hashlib.sha256(args.analysis.read_bytes()).hexdigest(),rounds=rounds,start_round=args.start_round),indent=2)+'\n')
@@ -466,20 +600,25 @@ def main():
             runner.batch(steps)
             errors=runner.deactivate()
             if errors:raise RuntimeError('Controller deactivation failed: '+str(errors))
-            runner.status('CAPTURING',round=index+1,total_rounds=len(rounds),message='All four arms settled; native five-camera photographs')
+            runner.status('CAPTURING',round=index+1,total_rounds=len(rounds),message=(
+                'Controller goals completed; native five-camera photographs' if minimal else
+                'All four arms settled; native five-camera photographs'))
             report=wait_camera(rig.submit('capture'))
-            if not report['all_captured'] or not report.get('stationary_set_confirmed'):
+            if not report['all_captured'] or (not minimal and not report.get('stationary_set_confirmed')):
                 raise RuntimeError('Photo set failed; no next movement: '+report.get('error','see manifest'))
             runner.status('CAPTURED',round=index+1,total_rounds=len(rounds),directory=report['directory'])
             if index==0 and args.pause_after_initial:
                 runner.paused=True;runner.resume_requested=False
                 runner.status('PAUSED',round=1,total_rounds=len(rounds),directory=report['directory'],
-                              message='Initial photographs saved. Review images, then Continue. All motion controllers inactive.')
+                              message=('Initial photographs saved. Review images, then Continue.' if minimal else
+                                       'Initial photographs saved. Review images, then Continue. All motion controllers inactive.'))
                 while not runner.resume_requested:runner.spin(.02);runner.guard()
                 runner.paused=False
         runner.status('COMPLETE',rounds=len(rounds),photo_session=str(rig.session),automatic_return=False)
     except BaseException as error:
-        if runner.owned or runner.handles:runner.abort()
+        if minimal:
+            if runner.stop_requested or isinstance(error,KeyboardInterrupt):runner.abort()
+        elif runner.owned or runner.handles:runner.abort()
         runner.status('FAILED',error=str(error),automatic_return=False)
         raise
     finally:

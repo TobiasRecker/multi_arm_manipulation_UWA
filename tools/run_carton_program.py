@@ -244,6 +244,7 @@ def n100(script, *args):
         if candidate:
             prefix += 'cd -- '+shlex.quote(candidate)+'\n'
         prefix += 'export UWA_PROTECTION_BACKEND=minimal\n'
+        prefix += 'export UWA_MINIMAL_RUNTIME="$PWD"\n'
         prefix += 'export UWA_MINIMAL_INSTALL="$PWD/install_lyrical"\n'
     command = shlex.join(["/bin/bash", "-c", prefix + script, "uwa-carton-program",
                           *map(str, args)])

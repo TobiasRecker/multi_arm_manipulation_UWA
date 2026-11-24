@@ -27,6 +27,9 @@ from .native_stop import stop_profiles
 
 class HardwareClient(MotionClient):
     def __init__(self,problem,mode,selected=()):
+        from .protection_backend import minimal_enabled
+        if minimal_enabled():
+            raise RuntimeError('Legacy execution client is retired in minimal mode; use MinimalHardwareClient')
         require_domain(mode);MotionNode.__init__(self,'hardware_ptp_execution',namespace='/uwa_cell')
         self.problem,self.cfg,self.mode=problem,problem.cfg,mode;self.selected=list(selected);self.names=problem.names
         self.expected=signature(problem,mode);self.state_peer=Peer();self.guard_peer=Peer();self.supervisor_peer=Peer()

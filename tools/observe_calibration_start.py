@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""N100: export active model and fresh output-only RTDE joints for this program.
+"""Export the active model and current joints for camera-program planning.
 
-No ROS node, action, reset, program start, controller switch or robot write.
-The existing position-trend standstill evaluation is reused unchanged.
+Minimal mode reads the shared C++ state without stationarity or native-mode
+tests. Legacy mode retains its separate RTDE observation. No robot writes.
 """
 import argparse
 import hashlib

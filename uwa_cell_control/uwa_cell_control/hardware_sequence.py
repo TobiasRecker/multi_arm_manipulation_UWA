@@ -181,6 +181,8 @@ def acquire(args):
     plan=json.loads(Path(args.batch).read_text());profiles=load_profiles(args.inventory);rid=plan['arm']
     directory=Path(args.session).resolve();metadata=json.loads((directory/'session.json').read_text())
     if metadata['robot_id']!=rid or metadata['mode']!='hardware':raise ValueError('Wrong image session')
+    from .minimal_calibration import enabled
+    if enabled():return acquire_minimal(args,plan,profiles,metadata,directory)
     node=node_for('hardware');completed=False;motion_started=False;trajectory_client=None
     if not getattr(args,'check_only',False):
         # Register the endpoint before MoveIt creates its C++ scene/logger and
@@ -265,3 +267,68 @@ def acquire(args):
             except Exception as error:print('Could not confirm controller deactivation: '+str(error),flush=True)
         if trajectory_client is not None:trajectory_client.destroy()
         observer.close();node.destroy_node();rclpy.shutdown()
+
+
+def acquire_minimal(args,plan,profiles,metadata,directory):
+    """Capture the same reviewed views using the shared pauseable executor."""
+    import rclpy
+    from uwa_cell_gazebo.configuration import load_layout
+    from .park_arm import node_for,JointObserver
+    from .parking import make_model
+    from .minimal_calibration import checked_motion
+    from .handeye_hardware import capture_observation
+    from .wrist_hd import make_camera
+    rid=plan['arm'];node=node_for('hardware')
+    observer=JointObserver(node,profiles,
+        [r for r,s in plan['state_sources'].items() if s=='live_joint_states'],'hardware')
+    try:
+        with checked_motion(args.inventory,plan['layout_file'],'hardware',[rid]) as motion:
+            model,layout=make_model(load_layout(plan['layout_file']),profiles,directory/'acquisition_model')
+            validate_batch(plan,profiles,layout)
+            diagonal=independent_arm(plan)
+            if diagonal:configure_model(model,rid,diagonal)
+            validate_resume_records(plan,directory)
+            validate_session_model(metadata,rid,profiles[rid],layout)
+            current=motion.snapshot()
+            for r,s in plan['state_sources'].items():
+                if r!=diagonal and s=='live_joint_states':
+                    if max(abs(current[j]-plan['start'][j]) for j in joint_names(r))>.01:
+                        raise ValueError(r+': start changed; regenerate acquisition plan')
+            camera=make_camera(profiles[rid]['ip'],node,metadata=metadata,rid=rid)
+            planned_source=plan['planning_only_camera_model'].get('planned_capture_source')
+            if planned_source and metadata.get('capture_source',{}).get('kind')!=planned_source:
+                raise ValueError('Planned acquisition image source differs from the session')
+            first=json.loads((directory/'records/sample_000.json').read_text())
+            settings=camera.settings()
+            if settings['focusAuto'] or settings['focus']!=first['camera_settings']['focus']:
+                raise ValueError('Camera focus differs from first observation')
+            for segment in plan['segments']:
+                if (directory/'records'/(segment['sample_id']+'.json')).exists():
+                    raise ValueError('Existing observation; create a new reviewed acquisition instead of overwriting')
+            if getattr(args,'check_only',False):
+                state=dict(plan['start'],**current)
+                for segment in plan['segments']:
+                    for point in segment['points']:
+                        state.update(zip(joint_names(rid),point['positions']))
+                        if not model.check(state)[0]:raise ValueError('Current acquisition path collision check failed')
+                print(json.dumps(dict(success=True,check_only=True,segments=len(plan['segments']),
+                    fingerprint=plan['fingerprint'],protection_backend='minimal')),flush=True)
+                return
+            for segment in plan['segments']:
+                live=dict(plan['start'],**motion.snapshot())
+                q0=[live[j] for j in joint_names(rid)]
+                if max(abs(np.array(q0)-segment['points'][0]['positions']))>.01:
+                    raise ValueError('Segment start changed; stop without an unchecked connection')
+                for point in segment['points']:
+                    state=dict(live,**dict(zip(joint_names(rid),point['positions'])))
+                    if not model.check(state)[0]:raise ValueError('Current full-cell segment collision check failed')
+                print(json.dumps(dict(phase='MOVING',sample_id=segment['sample_id'],role=segment['role'])),flush=True)
+                motion.follow(rid,segment['points'])
+                observer.sample(.2)
+                record=capture_observation(camera,node,observer,model,layout,rid,directory/'records',
+                    segment['sample_id'],segment['role'],capture_guard=motion.client.health)
+                print(json.dumps(dict(phase='CAPTURED',sample_id=segment['sample_id'],
+                    corners=record['corners'],role=record['role'])),flush=True)
+            print(json.dumps(dict(phase='ACQUISITION_COMPLETE',new_observations=len(plan['segments']),
+                                  protection_backend='minimal')),flush=True)
+    finally:observer.close();node.destroy_node();rclpy.shutdown()

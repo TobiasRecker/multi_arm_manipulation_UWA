@@ -67,6 +67,11 @@ def serve(workspace, output, ipc):
     workspace, output, ipc = Path(workspace), Path(output), Path(ipc)
     rig = CaptureRig(workspace, output, cameras=FIVE_CAMERAS,
         optics_path=workspace/'src/multi_arm_manipulation_UWA/config/digitization/five_camera_capture.yaml', board='both')
+    if os.environ.get('UWA_PROTECTION_BACKEND', 'legacy') != 'legacy':
+        from uwa_cell_motion.protection_backend import minimal_enabled
+        # The minimal runtime has no independent stationary-joint audit. Image
+        # completion remains camera metadata, without a standstill assertion.
+        if minimal_enabled():rig.audit_stationarity = False
     restored = False
     try:
         for line in sys.stdin:

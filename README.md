@@ -1,5 +1,11 @@
 # UWA four-arm laboratory cell
 
+The replacement [minimal hardware protection](docs/minimal_hardware_protection.md)
+uses one C++ collision core and a global **SOFTWARE STOP ALL ARMS / RESUME** in
+UWA Robot Power. It is prepared as an isolated candidate; the operative N100
+runtime changes in a separate operating transition. Missing collision data warn
+only, and grippers participate solely through their collision geometry.
+
 **Program library → [Multi-camera calibration capture](docs/multi_camera_library_program.md)**
 prepares all four observation poses with freshly planned serial paths and opens
 the native six-camera capture GUI. **Open capture GUI** also works separately.

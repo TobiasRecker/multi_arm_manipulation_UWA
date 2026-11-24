@@ -4,6 +4,7 @@
 import argparse
 from datetime import datetime, timezone
 import errno
+import hashlib
 import json
 import os
 import socket
@@ -48,6 +49,18 @@ GUIDANCE = {
 ACTIONS = {'standby': 'Standby', 'start': 'Start + ROS'}
 
 
+def instance_address(uid=None, candidate=None):
+    """Keep a candidate window separate from the existing operational GUI."""
+    address = f'\0uwa-robot-power-{os.getuid() if uid is None else uid}'
+    runtime = os.environ.get('UWA_MINIMAL_RUNTIME', '') if candidate is None else candidate
+    if runtime:
+        if not Path(runtime).is_absolute():
+            raise ValueError('UWA_MINIMAL_RUNTIME must be an absolute N100 runtime path')
+        identity = hashlib.sha256(os.path.normpath(runtime).encode()).hexdigest()[:16]
+        address += '-minimal-' + identity
+    return address
+
+
 def protection_command(n100=False, mock=False):
     if n100:
         return ['/usr/bin/ssh', '-F', str(N100_SSH_CONFIG), '-o', 'ConnectTimeout=5',
@@ -72,6 +85,7 @@ class ProtectionControls(QtWidgets.QFrame):
         self.sequence = 0
         self.stdout = bytearray()
         self.last_status = 0.
+        self.last_status_audit = None
         self.pending = {}
         self.setStyleSheet('QFrame{background:#fff;color:#102744;border-radius:8px}'
                            'QLabel{border:0}'
@@ -199,8 +213,10 @@ class ProtectionControls(QtWidgets.QFrame):
         self.state_label.setStyleSheet('font-weight:800;font-size:14px;color:' +
                                       ('#840611' if self.paused else '#102744'))
         self.resume_button.setEnabled(self.paused)
+        arm_events = {}
         for rid, label in self.arm_labels.items():
             row = status.get('arms', {}).get(rid, {})
+            state = 'UNCONFIRMED'
             if row.get('confirmed') is True:
                 if row.get('controller') == 'collision_hold_controller':
                     state = 'HELD · fresh manual start required'
@@ -215,11 +231,30 @@ class ProtectionControls(QtWidgets.QFrame):
             if row.get('error'):
                 text += ' · ' + str(row['error'])
             label.setText(LABELS[rid] + ': ' + text)
+            arm_events[rid] = dict(confirmed=row.get('confirmed') is True,
+                                  state=state, controller=row.get('controller'),
+                                  error=row.get('error') or '')
         warnings = [str(w) for w in status.get('warnings', [])]
         if status.get('collision_data_available') is False and not warnings:
             warnings.append('Collision data unavailable; automatic collision checking is incomplete.')
         self.warning_label.setText('WARNING · ' + ' · '.join(warnings))
         self.warning_label.setVisible(bool(warnings))
+        phase = 'RUNNING'
+        if self.paused:
+            phase = ('PAUSING' if status.get('pausing') or status.get('state') == 'PAUSE REQUESTED'
+                     or any(row['state'] == 'PAUSING' for row in arm_events.values()) else 'PAUSED')
+        event = dict(generation=status.get('generation'), state=phase,
+                     reason=status.get('reason'), known_collisions=status.get('known_collisions', []),
+                     warnings=warnings, arms=arm_events,
+                     collision_data_available=status.get('collision_data_available'))
+        # Record the measured distance when an event changes. Repeated samples
+        # of the same collision while braking are still the same event.
+        collision_identity = [{k:v for k,v in row.items() if k != 'distance_m'}
+                              if isinstance(row, dict) else row for row in event['known_collisions']]
+        key = json.dumps(dict(event, known_collisions=collision_identity), sort_keys=True)
+        if key != self.last_status_audit:
+            self.last_status_audit = key
+            self.audit.emit('protection status', json.loads(json.dumps(event)))
 
     def unavailable(self, detail):
         self.available = False
@@ -308,7 +343,8 @@ class Window(QtWidgets.QWidget):
                             'uwa-n100-robot-lan', remote_runtime_command('power.sh', environment=True)]
         else:
             self.backend = [sys.executable, str(ROOT/'scripts/ur_cell_power.py')]
-        self.setWindowTitle('UWA Robot Power')
+        self.setWindowTitle('UWA Robot Power · Minimal candidate' if
+                            n100 and os.environ.get('UWA_MINIMAL_RUNTIME') else 'UWA Robot Power')
         self.setWindowIcon(QtGui.QIcon(str(ROOT/'assets/uwa-robot-power.svg')))
         self.setMinimumWidth(555)
         self.resize(660, 473)
@@ -717,7 +753,7 @@ def main():
         window.show()
         return app.exec()
     # An abstract Unix socket is released by the kernel when the app exits.
-    address = f'\0uwa-robot-power-{os.getuid()}'
+    address = instance_address()
     requested_host = b'n100' if args.n100 else b'local'
     peer = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
     try:

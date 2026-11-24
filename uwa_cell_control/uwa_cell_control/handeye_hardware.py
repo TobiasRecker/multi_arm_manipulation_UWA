@@ -23,11 +23,18 @@ from .hardware_charuco import first_view,observe,calibrate_intrinsics
 from .wrist_camera import WristCamera,save_snapshot
 from .wrist_hd import make_camera
 from .wrist_activity import photo_activity
+from .minimal_calibration import enabled as minimal_enabled
 
 
 def read_state(node,profiles,args):
-    manual=manual_states(args.manual_states)
     observer=JointObserver(node,profiles,[r for r,p in profiles.items() if p['ip']],args.mode)
+    if minimal_enabled():
+        from .minimal_calibration import checked_motion,shared_readings
+        with checked_motion(args.inventory,args.layout,args.mode,[]) as motion:
+            readings=shared_readings(motion,args.mode)
+        observer.received={r:dict(record) for r,record in readings.items()}
+        return observer,readings
+    manual=manual_states(args.manual_states)
     configured={r for r,p in profiles.items() if p['ip']}
     deadline=time.monotonic()+10
     while True:
@@ -94,7 +101,7 @@ def plan_series(args):
 
 @photo_activity
 def capture_observation(camera,node,observer,model,layout,rid,directory,sample_id,role,*,freshness_timeout=6.,capture_guard=None):
-    """Conservative stationary interval plus changed decoded image payloads.
+    """Capture changed image payloads and record their joint-state association.
 
     Exposure timestamp is unavailable. Record that limitation explicitly rather
     than claiming hardware synchronization from HTTP receipt times.
@@ -106,8 +113,10 @@ def capture_observation(camera,node,observer,model,layout,rid,directory,sample_i
     expected=observer.sample(1.)
     if rid not in expected:raise ValueError('Live robot state missing')
     baseline=np.array(expected[rid]['positions']);names=joint_names(rid)
+    minimal=minimal_enabled()
     def stationary():
         if capture_guard is not None:capture_guard()
+        if minimal:return
         record=observer.received.get(rid)
         if not record or time.monotonic()-record['received_monotonic']>.5:
             raise ValueError('Joint telemetry stale while taking image')
@@ -169,8 +178,10 @@ def capture_observation(camera,node,observer,model,layout,rid,directory,sample_i
         'native_control_validation':native_validation,
         'image':sample_id+'.jpg','receipt_utc':receipt[selected],
         'freshness':{'decoded_payload_changes':len(set(hashes)),'http_samples':len(hashes),
-            'stationary_joint_tolerance_rad':.002,'sensor_exposure_timestamp_available':False,
-            'association':'Frames acquired/received inside monitored stationary interval; no exposure timestamp guarantee'}}
+            'stationary_joint_tolerance_rad':None if minimal else .002,
+            'sensor_exposure_timestamp_available':False,
+            'association':('Image receipt and latest shared joint state; no stationary monitor or exposure timestamp guarantee'
+                if minimal else 'Frames acquired/received inside monitored stationary interval; no exposure timestamp guarantee')}}
     atomic_json(output,record)
     return record
 
@@ -251,7 +262,9 @@ def fit(args):
             camera_matrix=intrinsics['camera_matrix'],distortion=intrinsics['distortion']))
     result=solve_session({rid:handeye})
     result.update(mode='hardware',session_dir=str(directory.resolve()),intrinsics_file='intrinsics.json',
-        timing_limitations='Monitored stationary image capture; sensor exposure timestamps unavailable',
+        timing_limitations=('Image/joint association without stationary monitoring; sensor exposure timestamps unavailable'
+            if any(r.get('freshness',{}).get('stationary_joint_tolerance_rad') is None for r in records)
+            else 'Monitored stationary image capture; sensor exposure timestamps unavailable'),
         activated=False)
     try:validate_result(result)
     except ValueError as error:

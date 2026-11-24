@@ -164,7 +164,7 @@ def test_gripper_commands_have_no_arm_or_gripper_monitoring(tmp_path, monkeypatc
             calls.append((self.arm, 'close'))
             return dict(completed=True)
     monkeypatch.setattr(minimal_gripper_phase, 'GripperClient', Gripper)
-    monkeypatch.setattr(minimal_gripper_phase, 'motion_context', forbidden)
+    monkeypatch.setattr(minimal_gripper_phase, 'motion_context', nullcontext)
     args = Box(output=tmp_path/'output', state=tmp_path/'state.json', phase=phase,
                review_id=None, start_ros_programs=False, execute=True)
     assert minimal_gripper_phase.run(args, b'input', dict(segments=[])) == 0
@@ -187,7 +187,7 @@ def test_gripper_error_is_an_ordinary_result_and_does_not_stop_arms(tmp_path, mo
                 raise RuntimeError('Device command rejected')
             return dict(completed=True)
     monkeypatch.setattr(minimal_gripper_phase, 'GripperClient', Gripper)
-    monkeypatch.setattr(minimal_gripper_phase, 'motion_context', forbidden)
+    monkeypatch.setattr(minimal_gripper_phase, 'motion_context', nullcontext)
     args = Box(output=tmp_path/'output', state=tmp_path/'state.json', phase='close',
                review_id=None, start_ros_programs=False, execute=True)
     assert minimal_gripper_phase.run(args, b'input', {}) == 1

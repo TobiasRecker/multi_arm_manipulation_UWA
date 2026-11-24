@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # This entry never powers URs, releases brakes, loads programs or presses Play.
 set -eo pipefail
+if [[ ${UWA_PROTECTION_BACKEND:-legacy} == minimal ]]; then
+ echo 'Legacy protection entry is retired in minimal mode. Use protection.sh; no service or native STOP was requested.' >&2
+ exit 2
+fi
 hardware_motion_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 hardware_motion_action="${1:-status}"
 if (($#)); then shift; fi

@@ -65,6 +65,16 @@ if(BUILD_TESTING)
     ${CMAKE_CURRENT_SOURCE_DIR}/test/mock_protection_integration.py --node $<TARGET_FILE:protection_node>)
   set_tests_properties(protection_mock_api PROPERTIES TIMEOUT 30
     ENVIRONMENT "ROS_DOMAIN_ID=67;ROS_LOCALHOST_ONLY=1")
+  add_test(NAME pausable_controller_mock COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/mock_pause_integration.py)
+  add_test(NAME pausable_controller_native_scaling_mock COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/mock_pause_integration.py --native-factor 0.5)
+  add_test(NAME four_manager_execution_mock COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/mock_cell_execution.py --node $<TARGET_FILE:protection_node>)
+  set_tests_properties(protection_mock_api pausable_controller_mock
+    pausable_controller_native_scaling_mock four_manager_execution_mock PROPERTIES
+    RUN_SERIAL TRUE TIMEOUT 120
+    ENVIRONMENT "ROS_DOMAIN_ID=67;ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST;ROS_LOCALHOST_ONLY=1;ROS_LOG_DIR=${CMAKE_CURRENT_BINARY_DIR}/test-logs")
 endif()
 ament_export_include_directories(include)
 ament_export_libraries(collision_core)

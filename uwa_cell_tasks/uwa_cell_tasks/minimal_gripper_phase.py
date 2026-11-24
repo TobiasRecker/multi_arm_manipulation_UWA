@@ -62,7 +62,9 @@ def run(args, state_bytes, state):
     try:
         report['finger_commands'] = [dict(arm=arm,operation=args.phase,force_raw=0,speed_raw=16) for arm in arms]
         save()
-        with ThreadPoolExecutor(max_workers=2) as pool:
+        # One shared ROS lifetime surrounds both clients: neither worker may
+        # tear down the context while the other gripper action is still active.
+        with motion_context(), ThreadPoolExecutor(max_workers=2) as pool:
             futures = {arm:pool.submit(command,arm) for arm in arms}
             for arm,future in futures.items():
                 try:

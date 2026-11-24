@@ -24,9 +24,13 @@ def forbidden(*a,**k):
     pytest.fail('Legacy protection or extra device observation was invoked')
 
 
-def test_minimal_observation_reads_shared_current_joints_without_native_or_rest_tests(tmp_path,monkeypatch):
+@pytest.mark.parametrize('binding',['runtime','install'])
+def test_minimal_observation_reads_shared_current_joints_without_native_or_rest_tests(tmp_path,monkeypatch,binding):
     monkeypatch.setenv('UWA_PROTECTION_BACKEND','minimal')
-    monkeypatch.setenv('UWA_MINIMAL_RUNTIME',str(tmp_path/'candidate'))
+    monkeypatch.delenv('UWA_MINIMAL_RUNTIME',raising=False)
+    monkeypatch.delenv('UWA_MINIMAL_INSTALL',raising=False)
+    monkeypatch.setenv('UWA_MINIMAL_RUNTIME' if binding=='runtime' else 'UWA_MINIMAL_INSTALL',
+                      str(tmp_path/'candidate') if binding=='runtime' else str(tmp_path/'candidate/install_lyrical'))
     names={arm:joint_names(arm) for arm in ROBOT_IDS}
     problem=Box(description='<robot name="mock"><link name="world"/></robot>',cfg={},
         inventory='candidate/inventory.yaml',binding='binding',signature='model',names=names,
@@ -34,7 +38,11 @@ def test_minimal_observation_reads_shared_current_joints_without_native_or_rest_
     seen=[]
     monkeypatch.setattr(observer,'require_domain',lambda mode:seen.append(mode))
     monkeypatch.setattr(observer,'released_area',lambda expected=None:dict(area_released=True,session_id='area'))
-    monkeypatch.setattr(observer,'config',lambda path:dict(command_velocity_limit_rad_s=.1))
+    config_paths=[]
+    def read_config(path):
+        config_paths.append(path)
+        return dict(command_velocity_limit_rad_s=.1)
+    monkeypatch.setattr(observer,'config',read_config)
     monkeypatch.setattr(observer,'HardwareProblem',lambda *a:problem)
     monkeypatch.setattr(observer,'signature',lambda *a:'hardware-identity')
     monkeypatch.setattr(observer,'MODULES',[])
@@ -53,6 +61,7 @@ def test_minimal_observation_reads_shared_current_joints_without_native_or_rest_
     context=json.loads((tmp_path/'observation/model-context.json').read_text())
     assert context['hardware_binding']=='binding' and context['model_signature']=='model'
     assert seen==['hardware']
+    assert config_paths==[tmp_path/'candidate/src/multi_arm_manipulation_UWA/uwa_cell_motion/config/hardware_carton_supported_trend.yaml']
 
 
 def frozen_plans(directory):

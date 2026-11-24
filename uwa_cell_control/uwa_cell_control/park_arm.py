@@ -15,6 +15,7 @@ from uwa_cell_gazebo.configuration import ROBOT_IDS, load_layout, joint_names, d
 from .hardware_parallel import independent_arm
 from .parking import (complete_state, digest, make_model, manual_states, plan_parking,
                       save_plan, validate_artifact)
+from .minimal_calibration import enabled as minimal_enabled
 
 
 class JointObserver:
@@ -24,8 +25,16 @@ class JointObserver:
         from rclpy.qos import QoSProfile,DurabilityPolicy,ReliabilityPolicy
         from rclpy.qos import qos_profile_sensor_data
         self.node,self.profiles,self.mode=node,profiles,mode
+        self.minimal = minimal_enabled()
+        self.ids = list(ids)
         self.received={};self.program_running={};self.safety_modes={};self.subscriptions=[]
-        for rid in ids:
+        if self.minimal:
+            from std_msgs.msg import String
+            qos=QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL,reliability=ReliabilityPolicy.RELIABLE)
+            self.subscriptions.append(node.create_subscription(String,'/uwa_cell/protection/state',
+                self.receive_protection,qos))
+            return
+        for rid in self.ids:
             self.subscriptions.append(node.create_subscription(JointState,
                 profiles[rid]['namespace']+'/joint_states',
                 lambda msg,rid=rid:self.receive(rid,msg),qos_profile_sensor_data))
@@ -50,8 +59,30 @@ class JointObserver:
                             'received_monotonic':time.monotonic(),
                             'recorded_at':datetime.now(timezone.utc).isoformat()}
 
+    def receive_protection(self,msg):
+        try:
+            values=json.loads(msg.data)['positions']
+            received={}
+            for rid in self.ids:
+                names=self.profiles[rid]['joint_names']
+                if not set(names)<=values.keys():continue
+                q=[values[j] for j in names]
+                if not np.isfinite(q).all():continue
+                received[rid]=dict(positions=q,
+                    source='mock_joint_states' if self.mode=='mock' else 'live_joint_states',
+                    measurement_source='shared_protection_state',received_monotonic=time.monotonic(),
+                    recorded_at=datetime.now(timezone.utc).isoformat())
+            self.received=received
+        except (ValueError,TypeError,KeyError):return
+
     def sample(self,timeout=4.):
         import rclpy
+        if getattr(self,'minimal',False):
+            for _ in range(4):rclpy.spin_once(self.node,timeout_sec=0.)
+            end=time.monotonic()+timeout
+            while not set(self.ids)<=self.received.keys() and time.monotonic()<end:
+                rclpy.spin_once(self.node,timeout_sec=.05)
+            return {r:dict(record) for r,record in self.received.items()}
         end=time.monotonic()+timeout
         while time.monotonic()<end:
             rclpy.spin_once(self.node,timeout_sec=.05)
@@ -59,6 +90,7 @@ class JointObserver:
                 if time.monotonic()-record['received_monotonic']<.5}
 
     def guard(self,plan,*,require_program_link=False):
+        if getattr(self,'minimal',minimal_enabled()):return
         moving=plan['arm'];now=time.monotonic()
         # A native Protective Stop may leave robot_program_running=true while
         # PolyScope pauses. Cancel our pending action instead of waiting for its
@@ -105,7 +137,7 @@ def node_for(mode):
 
 def plan(args):
     profiles=load_profiles(args.inventory);layout=load_layout(args.layout)
-    readings=manual_states(args.manual_states)
+    readings={} if minimal_enabled() and not args.snapshot else manual_states(args.manual_states)
     if args.snapshot:
         snapshot=json.loads(Path(args.snapshot).read_text())
         if snapshot.get('mode')!=args.mode:raise ValueError('Snapshot mode mismatch')
@@ -113,9 +145,18 @@ def plan(args):
     else:
         import rclpy
         node=node_for(args.mode)
-        observer=JointObserver(node,profiles,[r for r,p in profiles.items() if p['ip']],args.mode)
-        try:readings.update(observer.sample())
-        finally:observer.close();node.destroy_node();rclpy.shutdown()
+        observer=None
+        try:
+            if minimal_enabled():
+                from .minimal_calibration import checked_motion,shared_readings
+                with checked_motion(args.inventory,args.layout,args.mode,[]) as motion:
+                    readings.update(shared_readings(motion,args.mode))
+            else:
+                observer=JointObserver(node,profiles,[r for r,p in profiles.items() if p['ip']],args.mode)
+                readings.update(observer.sample())
+        finally:
+            if observer:observer.close()
+            node.destroy_node();rclpy.shutdown()
     start,sources,missing=complete_state(layout,readings)
     directory=Path(args.output).expanduser().resolve();directory.mkdir(parents=True,exist_ok=True)
     (directory/'states.json').write_text(json.dumps({'mode':args.mode,'arms':readings},indent=2)+'\n')
@@ -137,6 +178,7 @@ def execute(args):
     from match_ur_hardware.trajectory import execute_trajectory
     artifact=json.loads(Path(args.plan).read_text());profiles=load_profiles(args.inventory)
     validate_artifact(artifact,profiles)
+    if minimal_enabled():return execute_minimal(args,artifact,profiles)
     rid=artifact['arm'];profile=profiles[rid]
     if not profile['ip']:raise ValueError('No configured target arm IP')
     node=node_for(artifact['mode'])
@@ -180,6 +222,40 @@ def execute(args):
             raise RuntimeError(f'Final position error {error:.4f} rad')
         print(json.dumps(result,indent=2))
     finally:observer.close();node.destroy_node();rclpy.shutdown()
+
+
+def execute_minimal(args,artifact,profiles):
+    """Use ordinary controller completion and the shared pauseable path."""
+    import rclpy
+    from .minimal_calibration import checked_motion
+    rid=artifact['arm'];node=node_for(artifact['mode'])
+    try:
+        with checked_motion(args.inventory,artifact['layout_file'],artifact['mode'],[rid]) as motion:
+            start=motion.snapshot()
+            for r in ROBOT_IDS:
+                error=max(abs(start[j]-artifact['start'][j]) for j in joint_names(r))
+                if error>.01:raise ValueError(f'{r}: start changed by {error:.4f} rad; generate a new plan')
+            with tempfile.TemporaryDirectory(prefix='uwa-parking-recheck-') as directory:
+                model,layout=make_model(load_layout(artifact['layout_file']),profiles,directory)
+                if digest(layout)!=digest(artifact['layout']):raise ValueError('Cell layout changed; regenerate plan')
+                for point in artifact['points']:
+                    state=dict(start,**dict(zip(artifact['joint_names'],point['positions'])))
+                    if not model.check(state)[0]:raise ValueError('Current full-cell path recheck failed')
+            current=motion.snapshot()
+            if max(abs(current[j]-artifact['start'][j]) for j in joint_names(rid))>.01:
+                raise ValueError('Target moved during path recheck; regenerate plan')
+            if args.check_only:
+                print(json.dumps(dict(success=True,check_only=True,arm=rid,mode=artifact['mode'],
+                                      fingerprint=artifact['fingerprint'],protection_backend='minimal')))
+                return
+            result=motion.follow(rid,artifact['points'])
+            result.update(arm=rid,mode=artifact['mode'])
+            final=result.get('final_positions',{})
+            if set(artifact['joint_names'])<=final.keys():
+                result['final_error_rad']=max(abs(final[j]-q)
+                    for j,q in zip(artifact['joint_names'],artifact['target']))
+            print(json.dumps(result,indent=2))
+    finally:node.destroy_node();rclpy.shutdown()
 
 
 def main():

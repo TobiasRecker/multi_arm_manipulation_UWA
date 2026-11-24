@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Independent service-exit cleanup. Monitor closure never sends robot commands.
 set -eo pipefail
+if [[ ${UWA_PROTECTION_BACKEND:-legacy} == minimal ]]; then
+ echo 'Legacy native fallback is retired in minimal mode. Use protection.sh pause.' >&2
+ exit 2
+fi
 if [[ "${UWA_MOTION_ARMED:-0}" != 1 ]]; then exit 0; fi
 hardware_motion_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$hardware_motion_dir/control_env.bash"

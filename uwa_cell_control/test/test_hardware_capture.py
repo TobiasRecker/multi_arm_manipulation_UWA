@@ -64,3 +64,15 @@ def test_repeated_pixels_motion_and_autofocus_do_not_create_accepted_measurement
     with pytest.raises(ValueError,match='fixed manual focus'):
         capture_observation(camera,None,Observer(),SimpleNamespace(description=DESCRIPTION),
             load_layout(),'right_rear',tmp_path,'auto','fit')
+
+
+def test_minimal_capture_retains_image_quality_without_joint_stillness_gate(tmp_path,monkeypatch):
+    monkeypatch.setenv('UWA_PROTECTION_BACKEND','minimal')
+    record=capture_observation(Camera(),None,Observer(True),SimpleNamespace(description=DESCRIPTION),
+        load_layout(),'right_rear',tmp_path,'minimal','fit')
+    assert record['accepted'] and record['corners']==24
+    assert record['freshness']['stationary_joint_tolerance_rad'] is None
+    assert 'no stationary monitor' in record['freshness']['association']
+    with pytest.raises(ValueError,match='did not update'):
+        capture_observation(Camera(True),None,Observer(),SimpleNamespace(description=DESCRIPTION),
+            load_layout(),'right_rear',tmp_path,'minimal_repeated','fit',freshness_timeout=.03)

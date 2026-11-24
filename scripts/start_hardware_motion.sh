@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 set -eo pipefail
+if [[ ${UWA_PROTECTION_BACKEND:-legacy} == minimal ]]; then
+ echo 'Legacy guard startup is retired in minimal mode. Use protection.sh run.' >&2
+ exit 2
+fi
 # Keep BLAS workers from competing with native-state and watchdog callbacks.
 # This affects only this hardware service, never other simulations/agents.
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1

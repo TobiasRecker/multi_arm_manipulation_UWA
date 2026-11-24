@@ -17,7 +17,7 @@ for directory in ('scripts', 'uwa_cell_control', 'uwa_cell_tasks'):
 from PySide6 import QtCore, QtWidgets
 from protection_bridge import response_packet
 from motion_review_panel import ReviewPanel, remote_runtime_command
-from ur_power_gui import ProtectionControls, Window, protection_command
+from ur_power_gui import ProtectionControls, Window, protection_command, instance_address
 
 
 def wait_for(app, condition):
@@ -177,4 +177,54 @@ def test_candidate_power_and_review_commands_keep_runtime_and_literal_arguments(
     review = shlex.split(captured[0][1][-1])
     assert review[:6] == power[:5]+[runtime+'/review.sh']
     assert review[6:] == ['settings','--series-name','literal;$(no command)','--json']
+
+
+def test_status_audit_records_semantic_events_once_and_keeps_collision_evidence(tmp_path, app):
+    panel = ProtectionControls([str(tmp_path/'does-not-exist')])
+    events = []
+    panel.audit.connect(lambda kind, value:events.append((kind,value)))
+    status = dict(generation=17, paused=True, pausing=True, reason='COLLISION',
+        evaluated_monotonic_s=1., warnings=['Missing collision data: left rear'],
+        collision_data_available=False,
+        known_collisions=[dict(kind='neighbor_margin',links=['a','b'],distance_m=.039,threshold_m=.04)],
+        arms={'left_front':dict(confirmed=True,paused=True,factor=.8,phase_time_s=2.,error='')})
+    try:
+        panel.render_status(status)
+        status['evaluated_monotonic_s'] = 20.
+        status['arms']['left_front'].update(factor=.3, phase_time_s=2.3)
+        status['known_collisions'][0]['distance_m'] = .038
+        panel.render_status(status)
+        assert len(events) == 1
+        kind, value = events[0]
+        assert kind == 'protection status' and value['generation'] == 17
+        assert value['reason'] == 'COLLISION' and value['state'] == 'PAUSING'
+        assert value['known_collisions'][0]['distance_m'] == .039
+        assert value['warnings'] == status['warnings']
+        assert value['arms']['left_front']['confirmed'] is True
+        assert 'factor' not in value['arms']['left_front']
+        assert 'evaluated_monotonic_s' not in value
+        status['pausing'] = False
+        status['arms']['left_front']['factor'] = 0.
+        panel.render_status(status)
+        panel.render_status(dict(status, evaluated_monotonic_s=21.))
+        assert len(events) == 2 and events[-1][1]['state'] == 'PAUSED'
+        status['arms']['left_front']['error'] = 'Controller acknowledgement unavailable'
+        panel.render_status(status)
+        assert len(events) == 3
+        assert events[-1][1]['arms']['left_front']['error'] == 'Controller acknowledgement unavailable'
+    finally:
+        panel.shutdown()
+
+
+def test_candidate_ipc_identity_is_separate_and_stable_without_changing_default(monkeypatch):
+    monkeypatch.delenv('UWA_MINIMAL_RUNTIME',raising=False)
+    assert instance_address(uid=1000)=='\0uwa-robot-power-1000'
+    first=instance_address(uid=1000,candidate='/home/rosmatch/minimal-a')
+    assert first!=instance_address(uid=1000)
+    assert first==instance_address(uid=1000,candidate='/home/rosmatch/minimal-a/')
+    assert first!=instance_address(uid=1000,candidate='/home/rosmatch/minimal-b')
+    monkeypatch.setenv('UWA_MINIMAL_RUNTIME','/home/rosmatch/minimal-a')
+    assert first==instance_address(uid=1000)
+    with pytest.raises(ValueError,match='absolute'):
+        instance_address(uid=1000,candidate='relative/minimal')
 

@@ -1,5 +1,32 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## ChArUco: Empfehlung zum professionellen Neudruck, 24.11.2026
+
+Nutzer plant professionellen Druck und fragt nach idealer Platten-/Mustergröße
+und Pattern; freie Formate einschließlich größer als A3/A4 sind möglich.
+Bestand: feste aktive Muster280×200mm (7×5,40/28mm), mobiles266×190mm
+(7×5,38/28mm). A3 bezeichnet bisher das Papier, nicht die Musterfläche.
+
+Bevorzugter Entwurf des Agenten für die bestehende Zelle: zwei feste Platten
+550×400mm, aktive Muster500×350mm,10×7Felder à50mm/Marker36mm;
+mobil450×360mm, Muster405×315mm,9×7Felder à45mm/Marker33mm.
+ChArUco mit DICT_5X5_250, getrennten ID-Bereichen und dokumentierter Generation.
+Dies ist eine Empfehlung, keine Nutzerentscheidung oder Bestellfreigabe.
+
+Kurze Projektion mit gespeicherten Kameraposen/K/D ergibt bei der festen
+550×400mm-Platte mindestens91px Trägerrandreserve an der nahen USB-OAK-
+Ansicht;600×450mm nur etwa9px. Das mobile450×360mm-Board ist im Zentrum
+der vier Wrist-Ansichten plausibel, verkleinert aber den Bewegungsbereich;
+den bisherigen A4-Quader50×50×25cm nicht übertragen. Schärfe, Verdeckungen,
+Tischplatz und reale Erkennung sind damit nicht nachgewiesen.
+
+Steife, plane, matt bedruckte Platte und dokumentierte Maßhaltigkeit in beiden
+Achsen empfehlen. Vor Austausch Musterursprung und Oberflächenhöhe auf den
+bisherigen Tischbezug übertragen; die übernommenen Armbasisbindungen bleiben
+Arbeitsreferenz. Keine aktive Boarddefinition, Kalibrierung, Kamera oder
+Runtime geändert. Quellen, Rechnungsannahmen und Druckhinweise:
+[Arbeitsnachweis](work/charuco-professional-print-20261124.md).
+
 ## Neues minimales Hardware-Schutzkonzept, Auftrag 24.11.2026
 
 Nutzer verwirft das bisherige UWA-Guard-/Supervisor-/Watchdog-Konzept und

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Dispatch exact offline-checked serial observation trajectories on N100.
 
-Uses the existing hardware client, start/corridor/obstacle/full-cell checks and
-native action results. Geometry is compiled on ROSmini, SHA-bound to the active
-hardware model and checker sources. No N100 planning/retiming or guard changes.
+Geometry is compiled on ROSmini and SHA-bound to the active model and checker
+sources. Minimal mode uses the shared protection service and retained action
+goals; legacy mode keeps its previous checks. No N100 planning or retiming.
 """
 import argparse
 import hashlib
