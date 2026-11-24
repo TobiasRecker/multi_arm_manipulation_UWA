@@ -40,7 +40,7 @@ def task_scene(problem, adapter, definition, directory, *, tool_adapter=None):
                 geometry=ET.SubElement(member,'geometry')
                 if kind=='mesh':ET.SubElement(geometry,'mesh',filename=str(value))
                 else:ET.SubElement(geometry,'cylinder',radius=str(value[0]),length=str(value[1]))
-    meshes=REPO/'hardware/marker_tool/collision'
+    meshes=REPO/'uwa_cell_description/assets/pen_grasp_v1'
     dock=adapter.copy();dock[:3,3]+=adapter[:3,2]*definition['mount']['dock_base_z_m']
     link('pen_task_dock','world',dock,[('mesh',meshes/'dock.stl',[0,0,0])])
     parent=ARM+'_tool0' if tool_adapter is not None else 'world'
@@ -61,6 +61,22 @@ def task_scene(problem, adapter, definition, directory, *, tool_adapter=None):
     model.scene.allowed_collision_matrix.set_entry('pen_task_dock','pen_task_shaft',True)
     model.scene.allowed_collision_matrix.set_entry('pen_task_adapter','pen_task_shaft',True)
     return model,description
+
+
+def preview_description(xml):
+    tree=ET.fromstring(xml)
+    for link in tree.findall('link'):
+        name=link.get('name')
+        if name in ('pen_task_adapter','pen_task_shaft') or 'marker_station' in name or 'cos_marker_docked' in name:
+            for visual in list(link.findall('visual')):link.remove(visual)
+    for mesh in tree.iter('mesh'):
+        file=Path(mesh.get('filename').removeprefix('file://'))
+        if file.is_relative_to(REPO/'uwa_cell_description'):
+            uri='package://uwa_cell_description/'+str(file.relative_to(REPO/'uwa_cell_description'))
+        elif '/share/' in str(file):uri='package://'+str(file).rsplit('/share/',1)[1]
+        else:raise ValueError('Preview mesh has no installed package binding: '+str(file))
+        mesh.set('filename',uri)
+    return ET.tostring(tree,encoding='unicode')
 
 
 def linear_path(problem,start,target,goal,height):
@@ -181,12 +197,16 @@ def compile_plan(args):
         file=out/(name+'.json');dump(file,plan)
         segments.append(dict(phase=name,arm=ARM,plan=file.name,sha256=hashlib.sha256(file.read_bytes()).hexdigest(),duration_s=traj['duration_s']))
     # Scene contains the actual measured dock and pen, for operator RViz playback.
-    (out/'preview.urdf').write_text(scene_xml)
+    preview_xml=preview_description(scene_xml)
+    (out/'preview.urdf').write_text(preview_xml)
     sequence=dict(kind='pen_holder_grasp',schema_version=1,arm=ARM,segments=segments,start=state,
         command_velocity_limit_rad_s=remote['config']['command_velocity_limit_rad_s'],tcp_limit_m_s=args.tcp_cap,
         scene_session=snapshot['area_session'],T_world_adapter=adapter.tolist(),T_world_contact_tool0=contact.tolist(),
         definition=definition,definition_sha256=hashlib.sha256(args.definition.read_bytes()).hexdigest(),
-        perception=pose,robot_description=scene_xml,total_duration_s=sum(s['duration_s'] for s in segments),
+        perception=pose,robot_description=preview_xml,total_duration_s=sum(s['duration_s'] for s in segments),
+        pen=dict(arm=ARM,T_world_adapter=adapter.tolist(),T_tool0_adapter=(np.linalg.inv(contact)@adapter).tolist(),
+                 meshes=['package://uwa_cell_description/assets/pen_grasp_v1/adapter-1.stl',
+                         'package://uwa_cell_description/assets/pen_grasp_v1/adapter-2.stl']),
         qualification=definition['mount']['qualification'],robot_commands_sent=False)
     dump(out/'sequence.json',sequence)
     print(json.dumps(dict(success=True,output=str(out),duration_s=sequence['total_duration_s'])))

@@ -35,6 +35,8 @@ def main():
         copied[path] = '/input/assets/' + key + '/' + path.name
         if path.suffix.lower() == '.dae':
             tree = ET.parse(path)
+            if tree.getroot().tag.startswith('{'):
+                ET.register_namespace('', tree.getroot().tag[1:].split('}')[0])
             # COLLADA image paths are relative to the original mesh.
             for node in tree.findall('.//{*}image/{*}init_from'):
                 ref = node.text

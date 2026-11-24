@@ -1,8 +1,39 @@
 # Minimal hardware protection
 
-Operator decisions and implementation: 24 November 2026. The replacement is
-prepared as a separate candidate. The operative N100 runtime is changed only
-in its own operating transition.
+Operator decisions, implementation and real operating transition:24November2026.
+The N100 now runs `/home/rosmatch/uwa-ur-runtime/minimal-candidates/minimal.upWhPwQC`.
+The desktop launcher, Safety Log and Motion Review use this same runtime.
+
+## Active operation and physical check
+
+`uwa-minimal-protection.service` is a permanent N100 user service, enabled for
+the user default target with linger. It has `Restart=no` and no `ExecStopPost`.
+It starts the collision core only. **Start + ROS** separately starts missing
+drivers and the native programs; opening or closing the GUI sends no arm target.
+After deliberately stopping the core, start it with
+`systemctl --user start uwa-minimal-protection.service` on N100. A reboot was
+not performed during commissioning; the enabled unit and its file binding were
+verified. The old guard/supervisor/watchdog service is stopped.
+
+Restart the core while idle. Controller pause latches survive a core restart,
+but the core does not reconstruct their previous global pause session. If it
+was restarted during a retained pause, explicitly request **SOFTWARE STOP ALL
+ARMS**, inspect the acknowledgements, then **RESUME** when appropriate.
+
+The real four-arm functional check completed two separate simultaneous wrist
+tasks:0.1rad outward and back, each1.875s nominally at0.1rad/s and the existing
+0.2rad/s² acceleration limit. During the first task the visible production GUI
+received automated Qt mouse events for Stop and Resume. All four original
+action UUIDs and paused phases were retained. Advancing actual samples over
+1.036s measured a largest joint position span of0.000288rad while paused.
+Both tasks completed without reset; maximum final joint error was0.000080rad.
+Native programs were ready before and after; gripper registers were unchanged.
+
+The paths passed independent four-arm progress checking and110 checks against
+both host models. No physical collision or data-failure injection was performed.
+This is a functional observation of these small wrist paths, not a maximum
+braking-distance or long-term reliability qualification. Raw evidence and
+measurement details: [operating record](../work/minimal-real-cutover-20261124.md).
 
 ## Behaviour
 
@@ -117,6 +148,12 @@ python3 src/multi_arm_manipulation_UWA/scripts/ur_power_gui.py --n100 --protecti
 
 Power, Motion Review, the persistent protection bridge and program execution
 use the same candidate root. Merely opening the GUI sends no motion command.
+To bind both desktop actions persistently, use the installer on ROSmini:
+
+```bash
+python3 src/multi_arm_manipulation_UWA/scripts/install_ur_power_desktop.py \
+  --n100 --minimal-runtime /absolute/N100/path/to/minimal-candidates/minimal.EXAMPLE
+```
 
 For isolated simulation-free checks use Domain 67, `LOCALHOST`, GenericSystem
 and `--mode mock`. The core defaults to mock and rejects an incorrect domain.

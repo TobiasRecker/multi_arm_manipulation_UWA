@@ -139,7 +139,7 @@ def view(record, directory):
     model['Alpha'] = 1.
     model['Description Topic']['Value'] = ns + '/robot_description'
     config['Visualization Manager']['Displays'] = [grid, model, {
-        'Class': 'rviz_default_plugins/MarkerArray', 'Name': 'Reviewed carton', 'Enabled': True,
+        'Class': 'rviz_default_plugins/MarkerArray', 'Name': 'Reviewed task object', 'Enabled': True,
         'Topic': {'Value': ns + '/carton', 'Durability Policy': 'Transient Local', 'Depth': 1}}]
     config_path = directory / 'motion.rviz'
     config_path.write_text(yaml.safe_dump(config, sort_keys=False))
@@ -149,6 +149,11 @@ def view(record, directory):
     markers = node.create_publisher(MarkerArray, ns + '/carton',
                 QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
     carton = preview.get('carton')
+    pen = preview.get('pen')
+    pen_chain = None
+    if pen:
+        from uwa_cell_gazebo.charuco_views import Chain
+        pen_chain = Chain(description, 'world', pen['arm'] + '_tool0')
     if carton:
         transform = np.asarray(carton['T_world_object'], float)
         boxes = carton.get('shell_boxes') or [{'lo': [0, 0, 0], 'hi': carton['size_m']}]
@@ -219,6 +224,31 @@ def view(record, directory):
         if pos >= timeline.duration:
             playing = False
         phase, arms, positions = timeline.at(pos)
+        if pen:
+            pose = (pen_chain.forward(positions) @ np.asarray(pen['T_tool0_adapter'])
+                    if phase == 'lift' else np.asarray(pen['T_world_adapter']))
+            packet = MarkerArray()
+            rotation = Rotation.from_matrix(pose[:3,:3]).as_quat()
+            for index in range(3):
+                marker = Marker()
+                marker.header.frame_id = 'world'
+                marker.id, marker.ns = index, 'pen'
+                center = pose[:3,3].copy()
+                if index < 2:
+                    marker.type = Marker.MESH_RESOURCE
+                    marker.mesh_resource = pen['meshes'][index]
+                    marker.scale.x = marker.scale.y = marker.scale.z = 1.
+                else:
+                    marker.type = Marker.CYLINDER
+                    center += pose[:3,2] * -.0165
+                    marker.scale.x = marker.scale.y = .021
+                    marker.scale.z = .125
+                marker.pose.position.x, marker.pose.position.y, marker.pose.position.z = map(float,center)
+                orientation=marker.pose.orientation
+                orientation.x,orientation.y,orientation.z,orientation.w=map(float,rotation)
+                marker.color.r,marker.color.g,marker.color.b,marker.color.a=.05,.65,.22,1.
+                packet.markers.append(marker)
+            markers.publish(packet)
         if not slider.isSliderDown():
             slider.setValue(round(10_000 * pos / timeline.duration) if timeline.duration else 0)
         label.setText(f'PREVIEW · {phase} · {", ".join(arms)}\n{pos:.1f} / {timeline.duration:.1f} s · {record["sha256"][:12]}')

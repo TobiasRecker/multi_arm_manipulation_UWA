@@ -2,9 +2,10 @@
 
 The replacement [minimal hardware protection](docs/minimal_hardware_protection.md)
 uses one C++ collision core and a global **SOFTWARE STOP ALL ARMS / RESUME** in
-UWA Robot Power. It is prepared as an isolated candidate; the operative N100
-runtime changes in a separate operating transition. Missing collision data warn
-only, and grippers participate solely through their collision geometry.
+UWA Robot Power. It has been active on the N100 since24November2026; the real
+four-arm pause/resume and two consecutive tasks passed. Missing collision data
+warn only, and grippers participate solely through their collision geometry.
+See the [operating transition and measured evidence](work/minimal-real-cutover-20261124.md).
 
 **Program library → [Multi-camera calibration capture](docs/multi_camera_library_program.md)**
 prepares all four observation poses with freshly planned serial paths and opens

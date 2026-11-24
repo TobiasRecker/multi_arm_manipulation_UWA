@@ -119,3 +119,75 @@ def test_pen_review_is_separate_from_carton_trust_and_explicit(tmp_path):
     with pytest.raises(ValueError):store.begin_component(identifier,'a'*64)
     store.finish(identifier,True)
     assert store.status(task='pen_holder_grasp')['settings']['trust']==0
+
+
+def test_sequence_cannot_target_another_arm_or_skip_lift(tmp_path,monkeypatch):
+    import execute_pen_grasp as execute
+    sequence=dict(kind='pen_holder_grasp',arm='right_rear',command_velocity_limit_rad_s=.1,
+        segments=[dict(phase=n,arm='left_rear') for n in ('approach','entry','lift')])
+    file=tmp_path/'sequence.json';file.write_text(json.dumps(sequence))
+    with pytest.raises(ValueError,match='left-rear'):execute.load_sequence(tmp_path,execute.sha(file))
+    sequence['arm']='left_rear';sequence['segments'].pop();file.write_text(json.dumps(sequence))
+    with pytest.raises(ValueError,match='left-rear'):execute.load_sequence(tmp_path,execute.sha(file))
+    with pytest.raises(ValueError,match='changed'):execute.load_sequence(tmp_path,'0'*64)
+
+
+@pytest.mark.parametrize('phase,close_fails',[('approach',False),('contact',False),('contact',True)])
+def test_reviewed_execution_order_and_no_lift_after_failed_close(tmp_path,monkeypatch,phase,close_fails):
+    import execute_pen_grasp as execute
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+    from uwa_cell_motion import minimal_execution
+    from uwa_cell_tasks import reviewed_carton_execution
+    events=[]
+    start={'j':0.}
+    cfg={};plan=lambda n:dict(config=cfg,inventory='fixture',hardware_binding='binding',mesh_sha256={},request=dict(start=start),
+                            trajectory=dict(duration_s=1.,points=[],label=n))
+    plans=[plan(n) for n in ('approach','entry','lift')]
+    sequence=dict(arm='left_rear',scene_session='session',command_velocity_limit_rad_s=.1,tcp_limit_m_s=.25/3,
+        start=start,robot_description='<robot/>',total_duration_s=3.,qualification='fixture',definition=DEFINITION,
+        segments=[dict(phase=n,sha256=str(i)*64) for i,n in enumerate(('approach','entry','lift'))])
+    monkeypatch.setattr(execute,'require_domain',lambda _:None)
+    monkeypatch.setattr(execute,'load_sequence',lambda *a:(sequence,plans))
+    monkeypatch.setattr(execute,'minimal_enabled',lambda:True)
+    monkeypatch.setattr(execute,'motion_context',lambda:__import__('contextlib').nullcontext())
+    monkeypatch.setattr(execute,'HardwareProblem',lambda *a:SimpleNamespace(binding='binding',spheres=SimpleNamespace(geometry=SimpleNamespace(assets={})),cfg={}))
+    client=Mock(owned=set());client.connect.side_effect=lambda:events.append('connect')
+    monkeypatch.setattr(minimal_execution,'MinimalHardwareClient',lambda *a:client)
+    store=Mock();store.status.return_value=dict(area_released=True,session_id='session',settings=dict(speed_percent=100/3))
+    store.begin_component.side_effect=lambda *a:events.append('bound-dispatch')
+    monkeypatch.setattr(execute,'ReviewStore',lambda:store)
+    @contextmanager
+    def approval(s,operation,meta,preview):
+        events.append('approved-'+meta['stage'])
+        assert meta['risk']=='high' and meta['arms']==['left_rear']
+        yield 'review'
+    monkeypatch.setattr(execute,'approval',approval)
+    class Gripper:
+        def __init__(self,arm):assert arm=='left_rear'
+        def __enter__(self):return self
+        def __exit__(self,*a):pass
+        def activate(self):events.append('activate')
+        def open(self,**kw):events.append('open')
+        def close_gripper(self,**kw):
+            events.append('close')
+            if close_fails:raise RuntimeError('Close failed')
+            return dict(success=True)
+    monkeypatch.setattr(execute,'GripperClient',Gripper)
+    monkeypatch.setattr(execute,'follow_frozen',lambda c,p,r:events.append(p['trajectory']['label']))
+    monkeypatch.setattr(execute,'photo_packet',lambda *a:dict(original_sha256='f'*64))
+    monkeypatch.setattr(reviewed_carton_execution,'_start_matches',lambda *a:events.append('start-match'))
+    out=tmp_path/'execution';out.mkdir()
+    if phase=='contact':
+        (out/'workflow.json').write_text(json.dumps(dict(success=True,phase='WAITING_VISUAL_REVIEW',sequence_sha256='s'*64,
+            entry_finished_unix=0.,arm_commands=[],finger_commands=[])))
+    args=SimpleNamespace(plans=tmp_path,output=out,phase=phase,sequence_sha256='s'*64,entry=tmp_path/'entry')
+    if close_fails:
+        with pytest.raises(RuntimeError,match='Close failed'):execute.run(args)
+        assert 'lift' not in events and 'open' not in events
+    else:
+        execute.run(args)
+        if phase=='approach':
+            assert events.index('approved-motion')<events.index('approach')<events.index('activate')<events.index('open')<events.index('entry')
+            assert 'close' not in events and 'lift' not in events
+        else:assert events.index('approved-contact')<events.index('start-match')<events.index('close')<events.index('lift')

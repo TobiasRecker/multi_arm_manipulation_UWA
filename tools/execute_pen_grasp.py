@@ -100,7 +100,7 @@ def run(args):
         if (problem.binding!=plan['hardware_binding'] or problem.spheres.geometry.assets!=plan['mesh_sha256']
                 or problem.cfg!=plan['config']):raise ValueError('Active model changed since pen planning')
     groups=[dict(phase=s['phase'],arms=[ARM],trajectories={ARM:p['trajectory']}) for s,p in zip(sequence['segments'],plans)]
-    preview=dict(start=sequence['start'],robot_description=sequence['robot_description'],groups=groups,
+    preview=dict(start=sequence['start'],robot_description=sequence['robot_description'],groups=groups,pen=sequence.get('pen'),
         duration_s=sequence['total_duration_s'])
     report=json.loads(state_file.read_text()) if args.phase=='contact' else dict(success=False,phase='PREPARED',arm=ARM,arm_commands=[],finger_commands=[])
     meta=dict(task=TASK,risk='high',stage='motion' if args.phase=='approach' else 'contact',arms=[ARM],

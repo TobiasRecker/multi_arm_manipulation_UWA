@@ -1,6 +1,7 @@
 // Native Gazebo Rendering / Ogre2 offline camera capture. No simulator or ROS.
 #include <gz/rendering.hh>
 #include <gz/math.hh>
+#include <gz/common/MeshManager.hh>
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <iostream>
@@ -33,7 +34,7 @@ int main(int argc, char **argv) {
     auto engine = r::engine("ogre2", {{"headless", "1"}});
     if (!engine) throw std::runtime_error("Ogre2 unavailable");
     auto scene = engine->CreateScene("uwa_carton_film");
-    scene->SetAmbientLight(.55, .58, .64);
+    scene->SetAmbientLight(m::Color(.55, .58, .64));
     scene->SetBackgroundColor(.12, .16, .22);
     auto root = scene->RootVisual();
     auto sun = scene->CreateDirectionalLight("soft_key");
@@ -55,7 +56,9 @@ int main(int argc, char **argv) {
       if (type == "mesh") {
         std::string path = item["mesh"];
         if (path.rfind("file://", 0) == 0) path.erase(0, 7);
-        geometry = scene->CreateMesh(path);
+        auto mesh = gz::common::MeshManager::Instance()->Load(path);
+        if (!mesh) throw std::runtime_error("Cannot load mesh: " + path);
+        geometry = scene->CreateMesh(mesh);
       } else if (type == "box") geometry = scene->CreateBox();
       else if (type == "cylinder") geometry = scene->CreateCylinder();
       else if (type == "sphere") geometry = scene->CreateSphere();
@@ -85,15 +88,6 @@ int main(int argc, char **argv) {
       visual->SetLocalScale(width, width, d.Length() + .001);
       visual->SetMaterial(isRed ? red : yellow); visual->SetVisible(false);
       nodes.at("carton")->AddChild(visual); marks.push_back(visual);
-      if (isRed) {
-        auto dot = scene->CreateVisual(); dot->AddGeometry(scene->CreateSphere());
-        dot->SetLocalPosition(a); dot->SetLocalScale(.009); dot->SetMaterial(red); dot->SetVisible(false);
-        visual->AddChild(dot);
-        // The sphere is a separate carton-local visual; avoid inherited scale.
-        visual->RemoveChild(dot); nodes.at("carton")->AddChild(dot);
-        // Pair its visibility to the segment in the render loop below.
-        marks.back()->SetUserData("dot", int(marks.size()));
-      }
     }
     // Red surface dots are created explicitly below to keep state simple.
     std::vector<std::pair<size_t, r::VisualPtr>> dots;

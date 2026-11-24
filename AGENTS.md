@@ -27,9 +27,16 @@ frühere Anforderungen an UWA-Guards, Supervisoren, Watchdogs und Ablaufmonitore
   Ausführungsergebnisse, keine neue globale UWA-Stoppkaskade daraus ableiten.
 - Robot Power/Motion Review bleiben. Stop unabhängig von laufender GUI-Aktion
   erreichbar und auf Englisch mit deutlich sichtbarem Text rückmelden.
-- Der neue Backendpfad ist `UWA_PROTECTION_BACKEND=minimal`. Den operativen
-  Altbetrieb bis zum eigenen Betriebswechsel erhalten; keine Mischaktivierung.
-  Historische Wächterregeln unten beschreiben nur diesen Altbetrieb.
+- Der aktive Backendpfad ist seit dem beauftragten Betriebswechsel24.11.2026
+  `UWA_PROTECTION_BACKEND=minimal`. N100-Runtime:
+  `/home/rosmatch/uwa-ur-runtime/minimal-candidates/minimal.upWhPwQC`.
+  Dauerhafter Dienst `uwa-minimal-protection.service`, `Restart=no`, ohne
+  ExecStopPost. Alte Wächter beendet; keine Mischaktivierung. Historische
+  Wächterregeln unten beschreiben den abgelösten Altbetrieb.
+- Reale Vierarm-Prüfung24.11.: zwei gemeinsame q6-Aufgaben hin/zurück bei
+  unverändertem0,1rad/s-Sollmaximum erfolgreich; GUI-Pause und ausdrückliches
+  Resume mit denselben vier Action-UUIDs. Nachweise und Grenzen in
+  [Betriebswechsel](work/minimal-real-cutover-20261124.md).
 
 Bei Fehlern in UR-Treibern auch den offiziellen Quellstand von Universal Robots auf eine passende Korrektur prüfen (Nutzerwunsch vom 24.11.2026).
 
@@ -188,6 +195,17 @@ angezeigten Arme und die Revision gebunden.
 - Nutzerentscheidung 20.11.2026: Vom Nutzer vorgenommene Änderungen an
   der UR- und N100-Konfiguration nur auf seinen ausdrücklichen Auftrag
   zurücksetzen. Bei Diagnosen den tatsächlich vorgefundenen Stand verwenden.
+
+## Anschauliches Gazebo-Video, Nutzerauftrag 24.11.2026
+
+- Karton-Zeichnungsdemo mit zwei Haltearmen und einem Arbeitsarm als hübsches
+  Video nativ mit Gazebo rendern. Nutzer schlägt etwa15 Bilder je Sekunde
+  Ablaufzeit und unmittelbar zweifache Exportgeschwindigkeit vor.
+- Entstehende werkstückgebundene Zeichen-/Bohrspuren wie in der
+  Browservorschau farblich hervorheben: Gelb für Zeichnen, Rot für virtuelle
+  Bohrstellen. Visuelle Spuren nicht als realen Materialeingriff ausgeben.
+- Gespeicherte geprüfte Bahnen dürfen für die Videoansicht wiederverwendet
+  werden. Renderwiedergabe von erneuter Kontaktphysik unterscheiden.
 
 ## Reaktive Aufgabenschritte in Gazebo, 23.11.2026
 

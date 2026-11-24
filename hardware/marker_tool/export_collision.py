@@ -28,7 +28,7 @@ with tempfile.TemporaryDirectory() as tmp:
         e.Next()
 assert len(bodies)==3
 bodies.sort(key=lambda v:(v[0],v[1]))
-out=p/'collision';out.mkdir(exist_ok=True)
+out=p.parents[1]/'uwa_cell_description/assets/pen_grasp_v1';out.mkdir(exist_ok=True)
 for n,(_,_,mesh) in enumerate(bodies):
     if n:mesh.apply_translation([0,0,-89.5])
     mesh.apply_scale(.001)

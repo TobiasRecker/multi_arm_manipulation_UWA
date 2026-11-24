@@ -1,5 +1,18 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Gazebo-Video mit gelben/roten Werkstückspuren, 24.11.2026
+
+Nutzer wünscht eine anschauliche native Gazebo-Videofassung der bestehenden
+Dreiarm-Kartondemo, etwa15 Bilder/s Ablaufzeit und direkt2× beschleunigt.
+Zeichenlinien gelb, virtuelle Bohrstellen rot und am bewegten Karton gebunden.
+Die gespeicherten Sollbahnen des erfolgreichen Home-Laufs vom20.11.
+(`house_drill_home_20261120_01/run05`,54 Phasen ab Hub) werden mit
+Gazebos Ogre2-Renderbibliothek in einem getrennten titanpc-Container
+aufbereitet. Übersicht plus Werkstücknahansicht,1920×1080/30fps geplant.
+Dies ist Renderwiedergabe mit kinematischer Griffbindung, keine neue
+Kontaktphysik. Keine realen Arme oder laufenden Simulatoren werden bedient.
+Implementierung/Prüfstand: [Arbeitsstand](work/carton-video-20261124.md).
+
 ## ChArUco: professioneller Neudruck und fertige PDFs, 24.11.2026
 
 Nutzer plant professionellen Druck und fragt nach idealer Platten-/Mustergröße
@@ -62,7 +75,7 @@ Stop/Resume-Bedienung mit eigenem N100-Kanal. Kartonprogramm, Kamera-Library,
 Parking, Akquisitionsfolgen und paralleler Scan nutzen im Minimalbetrieb den
 gemeinsamen Adapter statt der alten Wächter. Bestehende Bahnen und Tempi bleiben.
 
-Gebauter, inaktiver N100-Kandidat:
+Seit dem ausdrücklich beauftragten realen Betriebswechsel24.11.2026 aktive N100-Runtime:
 `/home/rosmatch/uwa-ur-runtime/minimal-candidates/minimal.upWhPwQC`.
 Fünf Pakete erfolgreich gebaut; Quellenmanifest geprüft. Schlussregression:
 168 Pythonprüfungen und6/6 C++-/Controller-Mocktests bestanden, darunter zwei
@@ -75,11 +88,33 @@ stimmen überein. Kleine N100-Dateistichprobe:12,1–27,0ms ungecachet bzw.
 
 Nutzerpause wurde durch gezieltes SIGSTOP des eigenen Builds umgesetzt und
 nach ausdrücklicher Fortsetzung anhand Prozessidentitäten wieder aufgehoben.
-Der Build ist inzwischen beendet. Keine realen Arm-/Greifer-/Power-/Brake-/
-Play-Befehle und kein Hardwaredienstwechsel durch diese Arbeit. Die operative
-Runtime bleibt bis zum eigenen Betriebswechsel alt; reale Funktions-/Anhalte-
-prüfung und Aktivierung sind noch offen. Frühere Anforderungen, alle alten
-UWA-Wächter im Neubau zu erhalten, sind durch den Nutzerauftrag ersetzt.
+Der Build ist inzwischen beendet. Die damalige reine Implementierung nahm
+keine Hardwareänderung vor. Im folgenden ausdrücklichen Nutzerauftrag wurde
+der reale Betriebswechsel durchgeführt: alten Schutz zuerst beendet, vier
+Treiber auf den Kandidaten umgestellt, C++-Kern gestartet und alle vier
+`ros.urp` über **Start + ROS** regulär gestartet. Alte UWA-Wächter sind aus.
+Der Kern ist jetzt ein dauerhafter N100-Benutzerdienst
+`uwa-minimal-protection.service` mit `Restart=no`, ohne ExecStopPost und mit
+aktiviertem Benutzer-Autostart/Linger. Aktuelle Invocation
+`f440e62ec5724c279e6f029a5deb4231`; Desktop und Safety-Log-Aktion binden denselben
+Kandidaten. Treiber/Programme bleiben separat bediente Starts.
+
+**Reale Funktionsprüfung18:11AWST bestanden:** zwei simultane Vierarm-Aufgaben
+q6 je0,1rad hin/zurück, je1,875s nominell, unverändert0,1rad/s und0,2rad/s².
+Stop und Resume als automatisierte Qt-Mausereignisse im sichtbaren
+Originalfenster; eigener SSH-Kanal bleibt von der laufenden Fahrt unabhängig.
+Alle vier ursprünglichen Action-UUIDs und Phasen während Pause erhalten,
+anschließend dieselben Ziele erfolgreich fortgesetzt. Zweite Aufgabe direkt
+danach erfolgreich, ohne Reset. Größte Positionsspanne über1,036s Pause
+0,000288rad; größte Rückkehrabweichung0,000080rad. Native Skalierung1,0;
+Programme vorher/nachher PLAYING/ROS-ready, keine beobachtete Programmunterbrechung,
+Greiferregister unverändert. Endzustand: alle vier Ziele beendet, Arme in ihren
+Ausgangspositionen, Kollisionsdaten vollständig, keine Warnung/Kollision.
+
+Vorab vollständiger unabhängiger Fortschrittsnachweis und110 C++-Geometrieprüfungen
+auf beiden Hosts. Keine absichtlichen realen Kollisionen oder Datenfehler;
+kein maximaler Bremsweg- oder Dauerstabilitätsnachweis. Frühere Anforderungen,
+alle alten UWA-Wächter im Neubau zu erhalten, sind durch den Nutzerauftrag ersetzt.
 
 [Bedienung](docs/minimal_hardware_protection.md) ·
 [Arbeitsstand und Nachweise](work/minimal-hardware-protection-20261124.md) ·
@@ -87,6 +122,8 @@ UWA-Wächter im Neubau zu erhalten, sind durch den Nutzerauftrag ersetzt.
 [C++-/Mockprüfung](../../setup/tasks/minimal-protection-20261124/cpp-final-ctest.log) ·
 [N100-Build](../../setup/tasks/minimal-protection-20261124/n100-final-build.log) ·
 [Rechnervergleich](../../setup/tasks/minimal-protection-20261124/n100-cross-host-parity.json).
+
+[Realer Betriebswechsel und Nachweise](work/minimal-real-cutover-20261124.md).
 
 ## Stiftaufnahme: ArUco-Druckbogen, 24.11.2026
 
