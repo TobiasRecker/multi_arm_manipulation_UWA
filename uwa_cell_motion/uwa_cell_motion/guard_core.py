@@ -1,6 +1,6 @@
 """Pure state machine: pair faults latch until an explicit stationary reset."""
 import numpy as np
-from .common import PAIRS,standstill_limits,arm_velocity_limit,joint_velocity_limits,SPEED_TOLERANCE
+from .common import PAIRS,standstill_limits,arm_velocity_limit,joint_velocity_limits,SPEED_TOLERANCE,measured_joint_speed_limit
 
 
 class GuardState:
@@ -70,11 +70,16 @@ class GuardState:
         faults = list(self.external_faults)
         for rid,record in self.records.items():
             limits=joint_velocity_limits(self.cfg,rid,len(record['v']))
-            ratios=abs(record['v'])/limits
-            if np.max(ratios)>SPEED_TOLERANCE:
+            tolerance=self.cfg.get('measured_joint_speed_tolerance_ratio',SPEED_TOLERANCE-1)
+            trip_limits=limits*SPEED_TOLERANCE
+            trip_limits[:6]=measured_joint_speed_limit(limits[:6],tolerance)
+            ratios=abs(record['v'])/trip_limits
+            if np.max(ratios)>1:
                 index=int(np.argmax(ratios))
                 faults.append(dict(arms=[rid],reason='SPEED LIMIT',joint_index=index,
-                    measured_velocity_rad_s=float(record['v'][index]),configured_limit_rad_s=float(limits[index])))
+                    measured_velocity_rad_s=float(record['v'][index]),configured_limit_rad_s=float(limits[index]),
+                    trip_limit_rad_s=float(trip_limits[index]),
+                    tolerance_ratio=float(tolerance if index<6 else SPEED_TOLERANCE-1)))
         for a, b in PAIRS:
             if not self.fresh(a, now, source_now) or not self.fresh(b, now, source_now):
                 detail={}

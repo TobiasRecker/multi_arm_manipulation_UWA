@@ -14,7 +14,7 @@ import time
 import uuid
 from pathlib import Path
 
-from .common import ROBOT_IDS, joint_velocity_limits
+from .common import ROBOT_IDS, joint_velocity_limits, measured_joint_speed_limit
 from .motion_envelope import MotionEnvelope
 
 
@@ -79,6 +79,8 @@ class PilotGuardChannel:
         self.problem = problem
         self.mode = mode
         self.timeout = problem.cfg['heartbeat_timeout_s']
+        self.joint_tolerance_ratio = problem.cfg.get('measured_joint_speed_tolerance_ratio', 0.)
+        measured_joint_speed_limit(1., self.joint_tolerance_ratio)
         self.qualification = _qualification(problem) if mode == 'hardware' else None
         self.listener = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
         self.listener.setblocking(False)
@@ -131,7 +133,8 @@ class PilotGuardChannel:
                             raise ValueError('Reviewed TCP/speed identity mismatch')
                         validate_operating_point(self.problem, self.mode, env, lambda _: self.qualification)
                         for arm in env.chains:
-                            env.check_measured(arm, records[arm]['q'], records[arm]['v'])
+                            env.check_measured(arm, records[arm]['q'], records[arm]['v'],
+                                               joint_tolerance_ratio=self.joint_tolerance_ratio)
                         self.envelope = env
                         self.token = uuid.uuid4().hex
                         self.loss = None
@@ -168,12 +171,16 @@ class PilotGuardChannel:
             for arm in self.envelope.chains:
                 try:
                     row = records[arm]
-                    measured[arm] = self.envelope.check_measured(arm, row['q'], row['v'])
+                    measured[arm] = self.envelope.check_measured(arm, row['q'], row['v'],
+                                                               joint_tolerance_ratio=self.joint_tolerance_ratio)
                 except (KeyError, ValueError) as error:
                     faults.append(dict(arms=list(ROBOT_IDS), reason='REVIEWED JOINT/TCP SPEED OR STATE INVALID', detail=str(error)))
         summary = dict(state='REVIEWED_EXECUTION' if self.token else 'ARMED_HOLD_OR_EXTERNAL_SOURCE',
                        exclusive_commands_proved=False, token=self.token, measured=measured,
                        speed_envelope=None if self.envelope is None else self.envelope.spec,
+                       measured_joint_speed_tolerance_ratio=self.joint_tolerance_ratio,
+                       measured_joint_trip_limit_rad_s=None if self.envelope is None else measured_joint_speed_limit(
+                           self.envelope.joint_limit_rad_s, self.joint_tolerance_ratio),
                        digest=None if self.envelope is None else self.envelope.digest)
         return faults, summary
 

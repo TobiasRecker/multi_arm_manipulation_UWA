@@ -55,6 +55,18 @@ def test_offset_jacobian_and_strict_measured_limits():
         env.check_measured(ARM,q,[float('nan')]*6)
 
 
+def test_measured_joint_tolerance_preserves_strict_tcp_and_planned_limits():
+    env=envelope(joint=.1,tcp=.25)
+    q=[0.]*6
+    env.check_measured(ARM,q,[0.]*5+[.115],joint_tolerance_ratio=.15)
+    with pytest.raises(ValueError,match='joint_trip_rad_s=0.115'):
+        env.check_measured(ARM,q,[0.]*5+[.115000001],joint_tolerance_ratio=.15)
+    with pytest.raises(ValueError,match='measured speed'):
+        envelope().check_measured(ARM,q,[0.]*5+[.09],joint_tolerance_ratio=.15)
+    with pytest.raises(ValueError,match='interpolated'):
+        env.check_trajectory(ARM,[point(0,0,False),point(1,.11,False)])
+
+
 @pytest.mark.parametrize('derivatives', [False, True])
 def test_curve_bound_and_normalized_retiming(derivatives):
     env = envelope()
@@ -92,9 +104,10 @@ def proof():
 
 
 class Cell:
-    def __init__(self):
+    def __init__(self, tolerance=None):
         self.problem = SimpleNamespace(original_description=description(), cfg=dict(
             heartbeat_timeout_s=.25, velocity_limit_rad_s=.1, command_velocity_limit_rad_s=.1))
+        if tolerance is not None:self.problem.cfg['measured_joint_speed_tolerance_ratio']=tolerance
         self.sig = uuid.uuid4().hex
         self.instance = uuid.uuid4().hex
         self.channel = PilotGuardChannel(self.problem, 'mock', self.sig, self.instance)
@@ -116,6 +129,22 @@ class Cell:
         s.send(json.dumps(dict(op='acquire', spec=env.spec, digest=env.digest)).encode())
         faults, state = self.tick()
         return json.loads(s.recv(8192)),faults,state
+
+
+def test_guard_channel_uses_profile_tolerance_at_admission_and_during_execution():
+    cell=Cell(tolerance=.15)
+    try:
+        cell.records[ARM]['v'][:2]=[.115,-.115]  # Coaxial fixture: zero TCP speed.
+        with cell.connect() as s:
+            answer,faults,summary=cell.acquire(s)
+            assert answer['ok'] and not faults
+            assert summary['measured_joint_trip_limit_rad_s']==.115
+            assert summary['speed_envelope']['joint_limit_rad_s']==.1
+            cell.records[ARM]['v'][:2]=[.115000001,-.115000001]
+            faults,_=cell.tick()
+            assert faults[0]['reason']=='REVIEWED JOINT/TCP SPEED OR STATE INVALID'
+    finally:
+        cell.channel.close()
 
 
 def test_guard_exclusive_admission_endpoint_idle_unknown_always_armed():

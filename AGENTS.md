@@ -1,5 +1,15 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Nutzerfreigabe zur gemessenen Gelenkgeschwindigkeit, 24.11.2026
+
+- Für den Kartonablauf15% Toleranz über der geplanten Gelenkgrenze verwenden.
+  Bei0,1rad/s Sollmaximum akzeptieren der allgemeine Gelenkwächter und die
+  zusätzliche Pilotprüfung Messwerte bis einschließlich0,115rad/s; darüber
+  stoppen. Profilparameter `measured_joint_speed_tolerance_ratio: 0.15`.
+  Dies ändert die früher genannte gemessene Auslöseschwelle für dieses Profil,
+  nicht die0,1rad/s-Planungs-/Befehlsgrenze. TCP-Grenze, Geometrie, Frische,
+  Stillstand und native UR-Sicherheit bleiben separat unverändert.
+
 ## Gemeinsame Kalibrieransichten, Nutzerauftrag 23.11.2026
 
 - Beide externen Kameras mit den gemessenen optischen Posen im kalibrierten

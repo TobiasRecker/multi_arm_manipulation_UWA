@@ -14,6 +14,14 @@ PAIRS = (('left_front', 'right_front'), ('left_front', 'left_rear'),
 BODY_RESERVE_MODEL = 'per_body_joint_caps_v2'
 SPEED_TOLERANCE = 1.05
 
+
+def measured_joint_speed_limit(limit, tolerance_ratio):
+    """Trip threshold only; trajectory timing and stopping-model caps stay separate."""
+    if (type(tolerance_ratio) not in (int, float) or not np.isfinite(tolerance_ratio)
+            or not 0 <= tolerance_ratio <= 1):
+        raise ValueError('Measured joint speed tolerance must be a finite ratio from zero to one')
+    return limit + limit * tolerance_ratio
+
 # Measured Gazebo open-stop chatter: up to5.1urad span, 5.1mrad/s peak.
 # A separate, tighter displacement window prevents accepting a moving tool.
 TOOL_STANDSTILL_SPAN_RAD = 1e-5
@@ -33,6 +41,9 @@ def config(path=None):
         path = Path(get_package_share_directory('uwa_cell_motion'))/'config/motion.yaml'
     data = yaml.safe_load(Path(path).read_text())
     for name, value in data.items():
+        if name == 'measured_joint_speed_tolerance_ratio':
+            measured_joint_speed_limit(1., value)
+            continue
         if name == 'pilot_operating_qualification':
             if (not isinstance(value, dict) or set(value) != {'path','sha256'}
                     or not isinstance(value['path'],str) or not Path(value['path']).is_absolute()
@@ -150,7 +161,8 @@ def guard_signature(cfg):
           'standstill_window_s','sphere_spacing_m')
     bounds={k:cfg[k] for k in keys}
     if 'arm_velocity_limits_rad_s' in cfg:bounds['arm_velocity_limits_rad_s']=dict(cfg['arm_velocity_limits_rad_s'])
-    for name in ('stopping_reserve_model','stopping_reserve_policy','joint_velocity_limits_rad_s','command_velocity_limit_rad_s'):
+    for name in ('stopping_reserve_model','stopping_reserve_policy','joint_velocity_limits_rad_s','command_velocity_limit_rad_s',
+                 'measured_joint_speed_tolerance_ratio'):
         if name in cfg:bounds[name]=cfg[name]
     return sha(json.dumps(dict(interlock_protocol=6 if 'stopping_reserve_model' in cfg else 5,check_timebase='steady_wall',
         tool_standstill_velocity_rule='operating_cap_and_tight_position_span',

@@ -46,6 +46,26 @@ def test_measured_speed_uses_that_arms_cap_without_weakening_stationary_arms(cfg
     assert not any(f['arms']==['right_front'] for f in faults)
 
 
+@pytest.mark.parametrize('speed,stops',[(.100462608,False),(.115,False),(-.115,False),(.115000001,True),(-.115000001,True)])
+def test_carton_measured_joint_tolerance_does_not_raise_command_cap(speed,stops):
+    cfg=config(Path(__file__).parents[1]/'config/hardware_carton_supported_trend.yaml')
+    assert cfg['command_velocity_limit_rad_s']==cfg['velocity_limit_rad_s']==.1
+    strict=dict(cfg);strict.pop('measured_joint_speed_tolerance_ratio')
+    assert guard_signature(strict)!=guard_signature(cfg)
+    state=GuardState(cfg)
+    for arm in ROBOT_IDS:state.receive(arm,[0.]*6,[speed]+[0.]*5 if arm=='right_rear' else [0.]*6,0.,0.)
+    faults=[f for f in state.evaluate([],0.,0.)['faults'] if f['reason']=='SPEED LIMIT']
+    assert bool(faults) is stops
+    if stops:assert faults[0]['trip_limit_rad_s']==.115
+
+
+@pytest.mark.parametrize('ratio',[-.01,float('nan'),float('inf'),True,1.01,'0.15'])
+def test_config_rejects_invalid_measured_joint_tolerance(tmp_path,cfg,ratio):
+    cfg['measured_joint_speed_tolerance_ratio']=ratio
+    file=tmp_path/'caps.yaml';file.write_text(yaml.safe_dump(cfg))
+    with pytest.raises(ValueError,match='tolerance'):config(file)
+
+
 def test_complete_stopping_budget_uses_same_cap_and_actual_overspeed(cfg):
     model=SphereModel.__new__(SphereModel)
     model.motion_radii={r:np.ones((1,6)) for r in ROBOT_IDS}

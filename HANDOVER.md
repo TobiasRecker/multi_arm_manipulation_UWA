@@ -1,5 +1,102 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Gelenkgeschwindigkeitstoleranz im Kartonpiloten, 24.11.2026
+
+Der Nutzer beauftragt15% Toleranz im Wächter: bei0,1rad/s Sollmaximum
+bis0,115rad/s gemessene Armgelenkgeschwindigkeit akzeptieren, darüber stoppen.
+Beide Prüfungen sind profilgebunden vorbereitet: `GuardState` und
+`PilotGuardChannel`/`MotionEnvelope.check_measured`. Planprüfung, Solltempo
+und TCP-Grenze bleiben unverändert. Die Toleranz ist Teil der Guardsignatur;
+der Pilotstatus nennt sie und die tatsächliche Gelenkauslöseschwelle.
+Andere Profile behalten ihre bisherigen Schwellen. Zusätzliche Fingerkoordinaten
+behalten ebenfalls ihren bisherigen Faktor.
+
+35 gezielte Offlineprüfungen für Grenzen einschließlich exakt0,115 und
+knapp darüber, TCP-/Planungsgrenzen, Signatur, Parametervalidierung und den
+Pilotkanal bestanden auf ROSmini und im inaktiven N100-Kandidaten
+`~/uwa-ur-runtime/review-candidates/joint-tolerance15.2BHwmKi7/`.
+45 weitere bestehende Kern-/Kartonprüfungen auf ROSmini bestanden.
+Die fünf betroffenen aktiven Dateien stimmen mit der lokalen Ausgangsversion
+überein und sind unter `setup/tasks/carton-library-debug-20261124/tolerance-active-before.tar`
+gesichert. Aktive Übernahme steht noch aus. Zum notwendigen Schutzdienstwechsel
+ist das reguläre Beenden und anschließende Wiederstarten von `ros.urp` beim
+Nutzer angefragt. Alle vier Arme meldeten vor der Vorbereitung wieder
+`RUNNING/NORMAL`, `PLAYING` und bestätigte Reverse-Verbindungen.
+
+## Schrittweise Library-Diagnose, 24.11.2026
+
+Nutzerauftrag: **Supported carton grasp** über den normalen Library-Start
+gemeinsam schrittweise diagnostizieren. Der Browserzugriff des Agenten ist
+nicht verfügbar; der Nutzer bedient die Library, der Agent liest die Laufdaten.
+Die vorhandene Library wurde mit `setup/skill_library/live-carton.json` auf
+`http://127.0.0.1:8780` gestartet. Die alte Kamerareferenz war um03:10:30AWST
+abgelaufen. Nutzer bestätigte die Anzeige und startete die separate Kalibrierung.
+Lauf `f8a787799552491ba0141d2dd148bcc3` erfolgreich:17Marker,1,47px Prüf-RMS,
+neue Referenz gültig24.11.10:36:14 bis22:36:14AWST.
+
+Nach bestätigtem freiem Arbeitsbereich startete der Nutzer den Kartonlauf
+`a54b414cabb94ecc9a506b978f616098` um10:36:48AWST. Abbruch vor Foto und
+Planung um10:36:56: `right_front` benötigt **power on**. Keine Bahn gestartet.
+Der Nutzer führte anschließend **UWA Robot Power → Start + ROS** aus.
+Dieser Bedienlauf10:37:19–10:39:39AWST endete mit `success:false`.
+`left_front` meldet `NO_CONTROLLER`; bei den drei anderen Armen sind die
+Antriebe danach `RUNNING`, aber das Programm `STOPPED` (`play_not_confirmed`).
+Die GUI-Sitzung `setup/logs/uwa-control/sessions/20261124_103227_7888_52ab14cb/`
+belegt die einzelnen Power-/Brake-/Play-Antworten. Nächster Schritt ist die
+Pendantmeldung links vorne und die fehlgeschlagene ROS-Programmvorbereitung
+zu klären, bevor erneut ein Kartonlauf gestartet wird. Die Startsperre
+wegen abgelaufener Referenz und fehlende Antriebsvorbereitung sind getrennte
+Befunde; sie erklären noch nicht den Bewegungsabbruch des Vortags.
+
+Der letzte Lauf vom23.11.16:30AWST (`ca53f028852e4b1e8b685f508ce7021e`)
+hatte Registrierung, Planung und automatische Anfahrfreigabe erreicht.
+Sein N100-Workflow bestätigt14,951s gemeinsame beobachtete Bewegung der
+rechten Arme vor `Reviewed arm group interlocked`. Eng eingegrenztes
+Guardjournal belegt23.11.16:32:14AWST als Auslöser `right_rear`, gemessene
+Gelenkgeschwindigkeit0,100462608rad/s bei geprüfter Grenze0,1rad/s;
+TCP0,07630394m/s bei0,08333333m/s Grenze. `REVIEWED EXECUTION OWNER LOST`
+folgte erst danach. Keine Tempo-/Grenzwertänderung.
+
+Nachfrage des Nutzers zur Kopplung von Planungs- und Abschaltgrenze:
+Der gespeicherte Hochanfahrplan erreicht rechts vorne0,0999999302rad/s
+und rechts hinten0,0999999410rad/s (jeweils Handgelenk3), bei0,1rad/s
+geprüfter Grenze. `MotionEnvelope.check_measured` vergleicht jeden
+ausgewerteten nativen Messwert direkt mit `>` gegen dieselbe Grenze;
+keine Toleranz oder Mindestüberschreitungsdauer in diesem Vergleich.
+Die protokollierten0,100462608rad/s lagen0,4626% darüber. Damit fehlt
+praktisch eine Reserve zwischen geplantem Sollmaximum und Abschaltschwelle.
+Diese Analyse ist keine Freigabe einer Tempo- oder Wächteränderung.
+
+Beim heutigen regulären Hochfahren meldete der Guard unter anderem native
+Gelenkgeschwindigkeiten links hinten−0,139669rad/s (10:37:22,Index3),
+rechts vorne0,237407rad/s (10:38:08,Index3) und rechts hinten0,203426rad/s
+(10:38:59,Index4), jeweils gegen0,1rad/s. Diese Werte gehören zur
+Antriebsvorbereitung; keine Kartonbahn war aktiv. Beim anschließenden
+External-Control-Start wurden native Hardwarebestätigungen als veraltet
+gemeldet. Die Reverse-Verbindungen entstanden und brachen kurz darauf ab.
+Der zeitliche Befund ist gesichert, die vollständige Ursache noch offen;
+keine neue Guard- oder Native-Stop-Änderung daraus ableiten.
+Neue Diagnoseablage: `setup/tasks/carton-library-debug-20261124/`, mit
+`previous-motion-guard.log`, `startup-runtime.log`, `startup-drivers.log`,
+Status-Snapshots und dem Safety-Bericht (Journalabdeckung dort nur teilweise).
+
+Lesender Nachlauf am24.11.: `power-status-recheck.jsonl` meldet links vorne
+inzwischen `unreachable`, die anderen drei Antriebe `RUNNING` mit Programm
+`STOPPED`. Ein direkt empfangenes Supervisorpaket (`supervisor-status.yaml`)
+bestätigt alle vier Ressourcenholds und Verriegelungen bei `state: STATE STALE`.
+Die drei erreichbaren Arme verwenden bestätigte stationäre Holds. Links vorne
+fehlt weiterhin ein aktuelles natives Stillstandsfenster (`samples:0`);
+die Dashboard-STOP-Antwort läuft dort in einen Timeout. Ein bestätigter
+ROS-Halteregler ersetzt diesen fehlenden nativen Zustandsnachweis nicht.
+Die Pendantmeldung ist beim Nutzer angefragt und steht aus.
+
+Aktive N100-Quellen lesend abgeglichen: `hardware_nodes.py` SHA-256
+`425a2455e517ae7c07e89ed3446e762ec365041e8a9e2ba004546a18094dfc36`,
+`hardware_ports.py` `684497d91490af406016a72d74fd228be9e228c92a15c2c27ef9b22d03e06cbe`.
+Der lokale Stand zur identischen Manager-Nachricht bei Teilhold ist weiterhin
+nicht installiert. Keine Guardänderung, kein Reset und kein weiterer Play-
+oder Bewegungsversuch im lesenden Nachlauf.
+
 ## Hydrogen-Nachmessung für Supported carton grasp, 23.11.2026
 
 Der Library-Bildpfad gibt Hydrogen Low den verworfenen Fit mit Fehlermaßen

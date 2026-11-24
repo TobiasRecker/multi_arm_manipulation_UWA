@@ -65,6 +65,14 @@ fordert deshalb eine Sichtprüfung an. [Webtest und Ergebnis](../../../setup/tas
 
 ### Ablauf an der realen Zelle
 
+Seit Nutzerfreigabe24.11.2026 akzeptiert das aktive Kartonprofil gemessene
+Armgelenkgeschwindigkeiten bis15% über der geplanten Grenze: bei0,1rad/s
+Sollmaximum bis einschließlich0,115rad/s. Der allgemeine Gelenkwächter und
+die zusätzliche Pilotprüfung verwenden denselben Profilparameter
+`measured_joint_speed_tolerance_ratio: 0.15`. Die Bahnplanung bleibt auf0,1rad/s
+begrenzt; die TCP-Grenze bleibt83,33mm/s. Der Pilotstatus nennt die gemessene
+Auslöseschwelle. Die Aktivierung dieser Profilrevision ist im HANDOVER protokolliert.
+
 Das separate Library-Programm **OAK4 camera calibration → Start calibration**
 erfasst einmalig die festen Tischboards mit dem
 ChArUco-Fotomodus. Das rechte Board und die zum Standardfoto passenden

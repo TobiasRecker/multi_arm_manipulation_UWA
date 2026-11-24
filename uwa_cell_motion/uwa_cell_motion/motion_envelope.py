@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from .common import ROBOT_IDS, joint_names
+from .common import ROBOT_IDS, joint_names, measured_joint_speed_limit
 
 
 def _positive(value, maximum):
@@ -169,10 +169,12 @@ class MotionEnvelope:
         q, v = _vector(q, 6), _vector(v, 6)
         return dict(joint_rad_s=float(max(abs(v))), tcp_m_s=max(t.speed(q, v) for t in self.chains[arm]))
 
-    def check_measured(self, arm, q, v):
+    def check_measured(self, arm, q, v, *, joint_tolerance_ratio=0.):
         observed = self.measured(arm, q, v)
-        if observed['joint_rad_s'] > self.joint_limit_rad_s or observed['tcp_m_s'] > self.tcp_limit_m_s:
-            raise ValueError(f'{arm}: measured speed exceeds reviewed limit: {observed}')
+        joint_trip = measured_joint_speed_limit(self.joint_limit_rad_s, joint_tolerance_ratio)
+        if observed['joint_rad_s'] > joint_trip or observed['tcp_m_s'] > self.tcp_limit_m_s:
+            raise ValueError(f'{arm}: measured speed exceeds reviewed limit: {observed}; '
+                             f'joint_trip_rad_s={joint_trip}, tcp_limit_m_s={self.tcp_limit_m_s}')
         return observed
 
     def _bound(self, arm, origin, controls, dt, depth=0):

@@ -8,6 +8,8 @@ stop_latency_s: 1.0
 braking_acceleration_rad_s2: 0.2
 velocity_limit_rad_s: 0.1
 command_velocity_limit_rad_s: 0.1
+# User approved24November2026: measured joint trip0.115rad/s; planned cap remains0.1.
+measured_joint_speed_tolerance_ratio: 0.15
 acceleration_limit_rad_s2: 0.2
 stopping_reserve_model: per_body_joint_caps_v2
 joint_velocity_limits_rad_s:
