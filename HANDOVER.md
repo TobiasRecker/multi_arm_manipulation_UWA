@@ -1,5 +1,32 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Kartonprogramm mit neuer Minimal-Runtime fortgesetzt, 24.11.2026
+
+Auf ausdrücklichen Nutzerauftrag erneut über die Program Library fortgesetzt.
+Vorher aktiven Kern `uwa-minimal-protection.service`, Invocation
+`f440e62ec5724c279e6f029a5deb4231`, und beendeten Altdienst bestätigt.
+Kernstatus RUNNING, vollständige Kollisionsdaten, keine Warnung/Kollision,
+alle vier Controller bestätigt, keine laufende Action. Taskvertrauen100,
+Tempo33⅓% (=0,1rad/s), bestehende Arbeitsbereichssitzung freigegeben.
+Die neue GUI und ihr Library-Prozess binden ausdrücklich
+`minimal-candidates/minimal.upWhPwQC`; deren Port36919 verwendet.
+Die alten Library-Server39823/8780 nicht für reale Starts benutzt.
+Browsersteuerung weiterhin nicht verfügbar, daher normaler Button-Endpunkt
+`POST /api/runs`. Lauf `189034efca4e48a38525a929d56d3312`, Start18:29:10AWST.
+Beide Kamerareferenzen gültig. Keine Safety-Änderung oder neue Wächter;
+Ergebnis noch offen.
+
+## Sicherheitsprogramm: ausdrückliche Freigabe vor Erweiterungen, 24.11.2026
+
+Nutzer fordert vor künftigen Änderungen am Sicherheitsprogramm seine ausdrückliche
+Genehmigung, wenn sie die Ausführung verlangsamen könnten **oder** allgemein
+Performance kosten könnten **oder** Funktionen ohne unmittelbaren Hardwareschutz
+ergänzen. Auch unmittelbar schützende Änderungen mit möglichen Performancekosten
+fallen darunter. Konkrete Änderung und Auswirkungen vorher darlegen; bereits
+konkret erteilte Freigaben bleiben gültig. Verbindliche Regel in den
+[Projektregeln](AGENTS.md) und den Workspace-Regeln.
+In diesem Arbeitsschritt ausschließlich Dokumentation ergänzt, keine Laufzeitänderung.
+
 ## Gazebo-Video mit gelben/roten Werkstückspuren, 24.11.2026
 
 Nutzer wünscht eine anschauliche native Gazebo-Videofassung der bestehenden
@@ -124,6 +151,10 @@ alle alten UWA-Wächter im Neubau zu erhalten, sind durch den Nutzerauftrag erse
 [Rechnervergleich](../../setup/tasks/minimal-protection-20261124/n100-cross-host-parity.json).
 
 [Realer Betriebswechsel und Nachweise](work/minimal-real-cutover-20261124.md).
+Safety Log liest jetzt die aktive Minimal-Runtime und deren Kern-Journal;
+zwölf gezielte Prüfungen bestanden. Aktueller lokaler Diagnoseexport mit
+realem GUI-Audit und Rohmessungen ist über
+`setup/logs/uwa-control/latest-export.txt` im Workspace auffindbar.
 
 ## Stiftaufnahme: ArUco-Druckbogen, 24.11.2026
 

@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 import json
 import os
+import shlex
 from pathlib import Path
 import sys
 
@@ -19,14 +20,21 @@ def power_session():
     return SessionLogs(workspace, include_host_logs=False)
 
 
-def report_command(n100=False, mock_store=None):
+def report_command(n100=False, mock_store=None, backend=None):
     if mock_store is not None:
         return [sys.executable, str(COLLECTOR), '--mock-store', str(mock_store.resolve())]
     if n100:
+        runtime=os.environ.get('UWA_MINIMAL_RUNTIME')
+        if runtime and not Path(runtime).is_absolute():
+            raise ValueError('UWA_MINIMAL_RUNTIME must be an absolute N100 runtime path')
+        selected=backend or os.environ.get('UWA_PROTECTION_BACKEND', 'minimal' if runtime else 'legacy')
+        if selected not in ('legacy','minimal'):raise ValueError('Unknown protection backend')
+        workspace=shlex.quote(runtime) if runtime else '~/uwa-ur-runtime'
         return ['/usr/bin/ssh', '-T', '-F', str(ROOT.parents[1] / 'setup/n100/ssh_config'),
                 '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', 'uwa-n100-robot-lan',
-                'cd ~/uwa-ur-runtime && /usr/bin/python3 - --workspace .']
-    return [sys.executable, str(COLLECTOR), '--workspace', str(ROOT.parents[1])]
+                'cd '+workspace+' && /usr/bin/python3 - --workspace . --backend '+selected]
+    selected=backend or os.environ.get('UWA_PROTECTION_BACKEND','legacy')
+    return [sys.executable, str(COLLECTOR), '--workspace', str(ROOT.parents[1]), '--backend', selected]
 
 
 class SaveReport(QtCore.QThread):

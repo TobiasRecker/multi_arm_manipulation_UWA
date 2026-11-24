@@ -47,13 +47,30 @@ def detect(image, definition, roi=None):
     parameters.cornerRefinementWinSize = 3
     parameters.minMarkerPerimeterRate = .01
     dictionary = cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco,definition['dictionary']))
-    corners, ids, rejected = cv2.aruco.ArucoDetector(dictionary,parameters).detectMarkers(gray)
     wanted = [definition['top_marker_id'], definition['side_marker_id']]
-    rows = [(int(i),c[0]+[x0,y0]) for i,c in zip(ids.ravel(),corners) if i in wanted] if ids is not None else []
-    counts = Counter(i for i,_ in rows)
-    if any(count>1 for count in counts.values()):
-        raise ValueError('Duplicate pen marker ID in the image; remove spare copies from view')
-    return {i:c for i,c in rows}, dict(roi=[x0,y0,x1,y1],ids=list(counts),rejected_count=len(rejected))
+    partial = None
+    # Contrast changes only thresholding; metric vertices are refined on native gray pixels.
+    for name, pixels, constant, refinement in [
+            ('native_edge_fit',gray,7,cv2.aruco.CORNER_REFINE_APRILTAG),
+            ('native_subpixel',gray,7,cv2.aruco.CORNER_REFINE_SUBPIX),
+            ('local_contrast',cv2.createCLAHE(2.,(8,8)).apply(gray),3,cv2.aruco.CORNER_REFINE_SUBPIX)]:
+        parameters.adaptiveThreshConstant=constant
+        parameters.cornerRefinementMethod=refinement
+        parameters.adaptiveThreshWinSizeMax=63
+        corners, ids, rejected = cv2.aruco.ArucoDetector(dictionary,parameters).detectMarkers(pixels)
+        rows = [(int(i),c[0].copy()) for i,c in zip(ids.ravel(),corners) if i in wanted] if ids is not None else []
+        counts = Counter(i for i,_ in rows)
+        if any(count>1 for count in counts.values()):
+            raise ValueError('Duplicate pen marker ID in the image; remove spare copies from view')
+        measured={}
+        for i,c in rows:
+            if name=='local_contrast':
+                cv2.cornerSubPix(gray,c,(2,2),(-1,-1),(cv2.TERM_CRITERIA_EPS|cv2.TERM_CRITERIA_MAX_ITER,30,.01))
+            measured[i]=c+[x0,y0]
+        result=measured,dict(roi=[x0,y0,x1,y1],ids=list(counts),method=name,rejected_count=len(rejected))
+        if all(i in measured for i in wanted):return result
+        if partial is None or len(measured)>len(partial[0]):partial=result
+    return partial
 
 
 def locate(image, optics, T_world_camera, definition, roi=None):

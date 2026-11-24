@@ -2,6 +2,7 @@
 #include <gz/rendering.hh>
 #include <gz/math.hh>
 #include <gz/common/MeshManager.hh>
+#include <gz/common/Console.hh>
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <iostream>
@@ -30,6 +31,7 @@ int main(int argc, char **argv) {
   try {
     json data; std::ifstream(argv[1]) >> data;
     std::filesystem::path out(argv[2]); std::filesystem::create_directories(out);
+    gz::common::Console::Init(out.string(), "render.log");
     bool preview = argc > 3;
     auto engine = r::engine("ogre2", {{"headless", "1"}});
     if (!engine) throw std::runtime_error("Ogre2 unavailable");
@@ -113,6 +115,16 @@ int main(int argc, char **argv) {
         for (size_t i = 0; i < data["frames"].size(); ++i) if (data["frames"][i]["phase"] == phase) chosen = i;
         selected.push_back(chosen);
       }
+      // Also inspect transitions: a face-following camera can otherwise pass
+      // below the table even when the actual drawing views look correct.
+      for (std::string phase : {"present_z_min", "present_y_min", "return_from_y_min", "return_from_z_min", "reverse_worker_to_drawing_start"}) {
+        std::vector<size_t> matches;
+        for (size_t i = 0; i < data["frames"].size(); ++i) if (data["frames"][i]["phase"] == phase) matches.push_back(i);
+        if (!matches.empty()) {
+          selected.push_back(matches[matches.size() / 4]);
+          selected.push_back(matches[matches.size() / 2]);
+        }
+      }
     } else for (size_t i = 0; i < data["frames"].size(); ++i) selected.push_back(i);
     m::Vector3d detailEye, detailTarget;
     for (size_t index : selected) {
@@ -130,6 +142,16 @@ int main(int argc, char **argv) {
       else if (face == "y_min") normal = {0, -1, 0};
       else normal = {0, 0, -1};
       auto desiredEye = centre + object.Rot().RotateVector(normal * .80 + m::Vector3d(.28, 0, .28));
+      // Maintain an external, above-table viewpoint throughout rotations.
+      // The camera is editorial only; this never changes a robot trajectory.
+      desiredEye.Z(std::max(1.12, desiredEye.Z()));
+      m::Vector3d horizontal(desiredEye.X() - centre.X(), desiredEye.Y() - centre.Y(), 0);
+      if (horizontal.Length() < .70) {
+        if (horizontal.Length() < .05) horizontal = {1, -1, 0};
+        horizontal.Normalize();
+        desiredEye.X(centre.X() + .80 * horizontal.X());
+        desiredEye.Y(centre.Y() + .80 * horizontal.Y());
+      }
       if (index == 0 || preview) { detailEye = desiredEye; detailTarget = centre; }
       else { detailEye = .93 * detailEye + .07 * desiredEye; detailTarget = .93 * detailTarget + .07 * centre; }
       Aim(detail, detailEye, detailTarget);

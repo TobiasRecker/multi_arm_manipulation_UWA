@@ -102,3 +102,20 @@ def test_mock_does_not_open_guard_or_workflows_and_reads_uncheckpointed_wal(tmp_
         db.close()
     assert reporter.build_report(None,tmp_path/'absent')['sources'][0]['status']=='missing'
     assert not (tmp_path/'absent').exists()
+
+
+def test_minimal_report_reads_new_unit_without_querying_legacy_guard(tmp_path,monkeypatch):
+    now=time.time();queries=[]
+    def rows(since,end,pattern=None,*,unit=reporter.UNIT):
+        queries.append(unit)
+        return [journal(now-2,'All-arm software pause requested: OPERATOR PAUSE'),
+                journal(now-1,'Collision data unavailable; no automatic pause: missing sample')],False
+    monkeypatch.setattr(reporter,'journal_rows',rows)
+    monkeypatch.setenv('HOME',str(tmp_path))
+    report=reporter.build_report(tmp_path,now=now,backend='minimal')
+    assert queries==[reporter.MINIMAL_UNIT]
+    assert report['sources'][0]['name']=='Minimal protection journal'
+    assert {row['kind'] for row in report['events']}=={'Software pause requested','Collision data unavailable'}
+    pause=next(row for row in report['events'] if row['kind']=='Software pause requested')
+    assert pause['reason']=='OPERATOR PAUSE' and pause['standstill_confirmed'] is False
+    assert 'session/gui.log' in report['summary_text']

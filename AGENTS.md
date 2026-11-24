@@ -1,5 +1,23 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Genehmigungspflicht für Änderungen am Sicherheitsprogramm, 24.11.2026
+
+Vor der Umsetzung einer Änderung am Sicherheitsprogramm ist die **ausdrückliche
+Genehmigung des Nutzers** erforderlich, sobald mindestens eine Bedingung zutrifft:
+
+- Die Änderung könnte die Ausführung verlangsamen.
+- Die Änderung könnte allgemein Performance kosten, etwa zusätzliche Rechenzeit,
+  Speicher, I/O oder Netzlast verursachen.
+- Die Änderung ergänzt Funktionen, die nicht dem unmittelbaren Hardwareschutz dienen.
+
+Die Bedingungen gelten jeweils für sich (ODER). Auch unmittelbar dem Hardwareschutz
+dienende Änderungen mit möglichen Performancekosten benötigen diese Freigabe.
+Geplante Änderung und mögliche Auswirkungen vorher konkret benennen; bei unklarer
+Performancewirkung ebenfalls vorher genehmigen lassen. Keine pauschale Ausnahme
+für kleine Prüfungen, Wächter oder Diagnostik. Bereits ausdrücklich für die konkrete
+Änderung erteilte Freigaben gelten weiter und müssen nicht erneut eingeholt werden.
+Diese Regel betrifft das Sicherheitsprogramm, nicht reine Dokumentationspflege.
+
 ## Minimales Hardware-Schutzkonzept, Nutzerentscheidung 24.11.2026
 
 Der Nutzer hat das alte UWA-Schutzkonzept ausdrücklich verworfen und die

@@ -15,7 +15,7 @@ for directory in ('scripts', 'uwa_cell_control', 'uwa_cell_tasks'):
 
 from PySide6 import QtWidgets
 from motion_review_panel import ReviewPanel
-from power_log_view import SafetyLogDialog
+from power_log_view import SafetyLogDialog, report_command
 from ur_power_gui import Window
 from uwa_cell_control.session_logs import SessionLogs
 from uwa_cell_tasks.motion_review import ReviewStore, START_PERCENT, TASK
@@ -59,6 +59,8 @@ def test_mock_log_button_saves_report_without_changing_review_or_power(tmp_path,
     try:
         window.show()
         wait_for(app, lambda: window.review.item and window.review.item['status'] == 'pending')
+        window.record('protection request',dict(id='test-pause',operation='pause_all'))
+        window.record('protection result',dict(operation='resume_all',phase='done',success=True))
         window.log_button.click()
         dialog = window.log_view
         wait_for(app, lambda: dialog.isVisible() and dialog.save_button.isEnabled())
@@ -70,6 +72,8 @@ def test_mock_log_button_saves_report_without_changing_review_or_power(tmp_path,
         assert 'collection_error' not in report
         assert json.loads(files['manifest.json'])['snapshot']['source'] == 'Mock'
         assert report['summary_text'] in files['session/safety-report.txt'].decode()
+        assert 'pause_all' in files['session/gui.log'].decode()
+        assert 'resume_all' in files['session/gui.log'].decode()
         assert store.status() == before
         assert not power_starts
         assert not window.refresh_timer.isActive()
@@ -100,6 +104,14 @@ def test_diagnostic_command_failure_can_be_exported(tmp_path, app):
     finally:
         dialog.shutdown()
         dialog.close()
+
+
+def test_safety_collector_uses_same_candidate_and_backend_as_gui(monkeypatch):
+    candidate='/home/rosmatch/uwa-ur-runtime/minimal-candidates/with space'
+    monkeypatch.setenv('UWA_MINIMAL_RUNTIME',candidate)
+    command=report_command(True,backend='minimal')
+    assert command[-1]=="cd '"+candidate+"' && /usr/bin/python3 - --workspace . --backend minimal"
+    assert 'uwa-hardware-motion' not in command[-1]
 
 
 def test_save_collects_fresh_snapshot_and_marks_unavailable_source(tmp_path, app):

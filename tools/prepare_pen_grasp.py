@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import importlib
+import itertools
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -38,7 +39,7 @@ def task_scene(problem, adapter, definition, directory, *, tool_adapter=None):
             for tag in ('collision','visual'):
                 member=ET.SubElement(body,tag);ET.SubElement(member,'origin',xyz=' '.join(map(str,offset)))
                 geometry=ET.SubElement(member,'geometry')
-                if kind=='mesh':ET.SubElement(geometry,'mesh',filename=str(value))
+                if kind=='mesh':ET.SubElement(geometry,'mesh',filename=Path(value).resolve().as_uri())
                 else:ET.SubElement(geometry,'cylinder',radius=str(value[0]),length=str(value[1]))
     meshes=REPO/'uwa_cell_description/assets/pen_grasp_v1'
     dock=adapter.copy();dock[:3,3]+=adapter[:3,2]*definition['mount']['dock_base_z_m']
@@ -50,6 +51,10 @@ def task_scene(problem, adapter, definition, directory, *, tool_adapter=None):
     description=ET.tostring(root,encoding='unicode')
     model=CollisionModel(description,directory/'moveit')
     robot_links=[x.get('name') for x in ET.fromstring(problem.description).findall('link')]
+    # Preserve precisely the existing full-opening-envelope internal exclusions.
+    for arm in problem.names:
+        members=[n for n in robot_links if n.startswith(arm+'_robotiq_85_')]
+        for a,b in itertools.combinations(members,2):model.scene.allowed_collision_matrix.set_entry(a,b,True)
     for body in ('pen_task_adapter','pen_task_shaft','pen_task_dock'):
         for name in robot_links:
             model.scene.allowed_collision_matrix.set_entry(body,name,False)
@@ -60,6 +65,19 @@ def task_scene(problem, adapter, definition, directory, *, tool_adapter=None):
     model.scene.allowed_collision_matrix.set_entry('pen_task_dock','pen_task_adapter',True)
     model.scene.allowed_collision_matrix.set_entry('pen_task_dock','pen_task_shaft',True)
     model.scene.allowed_collision_matrix.set_entry('pen_task_adapter','pen_task_shaft',True)
+    # The RRT worker reads SRDF rather than the in-memory matrix.
+    srdf_path=directory/'moveit/robot.srdf';srdf=ET.fromstring(srdf_path.read_text())
+    pairs={tuple(sorted((x.get('link1'),x.get('link2')))) for x in srdf.findall('disable_collisions')}
+    allowed=[]
+    for arm in problem.names:
+        allowed.extend(itertools.combinations([n for n in robot_links if n.startswith(arm+'_robotiq_85_')],2))
+    allowed.extend([('pen_task_dock','left_table_plate'),('pen_task_dock','pen_task_adapter'),
+                    ('pen_task_dock','pen_task_shaft'),('pen_task_adapter','pen_task_shaft')])
+    allowed.extend(('pen_task_adapter',ARM+f'_robotiq_85_{side}_finger_tip_link') for side in ('left','right'))
+    for a,b in allowed:
+        if tuple(sorted((a,b))) not in pairs:
+            ET.SubElement(srdf,'disable_collisions',link1=a,link2=b,reason='ExistingOpeningEnvelopeOrTaskContact')
+    srdf_path.write_text(ET.tostring(srdf,encoding='unicode'))
     return model,description
 
 
@@ -173,11 +191,13 @@ def compile_plan(args):
                     lift=smooth_trajectory(lift_path,envelope,remote['config'])
                     problem.collision=old
                     phases=[('approach',state,approach['trajectory'],scene),('entry',prestate,entry,scene),('lift',endpoint,lift,carried)]
+                    proofs={}
                     for name,start,traj,collision in phases:
                         problem.collision=base_collision
                         proof,error=prove_group(problem,start,{ARM:traj},remote['config']['command_velocity_limit_rad_s'],collision)
                         if error:raise ValueError(name+': '+error)
-                    chosen=(phases,approach,contact,carried_xml)
+                        proofs[name]=proof
+                    chosen=(phases,approach,contact,carried_xml,proofs)
                     break
                 except ValueError as error:trials.append(str(error))
                 finally:problem.collision=scene
@@ -185,11 +205,11 @@ def compile_plan(args):
         except ValueError as error:trials.append(str(error))
     dump(out/'search.json',dict(attempts=trials))
     if not chosen:raise ValueError('No complete collision-checked pen approach/entry/lift: '+'; '.join(trials[-4:]))
-    phases,approach,contact,carried_xml=chosen
+    phases,approach,contact,carried_xml,proofs=chosen
     segments=[]
     for name,start,traj,collision in phases:
         problem.collision=base_collision
-        proof,error=prove_group(problem,start,{ARM:traj},remote['config']['command_velocity_limit_rad_s'],collision)
+        proof=proofs[name]
         request=dict(schema_version=1,start=start,goals={ARM:traj['points'][-1]['positions']},selected=[ARM],joint_names=joint_names(ARM))
         plan=portable(dict(schema_version=1,success=True,hardware_plan=True,config=remote['config'],request=request,
             trajectory=traj,metrics=dict(full_cell_collision_checked=True,task_objects_checked=True),

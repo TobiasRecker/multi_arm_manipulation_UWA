@@ -27,4 +27,34 @@ Voransicht vor dem Gesamtrendern visuell prüfen. Ausgangsdaten/Container/
 Joblog und Renderparameter liegen unter`setup/tasks/carton_video_20261124/`
 bzw. im eigenen UWA-Compute-Verzeichnis auf titanpc.
 
-Ergebnis/Prüfung: wird nach Standbildprüfung und Videoexport ergänzt.
+Standbildprüfung: Job`carton-video-preview04-20261124` erfolgreich. Sieben
+native Kamerapaare gerendert; Home, Seitenkreis, Haus mit sechs roten Stellen,
+Bodenkreis, Gegenwandkreis und Ende visuell kontrolliert. Gelbe Linien und
+rote Stellen liegen sichtbar am Karton, beide Ansichten zeigen dieselbe
+Situation. Vorschau lokal`setup/tasks/carton_video_20261124/preview04/`.
+Vorherige technische Fehlversuche bleiben in den Compute-Joblogs erhalten:
+ROS-Setup unter`set -u` sowie nicht explizit geladene Meshes; beide korrigiert.
+
+Offline-Aufbereitung erfolgreich:2711 Zustände bei15Hz,180,733s mit kurzen
+Ansichtshalten,54 Quellbewegungsphasen,307 gelbe Segmente und6 rote Stellen.
+Maximale Abweichung der aus beiden Haltearmen rekonstruierten Objektposition
+0,000248mm. Alle60 Quelldateien perSHA-256 gebunden,34 visuelle Assets
+einschließlich Texturen separat paketiert. Python-Syntaxprüfung und nativer
+C++-Build erfolgreich.
+
+Erster vollständiger Export`carton-video-final-20261124` technisch bestanden:
+1920×1080,H.264,30fps,2711 Bilder,90,366667s. Zusätzliche Zwischenbilder
+zeigten aber eine Tischverdeckung der Nahkamera bei Rückdrehungen; diese
+Fassung wird nicht abgegeben. Kamera korrigiert: mindestens1,12m über dem
+Boden und hinreichender horizontaler Abstand zum Karton, geglättete Führung.
+Alle2711 Kameraziele offline kontrolliert. Kleinster tatsächlicher
+geglätteter Abstand zum Kartonzentrum0,433m, kleinste Kamerahöhe1,12m.
+Dies betrifft nur die Videokamera, keine Roboterbahn.
+
+Job`carton-video-final02-20261124` rendert die korrigierte Fassung.
+17 Standbilder einschließlich zehn Dreh-/Rückfahrzwischenständen erzeugt;
+die vorher verdeckten Situationen sind jetzt sichtbar. Prüfung lokaler
+JPEGs unter`setup/tasks/carton_video_20261124/preview-final02/` bestanden.
+Export und abschließender Videoabruf folgen.
+
+Bedienung: [Videoexport](../docs/gazebo_carton_video.md).

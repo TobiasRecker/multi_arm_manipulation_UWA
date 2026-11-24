@@ -204,7 +204,7 @@ class Runs:
 
     def start(self, program, mode):
         allowed = {PROGRAM_ID: {"demo", "live", "calibrate"}, CAMERA_PROGRAM: {"calibrate"},
-                   MULTI_CAMERA_PROGRAM: {'setup', 'gui'}, PEN_PROGRAM: {'inspect', 'live'}}
+                   MULTI_CAMERA_PROGRAM: {'setup', 'gui'}, PEN_PROGRAM: {'inspect', 'plan', 'live'}}
         if program not in allowed or mode not in allowed[program]:
             raise ValueError("Choose a program and execution mode from the library.")
         with (self.directory / ".run.lock").open("a") as lease:
@@ -236,7 +236,7 @@ class Runs:
             else:
                 command = [sys.executable, str(ROOT / "tools/run_carton_program.py"),
                            "--program", program, "--mode", mode, "--output", str(output)]
-            if mode in {'live', 'calibrate'}:
+            if mode in {'live', 'calibrate'} or (program == PEN_PROGRAM and mode == 'plan'):
                 command.extend(["--live-config", str(self.live_config)])
             started_at = now()
             with (output / "run.log").open("wb") as log:

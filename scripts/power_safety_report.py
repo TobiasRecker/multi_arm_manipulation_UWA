@@ -16,6 +16,7 @@ import subprocess
 import time
 
 UNIT = 'uwa-hardware-motion.service'
+MINIMAL_UNIT = 'uwa-minimal-protection.service'
 ARM = re.compile(r'\b(?:left|right)_(?:front|rear)\b')
 LATCH = re.compile(r'(STOP LATCHED|MONITOR WOULD STOP|MONITOR HELD CONDITION|HELD CONDITION):\s*(.*)')
 NATIVE = re.compile(r'NATIVE STOP REQUESTED (\w+):\s*(.*)')
@@ -52,10 +53,10 @@ def event(kind, origin, stamp, reason, arms=(), **extra):
                 arms=sorted(set(arms)), count=1, **extra)
 
 
-def journal_rows(since, end, pattern=None):
+def journal_rows(since, end, pattern=None, *, unit=UNIT):
     # Keep a bound even when journalctl takes time searching older entries or
     # a single journal record contains a large traceback.
-    command = ['journalctl', '--user', '-u', UNIT, '--no-pager', '-q', '-o', 'json',
+    command = ['journalctl', '--user', '-u', unit, '--no-pager', '-q', '-o', 'json',
                '--all', '--output-fields=MESSAGE,_PID,_SYSTEMD_INVOCATION_ID',
                '--since', '@'+str(int(since)), '--until', '@'+str(math.ceil(end)),
                '-n', str(LOG_ROWS+1 if pattern else 1)]
@@ -204,6 +205,33 @@ def read_guard(since, end, events):
         if not rows:
             return source('Guard journal', 'missing', f'No unit records accessible for {UNIT} in this period')
     return source('Guard journal', 'ok', f'{UNIT}, guard transitions and native STOP requests')
+
+
+def read_minimal(since,end,events):
+    """Read the existing new-core journal; never query a robot or ROS endpoint."""
+    pattern='All-arm software pause requested|Collision data unavailable|Minimal collision protection in'
+    try:
+        rows,clipped=journal_rows(since,end,pattern,unit=MINIMAL_UNIT)
+        for row in rows:
+            stamp=int(row['__REALTIME_TIMESTAMP'])/1e6
+            if not since<=stamp<=end:continue
+            text=row.get('MESSAGE','')
+            if 'All-arm software pause requested:' in text:
+                reason=text.split('All-arm software pause requested:',1)[1].strip()
+                events.append(event('Software pause requested',MINIMAL_UNIT,stamp,reason,
+                    ('left_front','left_rear','right_front','right_rear'),standstill_confirmed=False))
+            elif 'Collision data unavailable' in text:
+                events.append(event('Collision data unavailable',MINIMAL_UNIT,stamp,text))
+            elif 'Minimal collision protection in' in text:
+                events.append(event('Protection runtime started',MINIMAL_UNIT,stamp,text))
+        if not rows:
+            latest,_=journal_rows(since,end,unit=MINIMAL_UNIT)
+            if not latest:return source('Minimal protection journal','missing',MINIMAL_UNIT+': no accessible records')
+        return source('Minimal protection journal','truncated' if clipped else 'ok',
+            MINIMAL_UNIT+'; controller pause requests and data warnings. Operator Resume is recorded '
+            'in the local GUI audit included as session/gui.log in Save logs.')
+    except (OSError,ValueError,KeyError,TypeError,subprocess.TimeoutExpired) as error:
+        return source('Minimal protection journal','unavailable',compact(error))
 
 
 def read_json(path):
@@ -372,12 +400,12 @@ def reviews(directory, since, end, covered, runs, events):
                   f'{path}, '+('newest 160 tickets only' if len(rows)>160 else 'read-only'))
 
 
-def build_report(workspace, mock_store=None, hours=24, now=None):
+def build_report(workspace, mock_store=None, hours=24, now=None, backend='legacy'):
     end = time.time() if now is None else now
     since = end-hours*3600
     events, sources, covered, runs = [], [], set(), set()
     if mock_store is None:
-        sources.append(read_guard(since, end, events))
+        sources.append(read_minimal(since,end,events) if backend=='minimal' else read_guard(since,end,events))
         status, covered, runs = workflows(workspace, since, end, events)
         sources.append(status)
     directory = mock_store if mock_store is not None else Path.home()/'.local/state/uwa-motion-review'
@@ -431,6 +459,7 @@ def build_report(workspace, mock_store=None, hours=24, now=None):
     if len(grouped)>160:
         lines.append(f'Cause summary includes the 160 most frequent of {len(grouped)} causes.')
     return dict(schema_version=1, host=socket.gethostname(), mode='mock' if mock_store else 'host',
+                protection_backend=backend,
                 generated_at=utc(end), since=utc(since), hours=hours, summary_text='\n'.join(lines),
                 sources=sources, grouped=grouped[:160], events=records, episode_count=len(events),
                 details_omitted=len(events)-len(records))
@@ -442,10 +471,12 @@ def main():
     roots.add_argument('--workspace', type=Path)
     roots.add_argument('--mock-store', type=Path)
     parser.add_argument('--hours',type=float,default=24)
+    parser.add_argument('--backend',choices=('legacy','minimal'),
+                        default=os.environ.get('UWA_PROTECTION_BACKEND','legacy'))
     args = parser.parse_args()
     if not math.isfinite(args.hours) or not 0 < args.hours <= 168:
         parser.error('--hours must be between 0 (exclusive) and 168')
-    print(json.dumps(build_report(args.workspace,args.mock_store,args.hours),allow_nan=False))
+    print(json.dumps(build_report(args.workspace,args.mock_store,args.hours,backend=args.backend),allow_nan=False))
 
 
 if __name__ == '__main__':

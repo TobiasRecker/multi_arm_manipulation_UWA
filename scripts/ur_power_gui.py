@@ -328,7 +328,7 @@ class Window(QtWidgets.QWidget):
         self.log_view = None
         self.library_process = None
         self.library_url = None
-        self.log_command = report_command(n100, review_mock)
+        self.log_command = report_command(n100, review_mock, backend=protection_backend)
         self.logged = {}
         try:
             self.log_session = power_session()
@@ -741,7 +741,8 @@ def main():
     app.setApplicationName('uwa-robot-power')
     app.setApplicationDisplayName('UWA Robot Power')
     if args.safety_log:
-        dialog = SafetyLogDialog(power_session(), report_command(args.n100, args.review_mock))
+        dialog = SafetyLogDialog(power_session(), report_command(args.n100, args.review_mock,
+                                 backend=args.protection_backend))
         dialog.show()
         try:
             return app.exec()

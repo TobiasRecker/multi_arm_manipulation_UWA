@@ -115,6 +115,10 @@ def run(args):
             client=(__import__('uwa_cell_motion.minimal_execution',fromlist=['MinimalHardwareClient']).MinimalHardwareClient
                     if minimal_enabled() else HardwareClient)(problem,'hardware',[ARM])
             if args.phase=='approach':
+                if getattr(args,'initial',None):
+                    preview['image']=photo_packet(args.initial,0.)
+                    if preview['image']['original_sha256']!=sequence['perception']['image_sha256']:
+                        raise ValueError('Initial photograph differs from the localized pen image')
                 meta['components']=[sequence['segments'][i]['sha256'] for i in (0,1)]
                 with approval(store,str(args.output.resolve())+'/motion',meta,preview) as identifier:
                     client.connect()
@@ -171,4 +175,5 @@ if __name__=='__main__':
     p.add_argument('--phase',choices=['approach','contact'],required=True)
     p.add_argument('--plans',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
     p.add_argument('--sequence-sha256',required=True);p.add_argument('--entry',type=Path)
+    p.add_argument('--initial',type=Path)
     run(p.parse_args())

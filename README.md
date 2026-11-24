@@ -1,5 +1,10 @@
 # UWA four-arm laboratory cell
 
+The [Gazebo carton video exporter](docs/gazebo_carton_video.md) renders the
+archived three-arm drawing sequence with a cell view, workpiece close-up,
+yellow drawing traces and red virtual drilling marks. Native Ogre2 frames
+sampled at15Hz become a1080p/30fps movie at2× playback speed.
+
 The replacement [minimal hardware protection](docs/minimal_hardware_protection.md)
 uses one C++ collision core and a global **SOFTWARE STOP ALL ARMS / RESUME** in
 UWA Robot Power. It has been active on the N100 since24November2026; the real

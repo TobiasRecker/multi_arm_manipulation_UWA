@@ -8,10 +8,9 @@ unset DISPLAY
 cmake -S /input -B /output/build -DCMAKE_BUILD_TYPE=Release
 cmake --build /output/build -j 4
 python3 /input/bake.py
-if [[ ${1:-preview} == preview ]]; then
-    /output/build/render_carton /output/movie.json /output/preview preview
-    python3 /input/encode.py --preview
-else
+/output/build/render_carton /output/movie.json /output/preview preview
+python3 /input/encode.py --preview
+if [[ ${1:-preview} == full ]]; then
     /output/build/render_carton /output/movie.json /output
     python3 /input/encode.py
 fi

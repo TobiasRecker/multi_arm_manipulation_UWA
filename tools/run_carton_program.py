@@ -457,7 +457,8 @@ def upload(remote, local_file, log_path, *additional_files):
 
 
 def observe_start(remote, out, scene, progress):
-    command = n100("""mkdir -- "$1"
+    command = n100("""mkdir -p -- "$(dirname -- "$1")"
+mkdir -- "$1"
 mkdir -- "$1/entry"
 source "$2/scripts/control_env.bash"
 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 /usr/bin/python3 "$2/tools/start_carton_browser_programs.py" --output "$1" \

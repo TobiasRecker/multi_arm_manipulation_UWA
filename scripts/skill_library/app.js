@@ -24,6 +24,9 @@ const workflowPhase = {
   wrist_diagnostic: "wrist",
   oak_entry_capture: "wrist",
   n100_contact: "contact_review",
+  pen_positioning: "motion_review",
+  pen_grasp_lift: "contact_review",
+  entry_capture: "contact_review",
 };
 const state = {
   programs: [], catalogError: "", loading: true, run: null, pending: "", actionError: "",
@@ -204,6 +207,7 @@ function actions(program) {
   const buttons = element("div", "run-buttons");
   if (pen) {
     buttons.append(startButton(program, "inspect", "Inspect pen", "secondary"),
+      startButton(program, "plan", "Plan pickup only", "secondary"),
       startButton(program, "live", "Start program", "primary"));
     buttons.append(link(programRoute(program.camera_program), "button secondary", "Open camera calibration"));
   } else if (multiCamera) {
@@ -254,7 +258,7 @@ function runState(run) {
   const label = waiting ? "REVIEW REQUIRED" :
     ({ running: "RUNNING", succeeded: "COMPLETE", failed: "FAILED" }[run.state] || "UNKNOWN");
   const mode = { live: "CELL", demo: "OFFLINE DEMO", calibrate: "OAK4 CALIBRATION",
-    setup: "CAPTURE SETUP", gui: "CAPTURE GUI", inspect: "CAMERA INSPECTION" }[run.mode];
+    setup: "CAPTURE SETUP", gui: "CAPTURE GUI", inspect: "CAMERA INSPECTION", plan: "PLANNING ONLY" }[run.mode];
   return `${mode} · ${label}`;
 }
 
@@ -311,6 +315,7 @@ function artifactLinks(run) {
     ["camera_preview", "Camera calibration preview"],
     ["oak_preview", "OAK4 pose preview"],
     ["usb_preview", "OAK Pro native view (inverted mount)"],
+    ["pen_preview", "OAK Pro pen markers and pose"],
     ["cross_view_preview", "Second-view projected carton check"],
     ["right_front_preview", "Right front wrist"],
     ["right_rear_preview", "Right rear wrist"],

@@ -1,8 +1,9 @@
 # Neuer minimaler Hardware-Schutz, 24.11.2026
 
-- Status: Implementierung und Kandidatenprüfung abgeschlossen, 24.11.2026.
-  Operative Aktivierung und reale Funktions-/Anhalteprüfung bleiben ein eigener
-  Betriebswechsel. Hauptagent dieses Chats.
+- Status: Implementierung, Kandidatenprüfung und anschließend ausdrücklich
+  beauftragter realer Betriebswechsel abgeschlossen,24.11.2026.
+  Reale Vierarm-Pause/Fortsetzung und zwei Aufgaben bestanden;
+  [operativer Endstand](minimal-real-cutover-20261124.md). Hauptagent dieses Chats.
 - Auftrag: beschlossenen C++-Kollisionskern und gemeinsame Arm-Pause mit
   ausdrücklicher Fortsetzung implementieren; Robot Power und Motion Review erhalten.
 - Automatische Pause ausschließlich bei Geometriekonflikt. Fehlende Kollisionsdaten
@@ -12,10 +13,12 @@
 - Bereiche: neues Paket uwa_cell_protection, Controller-Plugin, Ausführungsadapter,
   GUI/Bridge, getrennte Kandidatenwerkzeuge und Dokumentation. Vorhandene gestagte
   Motion-/Marker-/Dokumentationsänderungen bleiben erhalten.
-- Keine echten Ziele, Power-/Brake-/Play-Aktionen oder Hardwaredienstneustarts.
-  Keine Sicherheits-/Fehlertests in Gazebo. Softwareprüfung isoliert in Domain67.
-- Nächster operativer Schritt: eigener Betriebswechsel auf den gebauten,
-  bislang inaktiven Kandidaten; keine automatische Fahrt oder Aktivierung.
+- In der reinen Vorbereitungsphase keine echten Ziele, Power-/Brake-/Play-Aktionen
+  oder Hardwaredienstneustarts. Keine Sicherheits-/Fehlertests in Gazebo.
+  Softwareprüfung isoliert in Domain67; anschließender realer Folgeauftrag separat belegt.
+- Der folgende Abschnitt beschreibt die frühere reine Implementierungsphase.
+  Ihr damaliger inaktiver Kandidat ist durch den separaten Folgeauftrag jetzt
+  operative Runtime; keine automatische Aktivierung allein aus dem Build.
 
 ## Historischer Stand beim Pausieren
 
@@ -60,5 +63,5 @@
   `python-complete-tests.log`, `cpp-final-ctest.log`, `n100-final-build.log`,
   `n100-validation/runtime-binding.json`, `n100-cross-host-parity.json`,
   `n100-final-source-sha256.txt`. Bedienung: `docs/minimal_hardware_protection.md`.
-- Abschlussgrenze: operative Runtime durch diese Arbeit nicht geändert; keine
+- Abschlussgrenze der damaligen Implementierungsphase: operative Runtime nicht geändert; keine
   realen Arm-/Greifer-/Power-/Brake-/Play-Befehle, keine Gazebo-Sicherheitstests.
