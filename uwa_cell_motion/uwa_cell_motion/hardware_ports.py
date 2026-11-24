@@ -98,6 +98,9 @@ class StopPort:
         self.activity_state = None
         self.activity_publishers = 0
         self.activity = None
+        self.list_refresh_requested = True
+        self.hardware_refresh_requested = True
+        self.parameter_refresh_requested = True
         if observe_manager:
             # These callbacks and the supervisor timer use the same mutually exclusive
             # group. An activity message triggers readback of type and claimed joints.
@@ -117,6 +120,9 @@ class StopPort:
         self.cancels[path]=node.create_client(CancelGoal,path,callback_group=group)
     def invalidate_hold_evidence(self, *, quiet_readback=False, duplicate_activity=False):
         self.hold_invalidated = time.monotonic()
+        self.list_refresh_requested = True
+        self.hardware_refresh_requested = True
+        self.parameter_refresh_requested = True
         if not duplicate_activity:
             self.duplicate_activity_until = -math.inf
         elif self.quiet_partial_hold and self.reusing_hold:
@@ -220,6 +226,7 @@ class StopPort:
                 self.hardware_verified=matching_hardware(self.pending_hardware.result().component,self.joints,self.mode)
                 self.hardware_received=now
                 self.hardware_observed_from=self.hardware_sent
+                self.hardware_refresh_requested=False
             except Exception:self.hardware_verified=False
             self.pending_hardware=None
         if self.pending and now-self.sent>1.3:
@@ -230,6 +237,7 @@ class StopPort:
                 self.controllers=self.pending.result().controller
                 self.received=now
                 self.list_observed_from=self.sent
+                self.list_refresh_requested=False
             except Exception as error:self.error=str(error)
             self.pending=None
         if self.checking and now-self.parameter_sent>.3:
@@ -242,25 +250,30 @@ class StopPort:
                 self.parameters_observed_from=self.parameter_sent
                 self.verified=(list(values[0].string_array_value)==self.joints and abs(values[1].double_value-self.cfg['braking_acceleration_rad_s2'])<1e-10)
                 if not self.verified:self.error='Hold configuration differs'
+                self.parameter_refresh_requested=False
             except Exception as error:self.verified=False;self.error=str(error)
             self.checking=None
-        self.reusing_hold=self.can_reuse_hold(blocked, now)
-        if not self.reusing_hold or self.refresh_for_release:
-            if self.pending_hardware is None and now-self.hardware_sent>.1 and self.hardware.service_is_ready():
-                self.hardware_sent=now;self.pending_hardware=self.hardware.call_async(ListHardwareComponents.Request())
-            if self.pending is None and now-self.sent>=.05 and self.list.service_is_ready():
-                self.pending=self.list.call_async(ListControllers.Request());self.sent=now
-            if self.checking is None and now-self.parameter_sent>.1 and self.parameters.service_is_ready():
-                self.parameter_sent=now
-                request=GetParameters.Request();request.names=['joints','deceleration'];self.checking=self.parameters.call_async(request)
         # An unchanged event in an already latched, quiet cell wakes the readers.
         # Retain the previous binding briefly while they answer. A mismatch, lost
         # publisher, motion or explicit release immediately ends this allowance.
+        self.reusing_hold=self.can_reuse_hold(blocked, now)
+        if self.reusing_hold and not self.refresh_for_release:
+            self.list_refresh_requested=False
+            self.hardware_refresh_requested=False
+            self.parameter_refresh_requested=False
         reading_back = (blocked and ((self.cell_held_quiet and now <= self.quiet_transition_until)
                                      or now <= self.duplicate_activity_until)
                         and self.stationary_hold and self.activity_holding and self.activity_publishers == 1
                         and self.hardware_verified and self.verified and not self.error and self.switching is None
                         and hold_owned(self.controllers,self.joints) and not unsafe_controllers(self.controllers,self.joints))
+        if not self.reusing_hold or self.refresh_for_release or reading_back:
+            if self.pending_hardware is None and (self.hardware_refresh_requested or blocked) and now-self.hardware_sent>=.25 and self.hardware.service_is_ready():
+                self.hardware_sent=now;self.pending_hardware=self.hardware.call_async(ListHardwareComponents.Request())
+            if self.pending is None and (self.list_refresh_requested or blocked) and now-self.sent>=.25 and self.list.service_is_ready():
+                self.pending=self.list.call_async(ListControllers.Request());self.sent=now
+            if self.checking is None and (self.parameter_refresh_requested or blocked) and now-self.parameter_sent>=.25 and self.parameters.service_is_ready():
+                self.parameter_sent=now
+                request=GetParameters.Request();request.names=['joints','deceleration'];self.checking=self.parameters.call_async(request)
         if not (self.reusing_hold or reading_back) and now-self.parameter_received>self.cfg.get('hold_config_max_age_s', .3):
             self.verified=False
         hardware_ok=self.hardware_verified and (self.reusing_hold or reading_back or now-self.hardware_received<1.3)

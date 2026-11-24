@@ -216,10 +216,16 @@ def main():
             client.health()
             evidence['native_after_setup'] = {arm: client.records[arm]['status'] for arm in ARMS}
             require_playing(client.records, ARMS)
+            # Subscribe only for this preflight, once External Control is ready.
+            # The client was constructed without trajectory action clients.
+            client.selected = list(ARMS)
+            client.start_driver_receiver()
+            client.connect()
         except Exception as error:
             evidence['error'] = str(error)
             raise
         finally:
+            evidence['driver_alignment'] = client.alignment_diagnostics
             client.destroy_node()
             save()
     print('Initial holds confirmed. External Control ready on both carton arms.')

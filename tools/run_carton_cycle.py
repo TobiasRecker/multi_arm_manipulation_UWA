@@ -515,11 +515,26 @@ def approach(flow, args, store):
                                   bool(starts))
     meta["program_start_arms"] = starts
     meta["scene_session"] = status["session_id"]
+    preparation = REPO / "tools/carton_gripper_phase.py"
+    meta["gripper_preparation"] = dict(
+        after="high", before="entry", arms=["right_front", "right_rear"],
+        operations=["activate_if_inactive", "open"], force_raw=0, speed_raw=16,
+        source_sha256=file_sha256(preparation))
+    meta["reason"] += "\nAt the confirmed held high pose, activate and fully open both carton grippers (raw force 0, speed 16) before entry."
     if not args.risk:
         assess_library_step(flow, store, meta, preview)
     with flow.approval(store, meta, preview) as identifier:
         for (name, tool, source, value), bundle, sha in zip(runners, paths, meta["components"], strict=True):
             store.check_active(identifier, sha)
+            if name == "entry":
+                if file_sha256(preparation) != meta["gripper_preparation"]["source_sha256"]:
+                    raise ValueError("Gripper preparation source changed since review")
+                flow.phase("prepare_grippers", "carton_gripper_phase.py", "prepare",
+                           "--state", out/"high/result.json", "--execute",
+                           "--output", out/"prepare-grippers")
+                prepared = read_json(out/"prepare-grippers/result.json")
+                if not prepared.get("success") or prepared.get("phase") != "ACTIVE_OPEN_HELD":
+                    raise ValueError("Active open grippers unconfirmed at high pose; no entry")
             # The entry client reads each active/open gripper and the four holds
             # immediately before releasing the group. A separate read-only process
             # here would check the same earlier state and rebuild the ROS graph.

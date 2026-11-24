@@ -157,19 +157,18 @@ def test_watchdog_startup_requires_explicit_reset():
 
 def test_close_pair_cannot_spend_the_whole_heartbeat_timeout(cfg):
     value=dict(evaluated_monotonic_s=1.,pairs=[dict(arms=list(PAIRS[0]),clearance_m=.10,threshold_m=.10,relative_speed_bound_m_s=.5)])
-    assert not expired_pair_leases(value,1.07,cfg)
-    assert expired_pair_leases(value,1.081,cfg)==set(PAIRS[0])
-    # A supervisor tick plus switch latency remains within the guard's
-    # check-interval + switch reserve even if no new decision arrives.
-    assert .08+SUPERVISOR_PERIOD_S+cfg['stop_latency_s']<=1/cfg['rate_hz']+cfg['stop_latency_s']
+    assert not expired_pair_leases(value,1.041,cfg)
+    assert expired_pair_leases(value,1.051,cfg)==set(PAIRS[0])
+    # The 20-Hz supervisor tick remains below half of the hardware heartbeat.
+    assert SUPERVISOR_PERIOD_S<=cfg['heartbeat_timeout_s']/2
 
 
 def test_lease_includes_transport_age_and_excess_clearance(cfg):
     value=dict(evaluated_monotonic_s=1.,pairs=[dict(arms=list(PAIRS[1]),clearance_m=.20,threshold_m=.10,relative_speed_bound_m_s=.5)])
-    assert not expired_pair_leases(value,1.27,cfg)
-    assert expired_pair_leases(value,1.281,cfg)==set(PAIRS[1])
+    assert not expired_pair_leases(value,1.241,cfg)
+    assert expired_pair_leases(value,1.251,cfg)==set(PAIRS[1])
     value['pairs'][0]['clearance_m']=1.
-    assert not expired_pair_leases(value,1.39,cfg)
+    assert not expired_pair_leases(value,1.241,cfg)
     assert expired_pair_leases(value,1.41,cfg)==set(PAIRS[1])
     assert expired_pair_leases({},1.,cfg)==set(ROBOT_IDS)
 

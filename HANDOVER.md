@@ -1,5 +1,170 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Greifervorbereitung zwischen Hochanfahrt und Einfahrt ergänzt, 24.11.2026
+
+Nach dem freigegebenen rechten Treiberneustart hat Lauf
+`582b5aefb41d44508c8928465e434a15` die Hochanfahrt mit beiden rechten Armen
+erfolgreich beendet (`AT_HIGH_PREGRASP_HELD_NO_CONTACT`). Unabhängig
+aufgezeichnete Fahrzeit RF27,55s/RR20,35s, davon19,83s gemeinsam. Einfahrt
+vor Zielversand gesperrt: `right_front: reviewed unloaded/open state unavailable`.
+Beide rechten Greifer ACT0/STA0/POS3/PRE0/FLT0: offen, seit Boot inaktiv.
+Hochanfahrt erlaubt dies ausdrücklich; Einfahrt benötigt aktive Greifer.
+Der Library-Ablauf übersprang bisher die vorhandene Phase
+`carton_gripper_phase.py prepare` zwischen diesen Schritten.
+
+`run_carton_cycle.py` ruft diese Vorbereitung nun nach bestätigter Hochanfahrt
+und vor Einfahrt auf. Sie aktiviert bei Bedarf beide rechten Greifer und
+öffnet mit rawFOR0/SPE16 unter den bestehenden vier Holds und Frische-/
+Positionsprüfungen. Einfahrt erst nach `ACTIVE_OPEN_HELD`; kein Schließen an
+der Hochposition. Tätigkeit und Quellenhash stehen in der Bewegungsreview.
+22 Offline-Softwareprüfungen bestanden, einschließlich gesperrter Einfahrt
+bei unbestätigter Vorbereitung. Keine zusätzliche Hardwareprüfung oder
+Grenzlockerung eingeführt. ROSmini/N100-Runner SHA-256
+`ae294751cc2d7dc502be7ad0a8917cb1af60fe2bf2917eca6fef97ef91257260`;
+N100-Vorversion in `setup/tasks/carton-driver-restart-20261124/run_carton_cycle.previous.py`.
+Normaler Library-Neustart13:05:02AWST, Lauf
+`a77e4131d72645de9a72f03f9615d132`, vor Hardwarevorbereitung wegen kurzzeitig
+abweichender Starthelfer-Version gesperrt. Danach Starthelfer auf ROSmini und
+N100 identisch (`05f83c8066f118c9fad0dc0b31eb00b354ea92729d6f19f564ccc1ebd920c2dc`).
+Folgelauf `1e63657fa5ba47ffac421af983d9b441`13:06:00AWST vor Foto/Planung
+gesperrt: rechts hinten Controller-/Hardware-/Hold-Bestätigung nicht verfügbar.
+Keine neue Arm- oder Greiferaktion. Die spätere sechssekündige lesende Aufnahme
+bestätigt alle vier Holds, Verriegelungen und Hardwarezuordnungen fehlerfrei,
+Watchdog nicht ausgelöst; Ursache des zeitweisen Nachweisverlusts weiter offen.
+Datei `setup/tasks/carton-library-debug-20261124/latest-holds.json`.
+
+Ein weiterer Live-Start wurde durch die automatische Freigabeprüfung vor
+Ausführung abgelehnt: ungeklärte Controller-/Hold-Unterbrechung, reale Bewegung
+möglich, erneute konkrete Nutzerfreigabe erforderlich. Nutzer darüber informiert
+und Freigabe zum normalen Library-Start bei erneut bestätigten Holds angefragt.
+Greifervorbereitung damit offline geprüft und installiert, noch nicht real
+ausgeführt. Weiterhin Hochposition, keine Einfahrt oder Kontaktfahrt erfolgt.
+
+Nachweise lokal `setup/tasks/carton-library-debug-20261124/`:
+`after-driver-restart-high-result.json`, `after-driver-restart-entry-result.json`,
+`after-driver-restart-safety.json`. Der Safety Log ordnet den Einfahrblock
+korrekt vor dem Fahrziel ein; die STOP-Meldungen um12:58:57AWST gehören zum
+vorangegangenen Treiberwechsel, nicht zur erfolgreichen Hochanfahrt.
+
+## RTDE-Wiederverbindung aller vier Treiber repariert, 24.11.2026
+
+Im Journal brachen die beiden rechten Treiber nach je drei fehlgeschlagenen RTDE-Handshakes ab. Im lokalen Nachlauf mit der bisherigen N100-Bibliothek ließ sich dieselbe Meldung reproduzieren. Auch der geprüfte [offizielle UR-Quellstand](https://github.com/UniversalRobots/Universal_Robots_Client_Library/blob/f53cd97f5b18ba3ac86c32dbae895c2f31e3c8f5/src/rtde/rtde_client.cpp#L1136) begrenzt diese Versuche. Die lokale Korrektur wiederholt den Handshake einer bereits aufgebauten Sitzung nach vorübergehendem Ausfall mit Wartezeit. Der Hintergrundleser liefert ein Paket nur bei tatsächlich eingegangenen Daten mit fortschreitendem Gerätezeitstempel. Die ROS-JointState-Header selbst stammen weiter vom Host. Während einer Unterbrechung bleibt der unabhängige native Zustand für den Vergleich erforderlich.
+
+Der Loopback-Server lehnte beide Protokollversionen in fünf aufeinanderfolgenden TCP-Verbindungen ab. Danach nahm der neue Client wieder echte Testserverdaten an. Vier vorhandene RTDE-Serverprüfungen und 30 Library-/Review-Softwareprüfungen bestanden. Beim Start des Kartonprogramms wird der bestehende zeitlich abgeglichene Positionsvergleich für die beiden rechten Arme bereits vor Kartonaufnahme und Bahnplanung ausgeführt. Der Verbindungsaufbau kann frische Daten abwarten. Die Prüfung vor der Bewegung gilt weiterhin. Es gibt keinen zusätzlichen dauerhaften Überwachungsprozess.
+
+Nach Nutzerfreigabe und vier bestätigten Holds beide laufenden rechten Programme regulär gestoppt. Alle vier Treiberdienste bis 13:07:44 AWST einzeln gewechselt, Bibliothek im jeweiligen Manager verifiziert und nach jedem Arm vier Holds bestätigt. SHA-256 der Bibliothek `4b763aac379fc443817d7b408e43a044d0940273133df474fdaa43566b07a604`. Vorversionen der drei installierten Dateien auf dem N100 unter `~/uwa-ur-runtime/review-candidates/rtde-recovery-20261124.BK4Oy0of/previous/`.
+
+Bei der ersten Abnahme ergab eine Abtastlücke während der ROS-Discovery rechts vorne 0,00754 rad einschließlich Unsicherheit bei nur 0,000061 rad gemessener Abweichung. In der anschließenden stationären Messung nach Verbindungsaufbau waren die Maxima einschließlich Unsicherheit rechts vorne 0,000143 rad (13 Werte), rechts hinten 0,000339 rad (12), links vorne 0,000456 rad (20) und links hinten 0,000075 rad (14). Bestehende Grenze 0,005 rad. Endstand vier native STOPPED, max. gemessene Gelenkgeschwindigkeit je Arm 0 rad/s, vier Holds, Interlock bestätigt, Watchdog nach Dienstwechsel verriegelt und keine ausstehenden nativen STOPs. Keine Bewegung im Wartungsfenster. [Messdaten und Protokolle](../../setup/tasks/ur-rtde-recovery-20261124/).
+
+## N100-Überwachung entlastet, 24.11.2026
+
+Die Hardware-Überwachung wurde auf ereignisgebundene Managerabfragen umgestellt.
+Eine bestätigte ruhende Zelle sendet keine periodische Controller-, Hardware-
+oder Hold-Parameterliste. Beim Verbinden, Zustandswechsel, Reset oder Wieder-
+anlauf bleiben frische Abfragen und die bestehende Ressourcensperre erhalten.
+Supervisor und Watchdog publizieren jetzt mit20Hz statt50Hz. Die 20Hz-RTDE-
+Istwerte, Gelenk-/TCP-Geschwindigkeit, 40-mm-Kollisionsprüfung, Stillstands-
+fenster und native Dashboard-Rückfälle wurden nicht gelockert. Der Watchdog
+verwendet auf Hardware keine zweite vollständige StopPort-RPC-Kette, sondern
+behält den unabhängigen nativen Stopp bei.
+
+## Karton-Hochanfahrt vor Zielversand gesperrt, 24.11.2026, 12:51 AWST
+
+Nach ausdrücklichem Nutzerauftrag beide rechten `ros.urp` regulär gestoppt.
+Unabhängige Aufnahme bestätigte alle vier Arme stationär mit nativSTOPPED.
+Nur die zwei rechten N100-Treiberdienste neu gestartet und deren vorhandene
+Sechs-Gelenk-Holds bereitgestellt. Neue Dienstidentitäten RF
+`fa6155d558614f7fbf6d46b011a450c5`, RR
+`a3a6757e480d4417a6a2dfae263f66c9`. Anschließend aktuelle Driver-/Native-
+Winkeldifferenz RF maximal0,00007153rad, RR0,00002688rad, beide Kanäle
+Geschwindigkeit0. Alle vier Holds/Interlock und Modellbindung bestätigt;
+Watchdog nach dem Betriebswechsel erwartungsgemäß verriegelt. Keine
+Vergleichsgrenze oder Geschwindigkeit geändert. Lesender Nachweis:
+`setup/tasks/carton-library-debug-20261124/driver-after-restart.json`.
+N100-STOP-/Stillstandsnachweise:
+`~/uwa-ur-runtime/setup/tasks/carton-driver-restart-20261124/`.
+Normaler Library-Neustart12:59:19AWST, Lauf
+`582b5aefb41d44508c8928465e434a15`. Der Hochanfahrtsbericht bestätigt
+die abgeschlossene Anfahrt. Der nachfolgende Einfahrschritt meldete rechts
+vorne `reviewed unloaded/open state unavailable`; die Greiferregister
+zeigten ACT=0 und STA=0. Diese Meldung trat vor dem RTDE-Dienstwechsel auf.
+[Hochanfahrt](../../setup/tasks/carton-library-debug-20261124/after-driver-restart-high-result.json) · [Einfahrschritt](../../setup/tasks/carton-library-debug-20261124/after-driver-restart-entry-result.json).
+
+Im Library-Lauf `a03f0f556cc842429f68fa0b4e5143b9` waren Planung und Freigabe abgeschlossen. Der Positionsvergleich rechts vorn scheiterte vor dem ersten Ziel. Größte Abweichung am Handgelenk 3: 0,009839 rad, mit Interpolations- und Uhrenunsicherheit 0,009901 rad gegenüber 0,005 rad Grenze. Handgelenk 1 wich um 0,007676 rad ab. Im Treiberverlauf rechts vorn hatten alle 2.000 Meldungen über 4,406 s exakt dieselben sechs Positionswerte bei fortschreitenden Zeitstempeln. Rechts hinten dasselbe Muster. Der unabhängige native Messkanal lieferte fortlaufend Istwerte; er registrierte für beide Arme keine Fahrbewegung oberhalb der Auswerteschwelle. Keine Arm- oder Greiferziele gesendet.
+
+Beide rechten Treiber hatten laut Journal um 10:18 AWST ihre RTDE-Neuinitialisierung nach drei Versuchen abgebrochen. Bis zum Abbruch der Hochanfahrt erschien für beide keine erfolgreiche RTDE-Wiederverbindung im gefilterten Treiberjournal. Das spricht für die Weiterveröffentlichung eines alten Positionsstands. Der genaue Zeitpunkt des letzten vom Treiber übernommenen Gerätepakets fehlt im Fahrbericht. [Messreihen](../../setup/tasks/carton-library-debug-20261124/oak4-primary-high-result.json) · [RTDE-Journal](../../setup/tasks/carton-library-debug-20261124/right-drivers-rtde-reconnect.log) · [Safety Log](../../setup/tasks/carton-library-debug-20261124/oak4-primary-safety.json)
+
+## OAK4-Vorrang und30-mm-Zentrumsvergleich, Nutzerentscheidung24.11.2026
+
+Der folgende reale Library-Lauf `a03f0f556cc842429f68fa0b4e5143b9`
+bestand den Kameravergleich mit14,0195mm und1,9810°. OAK4-Pose unverändert
+an beide offline geprüften Parallelpläne übergeben. Der spätere Treiberabbruch
+vor Zielversand ist oben gesondert dokumentiert.
+
+Der Nutzer bestätigt den Vergleich der Boxlage aus beiden Blickwinkeln,
+bevorzugt die OAK4-Lokalisierung und beauftragt30mm Grenze für den Abstand
+der Zentren. Höhere OAK4-Genauigkeit ist seine Einschätzung, kein neuer
+Kalibriernachweis. Bei zwei gültigen Fits bleibt nun die OAK4-Pose samt
+Armbindungen exakt erhalten; die USB-OAK liefert nur die Gegenprüfung.
+Bis einschließlich30mm akzeptiert, oberhalb abgelehnt. Die180°-Zuordnung
+und bestehende Winkelgrenze<2° bleiben aktiv. Einzelbildkriterien, Fall
+mit nur einer gültigen Kamera, Einfahrbild und N100-Schutz bleiben erhalten.
+Diese Regel ersetzt die frühere gleichgewichtete Mittelung/10-mm-Grenze.
+
+31 gezielte Softwareprüfungen bestanden. Der Offline-Nachlauf der letzten
+Originale (`1bcfd25ade114d5fb8e0d834b7bcc3a3`) akzeptiert14,392mm/1,304°
+im Modus `primary_checked`; Hauptkamera `oak4`, Gewichte1/0. Die resultierenden
+`T_camera_object`, `T_world_object_candidate` und beide `world_object_by_arm`
+entsprechen exakt den ursprünglichen OAK4-Werten. Nachweis:
+`setup/tasks/carton-library-debug-20261124/oak4-primary-30mm-verified/`.
+Die englische Library benennt OAK4-Pose und30-mm-Gegenprüfung ausdrücklich.
+
+## Erneuter Library-Start nach Symmetriekorrektur, 24.11.2026
+
+Auf ausdrücklichen Nutzerauftrag erneut über die normale Startaktion der
+Power-Library auf Port39823 gestartet. Browserzugriff weiterhin nicht
+verfügbar, daher derselbe HTTP-Endpunkt wie der Button. Lauf
+`1bcfd25ade114d5fb8e0d834b7bcc3a3`, Start12:42:28AWST. Beide Referenzen
+gültig, Programmvorbereitung sowie aktuelle Aufnahmen und beide Einzel-
+registrierungen durchlaufen.180°-Umbenennung der zweiten Pose angewendet.
+Restabweichung14,392mm zwischen den Grundflächenmittelpunkten und1,304°.
+Die Winkelgrenze<2° ist erfüllt, die Positionsgrenze<10mm nicht. Abbruch
+vor Bahnplanung, kein Fahrziel und kein Greifbefehl. Keine weitere Toleranz-,
+Kamera- oder Schutzänderung für diesen Versuch. Die Symmetriefrage ist
+damit vom weiterhin bestehenden metrischen Positionsversatz getrennt.
+Nachweis: `setup/tasks/uwa_program_library/1bcfd25ade114d5fb8e0d834b7bcc3a3/multiview/decision.json`.
+
+## Aufgabenbezogene180°-Symmetrie des Kartons, Nutzerkorrektur24.11.2026
+
+Laut Nutzer sind alle vier Wände bedruckt; für den symmetrischen Kartongriff
+ist die Unterscheidung zweier180°-Darstellungen unnötig. Die Nachfrage nach
+einem eindeutigen Vorderseitenmerkmal ist damit überholt. Der Kameravergleich
+berücksichtigt diese Gleichwertigkeit nun vor der Mittelung. Die zweite Pose
+wird samt Eckursprung um den Grundflächenmittelpunkt zur Darstellung der
+Hauptkamera zugeordnet. Verglichen/gemittelt wird die physische Mittelpunktslage;
+die Rotation wird erst nach der Zuordnung gemittelt. Primärer Kartonframe,
+Armrollen und bestehendes Greifrezept bleiben in dieser Darstellung erhalten.
+Keine zusätzliche90°-Symmetrie und keine Änderung von Bild-, TCP- oder
+Geschwindigkeitsgrenzen. Die vollständige Bahn-/Kontaktprüfung bleibt nötig.
+
+28 gezielte Kalibrier-/Multiviewprüfungen bestanden, darunter identische
+Kartonlagen mit vertauschten Eckursprüngen, Rotationsmittelung über180°, echte
+Translation und der nicht gleichwertige90°-Fall. Offline-Nachlauf der letzten
+Originale:12,987mm Mittelpunktsabstand/2,954° Restwinkel. Die alte
+518,125mm/177,046°-Rohabweichung war weitgehend ein Framewechsel; der
+verbleibende Messwiderspruch liegt weiter außerhalb<10mm/<2°. Daher noch
+keine freigegebene Mittelpose oder Roboterfahrt. Nachweis:
+`setup/tasks/carton-library-debug-20261124/symmetry-aware-comparison/decision.json`.
+Geändert ist nur die ROSmini-Posenauswahl, nicht der laufende N100-Schutz.
+
+Zusätzlicher Offline-Nachlauf mit der vorhandenen, auf drei Messanfragen
+begrenzten Hydrogen-Nachmessung: lokal akzeptierte OAK4-Neumessungen
+verbleiben symmetriebereinigt bei15,107mm Mittelpunktsabstand und1,621°
+zur ursprünglichen USB-Pose. Die Winkelgrenze wird dabei erfüllt, die
+Positionsgrenze weiter nicht. Keine Live-Suchfenster übernommen und keine
+weitere Kamera-/Roboteraufnahme. Bericht:
+`setup/tasks/carton-library-debug-20261124/symmetry-refinement/summary.json`.
+
 ## Live-Library und Flächenzuordnung im Zweikameralauf, 24.11.2026
 
 Auf Nutzerauftrag den fertigen Zweikamera-Stand übernommen.22 gezielte
@@ -21,8 +186,8 @@ rückwärts zugeordneten UV-Punkten. Beide Bilder ergeben dann Hypothesen
 für Fläche3 und4, bleiben aber mehrdeutig. Keine der85 kamerübergreifenden
 Hypothesenpaarungen erfüllt<10mm/<2°; beste Positionen liegen etwa20,3mm
 auseinander. Keine aktive Modell-/Referenzänderung und keine gelockerte
-Bildgrenze. Ein eindeutiges Merkmal zur Zuordnung der gegenüberliegenden
-Wände ist beim Nutzer angefragt.
+Bildgrenze. Die damalige Nachfrage nach einem eindeutigen Wandmerkmal ist
+durch die oben dokumentierte Nutzerkorrektur zur180°-Symmetrie überholt.
 
 Die passive180-s-Aufzeichnung02 endete regulär. Im aufgezeichneten Lauf
 größtes natives Zustandsalter am Guard je Arm<55ms. Der separate

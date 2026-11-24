@@ -62,6 +62,37 @@ def test_mock_stop_never_calls_real_dashboard(monkeypatch):
     assert p.native_ack and not calls and not logs and not p.native_stop_events
 
 
+def test_idle_stop_port_does_not_poll_controller_management():
+    p=ports.StopPort.__new__(ports.StopPort)
+    p.cfg={'hold_config_max_age_s':1.0,'braking_acceleration_rad_s2':.2,'stop_latency_s':1.0}
+    p.joints=['joint'];p.mode='mock'
+    p.pending_hardware=p.pending=p.checking=p.switching=None
+    p.hardware_received=p.parameter_received=p.received=-float('inf')
+    p.hardware_sent=p.parameter_sent=p.sent=p.switch_started=p.switch_finished=-float('inf')
+    p.hardware_observed_from=p.parameters_observed_from=p.list_observed_from=-float('inf')
+    p.hold_invalidated=-float('inf')
+    p.controllers=[];p.verified=p.hardware_verified=False
+    p.error=p.native_error=None;p.native_ack=False
+    p.native_thread=None;p.native_sent=-float('inf');p.native_stop_events=[]
+    p.unheld_since=None;p.cancelled_owners=set();p.was_blocked=False
+    p.stationary_hold=p.cell_held_quiet=p.quiet_partial_hold=p.reusing_hold=False
+    p.refresh_for_release=False;p.quiet_transition_until=-float('inf')
+    p.duplicate_activity_until=-float('inf');p.activity_holding=False;p.activity_publishers=0
+    p.list_refresh_requested=p.hardware_refresh_requested=p.parameter_refresh_requested=False
+    p.profile={'id':'right_front'}
+    p.node=SimpleNamespace(get_logger=lambda:SimpleNamespace(error=lambda *_:None))
+    calls=[]
+    class IdleClient:
+        def service_is_ready(self):return True
+        def call_async(self,*args):calls.append(args);return SimpleNamespace(done=lambda:False)
+    p.hardware=p.list=p.parameters=p.switch=IdleClient()
+    p.cancels={}
+    p.can_reuse_hold=lambda *args:False
+    p.native_stop=lambda *_:None;p.cancel=lambda:None
+    p.tick(False,False)
+    assert calls==[]
+
+
 def test_guard_journal_separates_new_latch_and_cause_during_hold():
     journal = GuardJournal()
     left = dict(arms=['left_front'], reason='SPEED LIMIT', measured_velocity_rad_s=.2)

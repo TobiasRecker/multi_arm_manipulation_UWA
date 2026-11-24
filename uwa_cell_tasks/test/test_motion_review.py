@@ -187,7 +187,8 @@ def test_motion_timing_skips_sample_gaps_and_counts_shared_intervals(tmp_path):
 
 
 @pytest.mark.parametrize("program", [None, "carton-supported-v1"])
-def test_complete_workflow_with_mock_devices_uses_same_revisions(tmp_path, monkeypatch, cycle_runner, program):
+@pytest.mark.parametrize("grippers_ready", [True, False])
+def test_complete_workflow_with_mock_devices_uses_same_revisions(tmp_path, monkeypatch, cycle_runner, program, grippers_ready):
     from types import SimpleNamespace
     from datetime import datetime, timezone
     import hashlib
@@ -241,6 +242,13 @@ def test_complete_workflow_with_mock_devices_uses_same_revisions(tmp_path, monke
                  start=state(a),carton=dict(world_pose=[[1]],shell_boxes=[]),preview_urdf=str(xml),
                  preview_urdf_sha256=hashlib.sha256(xml.read_bytes()).hexdigest(),
                  joint_limit_rad_s=.1,tcp_limit_m_s=.25/3))
+        if name == "prepare_grippers":
+            assert history[-2] == "high"
+            assert tool == "carton_gripper_phase.py"
+            assert args[0] == "prepare" and "--execute" in args
+            assert Path(args[args.index("--state")+1]) == run/"high/result.json"
+            dump(run/"prepare-grippers/result.json", dict(success=grippers_ready,
+                 phase="ACTIVE_OPEN_HELD" if grippers_ready else "HELD_OPEN_UNCONFIRMED"))
         if name in {"high","entry","close"}:
             identifier=args[args.index("--review-id")+1]
             if name=="close":
@@ -260,13 +268,19 @@ def test_complete_workflow_with_mock_devices_uses_same_revisions(tmp_path, monke
         recipe=None if program else tmp_path,
         risk="low",reason="Review fixture",config=tmp_path/"config",camera_reference_pose=None,roi=None,
         face_roi=None,start_ros_programs=False)
+    if not grippers_ready:
+        with pytest.raises(ValueError, match="Active open grippers unconfirmed"):
+            module.approach(flow,args,store)
+        assert history[-2:] == ["high", "prepare_grippers"]
+        assert "entry" not in history and "close" not in history
+        return
     module.approach(flow,args,store)
     assert flow.report["phase"]=="WAITING_VISUAL_REVIEW"
     assert history.count("prepare_recipe")==int(bool(program))
     args.entry_image,args.entry_metadata=photo(tmp_path/"after")
     args.visual_confirmed=True
     module.close_after_entry(flow,args,store)
-    assert flow.report["success"] and history[-3:]==["high","entry","close"]
+    assert flow.report["success"] and history[-4:]==["high","prepare_grippers","entry","close"]
     assert [row["status"] for row in store.status()["history"]]==["done","done"]
 
 

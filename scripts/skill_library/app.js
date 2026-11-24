@@ -353,7 +353,8 @@ function updateStatus() {
   const next = [title, summary];
   if (run.perception) {
     const p = run.perception;
-    const names = {two_view_mean: "TWO ACCEPTED VIEWS · Equal pose average",
+    const names = {two_view_mean: "TWO ACCEPTED VIEWS · Equal pose average (previous policy)",
+      primary_checked: "OAK4 POSE · Second view checked · Centre limit 30 mm",
       single_confirmed: "SINGLE POSE · Confirmed in the second view",
       single_view: "SINGLE POSE · Existing strict image-fit criteria"};
     next.push(element("p", "camera-reference", `${names[p.mode] || "POSE REJECTED"} · ${p.primary_camera || p.error || "No accepted measurement"}`));

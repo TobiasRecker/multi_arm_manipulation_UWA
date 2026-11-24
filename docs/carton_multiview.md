@@ -8,7 +8,7 @@ die bisherige Robotersteuerung.
 
 | Bildbefund | Verwendete Pose |
 | --- | --- |
-| Beide unabhängigen geometrischen Fits gültig und übereinstimmend | Gleiches Gewicht: mittlere Position und sphärischer Orientierungsmittelwert |
+| Beide unabhängigen geometrischen Fits gültig und übereinstimmend | OAK4-Pose unverändert, OAK Pro als Gegenprüfung |
 | Nur ein geometrischer Fit gültig, andere Ansicht bestätigt den projizierten Karton | Unveränderte Pose der gültigen Kamera |
 | Nur ein geometrischer Fit gültig, andere Ansicht verdeckt, unklar oder nicht verfügbar | Unveränderte gültige Einzelpose, fehlende Bestätigung ausdrücklich ausgewiesen |
 | Zwei gültige Posen widersprechen sich oder zweite Ansicht zeigt einen klaren Widerspruch | Keine Pose für die Bahnplanung |
@@ -17,10 +17,21 @@ die bisherige Robotersteuerung.
 Eine gültige Einzelpose verlangt unverändert lokale Bildmerkmale, die
 vorhandenen Inlier-/Projektionskriterien, Tischauflage und mindestens zwei
 übereinstimmende Bildhypothesen. Gemini-Konfidenz ersetzt diese Nachweise
-nicht. Für den Vergleich der beiden Kameraposen gelten zunächst dieselben
-Übereinstimmungsgrenzen wie innerhalb einer Registrierung: **unter 10 mm
-und unter 2°**, nicht einschließlich der Grenze. Keine gelockerte Pose geht
-in den Mittelwert ein. Die beiden Kameras und die Originalpixel werden
+nicht. Seit neuer Nutzerentscheidung24.11. gilt für den kamerübergreifenden
+Vergleich **Mittelpunktabweichung bis einschließlich30mm und Winkelabweichung
+unter2°**. Die strengeren Kriterien innerhalb einer Einzelbildregistrierung
+bleiben erhalten. Auf Nutzerkorrektur vom
+24.11. werden die aufrechten180°-Darstellungen vorher als gleichwertig
+zugeordnet. Die zweite Pose bleibt beim selben physischen Karton, ihr
+Eckursprung wird mit umgerechnet. Verglichen werden die Positionen des
+Grundflächenmittelpunkts und die so angeglichenen Rotationen im gemeinsamen
+Zellkoordinatensystem. Bei zwei gültigen Fits wird die OAK4-Pose verwendet,
+einschließlich unveränderter Armtransformationen; die USB-Pose wird nicht
+eingemittelt.90° gilt bei diesem rechteckigen Karton nicht
+als Symmetrie. Alle vier Wände sind laut Nutzer bedruckt; eine eindeutige
+Vorderseite ist für diesen Griff nicht erforderlich. OAK4 wird auf Nutzerwunsch
+bevorzugt; ihre höhere Genauigkeit ist dadurch nicht neu nachgewiesen.
+Die beiden Kameras und die Originalpixel werden
 getrennt protokolliert und über Prüfsummen an die ausgewählte Pose gebunden.
 
 Hydrogen Low kann je Kamera wie bisher bis zu drei gezielte Nachmessungen
@@ -45,7 +56,8 @@ die USB-Referenz, wird dies angezeigt; die gültige OAK4-Referenz bleibt nutzbar
 **Supported carton grasp → Start program** nimmt beide nativen Ansichten
 vor der Registrierung auf. Den Karton während der Aufnahmen still halten;
 die Aufnahmen sind nacheinander, keine synchronisierte Stereomessung. Im
-Laufstatus erscheinen `TWO ACCEPTED VIEWS`, `SINGLE POSE` oder `POSE REJECTED`
+Laufstatus erscheinen `OAK4 POSE · Second view checked · Centre limit 30 mm`,
+`SINGLE POSE` oder `POSE REJECTED`
 sowie Messquelle, Zweitbildbefund und verfügbare Bildlinks. Die aktuelle
 offene Einfahrt wird weiterhin mit der OAK4 für die Kontaktprüfung aufgenommen.
 Auch bei einer ausschließlich aus der OAK Pro bestimmten Kartonpose bleibt
@@ -69,7 +81,7 @@ Je Lauf liegen `multiview-input.json`, `multiview/decision.json`, die gebundene
 und Originalbild. Normalisierte Metadaten geben die Arbeitsplatz-Auftragszeit
 als konservative Zeituntergrenze an, keinen synchronisierten Belichtungszeitpunkt.
 
-Mittelung ist noch kein Nachweis höherer absoluter Genauigkeit. Gemeinsame
+Die Gegenprüfung ist kein Nachweis höherer absoluter Genauigkeit. Gemeinsame
 Board-/Modellfehler können beide Ansichten betreffen. Die Genauigkeit am
 Karton muss gesondert anhand realer Vergleichsmessungen beurteilt werden.
 Geschwindigkeit, Bewegungsfreigaben, aktuelle Einfahrbildentscheidung und
@@ -77,12 +89,32 @@ bestehende Schutzkette gehören weiterhin zum bisherigen Kartonablauf.
 
 ## Prüfergebnis vom 24.11.2026
 
-35 gezielte Offline-Softwareprüfungen bestanden. Aktuelle native Aufnahmen
+31gezielte Kalibrier-/Multiviewprüfungen für die aktuelle OAK4-Vorrangregel
+bestanden:30mm akzeptiert, darüber abgelehnt, Winkelgrenze und180°-
+Zuordnung erhalten, keine Verschiebung oder Rotation der OAK4-Pose und
+keine Abhängigkeit von der Reihenfolge im Bildmanifest. Offline-Nachlauf
+von Lauf `1bcfd25ade114d5fb8e0d834b7bcc3a3`:14,392mm/1,304° akzeptiert,
+OAK4-Pose und beide Armbindungen exakt erhalten.
+
+Historischer Stand vor dieser Nutzerentscheidung:
+
+Die180°-Gleichwertigkeit ist berücksichtigt und mit28 gezielten
+Kalibrier-/Multiviewtests geprüft. Die aktuellen Aufnahmen aus Library-Lauf
+`7e14069f070d442e9a2bbd236aab01a2` verbleiben danach bei12,987mm Abstand
+der Grundflächenmittelpunkte und2,954° Restwinkel. Sie werden weiterhin
+abgelehnt. Der halbe Meter Rohabstand gehörte größtenteils zu zwei
+unterschiedlich benannten Eckursprüngen, nicht zu zwei physischen Kartons.
+`pose_comparison` im Entscheidungsbericht nennt Roh- und Restabweichung
+sowie die angewendete180°-Zuordnung. Es ist keine weitere Toleranz freigegeben.
+
+Vor der Symmetriebehandlung bestanden35 gezielte Offline-Softwareprüfungen.
+Damals ausgewertete native Aufnahmen
 beider Kameras zeigten eine annähernde 180°-Mehrdeutigkeit der eigenständigen
 Kartonfits. Auch die nur diagnostische Rechtecksymmetrie-Gegenprobe liegt mit
 10,679 mm und 2,253° knapp außerhalb der bisherigen Grenzen. Diese aktuelle
-Zweibildmessung liefert deshalb keine Mittelpose. Die Zuordnung der
-gegenüberliegenden Wand zum gemeinsamen Kartonframe bleibt offen.
+Zweibildmessung lieferte deshalb keine Mittelpose. Die damalige Forderung
+nach eindeutiger Vorder-/Rückseitenzuordnung ist durch die Nutzerkorrektur
+überholt; offen bleibt die tatsächliche metrische Übereinstimmung.
 
 Der reale zusätzliche Hydrogen-Low-Bildcheck bestätigte den Karton im
 OAK-Pro-Bild an der aus OAK4 projizierten Stelle. Dieser Anwesenheitsbefund

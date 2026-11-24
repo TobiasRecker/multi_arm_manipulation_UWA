@@ -268,7 +268,7 @@ class HardwareSupervisor(MotionNode):
         self.create_service(Trigger,'/uwa_cell/collision_supervisor/reset',self.reset,callback_group=self.group)
         for rid in ROBOT_IDS:self.create_service(Trigger,'/uwa_cell/collision_supervisor/'+rid+'/stop',lambda request,response,r=rid:self.stop(r,response),callback_group=self.group)
         for rid in ROBOT_IDS:self.create_service(Trigger,'/uwa_cell/collision_supervisor/'+rid+'/reset',lambda request,response,r=rid:self.reset(request,response,arms={r}),callback_group=self.group)
-        self.wall_clock=Clock(clock_type=ClockType.STEADY_TIME);self.create_timer(.02,self.tick,clock=self.wall_clock)
+        self.wall_clock=Clock(clock_type=ClockType.STEADY_TIME);self.create_timer(.05,self.tick,clock=self.wall_clock)
     def receive(self,msg):
         value=decode(msg)
         with self.lock:
@@ -426,7 +426,7 @@ class HardwareWatchdog(MotionNode):
         self.create_subscription(String,'/uwa_cell/collision_supervisor/status',lambda msg:self.peer.receive(decode(msg),time.monotonic(),self.signature,self.armed),1)
         self.create_subscription(String, '/uwa_cell/collision_guard/decision', self.receive_guard, 1)
         self.create_service(Trigger,'/uwa_cell/hardware_watchdog/reset',self.reset)
-        self.wall_clock=Clock(clock_type=ClockType.STEADY_TIME);self.create_timer(.02,self.tick,clock=self.wall_clock)
+        self.wall_clock=Clock(clock_type=ClockType.STEADY_TIME);self.create_timer(.05,self.tick,clock=self.wall_clock)
     def receive_guard(self, msg):
         # The supervisor normally forwards original RTDE timestamps. During
         # takeover use the existing guard decision independently of that process.
@@ -448,13 +448,14 @@ class HardwareWatchdog(MotionNode):
         fresh = self.peer.fresh(now, self.cfg['heartbeat_timeout_s'])
         if now - self.began > self.cfg['heartbeat_timeout_s'] and not fresh:
             self.tripped = True
+        supervisor_holding = False
         if self.tripped and self.armed:
             supervisor_holding = fresh and set(self.peer.value.get('blocked_arms', ())) == set(ROBOT_IDS)
             stopped_at = fresh_native_stops(self.peer if fresh else self.guard, now, self.cfg)
             for arm, port in self.ports.items():
                 if arm not in stopped_at:
                     port.native_stop('Independent watchdog: supervisor heartbeat unavailable/tripped')
-            if not supervisor_holding:
+            if not supervisor_holding and self.mode == 'mock':
                 for arm, port in self.ports.items():
                     # A failed controller RPC must not interrupt the ongoing
                     # Dashboard fallback for this or any other arm.
