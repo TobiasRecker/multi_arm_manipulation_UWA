@@ -1,6 +1,27 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+Bei Fehlern in UR-Treibern auch den offiziellen Quellstand von Universal Robots auf eine passende Korrektur prüfen (Nutzerwunsch vom 24.11.2026).
+
 ## Kartongriff mit zweiter OAK-Perspektive, Nutzerauftrag 24.11.2026
+
+- Neuere Nutzerentscheidung24.11.: OAK4 als bevorzugte metrische Quelle
+  verwenden, keine Mittelung mit der USB-OAK. Bei zwei gültigen Posen die
+  Zentren im gemeinsamen Zellframe vergleichen und Abweichungen bis
+  einschließlich30mm akzeptieren.180°-Symmetrie berücksichtigen; bisherige
+  Winkelgrenze<2° und Einzelbildkriterien erhalten. OAK4-Pose einschließlich
+  Armtransformationen unverändert an die Planung geben. Die Einschätzung,
+  dass OAK4 genauer sei, ist eine Nutzerbewertung, kein neuer Messnachweis.
+  Diese Entscheidung ersetzt die frühere gleichgewichtete Mittelung und
+  die bisherige10-mm-Grenze des kamerübergreifenden Vergleichs. Bei nur
+  einer gültigen Einzelpose gelten die bisherigen Zusatzbild-/Rückfallregeln.
+
+- Nutzerkorrektur24.11.: Alle vier Kartonwände sind bedruckt. Für den
+  tischgestützten Griff180°-äquivalente aufrechte Kartonposen als dieselbe
+  Aufgabenlage behandeln; keine künstliche Vorder-/Rückseitenidentität
+  verlangen. Vor dem Kameravergleich die zweite Pose um den
+  geometrischen Kartonmittelpunkt zur Darstellung der Hauptkamera zuordnen.
+  Keine90°-Symmetrie für den nicht quadratischen Karton ableiten. Echte
+  verbleibende Lageabweichungen und die vollständige Bahnprüfung beibehalten.
 
 - Nutzer erlaubt ausdrücklich, für diese Zweikamera-Kartonauswertung aktuelle
   Karton-Bildausschnitte und Projektionsoverlays an Gemini Hydrogen über das
@@ -8,7 +29,8 @@
   OAK-Pro-Nachmessung und die Anwesenheits-/Verdeckungsprüfung.
 - **Supported carton grasp** um die gegenüberliegende USB-OAK-D Pro AF
   (kurz OAK Pro) erweitern. Zwei unabhängig gültige und übereinstimmende
-  Kartonposen mitteln. Bei nur einer gültigen Pose die zweite Ansicht mit
+  Kartonposen ursprünglich mitteln; durch obige OAK4-Vorrangregel ersetzt.
+  Bei nur einer gültigen Pose die zweite Ansicht mit
   erweiterter Gemini-Auswertung gezielt auf Anwesenheit am projizierten Ort
   prüfen; deren schwache Messung nicht zum Mitteln verwenden.
 - Bei Verdeckung genügt weiterhin die bisher ausreichend sichere Einzelpose.
@@ -969,6 +991,14 @@ angezeigten Arme und die Revision gebunden.
   Standard-Warncallbacks wegen gemessenem rclpy-Waitset-Aufwand der1kHz-Simuhr
   vermeiden (`uwa_cell_motion.node.MotionNode`). Empfangsfrische und unabhängige
   Watchdogs bleiben maßgeblich; CPU-Optimierung ist kein Fristgarantienachweis.
+- Hardware-Überwachung24.11.2026: Controllerliste, Hardwarekomponenten und
+  Hold-Parameter nur beim Verbindungs-, Wechsel-, Reset-, Wiederanlauf- oder
+  Zustandsereignis lesen. In ruhendem bestätigtem Hold keine periodischen
+  Verwaltungs-RPCs. Supervisor und Watchdog laufen mit20Hz; Guard-RTDE,
+  Geschwindigkeits-, Kollisions-, Halte- und native Rückfallprüfungen ohne
+  separaten Nutzerauftrag unverändert erhalten. Hardware-Watchdog darf keine
+  zweite vollständige Manager-Inventarprüfung aufbauen; sein Rückfall bleibt
+  unabhängig und nativer.
 - RViz-Verlustalarme unabhängig vom Geometrieprozess anzeigen und alte Kugeln
   löschen. Ressourcenbesitz nicht als gemessenen Stillstand ausgeben. Kurze
   Zeilenumbrüche verhindern überbreite Leerzeichen des aktuellen Text-Renderers.
