@@ -19,12 +19,13 @@ sys.path.insert(0, str(ROOT / "tools"))
 from carton_camera_session import validate_session
 from run_carton_program import live_inputs, CAMERA_PROGRAM
 from run_multi_camera_program import PROGRAM as MULTI_CAMERA_PROGRAM
+from run_pen_program import PROGRAM as PEN_PROGRAM, availability as pen_availability
 
 WORKSPACE = ROOT.parents[1]
 PROGRAM_ID = "carton-supported-v1"
 RUN_ID = re.compile(r"[a-f0-9]{32}")
 PREVIEWS = {"oak_preview", "right_front_preview", "right_rear_preview", "camera_preview",
-            "usb_preview", "cross_view_preview"}
+            "usb_preview", "cross_view_preview", "pen_preview"}
 STATIC = {
     "/": (ROOT / "scripts/skill_library/index.html", "text/html; charset=utf-8"),
     "/index.html": (ROOT / "scripts/skill_library/index.html", "text/html; charset=utf-8"),
@@ -129,7 +130,18 @@ class Runs:
                 dict(id='planning', title='Plan and check the approach', description='Plan new paths to the saved observation goals on ROSmini. Task command cap: 0.09 rad/s.'),
                 dict(id='positioning', title='Position the four arms', description='Move left front, left rear, right front and right rear in sequence with the existing N100 protection.'),
                 dict(id='capture_gui', title='Record six-camera board views', description='Open or reuse UWA Camera Capture. Hold the mobile board still for each CAPTURE ALL SIX; solve the calibration separately.')])
-        return dict(programs=[calibration, multi_camera, program],
+        pen = dict(id=PEN_PROGRAM, kind='pen_grasp', title='Pick pen from holder',
+            description='Locate the two 30 mm markers with OAK Pro/OpenCV, use Gemini as a fallback, then plan the left rear arm to grasp and lift the pen.',
+            object='COS pen and keyed holder', arms=['Left rear'], device='N100 OAK Pro',
+            demo_available=False, camera_program=CAMERA_PROGRAM,
+            stages=[dict(id='snapshot', title='Read the current start', description='Use the current N100 four-arm model and released work area.'),
+                dict(id='capture', title='Capture the pen', description='Acquire a fresh native OAK Pro image; keep the pen fully seated.'),
+                dict(id='registration', title='Locate both markers', description='Measure ID 97 on top and ID 96 on the side. Gemini may suggest a crop; OpenCV determines the metric pose.'),
+                dict(id='planning', title='Plan the complete pickup', description='Check approach, vertical entry and carried-pen lift against the full cell, CAD adapter and holder.'),
+                dict(id='motion_review', title='Review and enter', description='Review the new left-rear motion in UWA Robot Power. Open the gripper at the pregrasp pose, then enter vertically.'),
+                dict(id='contact_review', title='Inspect, grasp and lift', description='Review a fresh open-entry photo, then close the left-rear gripper, lift vertically and hold.')],
+            **pen_availability(self.live_config is not None))
+        return dict(programs=[calibration, multi_camera, program, pen],
                     camera_reference=dict(status="valid" if camera.get('camera_valid_until') else "required",
                         valid_from=camera.get('camera_valid_from'), valid_until=camera.get('camera_valid_until'),
                         program=CAMERA_PROGRAM),
@@ -192,7 +204,7 @@ class Runs:
 
     def start(self, program, mode):
         allowed = {PROGRAM_ID: {"demo", "live", "calibrate"}, CAMERA_PROGRAM: {"calibrate"},
-                   MULTI_CAMERA_PROGRAM: {'setup', 'gui'}}
+                   MULTI_CAMERA_PROGRAM: {'setup', 'gui'}, PEN_PROGRAM: {'inspect', 'live'}}
         if program not in allowed or mode not in allowed[program]:
             raise ValueError("Choose a program and execution mode from the library.")
         with (self.directory / ".run.lock").open("a") as lease:
@@ -202,7 +214,11 @@ class Runs:
                 raise RuntimeError("Another library run is already active.") from error
             if program == MULTI_CAMERA_PROGRAM and mode == 'setup' and self.live_config is None:
                 raise ValueError('Start the N100-enabled UWA Robot Power library to prepare the real arms.')
-            if mode in {'live', 'calibrate'}:
+            if program == PEN_PROGRAM:
+                status = pen_availability(self.live_config is not None)
+                if not status[mode+'_available']:
+                    raise ValueError(status['live_blocker'])
+            if mode in {'live', 'calibrate'} and program != PEN_PROGRAM:
                 camera = self.camera_status()
                 if mode == "live" and camera["live_blocker"]:
                     raise ValueError(camera["live_blocker"])
@@ -211,7 +227,10 @@ class Runs:
             identifier = uuid4().hex
             output = self.directory / identifier
             output.mkdir()
-            if program == MULTI_CAMERA_PROGRAM:
+            if program == PEN_PROGRAM:
+                command = [sys.executable, str(ROOT / 'tools/run_pen_program.py'),
+                           '--mode', mode, '--output', str(output)]
+            elif program == MULTI_CAMERA_PROGRAM:
                 command = [sys.executable, str(ROOT / 'tools/run_multi_camera_program.py'),
                            '--mode', mode, '--output', str(output)]
             else:

@@ -482,8 +482,10 @@ class ReviewPanel(QtWidgets.QWidget):
         viewer.setWindowTitle('Contact photograph · ' + self.key[1][:12])
         self.photo_dialog = viewer
         layout = QtWidgets.QVBoxLayout(viewer)
-        layout.addWidget(plain(f'Contact review · {self.photo.width()} × {self.photo.height()} pixels'
-                               ' · Check support and both open grippers around the carton walls.'))
+        instruction = (' · Check the open left-rear pads around the pen adapter, the holder rim and vertical lift clearance.'
+                       if self.item.get('task') == 'pen_holder_grasp'
+                       else ' · Check support and both open grippers around the carton walls.')
+        layout.addWidget(plain(f'Contact review · {self.photo.width()} × {self.photo.height()} pixels' + instruction))
         scene = QtWidgets.QGraphicsScene(viewer)
         item = scene.addPixmap(self.photo)
         canvas = QtWidgets.QGraphicsView(scene, viewer)

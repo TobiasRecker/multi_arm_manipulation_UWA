@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "program_id": "pen-left-rear-v1",
+  "task": "pen_holder_grasp",
+  "arm": "left_rear",
+  "camera_config": "setup/skill_library/carton-usb.json",
+  "dictionary": "DICT_4X4_100",
+  "top_marker_id": 97,
+  "side_marker_id": 96,
+  "marker_length_m": 0.03,
+  "mount": {
+    "centered_confirmed": true,
+    "provenance": "User confirmed 24 November 2026: both black 30 mm squares centered on their adapter faces; pen fully seated.",
+    "top_center_m": [0, 0, 0.049],
+    "side_center_m": [0, 0.0155, 0.033],
+    "grasp_center_m": [0, 0, 0.0345],
+    "dock_base_z_m": -0.0895,
+    "pen_tip_z_m": -0.079,
+    "qualification": "Centered CAD mounting assumption; adhesive thickness and actual grasp TCP not independently measured"
+  },
+  "pregrasp_m": 0.15,
+  "lift_m": 0.15,
+  "gripper_tcp_from_base_m": 0.145,
+  "force_raw": 0,
+  "gripper_speed_raw": 16,
+  "gemini_fallback": true,
+  "max_reprojection_rms_px": 2.5,
+  "max_corner_error_px": 5.0,
+  "max_upright_tilt_deg": 8.0
+}

@@ -1,0 +1,10 @@
+{
+  "source_sha256": "d0c0e8de04b7a5086f316aba24cdc8f16b878945f1f651cfc870ab9153edea93",
+  "units": "m",
+  "adapter_origin": "STEP world minus89.5mm Z; top49mm; nominal tip -79mm",
+  "files": {
+    "adapter-1.stl": "6ad0250167f5a90c7298b600ce5e01f05156ae30fbe6ff47050b4fe798041cf4",
+    "adapter-2.stl": "cf14cd6f07964952b82635d8ebea8e078524eac6296d36a795fe6c6706ec97e9",
+    "dock.stl": "2dc99c19de8a15a140edccd056d454ad7e61b81c6ba43d28cd564910e431ee3e"
+  }
+}

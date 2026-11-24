@@ -11,6 +11,7 @@ import time
 import uuid
 
 TASK = "carton_supported_grasp"
+SUPPORTED_TASKS = {TASK, "pen_holder_grasp"}
 START_PERCENT = 100 / 3
 RISKS = {"low": 1, "medium": 2, "high": 3}
 TRUST = {0: 0, 50: 1, 100: 2}
@@ -171,7 +172,7 @@ class ReviewStore:
             self._save(db, state)
 
     def submit(self, operation, meta, preview):
-        if meta["task"] != TASK or meta["stage"] not in {"motion", "contact"} or meta["risk"] not in RISKS:
+        if meta["task"] not in SUPPORTED_TASKS or meta["stage"] not in {"motion", "contact"} or meta["risk"] not in RISKS:
             raise ValueError("Unsupported task, stage or risk")
         if not meta["reason"].strip() or not meta["components"]:
             raise ValueError("A reason and a bound action are required")

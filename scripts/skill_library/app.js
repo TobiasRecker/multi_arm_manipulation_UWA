@@ -173,7 +173,12 @@ function actions(program) {
   section.append(element("h2", "", "Run program"));
   const cameraOnly = program.kind === "camera_calibration";
   const multiCamera = program.kind === "multi_camera_capture";
-  if (multiCamera) {
+  const pen = program.kind === "pen_grasp";
+  if (pen) {
+    section.append(element("p", "", "Inspect pen uses only the OAK Pro camera. Start program plans the complete pickup from the current joints, then requests motion and contact reviews in UWA Robot Power. Only Left rear moves."));
+    section.append(element("p", "", "Keep the pen fully seated. IDs 97 and 96 are both attached to the pen adapter. The centered CAD mounting and nominal gripper TCP are shown in the review. Prepare Left rear with UWA Robot Power and release the work area first."));
+    if (program.live_blocker) section.append(element("p", "feedback", program.live_blocker));
+  } else if (multiCamera) {
     section.append(element("p", "", "Start capture setup plans new paths from the current joints and moves the four unloaded arms to the saved observation poses, then opens the six-camera window. Prepare all four arms with UWA Robot Power and release the work area first."));
     section.append(element("p", "", "Open capture GUI uses the existing poses and sends no robot motion. An open six-camera window is reused. Record several stationary mobile-board views; solving and activating the joint calibration is a separate step."));
     if (!program.setup_available) section.append(element("p", "feedback", "Robot setup is available from the N100-enabled UWA Robot Power library."));
@@ -197,7 +202,11 @@ function actions(program) {
   const demoText = "The offline demo uses saved inputs. It plans motion without connecting to the cell.";
   if (program.demo_available) section.append(element("p", "", demoText));
   const buttons = element("div", "run-buttons");
-  if (multiCamera) {
+  if (pen) {
+    buttons.append(startButton(program, "inspect", "Inspect pen", "secondary"),
+      startButton(program, "live", "Start program", "primary"));
+    buttons.append(link(programRoute(program.camera_program), "button secondary", "Open camera calibration"));
+  } else if (multiCamera) {
     buttons.append(startButton(program, "setup", "Start capture setup", "primary"),
       startButton(program, "gui", "Open capture GUI", "secondary"));
   } else if (cameraOnly) {
@@ -245,7 +254,7 @@ function runState(run) {
   const label = waiting ? "REVIEW REQUIRED" :
     ({ running: "RUNNING", succeeded: "COMPLETE", failed: "FAILED" }[run.state] || "UNKNOWN");
   const mode = { live: "CELL", demo: "OFFLINE DEMO", calibrate: "OAK4 CALIBRATION",
-    setup: "CAPTURE SETUP", gui: "CAPTURE GUI" }[run.mode];
+    setup: "CAPTURE SETUP", gui: "CAPTURE GUI", inspect: "CAMERA INSPECTION" }[run.mode];
   return `${mode} · ${label}`;
 }
 

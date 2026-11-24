@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.22)
+project(carton_video LANGUAGES CXX)
+find_package(gz-rendering REQUIRED)
+add_executable(render_carton render_carton.cpp)
+target_compile_features(render_carton PRIVATE cxx_std_17)
+target_link_libraries(render_carton PRIVATE gz-rendering::gz-rendering)
