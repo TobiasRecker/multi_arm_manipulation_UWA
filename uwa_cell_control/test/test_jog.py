@@ -1,4 +1,6 @@
 from pathlib import Path
+import json
+from types import SimpleNamespace
 
 import pytest
 from python_qt_binding import QtCore,QtGui,QtWidgets
@@ -55,4 +57,28 @@ def test_jog_only_streams_while_held_release_mode_change_focus_and_close_stop(tm
         dialog.start([1,0,0]);dialog.close()
         assert transport.messages[-1]==[0.]*6 and transport.closed
         assert 'right_rear' not in window.jog_dialogs
+    finally:dialog.close();window.close();app.processEvents()
+
+
+def test_global_pause_clears_jog_and_requires_fresh_input_after_resume(tmp_path,monkeypatch):
+    monkeypatch.setenv('UWA_WS',str(tmp_path))
+    app=QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    window=Window(Path(__file__).resolve().parents[2]/'config/hardware_inventory.yaml')
+    window.timer.stop();window.closing=True
+    dialog=JogDialog(window,'right_rear',transport_factory=Transport);dialog.timer.stop()
+    try:
+        dialog.start([1,0,0])
+        assert any(dialog.transport.messages[-1])
+        dialog.protection_status(SimpleNamespace(data=json.dumps(dict(paused=True))))
+        assert dialog.active==[0.]*6 and dialog.transport.messages[-1]==[0.]*6
+        assert not dialog.enable.isEnabled()
+        for _ in range(4):dialog.tick()
+        dialog.start([1,0,0])
+        assert not any(dialog.transport.messages[-1])
+        dialog.protection_status(SimpleNamespace(data=json.dumps(dict(paused=False))))
+        dialog.start([1,0,0])
+        assert not any(dialog.transport.messages[-1])
+        dialog.release_input()
+        dialog.start([1,0,0])
+        assert dialog.transport.messages[-1]==[.01,0,0,0,0,0]
     finally:dialog.close();window.close();app.processEvents()

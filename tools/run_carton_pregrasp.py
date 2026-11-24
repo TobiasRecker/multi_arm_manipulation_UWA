@@ -111,6 +111,17 @@ def read_gripper_status(client, arm):
 def reviewed_command(args, phase, problem, source, start, end, selected, make_parts, output, report,
                      binding, scene, end_phase, observer_type, extra_collision=None):
     from prepare_carton_open_entry import shell_boxes
+    from uwa_cell_motion.protection_backend import minimal_enabled
+    if minimal_enabled() and args.execute and not args.reviewed:
+        from uwa_cell_tasks.minimal_reviewed_execution import run_bundle
+        tcp = args.tcp_speed_m_s or .25/3
+        envelope = speed_envelope(problem,selected,args.command_velocity,tcp)
+        parts = {arm:[retime(part,arm,envelope) for part in trajectories]
+                 for arm,trajectories in make_parts().items()}
+        groups, attempts = compile_groups(problem,start,parts,args.command_velocity,extra_collision)
+        bundle = dict(phase=phase, groups=groups, joint_limit_rad_s=args.command_velocity,
+                      tcp_limit_m_s=tcp, coordination_attempts=attempts)
+        return run_bundle(problem,bundle,args,output,report,end_phase=end_phase)
     if args.prepare_reviewed:
         started=time.monotonic()
         envelope=speed_envelope(problem,selected,args.command_velocity,args.tcp_speed_m_s)
@@ -234,7 +245,8 @@ def main():
         not np.allclose(binding['T_world_object_candidate'],evidence['world_object_candidate'],atol=1e-9,rtol=0)):
         raise ValueError('Object pose must explicitly use the current right-front model anchor; old frozen world pose is not an execution target')
     selected=[args.arm] if args.arm else ['right_front','right_rear']
-    reviewed=bool(args.prepare_reviewed or args.reviewed)
+    from uwa_cell_motion.protection_backend import minimal_enabled
+    reviewed=bool(args.prepare_reviewed or args.reviewed or (minimal_enabled() and args.execute))
     if path['kind'] not in ('serial_direct','simultaneous_direct') and not (path['kind']in ('single_arm_via_upright','rrt_detour')and (len(selected)==1 or reviewed)):
         raise ValueError('Expected direct or explicitly checked single-arm upright pregrasp path')
     if not args.reviewed and any(not 0<args.command_velocity<=arm_velocity_limit(problem.cfg,r) for r in selected):

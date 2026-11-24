@@ -7,6 +7,7 @@ import errno
 import json
 import os
 import socket
+import time
 from pathlib import Path
 import sys
 
@@ -47,6 +48,209 @@ GUIDANCE = {
 ACTIONS = {'standby': 'Standby', 'start': 'Start + ROS'}
 
 
+def protection_command(n100=False, mock=False):
+    if n100:
+        return ['/usr/bin/ssh', '-F', str(N100_SSH_CONFIG), '-o', 'ConnectTimeout=5',
+                '-o', 'BatchMode=yes', 'uwa-n100-robot-lan',
+                'bash ~/uwa-ur-runtime/protection.sh bridge --mode hardware']
+    return ['/usr/bin/bash', '-c',
+            'source "$1"; exec /usr/bin/python3 "$2" --mode "$3"', 'uwa-protection',
+            str(ROOT/'scripts/control_env.bash'), str(ROOT/'scripts/protection_bridge.py'),
+            'mock' if mock else 'hardware']
+
+
+class ProtectionControls(QtWidgets.QFrame):
+    """Independent transport keeps the stop button usable during power/review work."""
+    audit = QtCore.Signal(str, object)
+
+    def __init__(self, command, parent=None):
+        super().__init__(parent)
+        self.command = command
+        self.closed = False
+        self.available = False
+        self.paused = False
+        self.sequence = 0
+        self.stdout = bytearray()
+        self.last_status = 0.
+        self.pending = {}
+        self.setStyleSheet('QFrame{background:#fff;color:#102744;border-radius:8px}'
+                           'QLabel{border:0}'
+                           'QPushButton#softwareStop{background:#960d18;color:white;border:3px solid #310000;'
+                           'font-size:18px;font-weight:800;padding:12px}'
+                           'QPushButton#softwareResume{background:#173b5a;color:white;border:2px solid #081d31;'
+                           'font-weight:800;padding:12px}'
+                           'QPushButton#softwareResume:disabled{background:#d9e0e7;color:#465665}')
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setSpacing(5)
+        buttons = QtWidgets.QHBoxLayout()
+        self.pause_button = QtWidgets.QPushButton('SOFTWARE STOP ALL ARMS', objectName='softwareStop')
+        self.pause_button.setMinimumHeight(60)
+        self.pause_button.setToolTip('Pause all arm motion through ROS controllers. Grippers retain their targets.')
+        self.resume_button = QtWidgets.QPushButton('RESUME', objectName='softwareResume')
+        self.resume_button.setEnabled(False)
+        self.resume_button.setMinimumHeight(60)
+        self.resume_button.setToolTip('Explicitly continue retained trajectories. Manual jog needs a fresh command.')
+        self.pause_button.clicked.connect(lambda: self.request('pause_all'))
+        self.resume_button.clicked.connect(lambda: self.request('resume_all'))
+        buttons.addWidget(self.pause_button, 3)
+        buttons.addWidget(self.resume_button, 1)
+        layout.addLayout(buttons)
+        self.state_label = QtWidgets.QLabel('CONNECTING · minimal protection endpoint')
+        self.state_label.setTextFormat(QtCore.Qt.TextFormat.PlainText)
+        self.state_label.setStyleSheet('font-weight:800;font-size:14px')
+        layout.addWidget(self.state_label)
+        self.result_label = QtWidgets.QLabel('Controller acknowledgements are shown here; physical standstill is not measured.')
+        self.result_label.setTextFormat(QtCore.Qt.TextFormat.PlainText)
+        self.result_label.setWordWrap(True)
+        layout.addWidget(self.result_label)
+        grid = QtWidgets.QGridLayout()
+        self.arm_labels = {}
+        for i, (rid, label) in enumerate(LABELS.items()):
+            item = QtWidgets.QLabel(label + ': UNCONFIRMED')
+            item.setTextFormat(QtCore.Qt.TextFormat.PlainText)
+            item.setWordWrap(True)
+            self.arm_labels[rid] = item
+            grid.addWidget(item, i // 2, i % 2)
+        layout.addLayout(grid)
+        self.warning_label = QtWidgets.QLabel()
+        self.warning_label.setTextFormat(QtCore.Qt.TextFormat.PlainText)
+        self.warning_label.setWordWrap(True)
+        self.warning_label.setStyleSheet('background:#fff0c2;color:#482000;font-weight:750;padding:4px')
+        self.warning_label.hide()
+        layout.addWidget(self.warning_label)
+        self.process = QtCore.QProcess(self)
+        self.process.readyReadStandardOutput.connect(self.read_output)
+        self.process.finished.connect(self.disconnected)
+        self.process.errorOccurred.connect(lambda error: self.disconnected() if
+            error == QtCore.QProcess.ProcessError.FailedToStart else None)
+        self.timer = QtCore.QTimer(self, interval=1000)
+        self.timer.timeout.connect(self.check_transport)
+        self.timer.start()
+        QtCore.QTimer.singleShot(0, self.connect_transport)
+
+    def connect_transport(self):
+        if self.closed or self.process.state() != QtCore.QProcess.ProcessState.NotRunning:
+            return
+        self.stdout.clear()
+        self.process.start(self.command[0], self.command[1:])
+
+    def request(self, operation):
+        self.sequence += 1
+        request_id = str(self.sequence)
+        title = 'SOFTWARE STOP' if operation == 'pause_all' else 'RESUME'
+        self.audit.emit('protection request', dict(id=request_id, operation=operation))
+        if self.process.state() != QtCore.QProcess.ProcessState.Running:
+            self.result_label.setText(title + ' FAILED · transport unavailable; command not sent.')
+            self.connect_transport()
+            return
+        self.pending[request_id] = operation
+        self.result_label.setText(title + ' RECEIVED · sending controller command…')
+        self.process.write((json.dumps(dict(id=request_id, op=operation)) + '\n').encode())
+
+    def read_output(self):
+        self.stdout.extend(bytes(self.process.readAllStandardOutput()))
+        while b'\n' in self.stdout:
+            line, _, self.stdout = self.stdout.partition(b'\n')
+            try:
+                self.handle(json.loads(line))
+            except (ValueError, TypeError, KeyError):
+                continue
+
+    def handle(self, packet):
+        if not isinstance(packet, dict):
+            return
+        if packet.get('event') == 'status':
+            if packet.get('available') and isinstance(packet.get('status'), dict):
+                self.render_status(packet['status'])
+            else:
+                self.unavailable(packet.get('error') or 'Protection status unavailable.')
+        elif packet.get('event') == 'command_result':
+            operation = packet.get('operation')
+            if operation not in ('pause_all', 'resume_all'):
+                return
+            if isinstance(packet.get('status'), dict):
+                self.render_status(packet['status'])
+            title = 'SOFTWARE STOP' if operation == 'pause_all' else 'RESUME'
+            phase = packet.get('phase', 'failed')
+            if phase == 'done':
+                detail = 'command accepted; controller acknowledgements below.'
+            elif phase == 'failed':
+                detail = packet.get('message') or 'Command outcome unconfirmed.'
+            else:
+                detail = 'controller command in progress…'
+            if phase in ('done', 'failed'):
+                self.pending.pop(packet.get('id'), None)
+                self.audit.emit('protection result', packet)
+            # A late earlier response must not replace a newer stop acknowledgement.
+            try:
+                if int(packet.get('id', self.sequence)) < self.sequence:
+                    return
+            except (ValueError, TypeError):
+                pass
+            self.result_label.setText(title + ' ' + phase.upper() + ' · ' + detail)
+
+    def render_status(self, status):
+        self.last_status = time.monotonic()
+        self.available = True
+        self.paused = status.get('paused') is True
+        self.state_label.setText(('PAUSED' if self.paused else 'RUNNING ENABLED') +
+                                ' · ' + str(status.get('reason') or 'minimal collision protection'))
+        self.state_label.setStyleSheet('font-weight:800;font-size:14px;color:' +
+                                      ('#840611' if self.paused else '#102744'))
+        self.resume_button.setEnabled(self.paused)
+        for rid, label in self.arm_labels.items():
+            row = status.get('arms', {}).get(rid, {})
+            if row.get('confirmed') is True:
+                text = 'ACKNOWLEDGED · ' + ('PAUSED' if row.get('paused') else 'RUNNING ENABLED')
+            else:
+                text = 'UNCONFIRMED'
+            if row.get('error'):
+                text += ' · ' + str(row['error'])
+            label.setText(LABELS[rid] + ': ' + text)
+        warnings = [str(w) for w in status.get('warnings', [])]
+        if status.get('collision_data_available') is False and not warnings:
+            warnings.append('Collision data unavailable; automatic collision checking is incomplete.')
+        self.warning_label.setText('WARNING · ' + ' · '.join(warnings))
+        self.warning_label.setVisible(bool(warnings))
+
+    def unavailable(self, detail):
+        self.available = False
+        self.resume_button.setEnabled(False)
+        self.state_label.setText('UNAVAILABLE · minimal protection endpoint')
+        self.state_label.setStyleSheet('font-weight:800;font-size:14px;color:#840611')
+        self.warning_label.setText('WARNING · ' + str(detail) + ' No controller acknowledgement available.')
+        self.warning_label.show()
+        for rid, label in self.arm_labels.items():
+            label.setText(LABELS[rid] + ': UNCONFIRMED')
+
+    def disconnected(self, *_):
+        if self.closed:
+            return
+        self.unavailable('Protection connection lost.')
+        if self.pending:
+            self.result_label.setText('FAILED · command outcome unconfirmed after connection loss.')
+            self.pending.clear()
+
+    def check_transport(self):
+        if self.closed:
+            return
+        if self.process.state() == QtCore.QProcess.ProcessState.NotRunning:
+            self.connect_transport()
+        elif self.last_status and time.monotonic() - self.last_status > 4.:
+            self.unavailable('Protection status is out of date.')
+
+    def shutdown(self):
+        self.closed = True
+        self.timer.stop()
+        if self.process.state() != QtCore.QProcess.ProcessState.NotRunning:
+            self.process.closeWriteChannel()
+            if not self.process.waitForFinished(350):
+                self.process.terminate()
+                if not self.process.waitForFinished(350):
+                    self.process.kill()
+                    self.process.waitForFinished(350)
+
+
 def present(row):
     code, data = row.get('code'), row.get('state') or {}
     details = []
@@ -70,7 +274,8 @@ def present(row):
 
 
 class Window(QtWidgets.QWidget):
-    def __init__(self, backend=None, *, n100=False, review_mock=None, program_library=False):
+    def __init__(self, backend=None, *, n100=False, review_mock=None, program_library=False,
+                 protection_backend='minimal', protection_transport=None):
         super().__init__()
         self.n100 = n100
         self.mock = review_mock is not None
@@ -141,6 +346,11 @@ class Window(QtWidgets.QWidget):
         self.log_button.clicked.connect(self.show_logs)
         header.addWidget(self.log_button)
         page.addLayout(header)
+        if protection_backend != 'minimal':
+            raise ValueError('Unknown protection backend: ' + str(protection_backend))
+        self.protection = ProtectionControls(protection_transport or protection_command(n100, self.mock), self)
+        self.protection.audit.connect(self.record)
+        page.addWidget(self.protection)
         if program_library:
             self.library_button = QtWidgets.QPushButton('Starting program library…')
             self.library_button.setEnabled(False)
@@ -453,6 +663,7 @@ class Window(QtWidgets.QWidget):
             return
         if self.review:
             self.review.shutdown()
+        self.protection.shutdown()
         if self.log_view:
             self.log_view.shutdown()
         if self.library_process and self.library_process.state() != QtCore.QProcess.ProcessState.NotRunning:
@@ -476,6 +687,9 @@ def main():
                       help='Review a local mock store. No power or robot connection.')
     parser.add_argument('--safety-log', action='store_true',
                         help='Open only the read-only safety log, alongside an existing window.')
+    parser.add_argument('--protection-backend', choices=('minimal',),
+                        default=os.environ.get('UWA_PROTECTION_BACKEND', 'minimal'),
+                        help='Use the minimal protection API; unavailable endpoints never fall back to the old guard.')
     args, qt_args = parser.parse_known_args()
     use_host_desktop_libraries()
     app = QtWidgets.QApplication([sys.argv[0], *qt_args])
@@ -490,7 +704,8 @@ def main():
         finally:
             dialog.shutdown()
     if args.review_mock is not None:
-        window = Window(review_mock=args.review_mock, program_library=True)
+        window = Window(review_mock=args.review_mock, program_library=True,
+                        protection_backend=args.protection_backend)
         window.show()
         return app.exec()
     # An abstract Unix socket is released by the kernel when the app exits.
@@ -507,7 +722,7 @@ def main():
             peer.sendto(requested_host, address)
         return 0
     peer.setblocking(False)
-    window = Window(n100=args.n100, program_library=True)
+    window = Window(n100=args.n100, program_library=True, protection_backend=args.protection_backend)
     notifier = QtCore.QSocketNotifier(peer.fileno(), QtCore.QSocketNotifier.Type.Read, window)
 
     def activate(*_):

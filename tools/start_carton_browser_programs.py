@@ -197,6 +197,22 @@ def main():
         (args.output / 'browser-play.json').write_text(json.dumps(evidence, indent=2) + '\n')
 
     save()
+    from uwa_cell_motion.protection_backend import minimal_enabled
+    if minimal_enabled():
+        from uwa_cell_tasks.minimal_reviewed_execution import start_programs
+        with TemporaryDirectory(prefix='carton-minimal-play-') as models, motion_context():
+            from uwa_cell_motion.minimal_execution import MinimalHardwareClient
+            problem = HardwareProblem(models, config(args.config), REPO/'config/hardware_inventory.yaml')
+            client = MinimalHardwareClient(problem, 'hardware')
+            try:
+                check_scene(args.scene_session)
+                evidence['program_start'] = start_programs(client,args.output,arms,scene=args.scene_session)
+                evidence['protection_backend'] = 'minimal'
+            finally:
+                client.destroy_node()
+                save()
+        print('Requested External Control programs prepared; no gripper or hold checks.')
+        return
     with TemporaryDirectory(prefix='carton-browser-play-') as models, motion_context():
         problem = HardwareProblem(models, config(args.config), REPO / 'config/hardware_inventory.yaml')
         # Only supervisor holds and scoped Play are available to this client.

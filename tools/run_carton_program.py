@@ -235,7 +235,17 @@ def live_inputs(path, *, camera_id="oak4"):
 
 
 def n100(script, *args):
-    command = shlex.join(["/bin/bash", "-c", N100_WORKSPACE + script, "uwa-carton-program",
+    backend = os.environ.get('UWA_PROTECTION_BACKEND', 'legacy')
+    if backend not in ('legacy','minimal'):
+        raise ValueError('Unknown protection backend')
+    candidate = os.environ.get('UWA_MINIMAL_RUNTIME', '')
+    prefix = N100_WORKSPACE
+    if backend == 'minimal':
+        if candidate:
+            prefix += 'cd -- '+shlex.quote(candidate)+'\n'
+        prefix += 'export UWA_PROTECTION_BACKEND=minimal\n'
+        prefix += 'export UWA_MINIMAL_INSTALL="$PWD/install_lyrical"\n'
+    command = shlex.join(["/bin/bash", "-c", prefix + script, "uwa-carton-program",
                           *map(str, args)])
     return ["/usr/bin/ssh", *SSH_OPTIONS, "-T", N100_HOST, command]
 
@@ -445,7 +455,10 @@ exec cat -- "$1/observed/observations.json"
                    out / "check-snapshot.log", 20)
     # Generic offline planning accepts a stopped program. This live snapshot
     # follows the explicit Play step and must describe the two arms that will run.
-    states = load_json(observations)["arms"]
+    observation = load_json(observations)
+    if observation.get('protection_backend') == 'minimal':
+        return observations
+    states = observation["arms"]
     for arm in ("right_front", "right_rear"):
         runtime = states[arm]["samples"][-1]["runtime_state"]
         if runtime != 2:

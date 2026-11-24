@@ -1,5 +1,6 @@
 """MuR-style Cartesian jogging without lift/mobile-host controls."""
 from functools import partial
+import json
 from python_qt_binding import QtCore,QtWidgets
 from match_mur_gui.jog_commands import cartesian_twist
 from match_ur_hardware.jog import JogTransport
@@ -11,7 +12,16 @@ class JogDialog(QtWidgets.QDialog):
         super().__init__(main)
         self.main=main;self.rid=rid;self.profile=main.profiles[rid]
         self.active=[0.]*6;self.zero_ticks=0;self.closed=False
+        self.protection_paused=False;self.require_release=False
         self.transport=(transport_factory or JogTransport)(self.profile,domain=main.ros_domain)
+        self.protection_subscription=None
+        if hasattr(self.transport,'node'):
+            from rclpy.qos import QoSProfile,DurabilityPolicy,ReliabilityPolicy
+            from std_msgs.msg import String
+            self.protection_subscription=self.transport.node.create_subscription(String,
+                '/uwa_cell/protection/status',self.protection_status,
+                QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL,
+                           reliability=ReliabilityPolicy.RELIABLE))
         self.setWindowTitle('UWA Cartesian jog · '+rid);self.resize(660,480)
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
         layout=QtWidgets.QVBoxLayout(self)
@@ -38,7 +48,7 @@ class JogDialog(QtWidgets.QDialog):
             button.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
             button.setStyleSheet('QPushButton {background:#ecf1f7;color:#111;border:2px solid #172e4d;font-size:17px;font-weight:bold;}'
                                 'QPushButton:pressed {background:#123f85;color:white;border:4px solid black;}')
-            button.pressed.connect(partial(self.start,vector));button.released.connect(lambda:self.stop('released'))
+            button.pressed.connect(partial(self.start,vector));button.released.connect(self.release_input)
             grid.addWidget(button,row,col);self.axis_buttons[label]=button
         self.stop_button=QtWidgets.QPushButton('STOP JOG');self.stop_button.setMinimumHeight(58)
         self.stop_button.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
@@ -71,12 +81,31 @@ class JogDialog(QtWidgets.QDialog):
         self.motion.repaint()
 
     def start(self,vector):
-        if self.closed:return
+        if self.closed or self.protection_paused or self.require_release:return
         mode='translation' if self.mode.currentIndex()==0 else 'rotation'
         self.active=cartesian_twist(vector,mode,self.linear_speed.value(),self.angular_speed.value())
         self.zero_ticks=0;self.transport.publish(self.active)
         text=f'JOGGING · {mode} · '+str(self.active)
         self.show_motion(True,text);self.main.note(f'{self.rid}: {text}')
+
+    def release_input(self):
+        self.require_release=False
+        self.stop('released')
+
+    def protection_status(self,message):
+        try:
+            status=json.loads(message.data)
+            if not isinstance(status,dict) or type(status.get('paused')) is not bool:return
+        except (ValueError,TypeError,AttributeError):return
+        paused=status['paused']
+        if paused and not self.protection_paused:
+            self.require_release=any(self.active)
+            self.stop('global software pause')
+        self.protection_paused=paused
+        for button in self.axis_buttons.values():button.setEnabled(not paused)
+        self.enable.setEnabled(not paused)
+        if paused:self.show_motion(False,'PAUSED · global software stop; release held keys/buttons')
+        elif self.require_release:self.show_motion(False,'IDLE · release held input, then issue a fresh jog command')
 
     def stop(self,reason='released'):
         if self.closed:return
@@ -97,6 +126,7 @@ class JogDialog(QtWidgets.QDialog):
             f'UR External Control running: {self.transport.program_running}')
 
     def enable_controller(self):
+        if self.protection_paused:return
         self.stop('controller change')
         self.show_motion(False,'ENABLING · applying the compliance preset…')
         self.main.acknowledge('cartesian','Enable jog controller',self.enable)
@@ -120,7 +150,7 @@ class JogDialog(QtWidgets.QDialog):
         if event.isAutoRepeat():event.accept();return
         if event.key() in (QtCore.Qt.Key.Key_Left,QtCore.Qt.Key.Key_Right,QtCore.Qt.Key.Key_Up,
                           QtCore.Qt.Key.Key_Down,QtCore.Qt.Key.Key_PageUp,QtCore.Qt.Key.Key_PageDown):
-            self.stop('key released');event.accept();return
+            self.release_input();event.accept();return
         super().keyReleaseEvent(event)
 
     def event(self,event):

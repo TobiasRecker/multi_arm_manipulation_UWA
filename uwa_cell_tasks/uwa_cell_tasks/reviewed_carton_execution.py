@@ -214,6 +214,10 @@ def _dispatch(client, lock, group, goals, extra, force_refs, segment):
 
 def run_bundle(problem, bundle, args, output, report, *, client_type, observer_type,
                read_gripper, start_programs, end_phase, extra_collision=None):
+    from uwa_cell_motion.protection_backend import minimal_enabled
+    if minimal_enabled():
+        from .minimal_reviewed_execution import run_bundle as minimal_run
+        return minimal_run(problem, bundle, args, output, report, end_phase=end_phase)
     from uwa_cell_motion.pilot_interlock import PilotInterlock
     require_domain('hardware')
     started = time.monotonic()

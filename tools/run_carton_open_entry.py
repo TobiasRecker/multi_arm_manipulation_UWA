@@ -129,7 +129,8 @@ def main():
     report=dict(hardware_signature=signature(p,'hardware'),model_signature=p.signature,supervision_limits={k:p.cfg[k] for k in ('state_timeout_s','heartbeat_timeout_s','standstill_velocity_rad_s')},success=False,phase='OFFLINE',arm_commands=[],finger_commands=[],loaded_motion=False,command_velocity_rad_s=.1,segments=[],plan=str(args.plan.resolve()),plan_sha256=hashlib.sha256(args.plan.read_bytes()).hexdigest(),wrench_scope='Native wrench DELTA10N/1.5Nm abort; not jaw-force metrology')
     report['model_scene_build_s']=time.monotonic()-model_started
     def save():dump(out/'result.json',report)
-    if args.prepare_reviewed or args.reviewed:
+    from uwa_cell_motion.protection_backend import minimal_enabled
+    if args.prepare_reviewed or args.reviewed or (minimal_enabled() and args.execute):
         if plan.get('motion_kind') is not None:
             raise ValueError('Reviewed entry supports the open approach to the stationary carton')
         arms=['right_front','right_rear']

@@ -195,6 +195,11 @@ def validate_planning_snapshot(observation):
             errors.append(f"{rid}: {arm.get('error') or 'native observation missing'}")
             continue
         sample = samples[-1]
+        if observation.get('protection_backend') == 'minimal':
+            joints = sample.get('actual_q', ())
+            if len(joints) != 6 or not all(type(q) in (int, float) and math.isfinite(q) for q in joints):
+                errors.append(f'{rid}: invalid native joint positions')
+            continue
         mode, safety, runtime = (sample.get(key) for key in ("robot_mode", "safety_mode", "runtime_state"))
         if mode != 7 or safety != 1 or runtime not in (1, 2):
             label = {3: "POWER_OFF", 7: "RUNNING"}.get(mode, str(mode))
@@ -225,8 +230,14 @@ def prepare(directory, profile_path, inventory, *, live=False, stationarity_conf
     if (profile.get('mode') != 'hardware_preparation_only' or tuple(profile.get('arms', [])) != ARMS or
             profile.get('object_speed_m_s') != .0005 or profile.get('lift_m') != .005):
         raise ValueError('Expected the explicit slow first-test preparation profile')
-    observation = observe(inventory) if live else dict(arms={}, grippers={})
-    if stationarity_config is not None:
+    from uwa_cell_motion.protection_backend import minimal_enabled
+    minimal = minimal_enabled()
+    if live and minimal:
+        from .minimal_snapshot import observe as observe_minimal
+        observation = observe_minimal()
+    else:
+        observation = observe(inventory) if live else dict(arms={}, grippers={})
+    if stationarity_config is not None and not minimal:
         from uwa_cell_motion.common import config
         operating_stationarity(observation,config(stationarity_config))
         observation['stationarity_configuration']=dict(path=str(Path(stationarity_config).resolve()),sha256=hashlib.sha256(Path(stationarity_config).read_bytes()).hexdigest())
@@ -236,6 +247,8 @@ def prepare(directory, profile_path, inventory, *, live=False, stationarity_conf
                 'real object localization and jaw alignment require live verification',
                 'gripper activation, empty travel and low-force setting unqualified',
                 'coupled hardware object executor and loaded stopping unqualified']
+    if minimal:
+        blockers = []
     if live:
         for rid, value in observation['arms'].items():
             if not value['observed']:

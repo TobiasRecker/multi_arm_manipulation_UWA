@@ -1,0 +1,7 @@
+<library path="pausable_jtc">
+  <class name="uwa_cell_protection/PausableJointTrajectoryController"
+         type="uwa_cell_protection::PausableJointTrajectoryController"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>Position trajectory controller retaining its original action and trajectory through explicit software pause/resume.</description>
+  </class>
+</library>

@@ -253,6 +253,10 @@ class HardwareClient(MotionClient):
 
 
 def execute(plan,output,mode):
+    from .protection_backend import minimal_enabled
+    if minimal_enabled():
+        from .minimal_execution import execute as minimal_execute
+        return minimal_execute(plan,output,mode)
     require_domain(mode)
     if not plan.get('success') or not plan.get('hardware_plan') or plan.get('execution_mode')!=mode:raise ValueError('Successful explicitly bound hardware/mock plan required')
     cfg=plan['config'];result=dict(success=False,guard_stops=0,phase_count=0,record_path=str(output),stage='CONNECT');began=time.monotonic()

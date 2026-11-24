@@ -113,6 +113,10 @@ def main():
         ap.error('A reviewed entry needs the matching contact review')
     if not state.get('success') or state.get('phase')!=wanted:raise ValueError('Confirmed '+wanted+' result required')
     if args.phase in ('close','release') and args.execute and not args.visual_confirmed:ap.error('Inspect actual entry/support before using --visual-confirmed')
+    from uwa_cell_motion.protection_backend import minimal_enabled
+    if minimal_enabled():
+        from uwa_cell_tasks.minimal_gripper_phase import run
+        return run(args,state_bytes,state)
     expected=state['hardware_signature'];limits=state['supervision_limits'];positions=state['segments'][-1]['final_positions'];out=args.output.resolve();out.mkdir(parents=True,exist_ok=False);report=dict(success=False,phase=args.phase.upper(),arm_commands=[],finger_commands=[],loaded_motion=False,force_raw=0,speed_raw=16,nominal_force_note='Minimum raw setting, not measured jaw force',state=str(args.state.resolve()),state_sha256=hashlib.sha256(state_bytes).hexdigest(),visual_confirmed=args.visual_confirmed,results={});require_domain('hardware');rclpy.init();clients={};monitor=None;startup_client=None;startup_observer=None;startup_directory=None
     def save():dump(out/'result.json',report)
     save()

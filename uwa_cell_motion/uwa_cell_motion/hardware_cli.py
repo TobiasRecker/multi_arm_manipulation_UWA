@@ -21,6 +21,10 @@ from .hardware_execution import HardwareClient
 
 
 def stop_all(cfg,inventory,mode):
+    from .protection_backend import minimal_enabled
+    if minimal_enabled():
+        from .minimal_execution import protection_call
+        return protection_call('pause_all',mode)
     require_domain(mode);native=native_stop_all(inventory,mode)
     profiles=load_profiles(inventory)
     with motion_context():
@@ -84,6 +88,10 @@ def main(argv=None):
     from ament_index_python.packages import get_package_share_directory
     cfg=config(args.config or Path(get_package_share_directory('uwa_cell_motion'))/'config/hardware_motion.yaml')
     inventory=args.inventory or inventory_path()
+    from .protection_backend import minimal_enabled
+    minimal = minimal_enabled()
+    if minimal and args.op in ('guard','supervisor','watchdog','provision','reset'):
+        raise ValueError('Legacy '+args.op+' is retired in the minimal backend; use protection.sh')
     if args.op=='native-stop':
         result=native_stop_all(inventory,args.mode);print(json.dumps(dict(native_stop=result,standstill_confirmed=False)))
         if args.mode=='hardware' and not all(v['acknowledged'] for v in result.values()):raise SystemExit(1)
@@ -115,7 +123,11 @@ def main(argv=None):
         if args.op in ('snapshot','reset'):
             require_domain(args.mode)
             with motion_context():
-                client=HardwareClient(problem,args.mode)
+                if minimal:
+                    from .minimal_execution import MinimalHardwareClient
+                    client=MinimalHardwareClient(problem,args.mode)
+                else:
+                    client=HardwareClient(problem,args.mode)
                 try:
                     client.connect(guard=args.op=='snapshot')
                     if args.op=='reset':

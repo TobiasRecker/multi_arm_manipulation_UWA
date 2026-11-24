@@ -8,6 +8,9 @@ if [[ -n "${ROS_DISTRO:-}" && "$ROS_DISTRO" != lyrical ]]; then
 fi
 source /opt/ros/lyrical/setup.bash
 source "$UWA_WS/install_lyrical/setup.bash"
+if [[ -n "${UWA_MINIMAL_INSTALL:-}" ]]; then
+  source "$UWA_MINIMAL_INSTALL/setup.bash"
+fi
 export ROS_DOMAIN_ID=66 ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST QT_QPA_PLATFORM=xcb
 export ROS_LOG_DIR="$UWA_WS/setup/logs/uwa-control/ros"
 mkdir -p "$ROS_LOG_DIR"

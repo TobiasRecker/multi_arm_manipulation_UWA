@@ -289,7 +289,10 @@ def requested_program_starts(flow, requested, stage):
     flow.report.setdefault("program_readiness", {})[stage] = arms
     flow.save()
     starts = []
-    for arm, row in arms.items():
+    from uwa_cell_motion.protection_backend import minimal_enabled
+    selected = ('right_front','right_rear') if minimal_enabled() else tuple(arms)
+    for arm in selected:
+        row = arms[arm]
         if row["code"] == "ready":
             continue
         if row["code"] == "needs_preparation" and row.get("next_step") == "play":
@@ -581,7 +584,10 @@ def close_after_entry(flow, args, store):
                    "--review-image-sha256", image["original_sha256"],
                    *(["--start-ros-programs"] if starts else []))
         contact = read_json(out/"grasp/result.json")
-        if not contact.get("success") or not contact.get("static_contact_hold_verified"):
+        from uwa_cell_motion.protection_backend import minimal_enabled
+        verified = (contact.get('gripper_commands_completed') if minimal_enabled()
+                    else contact.get('static_contact_hold_verified'))
+        if not contact.get("success") or not verified:
             raise ValueError("Final static contact hold unconfirmed")
         flow.report.update(success=True, phase="SUPPORTED_CONTACT_HELD")
 

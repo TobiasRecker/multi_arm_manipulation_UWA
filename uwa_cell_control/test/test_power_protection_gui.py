@@ -1,0 +1,142 @@
+"""Software stop uses an independent transport and reports acknowledgements truthfully."""
+import json
+import os
+from pathlib import Path
+import sys
+import time
+from types import SimpleNamespace
+
+import pytest
+
+os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+REPO = Path(__file__).resolve().parents[2]
+for directory in ('scripts', 'uwa_cell_control', 'uwa_cell_tasks'):
+    sys.path.insert(0, str(REPO / directory))
+
+from PySide6 import QtCore, QtWidgets
+from protection_bridge import response_packet
+from ur_power_gui import ProtectionControls, Window, protection_command
+
+
+def wait_for(app, condition):
+    deadline = time.monotonic() + 6
+    while not condition() and time.monotonic() < deadline:
+        app.processEvents()
+        time.sleep(.01)
+    assert condition()
+
+
+@pytest.fixture
+def app(monkeypatch):
+    monkeypatch.setattr(QtWidgets.QSystemTrayIcon, 'isSystemTrayAvailable', lambda: False)
+    return QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+
+def bridge_command(tmp_path, *, disconnect=False):
+    """A local JSON-lines peer; no ROS or robot/network connection."""
+    path = tmp_path / 'peer.py'
+    requests = tmp_path / 'requests.jsonl'
+    status = dict(mode='mock', paused=False, reason='TEST MOCK', collision_data_available=False,
+                  warnings=['Missing collision data: test arm'], arms={})
+    path.write_text(
+        'import json,sys,time\nfrom pathlib import Path\n'
+        f'status={status!r}\nrequests=Path({str(requests)!r})\n'
+        'def emit(p): print(json.dumps(p),flush=True)\n'
+        'emit(dict(event="status",available=True,status=status))\n'
+        'for line in sys.stdin:\n'
+        ' req=json.loads(line)\n'
+        ' with requests.open("a") as f: f.write(line)\n'
+        ' op=req["op"]; rid=req["id"]\n'
+        ' emit(dict(event="command_result",operation=op,id=rid,phase="running"))\n'
+        + (' sys.exit(0)\n' if disconnect else
+           ' time.sleep(.08)\n'
+           ' status["paused"]=op=="pause_all"\n'
+           ' status["arms"]={a:dict(confirmed=True,paused=status["paused"]) '
+           'for a in ("left_front","left_rear","right_front","right_rear")}\n'
+           ' emit(dict(event="command_result",operation=op,id=rid,phase="done",success=True,status=status))\n')
+    )
+    return [sys.executable, str(path)], requests
+
+
+def test_stop_remains_available_during_power_action_and_above_tabs(tmp_path, monkeypatch, app):
+    monkeypatch.setenv('UWA_WS', str(tmp_path))
+    command, requests = bridge_command(tmp_path)
+    # The normal power transport is local and deliberately busy.
+    power = [sys.executable, '-c', 'import time; time.sleep(30)']
+    window = Window(power, n100=True, protection_transport=command)
+    try:
+        window.show()
+        wait_for(app, lambda: window.protection.available and window.mode == 'status')
+        window.mode = 'start'
+        window.controls()
+        assert not window.start.isEnabled()
+        assert window.protection.pause_button.isEnabled()
+        assert window.layout().indexOf(window.protection) < window.layout().indexOf(window.tabs)
+        window.protection.pause_button.click()
+        wait_for(app, lambda: window.protection.paused and 'DONE' in window.protection.result_label.text())
+        assert json.loads(requests.read_text().splitlines()[0])['op'] == 'pause_all'
+        assert 'Missing collision data' in window.protection.warning_label.text()
+        assert all('ACKNOWLEDGED' in item.text() for item in window.protection.arm_labels.values())
+        assert 'standstill confirmed' not in window.protection.result_label.text().lower()
+        window.tabs.setCurrentWidget(window.review)
+        assert window.protection.isVisible()
+        window.protection.resume_button.click()
+        wait_for(app, lambda: not window.protection.paused and 'RESUME DONE' in window.protection.result_label.text())
+        assert [json.loads(line)['op'] for line in requests.read_text().splitlines()] == ['pause_all', 'resume_all']
+    finally:
+        window.refresh_timer.stop()
+        window.process.kill()
+        window.process.waitForFinished(500)
+        window.mode = None
+        window.exiting = True
+        window.close()
+        app.processEvents()
+
+
+def test_missing_endpoint_and_transport_loss_never_claim_stop_or_replay(tmp_path, app):
+    command, requests = bridge_command(tmp_path, disconnect=True)
+    panel = ProtectionControls(command)
+    try:
+        panel.show()
+        wait_for(app, lambda: panel.available)
+        panel.pause_button.click()
+        wait_for(app, lambda: not panel.available and 'unconfirmed' in panel.result_label.text())
+        assert 'UNCONFIRMED' in panel.arm_labels['left_front'].text()
+        assert not panel.resume_button.isEnabled()
+        panel.connect_transport()
+        wait_for(app, lambda: panel.available)
+        assert len(requests.read_text().splitlines()) == 1
+        panel.handle(dict(event='status', available=False, error='Minimal protection endpoint unavailable'))
+        assert 'UNAVAILABLE' in panel.state_label.text()
+        assert panel.pause_button.isEnabled()
+        assert not panel.resume_button.isEnabled()
+    finally:
+        panel.shutdown()
+        panel.close()
+
+
+def test_command_result_keeps_warning_and_does_not_turn_ack_into_physical_stop(tmp_path, app):
+    panel = ProtectionControls([str(tmp_path / 'does-not-exist')])
+    try:
+        status = dict(paused=True, reason='operator', collision_data_available=False,
+                      warnings=['Camera-independent joint data unavailable'],
+                      arms={'left_front': dict(confirmed=False, paused=True)})
+        response = response_packet('pause_all', '12', SimpleNamespace(success=True, message=json.dumps(status)))
+        panel.handle(response)
+        assert 'DONE' in panel.result_label.text()
+        assert 'UNCONFIRMED' in panel.arm_labels['left_front'].text()
+        assert 'unavailable' in panel.warning_label.text()
+        panel.handle(dict(event='status', available=True, status=status))
+        assert 'DONE' in panel.result_label.text()
+        assert 'unavailable' in panel.warning_label.text()
+    finally:
+        panel.shutdown()
+
+
+def test_bridge_mode_and_n100_command_are_explicit():
+    assert protection_command(mock=True)[-1] == 'mock'
+    assert protection_command(mock=False)[-1] == 'hardware'
+    remote = protection_command(n100=True)
+    assert 'uwa-n100-robot-lan' in remote
+    assert remote[-1] == 'bash ~/uwa-ur-runtime/protection.sh bridge --mode hardware'
+
