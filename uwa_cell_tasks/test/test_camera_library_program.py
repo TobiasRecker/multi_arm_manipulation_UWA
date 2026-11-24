@@ -71,18 +71,24 @@ def test_reference_expires_exactly_twelve_hours_without_renewal(tmp_path):
 
 
 @pytest.mark.parametrize('preview_ok', [True, False])
-def test_calibration_publishes_only_complete_result_without_robot_calls(tmp_path, monkeypatch, preview_ok):
+@pytest.mark.parametrize('fixed_fit', [True, False])
+def test_calibration_publishes_only_complete_result_without_robot_calls(tmp_path, monkeypatch, preview_ok, fixed_fit):
     out = tmp_path/'run'; out.mkdir()
     capture = tmp_path/'capture'; capture.mkdir()
     (capture/'metadata.json').write_text('{}')
     shared = tmp_path/'shared.json'; shared.write_text('old reference')
-    monkeypatch.setattr(runner, 'live_inputs', lambda _: dict(camera_session=shared, intrinsics=tmp_path/'K.json'))
+    monkeypatch.setattr(runner, 'live_inputs', lambda _: dict(camera_session=shared, intrinsics=tmp_path/'K.json', focus=107))
     session = dict(right_marker_count=17, held_out_rms_px=1.2,
         valid_from='2026-11-20T10:00:00+08:00', valid_until='2026-11-20T22:00:00+08:00')
     monkeypatch.setattr(runner, 'create_session', lambda *args, **kwargs: session)
+    monkeypatch.setattr(runner, 'measure_fixed_reference', lambda *args: capture if fixed_fit else None)
+    capture_modes = []
     def capture_command(command, *args, **kwargs):
-        assert command[-3:] == ['capture', '--mode', 'charuco']
-        return json.dumps(dict(mode='charuco', directory=str(capture), metadata=str(capture/'metadata.json')))
+        mode = command[command.index('--mode')+1]
+        capture_modes.append(mode)
+        if mode == 'standard':
+            assert command[-2:] == ['--focus', 107]
+        return json.dumps(dict(mode=mode, directory=str(capture), metadata=str(capture/'metadata.json')))
     monkeypatch.setattr(runner, 'logged_command', capture_command)
     monkeypatch.setattr(runner, 'n100_preflight', Mock(side_effect=AssertionError('No robot preflight')))
     monkeypatch.setattr(runner, 'n100', Mock(side_effect=AssertionError('No robot RPC')))
@@ -102,3 +108,4 @@ def test_calibration_publishes_only_complete_result_without_robot_calls(tmp_path
         with pytest.raises(ValueError, match='preview'):
             runner.calibrate_camera(runner.Progress(out), tmp_path/'config.json')
         assert not shared.exists()
+    assert capture_modes == (['standard'] if fixed_fit else ['standard', 'charuco'])

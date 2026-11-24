@@ -1,5 +1,119 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Live-Library und Flächenzuordnung im Zweikameralauf, 24.11.2026
+
+Auf Nutzerauftrag den fertigen Zweikamera-Stand übernommen.22 gezielte
+Kalibrier-/Multiviewprüfungen zusätzlich ausgeführt, alle bestanden. Der
+gemeinsame `carton_camera_session.py` stimmt nun auch auf dem N100 mit
+ROSmini überein (SHA-256 `801ad60c93474c317cf1859afb81db801a4f6080673f5223dbf66dbf1ffe519c`),
+vorherige Datei unter `~/uwa-ur-runtime/review-candidates/camera-reference-shared.r7EMw2CJ/previous.py`.
+Kein Schutzdienstwechsel;15%-Toleranz bleibt aktiv. Library des Power-Fensters,
+Port39823, wird verwendet; Browsersteuerung weiterhin nicht verfügbar.
+
+Lauf `7e14069f070d442e9a2bbd236aab01a2` um11:43:22AWST bestätigte die
+Programmvorbereitung und erfasste beide frischen nativen Ansichten. Abbruch
+vor Planung:518,125mm/177,046° zwischen den unabhängigen Posen. Die rein
+diagnostische180°-Umrechnung verbleibt bei13,423mm/2,954°.
+Beide Registrierungen akzeptierten nur Modellfläche4 (`y=0`). Fläche3
+gegenüber enthält in ihrer Referenztextur einen gespiegelten Schriftzug.
+Ein isolierter Offlineversuch berücksichtigt ihre Außenansicht mit korrekt
+rückwärts zugeordneten UV-Punkten. Beide Bilder ergeben dann Hypothesen
+für Fläche3 und4, bleiben aber mehrdeutig. Keine der85 kamerübergreifenden
+Hypothesenpaarungen erfüllt<10mm/<2°; beste Positionen liegen etwa20,3mm
+auseinander. Keine aktive Modell-/Referenzänderung und keine gelockerte
+Bildgrenze. Ein eindeutiges Merkmal zur Zuordnung der gegenüberliegenden
+Wände ist beim Nutzer angefragt.
+
+Die passive180-s-Aufzeichnung02 endete regulär. Im aufgezeichneten Lauf
+größtes natives Zustandsalter am Guard je Arm<55ms. Der separate
+Diagnoseempfänger hatte Empfangspausen bis363ms; dies belegt keinen gleich
+langen Ausfall der nativen Quelle. Diagnoseablage
+`setup/tasks/carton-library-debug-20261124/`: `library-start-record02.jsonl.gz`,
+`outward-probe-*`, `panel-hypotheses.json`. Keine Armfahrt oder Greifaktion.
+
+## Frischeabbruch vor dem Zweikamera-Kartonstart, 24.11.2026
+
+Lauf `93f12452b4374e7e97d10e3822e4bf1b` brach um 11:41:36 AWST vor Play, Kartonaufnahmen und Bahnversand ab. Im N100-Lauf `skill-library-carton-487019f1b2214ca38c95baf7e75e8fc7` stehen beide rechten Arme als für Play vorgesehen, die Dashboard-Befehlslisten sind leer. In `browser-play.json` fehlen bereits die ersten Hold-Ergebnisse. Der Fehler kam beim Verbinden oder beim anschließenden Warten auf den Watchdogzustand. Der Client hatte ein frisches Zellpaket mit vier Armzuständen, beim Einzelbefund links hinten war das Empfangs- oder Quellalter größer als 200 ms. Beide Einzelwerte und die Geschwindigkeit beim Abbruch fehlen im Fehlerlog. Der Safety Log verzeichnet im Startfenster keinen neuen nativen STOP. Der nächste Lauf `7e14069f070d442e9a2bbd236aab01a2` bestätigte die vier Holds und nahm beide Kamerabilder auf. Sein späterer Abbruch beim Kameraposenvergleich ist ein eigener Befund. [Fehlstart](../../setup/tasks/uwa_program_library/93f12452b4374e7e97d10e3822e4bf1b/progress.json) · [Safety Log](../../setup/tasks/carton-library-debug-20261124/dual-camera-start-safety.json) · [Folgelauf](../../setup/tasks/uwa_program_library/7e14069f070d442e9a2bbd236aab01a2/progress.json)
+
+Seit dem Folgeauftrag auf dem N100 installiert. Nach der ROS-Erkennung wartet der Library-Start vor Play bis zu fünf Sekunden gemeinsam auf frische native Zustände aller vier Arme und aktuelle Meldungen von Guard, Supervisor und Watchdog. Bei Fristablauf enthält `browser-play.json` unter `startup_timeout` Phase, Grund und je Arm Quell- und Empfangsalter oder einen fehlenden Messwert. Das Profil fordert weiterhin höchstens 200 ms alte Armdaten. Im Offline-Nachlauf mit simulierten Nachrichten traf nach 0,45 s eine gemeinsam gültige Lage ein. Bei dauerhaft 226 ms Quellalter und 20 ms Empfangsalter blieb der Start gesperrt. Auch fehlender Watchdog, Modellfehler und fehlende Erstdaten wurden offline geprüft. 28 bestehende Softwaretests bestanden. ROSmini und N100 haben für den Starthelfer denselben SHA-256 `43eb1739eaa78e3bd27d163c616505e6dd597b9709c3e27db121c6afc5ad1582`. Vorversion auf dem N100 in `~/uwa-ur-runtime/review-candidates/carton-start-freshness.GrzaVHME/previous.py`. Eine reale Fahrt wurde dafür nicht ausgelöst.
+
+## Zweite OAK-Perspektive im Kartonprogramm, 24.11.2026
+
+Nutzerauftrag: OAK Pro gegenüber der OAK4 im **Supported carton grasp**
+verwenden. Zwei unabhängig gültige Posen mitteln, bei schwächerer Gegensicht
+Anwesenheit am projizierten Ort prüfen und bei Verdeckung weiterhin die
+bisher ausreichend sichere Einzelpose zulassen. Der Nutzer hat den Versand
+aktueller Karton-Bildausschnitte und Overlays an Gemini Hydrogen über das
+vorhandene Antigravity-Konto nach einer automatischen Freigabeablehnung
+ausdrücklich erlaubt. Lokale USB-Konfiguration `gemini_enabled: true`.
+
+Implementiert auf ROSmini: eigene USB-Optik-/Sitzungsdatei, vorhandener
+N100-USB-Aufnahmepfad, native ungedrehte4056×3040-Pixel, kamerabezogene
+Hydrogen-Suchkoordinaten, sphärischer Orientierungsmittelwert bei gleicher
+Gewichtung, strikte Einzelbild-Fits und gesonderte kategoriale Zweitbildprüfung.
+Gemeinsamer Posevergleich zunächst unter10mm/unter2°, übernommen aus den
+vorhandenen Registrierungsgrenzen. Bei Widerspruch keine Pose an die Planung.
+Keine Änderung an N100-Ausführungsquellen, Tempo oder Live-Schutz.
+[Bedienung und konkrete Rückfallregeln](docs/carton_multiview.md).
+
+Reine Kameraaufnahme24.11.11:31AWST: OAK Pro/Fokus112,
+16rechte Boardmarker,1,1907px Prüf-RMS, eigene Referenz gültig bis23:31:11AWST.
+Aktuelle Originalfotos beider Kameras wurden anschließend offline ausgewertet.
+Beide lokalen Fits bestanden ihre bisherigen Einzelbildkriterien, haben aber
+eine annähernde180°-Mehrdeutigkeit des Kartonframes. Unveränderte Rohposen
+unterscheiden sich um519,403mm/177,747°. Eine ausschließlich diagnostische
+180°-Rechteckumrechnung ergibt10,679mm/2,253° und bleibt ebenfalls außerhalb
+der Grenzen. Keine automatische Symmetrieumdeutung und keine Mittelpose
+freigegeben. Die richtige Zuordnung der gegenüberliegenden bedruckten Wand
+zum gemeinsamen Kartonframe bleibt fachlich offen.
+
+Gemini Hydrogen Low bestätigte in der echten OAK-Pro-Aufnahme den Karton
+an der aus der gültigen OAK4-Pose projizierten Stelle (`confirmed`). Das
+belegt den Anwesenheitspfad, löst aber den metrischen Widerspruch nicht und
+setzt dessen Ablehnung nicht außer Kraft. Kein realer Programmlauf und keine
+Roboterbewegung für diese Erweiterungsprüfung gestartet.
+
+35gezielte Offline-Softwareprüfungen bestanden; JavaScript-Syntax mit Node-VM
+geprüft. Die beiden lokalen Library-Endpunkte39823 und8780 mit neuer
+Konfiguration lesend bestätigt, beide Kamerareferenzen verfügbar. Nur die
+Webserver wurden aktualisiert. Browserzugriff des Agenten ist weiterhin
+nicht verfügbar; keine GUI-Klicks oder visuelle Browserprüfung behaupten.
+Bild-/Messnachweise: `setup/tasks/carton-multiview-20261124/`, insbesondere
+`image-check/multiview/decision.json` und `image-check/cross-view-check/result.json`.
+
+## Schnellere Kamerapfade der Programmbibliothek, 24.11.2026
+
+**Supported carton grasp** startet auf ROSmini eine native OAK4-Sitzung
+mit dem in der Kamerareferenz hinterlegten Fokus. Sie beginnt parallel
+zur Aufnahme des N100-Ausgangszustands und liefert die frischen
+Standardfotos für Registrierung und offene Einfahrt. Beide verwenden
+einen SDK-Prozess und dieselbe Kamera-Lease. Der Pfad gibt die Kamera
+nach dem Einfahrfoto oder beim Abbruch frei. Das zweite Bild und seine
+Metadaten gehen zusammen in einer Übertragung an den N100.
+
+Die feste OAK4-Standardaufnahme des Objekt-Scan-Bootstraps und der
+direkten Aufnahme ohne GUI verwendet eine Metadaten-gesteuerte Einlaufzeit.
+Die separate Library-Kalibrierung probiert ein natives Einzelbild mit
+bekanntem Fokus und prüft die zurückgehaltenen Marker. Bei unzureichendem
+Fit folgt die bisherige Fokus-/Belichtungssuche. In einem isolierten
+Library-Lauf waren 17 Marker und 1,35 px Prüf-RMS nach 9,44 s bestätigt.
+Drei frühere Suchläufe brauchten 22,24–25,04 s. Der SHA-256 der gemeinsam
+genutzten Kamerareferenz blieb beim Prüflauf gleich.
+
+Zwei native Auslösungen in einer laufenden OAK4-Sitzung lieferten das
+Bild nach je 0,66 s an ROSmini und speicherten es nach 2,56 bzw. 2,51 s.
+Die früheren Einzeltransaktionen der Library brauchten 10,78–12,47 s
+einschließlich Neustart. USB-Einzelaufnahme bei Fokus 112 auf dem N100
+14,88 s nach Übernahme des geprüften Workers, gegenüber 15,06 s vorher.
+Die frühe USB-Variante mit stärkerem Clipping wurde verworfen.
+Die Sechskamera-GUI betreibt beide OAKs und ihre Wrists bereits warm.
+Wrist-HD-Kalibrierung verwendet native Bursts und protokollierte
+Kameraeinstellungen. HQ, HDR, Tiefen- und RGB-D-Pfade nutzen ihre
+jeweiligen Sensor- und Ausgabemodi. Der Nachweis für die neue Pipeline
+besteht aus Kameraaufnahmen und Offlineprüfungen.
+[Messberichte](../../setup/calibration/oak_pipeline_20261124/)
+und [Bedienung](docs/camera_library_program.md).
+
 ## Gelenkgeschwindigkeitstoleranz im Kartonpiloten, 24.11.2026
 
 Der Nutzer beauftragt15% Toleranz im Wächter: bei0,1rad/s Sollmaximum
@@ -18,9 +132,51 @@ Pilotkanal bestanden auf ROSmini und im inaktiven N100-Kandidaten
 45 weitere bestehende Kern-/Kartonprüfungen auf ROSmini bestanden.
 Die fünf betroffenen aktiven Dateien stimmen mit der lokalen Ausgangsversion
 überein und sind unter `setup/tasks/carton-library-debug-20261124/tolerance-active-before.tar`
-gesichert. Aktive Übernahme steht noch aus. Zum notwendigen Schutzdienstwechsel
-ist das reguläre Beenden und anschließende Wiederstarten von `ros.urp` beim
-Nutzer angefragt. Alle vier Arme meldeten vor der Vorbereitung wieder
+gesichert. Der Nutzer hat den Schutzdienstwechsel einschließlich regulärem
+Beenden und Wiederstarten von `ros.urp` ausdrücklich beauftragt.
+Aktiv seit24.11.11:18:24AWST, Invocation `df2859b0d71647288c6ad914312ce72e`.
+Die ursprüngliche Stoppfunktion bestätigte mechanischen Stillstand und vier
+Ressourcenholds. Im neuen Guardpaket stehen Toleranz0,15, keine aktiven
+Fehler, passendes Treibermodell und vier stationäre Arme; der Supervisor
+bestätigt vier verriegelte Holds. Watchdog bleibt nach Neustart zunächst
+verriegelt. Guardsignatur `91a0e715dcf4156210ba997c68f0214ab7158ffcb69a25fa5907f594ff85392e`.
+Die Laufkopie liegt unter `activation.ooqfIa87` im Kandidatenverzeichnis,
+die vorherigen fünf Dateien unter dessen `previous/`. Der erste Skriptaufruf
+endete vor Robotereingriffen an `set -u` während ROS-Setup; der korrigierte
+Aufruf hat den Wechsel abgeschlossen. Der reguläre Vierarm-Neustart via
+`power.sh start` bestätigte kein laufendes Programm: der nach Dienstwechsel
+verriegelte Watchdog forderte bei jedem Play erneut nativen STOP an.
+Safety-Log und enges Guardjournal ordnen diese Stopps ausdrücklich dem
+Watchdog zu, nicht der neuen Geschwindigkeitstoleranz. Anschließend wurde
+der vorhandene Library-Start über dessen normalen HTTP-Endpunkt ausgeführt,
+weil der Browserzugriff weiter ausfiel. Lauf `c720294d06cb49f3950c0a788e177844`
+startete24.11.11:22AWST. Dessen vorhandener Start unter unbeladenen Holds
+setzt den Software-Watchdog regulär zurück; beide rechten Programme wurden
+bestätigt, danach begann die aktuelle OAK4-Aufnahme. Kein neuer Start-Bypass
+und keine Änderung des Watchdogs. Der Lauf erreichte Foto, Registrierung,
+Offlineplanung und automatische Anfahrfreigabe. Um11:23:06AWST forderte
+der Supervisor wegen veralteter Hardware-Verwaltungsbestätigungen nativen
+STOP für alle vier Arme an (rechts vorne52,880s, rechts hinten51,942s seit
+letztem Verwaltungsbefund). Der Watchdog folgte. Die Hochanfahrt endete vor
+dem ersten Fahrziel; beobachtete Bewegung beider rechten Arme0s. Diese
+Zeitwerte belegen keine tatsächliche Antwortdauer der Dienste, weil die
+Abfragen im bestätigten ruhigen Hold absichtlich pausieren. Der Anlass,
+warum die Wiederverwendung endete, ist noch nicht nachgewiesen.
+
+Eine endliche passive Aufzeichnung der vorhandenen Guard-/Supervisor-/
+Watchdog-, Manager- und Parameterereignisse wurde vor dem nächsten
+Library-Start bereitgestellt; kein neuer Schutzwächter oder Aktionsclient.
+Dieser nächste Start `e3ad6d5d2b0946918e656cf30576eb3f` um11:27:48AWST
+endete jedoch schon im Versionsvergleich von `carton_camera_session.py`.
+Seit11:24 wurden parallel im Workspace Kamerastart/-registrierung und
+zugehörige Tests geändert. Diese fremden laufenden Änderungen wurden
+erhalten und nicht ungeprüft auf den N100 übertragen. Ihr Fertigstellungs-
+und Übernahmestand ist beim Nutzer angefragt. Die bestehende Speed-
+Toleranz ist weiterhin aktiv. Passiver Zwischenstand: vier stationäre,
+verriegelte Holds, alle Programme nach dem Abbruch gestoppt. Diagnosepfade
+`library-resume-safety.json`, `library-resume-stops.log`,
+`library-start-record01-summary.json` in der heutigen Diagnoseablage.
+Alle vier Arme meldeten vor der Vorbereitung wieder
 `RUNNING/NORMAL`, `PLAYING` und bestätigte Reverse-Verbindungen.
 
 ## Schrittweise Library-Diagnose, 24.11.2026

@@ -1,6 +1,6 @@
 # OAK4-Kamerapose als Library-Programm
 
-Stand20.11.2026. **OAK4 camera calibration** (`oak4-camera-calibration-v1`)
+Stand 24.11.2026. **OAK4 camera calibration** (`oak4-camera-calibration-v1`)
 bestimmt die Kamerapose relativ zum festen rechten Tischboard und veröffentlicht
 die gemeinsame Referenz für zwölf Stunden ab Aufnahme.
 
@@ -15,10 +15,12 @@ die gemeinsame Referenz für zwölf Stunden ab Aufnahme.
 4. Nach **COMPLETE** zeigt die Seite **REFERENCE VALID** und das Ablaufdatum
    in AWST. Vorschau und Prüf-RMS stehen im Ergebnis.
 
-Der [ChArUco-Suchdienst](../../oak_camera_calibration/OAK4_CHARUCO_SEARCH.md)
-übernimmt Fokus-/Belichtungssuche und die passenden Aufnahme-/Optikpakete.
-Das Programm bestimmt Extrinsics; ein neues Intrinsics-Profil wird nicht aus
-einem einzelnen Bild erzeugt. Globale Basis-/Kameraprofile bleiben erhalten.
+Das Programm nimmt zunächst ein natives Standardfoto mit dem Fokus aus
+dem hinterlegten Intrinsics-Profil auf. OpenCV prüft den Fit des rechten
+Boards an zurückgehaltenen Markern. Mindestens zwölf eindeutige Marker
+und weniger als 2 px Prüf-RMS sind erforderlich. Falls der Fit aus
+diesem Bild nicht genügt, übernimmt der ChArUco-Suchdienst die
+Fokus- und Belichtungssuche. [ChArUco-Suchmodus](../../oak_camera_calibration/OAK4_CHARUCO_SEARCH.md)
 
 ## Gemeinsame Gültigkeit
 
@@ -27,7 +29,8 @@ im Workspace. Der vorhandene Dateiname bleibt für die bisherigen Verbraucher
 kompatibel. Weitere Programme verwenden dieselbe Sitzung und den vorhandenen
 Baustein `carton_camera_session.validate_session`.
 
-- `valid_from` stammt aus dem abgeschlossenen Aufnahmevorgang;
+- `valid_from` stammt aus dem Aufnahmevorgang. Beim Einzelbild ist es
+  der protokollierte Triggerzeitpunkt, bei der Suche der Kameraschluss.
   `valid_until` liegt genau zwölf Stunden danach. Lesen oder Ausführen
   verlängert die Frist nicht. Alte Laufkopien sind historische Nachweise.
 - Kamera-ID, Fokus, native Optik, Boarddefinition und übernommene
@@ -77,3 +80,11 @@ Realer Library-Lauf `043a0df2880b41a69d08370275014118` erfolgreich:
 17Marker/1,53px Prüf-RMS, gültig20.11.17:50:42 bis21.11.05:50:42 AWST.
 Nachweise `setup/tasks/camera_library_program_20261120/` und der originale
 Library-Laufordner. Keine Roboter gestartet oder bewegt.
+
+## Erweiterung 24.11.2026
+
+Der sichtbare Library-Titel lautet jetzt **OAK camera calibration**; die
+Programm-ID `oak4-camera-calibration-v1` bleibt bestehen. Bei konfigurierter
+OAK Pro wird zusätzlich eine eigene zwölfstündige USB-Referenz aufgenommen.
+Die optischen Profile und Fristen bleiben je Kamera getrennt.
+[Bedienung des Zweikamera-Kartongriffs](carton_multiview.md).

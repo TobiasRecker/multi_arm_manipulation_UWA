@@ -15,7 +15,7 @@ import sys
 import uuid
 
 import carton_hydrogen
-from carton_camera_session import create_session, validate_session, write_session
+from carton_camera_session import create_session, measure_fixed_reference, validate_session, write_session
 
 REPO = Path(__file__).resolve().parents[1]
 WORKSPACE = REPO.parents[1]
@@ -169,13 +169,17 @@ def run_demo(program, progress):
     }
 
 
-def live_inputs(path):
+def live_inputs(path, *, camera_id="oak4"):
     if path is None:
         raise ValueError("Live mode requires an explicit, locally enabled camera configuration.")
     config = load_json(path)
     if not isinstance(config, dict) or config.get("enabled") is not True:
         raise ValueError("Live mode is disabled in the local configuration.")
     fields = {"enabled", "intrinsics", "roi", "face_roi", "camera_reference_pose", "camera_session", "planar_texture"}
+    if camera_id == "oak4":
+        fields.add("secondary_camera")
+    else:
+        fields.add("gemini_enabled")
     if set(config) - fields:
         raise ValueError("Live config contains unknown fields.")
     if not isinstance(config.get("planar_texture", False), bool):
@@ -200,19 +204,33 @@ def live_inputs(path):
     intrinsics = intrinsics.get("intrinsics", intrinsics)
     if type(intrinsics.get("focus")) is not int or not 0 <= intrinsics["focus"] <= 255:
         raise ValueError("Live OAK intrinsics need a manual focus value from 0 to 255.")
-    if intrinsics.get("image_size") != [8000, 6000]:
-        raise ValueError("Live OAK intrinsics must match the native 8000 × 6000 Standard capture.")
+    size = [8000, 6000] if camera_id == "oak4" else [4056, 3040]
+    device = "1479883285" if camera_id == "oak4" else "18443010314F3B1300"
+    if intrinsics.get("image_size") != size or intrinsics.get("device_id") != device:
+        raise ValueError(f"Live {camera_id} optics must match its physical device and native {size} image.")
     if not all(name in intrinsics for name in ("K", "D")):
         raise ValueError("Live OAK intrinsics need K and D calibration data.")
     for key in ("roi", "face_roi"):
         roi = config.get(key)
         if (not isinstance(roi, list) or len(roi) != 4 or any(type(value) is not int for value in roi)
-                or not (0 <= roi[0] < roi[2] <= 8000 and 0 <= roi[1] < roi[3] <= 6000)):
+                or not (0 <= roi[0] < roi[2] <= size[0] and 0 <= roi[1] < roi[3] <= size[1])):
             raise ValueError(f"Live config {key} needs a valid crop [x0, y0, x1, y1] in native pixels.")
     reference = config.get("camera_reference_pose")
     if reference and not reference.with_name("registration.json").is_file():
         raise ValueError("Camera reference needs its original sibling registration.json.")
     config["focus"] = intrinsics["focus"]
+    if camera_id == "oak_usb":
+        if not config.get("camera_session") or config.get("camera_reference_pose"):
+            raise ValueError("OAK Pro requires its own time-limited camera session.")
+        if not isinstance(config.get("gemini_enabled", False), bool):
+            raise ValueError("gemini_enabled must be true or false.")
+        config["hydrogen_geometry"] = dict(native_size=size, image_window=(0, 0, *size),
+                                            window_sizes=((1800, 1600), (1800, 1400)))
+    if "secondary_camera" in config:
+        secondary = config["secondary_camera"]
+        if not isinstance(secondary, str) or not secondary.strip():
+            raise ValueError("secondary_camera must name a separate USB-OAK config file.")
+        config["secondary_camera"] = live_inputs((path.parent / secondary).resolve(), camera_id="oak_usb")
     return config
 
 
@@ -274,19 +292,77 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 /usr/bin/python3 -c "$2" "$1"
     return target_workspace, status, prefix
 
 
-def capture_oak(out, name, focus):
-    photo_tool = WORKSPACE / "src/oak_camera_calibration/tools/oak4_photo.sh"
-    raw = logged_command(
-        ["/bin/bash", photo_tool, "capture", "--mode", "standard", "--focus", focus],
-        out / f"{name}-capture.log", 320,
-    )
-    data = json.loads(raw)
-    directory = Path(data["directory"]).resolve(strict=True)
-    image = Path(data["images"]["standard"]).resolve(strict=True)
-    metadata = Path(data["metadata"]).resolve(strict=True)
-    if data.get("mode") != "standard" or image != directory / "standard.png" or metadata != directory / "metadata.json":
-        raise ValueError("Expected an original OAK Standard image and metadata pair.")
+def carton_camera(out, focus):
+    import yaml
+    live = subprocess.run(['systemctl', '--user', 'is-active', '--quiet', 'uwa-oak4-live.service'],
+                          capture_output=True, timeout=5)
+    if live.returncode == 0:
+        raise RuntimeError("OAK4 live view is active. Close it before starting the carton photo session.")
+    # The library runner uses system Python without sourcing a ROS overlay.
+    sys.path.insert(0, str(REPO / "uwa_cell_control"))
+    try:
+        from uwa_cell_control.oak4_capture_session import Oak4CaptureSession
+    finally:
+        sys.path.pop(0)
+    inventory = yaml.safe_load((REPO / "config/hardware_inventory.yaml").read_text())
+    return Oak4CaptureSession(WORKSPACE, inventory["cameras"]["oak4"], out / "oak4-stream",
+                              focus, preview=False)
+
+
+def capture_oak(out, name, camera):
+    directory = out / f"{name}-photo"
+    directory.mkdir()
+    image, report = camera.capture(directory)
+    metadata = directory / "metadata.json"
+    if (report.get("mode") != "standard" or report.get("success") is not True
+            or report["standard"]["lens_position"] != camera.focus or image != directory / "standard.png"
+            or not image.is_file()):
+        raise ValueError("Expected a fresh native fixed-focus OAK4 Standard image.")
+    write_session(metadata, report)
     return image, metadata
+
+
+def capture_usb(out, name, config):
+    """Reuse the existing N100 camera-only transport and keep its raw evidence."""
+    sys.path.insert(0, str(REPO / "uwa_cell_control"))
+    try:
+        from uwa_cell_control.n100_usb_camera import N100UsbCamera
+    finally:
+        sys.path.pop(0)
+    directory = out / f"{name}-photo"
+    directory.mkdir()
+    started = datetime.now(timezone.utc).isoformat()
+    image, raw = N100UsbCamera(WORKSPACE, directory / "transport", config["focus"]).capture(directory)
+    # The transport checks device, native dimensions, focus, closure and lease.
+    # started_at is a conservative request bound, not a hardware clock timestamp.
+    standard = dict(raw["photo"], path="standard.png", width=4056, height=3040)
+    report = dict(success=True, mode="standard", source="fixed_focus_single_capture",
+                  camera_kind="oak_usb", device_id=raw["device_id"], standard=standard,
+                  started_at=started, finished_at=datetime.now(timezone.utc).isoformat(),
+                  timestamp_basis="ROSmini request/completion bounds; raw N100 acquisition evidence retained",
+                  raw_metadata="native/metadata.json")
+    target = directory / "standard.png"
+    shutil.copyfile(image, target)
+    write_session(directory / "metadata.json", report)
+    return target, directory / "metadata.json"
+
+
+def calibrate_secondary(progress, config):
+    path = config["camera_session"]
+    path.unlink(missing_ok=True)
+    folder = progress.output / "oak-usb"
+    folder.mkdir()
+    requested = datetime.now(timezone.utc)
+    progress.update("usb_calibration", "Capturing the OAK Pro right-board reference at its calibrated focus.")
+    image, _ = capture_usb(folder, "reference", config)
+    measured = measure_fixed_reference(image.parent, config["intrinsics"], WORKSPACE, folder)
+    if measured is None:
+        raise ValueError("The OAK Pro right-board reference could not be measured at focus 112.")
+    session = create_session(measured, config["intrinsics"], requested_at=requested)
+    write_session(folder / "camera-session.json", session)
+    write_session(path, session)
+    return dict(valid_from=session["valid_from"], valid_until=session["valid_until"],
+                markers=session["right_marker_count"], held_out_rms_px=session["held_out_rms_px"])
 
 
 def calibrate_camera(progress, config_path):
@@ -300,12 +376,18 @@ def calibrate_camera(progress, config_path):
     progress.update("oak_calibration", "Capturing and fitting the OAK4 right table reference with ChArUco.")
     requested = datetime.now(timezone.utc)
     photo_tool = WORKSPACE / "src/oak_camera_calibration/tools/oak4_photo.sh"
-    raw = logged_command(["/bin/bash", photo_tool, "capture", "--mode", "charuco"],
-                         progress.output / "charuco-capture.log", 320)
-    result = json.loads(raw)
-    directory = Path(result["directory"]).resolve(strict=True)
-    if result.get("mode") != "charuco" or Path(result["metadata"]).resolve() != directory / "metadata.json":
-        raise ValueError("Expected a native ChArUco capture and its metadata.")
+    raw = logged_command(["/bin/bash", photo_tool, "capture", "--mode", "standard", "--focus", config["focus"]],
+                         progress.output / "fixed-right-capture.log", 65)
+    source = Path(json.loads(raw)["directory"]).resolve(strict=True)
+    directory = measure_fixed_reference(source, config["intrinsics"], WORKSPACE, progress.output)
+    if directory is None:
+        progress.update("oak_calibration", "Fixed-focus right-board fit was insufficient. Searching focus and exposure.")
+        raw = logged_command(["/bin/bash", photo_tool, "capture", "--mode", "charuco"],
+                             progress.output / "charuco-capture.log", 320)
+        result = json.loads(raw)
+        directory = Path(result["directory"]).resolve(strict=True)
+        if result.get("mode") != "charuco" or Path(result["metadata"]).resolve() != directory / "metadata.json":
+            raise ValueError("Expected a native ChArUco capture and its metadata.")
     progress.update("camera_reference", "Determining the camera pose from the right table board and matching optics.")
     session = create_session(directory, config["intrinsics"], requested_at=requested)
     write_session(progress.output / "camera-session.json", session)
@@ -322,14 +404,21 @@ def calibrate_camera(progress, config_path):
         raise ValueError('Could not save the camera calibration preview.')
     progress.update("camera_publish", "Publishing the checked camera reference for 12 hours from capture.")
     write_session(session_path, session)
-    return {"calibration": f"Right table · {session['right_marker_count']} markers · "
+    result = {"calibration": f"Right table · {session['right_marker_count']} markers · "
             f"{session['held_out_rms_px']:.2f} px held-out RMS", "valid_until": session["valid_until"],
             "valid_from": session["valid_from"], "artifacts": {"camera_preview": "camera-preview.jpg"}}
+    if secondary := config.get("secondary_camera"):
+        try:
+            result["secondary_camera"] = calibrate_secondary(progress, secondary)
+        except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+            result["secondary_camera"] = dict(available=False, reason=str(error))
+            progress.update("usb_calibration_unavailable", f"OAK4 reference saved; OAK Pro unavailable: {error}")
+    return result
 
 
-def upload(remote, local_file, log_path):
+def upload(remote, local_file, log_path, *additional_files):
     command = [
-        "/usr/bin/scp", *SSH_OPTIONS, str(local_file),
+        "/usr/bin/scp", *SSH_OPTIONS, local_file, *additional_files,
         f"{N100_HOST}:uwa-ur-runtime/{remote}",
     ]
     logged_command(command, log_path, 100)
@@ -377,13 +466,13 @@ class CartonFitRejected(ValueError):
 def register_attempt(config, out, recipe, image, metadata, windows, suffix="", *, feedback=False, quad=None):
     options = []
     if config.get("camera_session"):
-        options.extend(["--camera-session", out / "camera-session.json"])
+        options.extend(["--camera-session", config.get("session_copy", out / "camera-session.json")])
     elif reference := config.get("camera_reference_pose"):
         options.extend(["--camera-reference-pose", reference])
     if config.get("planar_texture"):
         options.append("--planar-texture")
     if feedback:
-        options.extend(["--feedback-viewport", *carton_hydrogen.IMAGE_WINDOW])
+        options.extend(["--feedback-viewport", *config.get("hydrogen_geometry", {}).get("image_window", carton_hydrogen.IMAGE_WINDOW)])
     if quad is not None:
         options.extend(["--front-quad", *quad])
 
@@ -418,6 +507,28 @@ def register_current_carton(config, progress, recipe, image, metadata, *, window
     out = progress.output
     progress.update("oak_registration", "Locating the carton in the current OAK4 image on ROSmini.")
     default_windows = config["roi"], config["face_roi"]
+    geometry = config.get("hydrogen_geometry")
+    if geometry:
+        # USB has separate optics, image orientation and search coordinates. No OAK4 window cache.
+        try:
+            return register_attempt(config, out, recipe, image, metadata, default_windows, feedback=True)
+        except CartonFitRejected as rejected:
+            if not config.get("gemini_enabled", False):
+                raise
+            def measure(number, windows, quad):
+                try:
+                    pose = register_attempt(config, out, recipe, image, metadata, windows,
+                                            f"-hydrogen-{number}", feedback=True, quad=quad)
+                    return pose, pose.parent
+                except CartonFitRejected as error:
+                    return None, error.registration
+            preview = carton_hydrogen.tabletop_preview(image, native_size=geometry['native_size'],
+                                                       image_window=geometry['image_window'])
+            try:
+                return carton_hydrogen.guide_measurements(preview, out, rejected.registration, measure,
+                                                          geometry=geometry)[0]
+            except ValueError as error:
+                raise CartonFitRejected(str(error), rejected.registration) from error
     if window_cache is None or not config.get("camera_session"):
         return register_attempt(config, out, recipe, image, metadata, default_windows)
 
@@ -455,7 +566,7 @@ def register_current_carton(config, progress, recipe, image, metadata, *, window
                 signature = carton_hydrogen.scene_signature(preview)
             pose, windows, quad = carton_hydrogen.guide_measurements(preview, out, primary_error.registration, measure)
         except (ValueError, OSError) as error:
-            raise ValueError(f"{primary_error} {error}") from error
+            raise CartonFitRejected(f"{primary_error} {error}", primary_error.registration) from error
         try:
             if quad is None:
                 carton_hydrogen.save_windows(window_cache, calibration_sha, signature, windows)
@@ -464,17 +575,62 @@ def register_current_carton(config, progress, recipe, image, metadata, *, window
         return pose
 
 
-def prepare_local_approach(program, progress, config, observations, status, checker_prefix, *, window_cache=None):
+def register_multiview(config, progress, recipe, image, metadata, *, window_cache=None):
+    out = progress.output
+    secondary = config["secondary_camera"]
+    views = {"oak4": dict(image=str(image), metadata=str(metadata), intrinsics=str(config['intrinsics']))}
+    if config.get('camera_session'):
+        views['oak4']['session'] = str(out/'camera-session.json')
+    usb_out = out/'oak-usb'
+    usb_out.mkdir()
+    usb_image = usb_metadata = None
+    try:
+        session = validate_session(load_json(secondary['camera_session']), secondary['intrinsics'])
+        write_session(usb_out/'camera-session.json', session)
+        secondary = dict(secondary, session_copy=usb_out/'camera-session.json')
+        progress.update('usb_capture', 'Capturing a current native OAK Pro view of the stationary carton.')
+        usb_image, usb_metadata = capture_usb(usb_out, 'initial', secondary)
+        views['oak_usb'] = dict(image=str(usb_image), metadata=str(usb_metadata),
+                                intrinsics=str(secondary['intrinsics']), session=str(secondary['session_copy']))
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+        views['oak_usb'] = dict(unavailable=str(error))
+        progress.update('usb_unavailable', f'OAK Pro unavailable; retaining the existing strict OAK4 fit: {error}')
+    for name, view_config, view_progress, photo, meta, cache in (
+        ('oak4', config, progress, image, metadata, window_cache),
+        ('oak_usb', secondary, Progress(usb_out), usb_image, usb_metadata, None),
+    ):
+        if photo is None:
+            continue
+        progress.update('multiview_registration', f'Measuring the carton independently in {name}.')
+        try:
+            views[name]['pose'] = str(register_current_carton(view_config, view_progress, recipe, photo, meta,
+                                                             window_cache=cache))
+        except CartonFitRejected as error:
+            views[name]['fit_rejected'] = str(error)
+    manifest = out/'multiview-input.json'
+    write_session(manifest, dict(description=str(recipe/'hardware.urdf'), views=views,
+                                 gemini_enabled=secondary.get('gemini_enabled', False)))
+    progress.update('multiview_decision', 'Comparing accepted poses, or checking the projected carton in the weaker view.')
+    result = json.loads(logged_command(offline_tool('carton_multiview.py', '--manifest', manifest,
+        '--output', out/'multiview'), out/'multiview.log', 90, separate_stdout=True))
+    progress.update('multiview_decision', f"Carton pose: {result['mode']} · metric source: {result['primary_camera']}.")
+    return Path(result['pose'])
+
+
+def prepare_local_approach(program, progress, config, observations, status, checker_prefix, camera, *, window_cache=None):
     out = progress.output
     progress.update("oak_capture", "Capturing a current native OAK4 photo for carton registration.")
     cache_command = offline_tool("prepare_carton_recipe.py", "--program", program, "--cache-dir", RECIPE_CACHE)
     with ThreadPoolExecutor(max_workers=1) as workers:
         recipe_ready = workers.submit(logged_command, cache_command, out / "static-recipe.log", 120,
                                       separate_stdout=True)
-        image, metadata = capture_oak(out, "initial", config["focus"])
+        image, metadata = capture_oak(out, "initial", camera)
         recipe = Path(json.loads(recipe_ready.result())["recipe"])
 
-    pose = register_current_carton(config, progress, recipe, image, metadata, window_cache=window_cache)
+    if config.get("secondary_camera"):
+        pose = register_multiview(config, progress, recipe, image, metadata, window_cache=window_cache)
+    else:
+        pose = register_current_carton(config, progress, recipe, image, metadata, window_cache=window_cache)
 
     progress.update("offline_plan", "Planning and checking both arm paths on ROSmini.")
     plan = out / "plan"
@@ -568,27 +724,31 @@ def run_live(program, progress, config_path):
     target_workspace, status, checker_prefix = n100_preflight(out, program)
     remote = f"setup/tasks/skill-library-carton-{uuid.uuid4().hex}"
     (out / "n100-run.txt").write_text(remote + "\n")
-    observations = observe_start(remote, out, status["session_id"], progress)
-    plan, image, metadata = prepare_local_approach(
-        program, progress, config, observations, status, checker_prefix, window_cache=window_cache,
-    )
-    progress.update("n100_approach", "Sending the checked trajectories to the N100 for motion review.")
-    options = transfer_approach(remote, target_workspace, plan, image, metadata, config, out, checker_prefix)
+    camera = carton_camera(out, config["focus"])
+    try:
+        camera.start()
+        observations = observe_start(remote, out, status["session_id"], progress)
+        plan, image, metadata = prepare_local_approach(
+            program, progress, config, observations, status, checker_prefix, camera, window_cache=window_cache,
+        )
+        progress.update("n100_approach", "Sending the checked trajectories to the N100 for motion review.")
+        options = transfer_approach(remote, target_workspace, plan, image, metadata, config, out, checker_prefix)
 
-    cycle = f"{remote}/cycle"
-    report = request_review(progress, cycle, "motion", "--prepared-approach", target_workspace / remote / "prepared",
-                            "--expected-scene-session", status["session_id"],
-                            "--expected-observations", f"{remote}/observed/observations.json",
-                            "--image", f"{remote}/input/standard.png",
-                            "--metadata", f"{remote}/input/metadata.json",
-                            "--intrinsics", f"{remote}/input/intrinsics.json", *options)
-    if report.get("phase") != "WAITING_VISUAL_REVIEW":
-        raise ValueError("The N100 did not confirm the completed open entry for this run.")
+        cycle = f"{remote}/cycle"
+        report = request_review(progress, cycle, "motion", "--prepared-approach", target_workspace / remote / "prepared",
+                                "--expected-scene-session", status["session_id"],
+                                "--expected-observations", f"{remote}/observed/observations.json",
+                                "--image", f"{remote}/input/standard.png",
+                                "--metadata", f"{remote}/input/metadata.json",
+                                "--intrinsics", f"{remote}/input/intrinsics.json", *options)
+        if report.get("phase") != "WAITING_VISUAL_REVIEW":
+            raise ValueError("The N100 did not confirm the completed open entry for this run.")
 
-    progress.update("oak_entry_capture", "Capturing the actual open entry for the operator's contact review.")
-    image, metadata = capture_oak(out, "entry", config["focus"])
-    upload(f"{remote}/entry/standard.png", image, out / "upload-entry-image.log")
-    upload(f"{remote}/entry/metadata.json", metadata, out / "upload-entry-metadata.log")
+        progress.update("oak_entry_capture", "Capturing the actual open entry for the operator's contact review.")
+        image, metadata = capture_oak(out, "entry", camera)
+    finally:
+        camera.stop()
+    upload(f"{remote}/entry/", image, out / "upload-entry.log", metadata)
     progress.update("n100_contact", "Sending the current open-entry image to UWA Robot Power.")
     report = request_review(progress, cycle, "contact", "--close-after-review",
                             "--entry-image", f"{remote}/entry/standard.png",

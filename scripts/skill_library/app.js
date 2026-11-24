@@ -13,6 +13,12 @@ const expiryDate = new Intl.DateTimeFormat("en-AU", {
 const workflowPhase = {
   oak_capture: "capture",
   oak_registration: "registration",
+  usb_capture: "capture",
+  usb_unavailable: "registration",
+  multiview_registration: "registration",
+  multiview_decision: "registration",
+  usb_calibration: "oak_calibration",
+  usb_calibration_unavailable: "camera_publish",
   offline_plan: "planning",
   n100_approach: "motion_review",
   wrist_diagnostic: "wrist",
@@ -180,6 +186,11 @@ function actions(program) {
   }
   if (program.calibrate_available) {
     section.append(cameraReference(program), element("p", "", "Recalibrate after moving the camera or the table board."));
+    if (program.secondary_camera) {
+      section.append(element("p", "camera-reference", program.secondary_camera.status === "valid"
+        ? `OAK PRO REFERENCE VALID · Until ${expiryDate.format(new Date(program.secondary_camera.valid_until))} AWST`
+        : `OAK PRO UNAVAILABLE · ${program.secondary_camera.reason}`));
+    }
   } else if (cameraOnly && program.live_blocker) {
     section.append(element("p", "feedback", program.live_blocker));
   }
@@ -284,12 +295,14 @@ function summarizeResult(result) {
 }
 
 function artifactLinks(run) {
-  if (!["demo", "calibrate"].includes(run.mode) || run.state === "running" || !run.result?.artifacts) return null;
+  if (!run.result?.artifacts) return null;
   const list = element("ul", "artifact-links");
   list.setAttribute("aria-label", "Saved camera previews");
   for (const [key, label] of [
     ["camera_preview", "Camera calibration preview"],
     ["oak_preview", "OAK4 pose preview"],
+    ["usb_preview", "OAK Pro native view (inverted mount)"],
+    ["cross_view_preview", "Second-view projected carton check"],
     ["right_front_preview", "Right front wrist"],
     ["right_rear_preview", "Right rear wrist"],
   ]) {
@@ -338,6 +351,14 @@ function updateStatus() {
   if (state.connectionError) summary.append(element("p", "feedback", state.connectionError));
 
   const next = [title, summary];
+  if (run.perception) {
+    const p = run.perception;
+    const names = {two_view_mean: "TWO ACCEPTED VIEWS · Equal pose average",
+      single_confirmed: "SINGLE POSE · Confirmed in the second view",
+      single_view: "SINGLE POSE · Existing strict image-fit criteria"};
+    next.push(element("p", "camera-reference", `${names[p.mode] || "POSE REJECTED"} · ${p.primary_camera || p.error || "No accepted measurement"}`));
+    if (p.verification) next.push(element("p", "", `Second view: ${p.verification.status} · ${p.verification.reason || ""}`));
+  }
   const evidence = run.result && summarizeResult(run.result);
   if (evidence) next.push(evidence);
   const artifacts = artifactLinks(run);

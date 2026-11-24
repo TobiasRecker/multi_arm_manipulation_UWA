@@ -82,6 +82,60 @@ def require_playing(records, arms):
                                'No motion goal sent. Check UWA Robot Power → Safety log.')
 
 
+def startup_timeout(client, evidence, phase, reason):
+    now = time.monotonic()
+    ages = {}
+    details = []
+    for arm in ROBOT_IDS:
+        record = client.records.get(arm)
+        if record is None:
+            ages[arm] = None
+            details.append(f'{arm}: no sample')
+            continue
+        source = now - record['source_stamp']
+        receipt = now - record['received']
+        ages[arm] = dict(source_age_s=source, receipt_age_s=receipt)
+        if max(source, receipt) > client.cfg['state_timeout_s']:
+            details.append(f'{arm}: source {source * 1000:.1f} ms, receipt {receipt * 1000:.1f} ms')
+    evidence['startup_timeout'] = dict(phase=phase, reason=reason, arms=ages,
+                                       state_timeout_s=client.cfg['state_timeout_s'])
+    detail = '; '.join([reason, *details])
+    return TimeoutError(f'{phase}: {detail} (arm sample limit {client.cfg["state_timeout_s"] * 1000:g} ms)')
+
+
+def wait_for_start_state(client, evidence):
+    # Preserve initial ROS discovery. Once connected, share the existing five
+    # seconds between the native-state, guard, supervisor and watchdog streams.
+    try:
+        client.connect(guard=False)
+    except TimeoutError as error:
+        raise startup_timeout(client, evidence, 'Initial ROS discovery', str(error)) from error
+
+    deadline = time.monotonic() + 5.
+    freshness_errors = {'HARDWARE STATE STALE', 'HARDWARE SUPERVISION LOST',
+                        'HARDWARE STATE STALE after time alignment', 'HARDWARE SUPERVISION LOST after time alignment'}
+    freshness_errors.update(f'{arm}: DEVICE STATE STALE' for arm in ROBOT_IDS)
+    while True:
+        try:
+            client.health()
+        except RuntimeError as error:
+            reason = str(error)
+            if reason not in freshness_errors:
+                raise
+        else:
+            now = time.monotonic()
+            if client.witness_peer.fresh(now, client.cfg['heartbeat_timeout_s']):
+                if now <= deadline:
+                    return
+                reason = 'Fresh startup state arrived after the deadline'
+            else:
+                reason = 'Watchdog status missing or stale'
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise startup_timeout(client, evidence, 'Before Play', reason)
+        client.spin_once(timeout_sec=min(.05, remaining))
+
+
 def prepare_start_holds(client, scene, evidence):
     """Take only missing initial holds. A later phase must retain its own holds."""
     check_scene(scene)
@@ -148,8 +202,7 @@ def main():
         # Only supervisor holds and scoped Play are available to this client.
         client = ApproachClient(problem, [], {})
         try:
-            client.connect()
-            client.wait(lambda: client.witness is not None, timeout=3., health=True)
+            wait_for_start_state(client, evidence)
             require_playing(client.records, [arm for arm in ARMS if arm not in arms])
             evidence['holds_before'] = retained_holds(client.supervisor, ROBOT_IDS)
             if arms or evidence['holds_before']['issues']:

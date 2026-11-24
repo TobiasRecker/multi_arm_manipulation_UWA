@@ -100,6 +100,11 @@ Open its camera-local 3D snapshot in RViz with
 is labelled and the existing cell preview remains separate.
 
 
+**Supported carton grasp** supports the opposite N100 OAK Pro viewpoint:
+average two agreeing accepted poses, cross-check a weaker view, or retain
+the existing strict single-camera pose when the other view is occluded.
+See [two-camera carton perception and calibration](docs/carton_multiview.md).
+
 ROS 2 **Lyrical**, Ubuntu 26.04 and **Gazebo Jetty**. This repository models
 two tables carrying one UR5, one UR7e and two UR5e robots. It starts simulated
 hardware by default. The layout is provisional, not a calibrated digital twin.

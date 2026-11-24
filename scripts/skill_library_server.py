@@ -23,7 +23,8 @@ from run_multi_camera_program import PROGRAM as MULTI_CAMERA_PROGRAM
 WORKSPACE = ROOT.parents[1]
 PROGRAM_ID = "carton-supported-v1"
 RUN_ID = re.compile(r"[a-f0-9]{32}")
-PREVIEWS = {"oak_preview", "right_front_preview", "right_rear_preview", "camera_preview"}
+PREVIEWS = {"oak_preview", "right_front_preview", "right_rear_preview", "camera_preview",
+            "usb_preview", "cross_view_preview"}
 STATIC = {
     "/": (ROOT / "scripts/skill_library/index.html", "text/html; charset=utf-8"),
     "/index.html": (ROOT / "scripts/skill_library/index.html", "text/html; charset=utf-8"),
@@ -33,8 +34,8 @@ STATIC = {
 }
 STAGES = [
     {"id": "snapshot", "title": "Read the robot state", "description": "Read the joints and grippers on the N100 and check readiness on ROSmini."},
-    {"id": "capture", "title": "Capture the scene", "description": "Acquire the current OAK4 standard image."},
-    {"id": "registration", "title": "Locate the carton", "description": "Fit the current carton pose from its known texture on ROSmini."},
+    {"id": "capture", "title": "Capture the scene", "description": "Acquire current native OAK4 and OAK Pro images when both references are available. Keep the carton still."},
+    {"id": "registration", "title": "Locate the carton", "description": "Average agreeing accepted camera poses, or use one strict fit with a second-view presence/occlusion check."},
     {"id": "planning", "title": "Plan both arms", "description": "Compute and check the high approach and open entry on ROSmini."},
     {"id": "motion_review", "title": "Review the approach", "description": "Review the current paths in UWA Robot Power before real motion."},
     {"id": "wrist", "title": "Inspect the grasp alignment", "description": "Measure the visible carton rim in archived wrist-camera images. Real contact uses a fresh OAK4 entry photo."},
@@ -95,8 +96,16 @@ class Runs:
             session = validate_session(read_json(path), config["intrinsics"])
         except (OSError, ValueError, KeyError, TypeError):
             return {"calibrate_available": True, "live_blocker": "The OAK4 camera reference expired or is invalid. Recalibrate the camera."}
-        return {"calibrate_available": True, "live_blocker": None,
-                "camera_valid_from": session["valid_from"], "camera_valid_until": session["valid_until"]}
+        result = {"calibrate_available": True, "live_blocker": None,
+                  "camera_valid_from": session["valid_from"], "camera_valid_until": session["valid_until"]}
+        if secondary := config.get('secondary_camera'):
+            try:
+                usb = validate_session(read_json(secondary['camera_session']), secondary['intrinsics'])
+                result['secondary_camera'] = dict(status='valid', valid_until=usb['valid_until'])
+            except (OSError, ValueError, KeyError, TypeError):
+                result['secondary_camera'] = dict(status='unavailable',
+                    reason='OAK Pro reference required. Start camera calibration to measure both cameras; strict OAK4 fallback remains available.')
+        return result
 
     def catalog(self):
         camera = self.camera_status()
@@ -105,9 +114,9 @@ class Runs:
                        object="Avocado carton", arms=["Right front", "Right rear"], stages=STAGES,
                        demo_available=True, live_available=camera["live_blocker"] is None, **camera)
         program['camera_program'] = CAMERA_PROGRAM
-        calibration = dict(id=CAMERA_PROGRAM, kind="camera_calibration", title="OAK4 camera calibration",
-            description="Determine the OAK4 camera pose from the right ChArUco table board and share it with other programs for 12 hours.",
-            object="Right table ChArUco board", arms=[], device="Ethernet OAK4", stages=CAMERA_STAGES,
+        calibration = dict(id=CAMERA_PROGRAM, kind="camera_calibration", title="OAK camera calibration",
+            description="Measure separate OAK4 and configured OAK Pro references from the right table board. Each reference lasts 12 hours from its own capture.",
+            object="Right table ChArUco board", arms=[], device="Ethernet OAK4 · N100 OAK Pro", stages=CAMERA_STAGES,
             demo_available=False, live_available=False, **camera)
         latest = max((path for path in self.directory.glob("*/run.json") if RUN_ID.fullmatch(path.parent.name)),
                      key=lambda path: path.stat().st_mtime, default=None)
@@ -154,6 +163,14 @@ class Runs:
             record["finished_at"] = exit_record["at"]
         if result is not None:
             record["result"] = result
+        decision = read_json(output/'multiview/decision.json')
+        if decision:
+            record['perception'] = decision
+            artifacts = record.setdefault('result', {}).setdefault('artifacts', {})
+            for key, relative in (('usb_preview', 'oak-usb/initial-photo/native/preview.jpg'),
+                                   ('cross_view_preview', 'multiview/verification-overlay.jpg')):
+                if (output/relative).is_file():
+                    artifacts[key] = relative
         return record
 
     def preview(self, identifier, key):

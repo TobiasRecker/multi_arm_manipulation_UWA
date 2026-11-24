@@ -1,5 +1,22 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Kartongriff mit zweiter OAK-Perspektive, Nutzerauftrag 24.11.2026
+
+- Nutzer erlaubt ausdrücklich, für diese Zweikamera-Kartonauswertung aktuelle
+  Karton-Bildausschnitte und Projektionsoverlays an Gemini Hydrogen über das
+  vorhandene Antigravity-Konto zu senden. Dies gilt auch für die gezielte
+  OAK-Pro-Nachmessung und die Anwesenheits-/Verdeckungsprüfung.
+- **Supported carton grasp** um die gegenüberliegende USB-OAK-D Pro AF
+  (kurz OAK Pro) erweitern. Zwei unabhängig gültige und übereinstimmende
+  Kartonposen mitteln. Bei nur einer gültigen Pose die zweite Ansicht mit
+  erweiterter Gemini-Auswertung gezielt auf Anwesenheit am projizierten Ort
+  prüfen; deren schwache Messung nicht zum Mitteln verwenden.
+- Bei Verdeckung genügt weiterhin die bisher ausreichend sichere Einzelpose.
+  Klare Widersprüche von fehlender Sicht/fehlender Messung unterscheiden.
+  Gerätekennung, Fokusoptik, native Bildorientierung und Referenzen je Kamera
+  getrennt halten. Mittelung nicht als nachgewiesene Genauigkeitsverbesserung
+  ausgeben. Bedienung und konkrete Auswahlregeln: [Zweikamera-Kartongriff](docs/carton_multiview.md).
+
 ## Nutzerfreigabe zur gemessenen Gelenkgeschwindigkeit, 24.11.2026
 
 - Für den Kartonablauf15% Toleranz über der geplanten Gelenkgrenze verwenden.
@@ -9,6 +26,16 @@
   Dies ändert die früher genannte gemessene Auslöseschwelle für dieses Profil,
   nicht die0,1rad/s-Planungs-/Befehlsgrenze. TCP-Grenze, Geometrie, Frische,
   Stillstand und native UR-Sicherheit bleiben separat unverändert.
+
+## Kameraabläufe, Nutzerauftrag 24.11.2026
+
+- Fotopfade in Programmen auf unnötige Kamera-Neustarts prüfen. Bei
+  wiederholten Bildern mit denselben Optikeinstellungen die native Pipeline
+  für den Ablauf offen halten und je Aufnahme ein frisches Bild anfordern.
+  Im Kartonprogramm je ein aktuelles Vollbild zur Registrierung und nach
+  bestätigter offener Einfahrt. Bei der separaten Tischboard-Kalibrierung
+  zuerst das bekannte Fokusprofil verwenden und den Fit an zurückgehaltenen
+  Markern prüfen.
 
 ## Gemeinsame Kalibrieransichten, Nutzerauftrag 23.11.2026
 

@@ -42,22 +42,81 @@ def validation_sources():
     return dict(board_definition=hashlib.sha256(definition).hexdigest(), base_bindings=sha256(BASE_BINDINGS))
 
 
+def right_board_fit_ok(fit):
+    markers = set(fit.get('fit_marker_ids', ()))
+    check = set(fit.get('check_marker_ids', ()))
+    return (fit['status'] == 'POSE_CANDIDATE' and fit.get('image_check_passed') is True
+            and 0 <= fit['held_out_rms_px'] < 2.0 and len(markers | check) >= 12
+            and bool(check) and not markers & check and (markers | check) <= set(range(50, 67)))
+
+
+def measure_fixed_reference(capture, intrinsics, workspace, output):
+    """Fit the right board at the current calibrated focus, keeping native pixels."""
+    import cv2
+    import importlib.util
+    import os
+
+    detector = workspace / 'src/oak_camera_calibration/tools/oak4_charuco.py'
+    spec = importlib.util.spec_from_file_location('uwa_oak4_charuco', detector)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    config = module.freeze_config(workspace)
+    camera = optics(read_json(intrinsics))
+    photo = read_json(capture / 'metadata.json')
+    if (photo.get('success') is not True or photo.get('mode') != 'standard'
+            or photo.get('source') != 'fixed_focus_single_capture'
+            or photo.get('device_id') != camera['device_id'] or photo['standard']['lens_position'] != camera['focus']):
+        raise ValueError('The new right-board photo does not match the calibrated native camera.')
+    source = capture / 'standard.png'
+    image = cv2.imread(str(source))
+    if image is None or list(image.shape[1::-1]) != camera['image_size']:
+        raise ValueError('The new right-board image is not decodable at its calibrated native size.')
+    board = module.Board(config['boards'], 'right')
+    reduced = cv2.resize(image, None, fx=.25, fy=.25, interpolation=cv2.INTER_AREA)
+    hint = board.observe(reduced).get('roi')
+    if hint:
+        x, y, width, height = hint
+        left, top = max(0, 4*x-width), max(0, 4*y-height)
+        right = min(image.shape[1], 4*(x+width)+width)
+        bottom = min(image.shape[0], 4*(y+height)+height)
+        observation = board.observe(image, [left, top, right-left, bottom-top])
+        fit = board.pose(observation, camera)
+    else:
+        fit = {'status': 'RIGHT_BOARD_NOT_FOUND'}
+        observation = {}
+    write_session(output / 'fixed-right-fit.json', dict(pose=fit, observation=observation,
+                                                        source_photo=str(source)))
+    if not right_board_fit_ok(fit):
+        return None
+    reference = output / 'fixed-right-reference'
+    folder = reference / 'right/pose'
+    folder.mkdir(parents=True)
+    os.link(source, folder / 'standard.png')
+    write_session(reference / 'metadata.json', photo)
+    write_session(folder / 'metadata.json', photo)
+    write_session(folder / 'intrinsics.json', camera)
+    write_session(folder / 'pose.json', dict(board='right', pose=fit, observation=observation,
+                                            source_config_sha256=config['sources_sha256']))
+    return reference
+
+
 def create_session(capture, intrinsics, *, requested_at):
     search = read_json(capture / 'metadata.json')
     folder = capture / 'right/pose'
     packet = read_json(folder / 'pose.json')
     meta = read_json(folder / 'metadata.json')
     camera = optics(read_json(intrinsics))
-    acquired = timestamp(search['camera_closed_at'])
+    if search.get('mode') == 'charuco':
+        acquired = timestamp(search['camera_closed_at'])
+    elif search.get('mode') == 'standard' and search.get('source') == 'fixed_focus_single_capture':
+        # The worker records this bound immediately before a verified fresh exposure.
+        acquired = timestamp(search['started_at'])
+    else:
+        raise ValueError('Expected a right-table search or checked fixed-focus capture.')
     fit = packet['pose']
-    marker_ids = set(fit['fit_marker_ids'])
-    check_ids = set(fit['check_marker_ids'])
-    if (search.get('mode') != 'charuco' or search.get('success') is not True or acquired < requested_at
+    if (search.get('success') is not True or acquired < requested_at
             or search.get('device_id') != camera['device_id'] or packet.get('board') != 'right'
-            or fit.get('status') != 'POSE_CANDIDATE' or fit.get('image_check_passed') is not True
-            or not 0 <= fit['held_out_rms_px'] < 2.0 or len(marker_ids | check_ids) < 12
-            or not check_ids or marker_ids & check_ids
-            or not (marker_ids | check_ids) <= set(range(50, 67))):
+            or not right_board_fit_ok(fit)):
         raise ValueError('A fresh, checked right-table ChArUco pose with at least 12 markers is required.')
     if (optics(read_json(folder / 'intrinsics.json')) != camera or fit['image_size'] != camera['image_size']
             or meta.get('device_id') != camera['device_id'] or meta['standard']['lens_position'] != camera['focus']
@@ -69,7 +128,7 @@ def create_session(capture, intrinsics, *, requested_at):
     session = dict(schema_version=1, board='right_table_board', valid_from=acquired.isoformat(),
                    valid_until=(acquired + LIFETIME).isoformat(), optics=camera, sources_sha256=validation_sources(),
                    T_camera_board=fit['T_camera_board'], held_out_rms_px=fit['held_out_rms_px'],
-                   right_marker_count=len(marker_ids | check_ids), capture_directory=str(capture),
+                   right_marker_count=len(set(fit['fit_marker_ids']) | set(fit['check_marker_ids'])), capture_directory=str(capture),
                    pose_sha256=sha256(folder / 'pose.json'))
     validate_session(session, intrinsics)
     return session

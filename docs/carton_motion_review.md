@@ -74,9 +74,10 @@ begrenzt; die TCP-Grenze bleibt83,33mm/s. Der Pilotstatus nennt die gemessene
 Auslöseschwelle. Die Aktivierung dieser Profilrevision ist im HANDOVER protokolliert.
 
 Das separate Library-Programm **OAK4 camera calibration → Start calibration**
-erfasst einmalig die festen Tischboards mit dem
-ChArUco-Fotomodus. Das rechte Board und die zum Standardfoto passenden
-Intrinsics bilden die Kamerareferenz für diesen Kartonablauf. Die Bibliothek
+erfasst das rechte feste Tischboard. Der erste Versuch verwendet ein natives
+Einzelbild mit bekanntem Fokus und prüft den Fit an zurückgehaltenen Markern.
+Bei unzureichendem Fit folgt der ChArUco-Suchmodus. Das rechte Board und die
+zum Standardfoto passenden Intrinsics bilden die Kamerareferenz. Die Bibliothek
 zeigt die Ablaufzeit in AWST. Die Referenz gilt zwölf Stunden ab der Aufnahme.
 Bei verstellter Kamera oder verschobenem Tischboard vor einem Greiflauf
 erneut das [Kalibrierprogramm](camera_library_program.md) starten. Ein neuer Kalibriervorgang ersetzt die
@@ -90,6 +91,11 @@ prüft Arbeitsbereich, Tempo und External Control. Auch bei laufendem
 gesetzte Verriegelungen. Fehlen beim Start Verriegelungen, liest der N100
 alle vier Greifer und fordert die fehlenden Holds beim Supervisor an, sobald
 Stillstand, offene Greifer und verfügbare Überwachung bestätigt sind.
+Nach der ROS-Erkennung wartet die Startvorbereitung bei verspäteten Meldungen
+bis zu fünf Sekunden auf einen gemeinsamen frischen Stand der vier Arme und
+der Schutzdienste. Bei Fristablauf nennt der Laufbericht den Grund. In
+`browser-play.json` stehen unter `startup_timeout` die Startphase und für
+jeden Arm das Alter der Messung und das Alter seit dem Empfang auf dem N100.
 Für die rechten Arme sendet er bei Bedarf das reguläre Play. Eine spätere
 verlorene Haltebestätigung erscheint mit Phase, Arm und fehlendem Nachweis
 im Laufstatus. **UWA Robot Power → Safety log** zeigt den zugehörigen
@@ -98,7 +104,9 @@ Bei einer erforderlichen weiteren Vorbereitung meldet der Browser den
 betroffenen Arm und dessen Zustand. Fehlt ein ROS-Lesedienst für einen
 Greifer, nennt die Meldung den betroffenen Dienst.
 
-Anschließend liest der N100 den gemessenen Zustand der Arme und Greifer.
+Während der N100 den gemessenen Zustand der Arme und Greifer liest, startet
+auf ROSmini einmal die native RGB-Pipeline. Sie bleibt bis zum Bild der
+offenen Einfahrt aktiv. Jede Belichtung beginnt nach ihrem jeweiligen Trigger.
 ROSmini prüft die Eignung des Startzustands, bevor die OAK4 das aktuelle
 Standardfoto erfasst. ROSmini bestimmt die
 Kartonpose mit der gespeicherten Kamerareferenz, plant die Hochanfahrt

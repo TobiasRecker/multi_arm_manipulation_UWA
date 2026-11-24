@@ -12,8 +12,9 @@ from .board_capture import OakPreview
 
 
 class Oak4CaptureSession(OakPreview):
-    def __init__(self, workspace, camera, output, focus):
+    def __init__(self, workspace, camera, output, focus, *, preview=True):
         super().__init__(workspace, camera, output, focus)
+        self.preview_enabled = preview
         self.socket_dir = self.listener = self.connection = self.reader = None
 
     def start(self):
@@ -37,7 +38,8 @@ class Oak4CaptureSession(OakPreview):
                     str(self.ws / 'src/oak_camera_calibration/tools/oak4_session_capture.py'),
                     '--ip', self.camera['ip'], '--device-id', str(self.camera['device_id']),
                     '--output', str(self.output), '--socket', address, '--focus', str(self.focus),
-                    '--lock', str(self.ws / 'setup/oak4/photos/.capture.lock')],
+                    '--lock', str(self.ws / 'setup/oak4/photos/.capture.lock'),
+                    *([] if self.preview_enabled else ['--no-preview'])],
                     env={k: v for k, v in dict(os.environ, DEPTHAI_TELEMETRY='0',
                          OAKCTL_ANALYTICS='0').items() if k != 'PYTHONPATH'},
                     stdout=self.log, stderr=subprocess.STDOUT, start_new_session=True)
@@ -99,7 +101,7 @@ class Oak4CaptureSession(OakPreview):
                         if on_acquired:
                             on_acquired()
                     elif reply['event'] == 'saved' and acquired:
-                        return Path(directory) / 'image.png', reply['metadata']
+                        return Path(directory) / reply['metadata']['standard']['path'], reply['metadata']
                     else:
                         raise ValueError('Unexpected OAK4 acquisition response')
             except (OSError, EOFError, ValueError):
