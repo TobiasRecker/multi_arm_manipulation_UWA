@@ -12,7 +12,7 @@ from pathlib import Path
 import sys
 
 from PySide6 import QtCore, QtGui, QtWidgets
-from motion_review_panel import ReviewPanel, use_host_desktop_libraries
+from motion_review_panel import ReviewPanel, use_host_desktop_libraries, remote_runtime_command
 from power_log_view import SafetyLogDialog, power_session, report_command
 
 
@@ -52,7 +52,7 @@ def protection_command(n100=False, mock=False):
     if n100:
         return ['/usr/bin/ssh', '-F', str(N100_SSH_CONFIG), '-o', 'ConnectTimeout=5',
                 '-o', 'BatchMode=yes', 'uwa-n100-robot-lan',
-                'bash ~/uwa-ur-runtime/protection.sh bridge --mode hardware']
+                remote_runtime_command('protection.sh', ['bridge', '--mode', 'hardware'])]
     return ['/usr/bin/bash', '-c',
             'source "$1"; exec /usr/bin/python3 "$2" --mode "$3"', 'uwa-protection',
             str(ROOT/'scripts/control_env.bash'), str(ROOT/'scripts/protection_bridge.py'),
@@ -193,7 +193,8 @@ class ProtectionControls(QtWidgets.QFrame):
         self.last_status = time.monotonic()
         self.available = True
         self.paused = status.get('paused') is True
-        self.state_label.setText(('PAUSED' if self.paused else 'RUNNING ENABLED') +
+        state = str(status.get('state') or ('PAUSED' if self.paused else 'RUNNING ENABLED'))
+        self.state_label.setText(state +
                                 ' · ' + str(status.get('reason') or 'minimal collision protection'))
         self.state_label.setStyleSheet('font-weight:800;font-size:14px;color:' +
                                       ('#840611' if self.paused else '#102744'))
@@ -201,7 +202,14 @@ class ProtectionControls(QtWidgets.QFrame):
         for rid, label in self.arm_labels.items():
             row = status.get('arms', {}).get(rid, {})
             if row.get('confirmed') is True:
-                text = 'ACKNOWLEDGED · ' + ('PAUSED' if row.get('paused') else 'RUNNING ENABLED')
+                if row.get('controller') == 'collision_hold_controller':
+                    state = 'HELD · fresh manual start required'
+                elif row.get('paused', self.paused):
+                    factor = row.get('factor', 0.)
+                    state = 'PAUSING' if isinstance(factor, (int, float)) and factor > 0 else 'PAUSED'
+                else:
+                    state = 'RUNNING ENABLED'
+                text = 'ACKNOWLEDGED · ' + state
             else:
                 text = 'UNCONFIRMED'
             if row.get('error'):
@@ -297,7 +305,7 @@ class Window(QtWidgets.QWidget):
         elif n100:
             self.backend = ['/usr/bin/ssh', '-F', str(N100_SSH_CONFIG),
                             '-o', 'ConnectTimeout=5', '-o', 'BatchMode=yes',
-                            'uwa-n100-robot-lan', 'bash ~/uwa-ur-runtime/power.sh']
+                            'uwa-n100-robot-lan', remote_runtime_command('power.sh', environment=True)]
         else:
             self.backend = [sys.executable, str(ROOT/'scripts/ur_cell_power.py')]
         self.setWindowTitle('UWA Robot Power')

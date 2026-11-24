@@ -1,5 +1,23 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Neues minimales Hardware-Schutzkonzept, Auftrag 24.11.2026
+
+Nutzer verwirft das bisherige UWA-Guard-/Supervisor-/Watchdog-Konzept und
+beauftragt nach gemeinsam festgelegtem Plan die Implementierung. Schutzumfang:
+Hardware-Geometrie und gemeinsamer Software-Pausenknopf; fehlende Kollisionsdaten
+warnen nur. Greifer ausschließlich Kollisionsgeometrie, keine weiteren
+Greifer-Schutzprüfungen. Native UR-Sicherheit und geplante Geschwindigkeiten
+bleiben unverändert. Vierarme-Pause mit ausdrücklicher Fortsetzung; 40-mm-
+Nachbararmmarge und sonstige bisherige FCL-Kontaktgrenzen erhalten.
+
+Umsetzung als separater Kandidat läuft unter
+[work/minimal-hardware-protection-20261124.md](work/minimal-hardware-protection-20261124.md).
+Neues Paket `uwa_cell_protection`, neue Ausführungsadapter sowie Robot-Power-
+Stop/Resume mit eigenem N100-Kanal. Keine echte Fahr-/Greifer-/Power-/Play-Aktion
+und kein Hardwaredienstwechsel im Rahmen dieser bisherigen Umsetzung.
+Der alte operative N100-Stand ist dadurch noch nicht ersetzt. Frühere Aussagen,
+alle alten UWA-Wächter müssten im Neubau erhalten bleiben, sind überholt.
+
 ## Stiftaufnahme: ArUco-Druckbogen, 24.11.2026
 
 Nutzer hat den Stift im gemeinsam entworfenen Halter auf den Tisch gestellt

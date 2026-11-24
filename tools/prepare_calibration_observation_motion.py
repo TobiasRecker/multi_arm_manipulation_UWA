@@ -28,7 +28,8 @@ def prepare(args):
     if not 0 < cap <= remote['config']['command_velocity_limit_rad_s']:
         raise ValueError('Command cap must be positive and within the active hardware profile')
     if snapshot.get('execution_mode')!='hardware':raise ValueError('Actual hardware snapshot required')
-    if any(r.get('status',{}).get('robot_mode')!=7 for r in snapshot['source_records'].values()):
+    if (snapshot.get('protection_backend') != 'minimal' and
+            any(r.get('status',{}).get('robot_mode')!=7 for r in snapshot['source_records'].values())):
         raise ValueError('All drives must report actual RUNNING joints; powered-off zeros are not a start')
     for name,digest in remote['modules'].items():
         if hashlib.sha256(Path(importlib.import_module(name).__file__).read_bytes()).hexdigest()!=digest:

@@ -441,9 +441,12 @@ source "$2/scripts/control_env.bash"
 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 /usr/bin/python3 "$2/tools/start_carton_browser_programs.py" --output "$1" \
   --config "$3" --scene-session "$4"
 """, remote, CELL, LIVE_PROFILE, scene)
-    progress.update("snapshot", "Preparing holds on the four idle arms and checking External Control on the two carton arms.")
+    minimal = os.environ.get('UWA_PROTECTION_BACKEND') == 'minimal'
+    progress.update("snapshot", "Checking External Control on the two carton arms." if minimal else
+                    "Preparing holds on the four idle arms and checking External Control on the two carton arms.")
     logged_command(command, out / "n100-browser-play.log", 75)
-    progress.update("snapshot", "Reading the four arms and grippers for planning.")
+    progress.update("snapshot", "Reading the shared four-arm joint snapshot for planning." if minimal else
+                    "Reading the four arms and grippers for planning.")
     command = n100("""source "$2/scripts/control_env.bash"
 /usr/bin/python3 "$2/tools/prepare_carton_hardware.py" --observe \
   --stationarity-config "$3" --output "$1/observed" > "$1/observe.log"

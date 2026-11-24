@@ -82,8 +82,10 @@ def run_bundle(problem, bundle, args, output, report, *, end_phase):
                 # a stationary-joint monitor during the subsequent execution.
                 client.wait_unpaused()
                 client.health()
+                if not set(group['start']) <= client.positions.keys():
+                    raise ValueError('Current joint inputs unavailable for the reviewed start')
                 if any(abs(client.positions[j]-q) > START_TOLERANCE
-                       for j, q in group['start'].items() if j in client.positions):
+                       for j, q in group['start'].items()):
                     raise ValueError('Current start differs from the reviewed trajectory; replan')
                 segment = dict(arms=group['arms'], executed=False, group=index,
                                group_started_monotonic_s=time.monotonic())

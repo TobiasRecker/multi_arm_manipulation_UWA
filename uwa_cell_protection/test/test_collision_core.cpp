@@ -72,6 +72,27 @@ int main()
     positions["left_front_joint0"] = 1.;
     require(!core.evaluate(positions, all).at("clear").get<bool>(), "FCL must cover table collision");
     require(core.evaluate({}, {}).at("clear"), "No data produces no fabricated collision");
+    // A separate geometry variant exercises nonadjacent self collision without
+    // introducing a joint-limit or controller-state condition.
+    auto self_urdf = urdf;
+    const auto replace = [&](const std::string & before, const std::string & after) {
+      const auto at = self_urdf.find(before);
+      if (at == std::string::npos) throw std::runtime_error("Missing self-test fixture link");
+      self_urdf.replace(at, before.size(), after);
+    };
+    replace("<link name='left_front_link2'></link>",
+      "<link name='left_front_link2'><collision><origin xyz='0 0 -0.3'/>"
+      "<geometry><sphere radius='0.1'/></geometry></collision></link>");
+    replace("<link name='left_front_link5'><collision><geometry>",
+      "<link name='left_front_link5'><collision><origin xyz='0 0 0.3'/><geometry>");
+    std::ofstream(directory / "self.urdf") << self_urdf;
+    auto self_config = config;
+    self_config["urdf_path"] = "self.urdf";
+    CollisionCore self(self_config, directory.string());
+    positions["left_front_joint0"] = 0.;
+    require(self.evaluate(positions, all).at("clear"), "Separated own arm bodies should be clear");
+    positions["left_front_joint3"] = 3.141592653589793;
+    require(!self.evaluate(positions, all).at("clear").get<bool>(), "FCL must cover nonadjacent self collision");
     std::filesystem::remove_all(directory);
     std::cout << "Collision core: clear, no joint limits, neighbor margin, missing data, diagonal and table cases passed\n";
     return 0;

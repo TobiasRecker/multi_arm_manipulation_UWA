@@ -65,6 +65,15 @@ def checked_plans(folder, digest, cap):
 def follow_frozen(client, plan, record):
     rid=plan['request']['selected'][0];trajectory=plan['trajectory']
     group=dict(arms=[rid],start=plan['request']['start'],trajectories={rid:trajectory},duration_s=trajectory['duration_s'])
+    if getattr(client,'protection_backend',None)=='minimal':
+        client.wait_unpaused();client.health()
+        if not set(group['start']) <= client.positions.keys():
+            raise ValueError('Current joint inputs unavailable for the checked observation start')
+        _start_matches(client.problem,client,group['start'])
+        record.update(phase='MOVING',protection_backend='minimal')
+        client.follow_group(group['trajectories'],duration_s=group['duration_s'],segment=record)
+        record.update(success=True,phase='COMPLETE')
+        return
     obstacles=[j for r,names in client.problem.names.items() for j in names if r!=rid or j not in joint_names(r)]
     vertices=np.array([p['positions'] for p in trajectory['points']]);delta=np.diff(vertices,axis=0)
     corridors={rid:(vertices[:-1],delta,np.maximum(np.sum(delta*delta,axis=1),1e-20))}
@@ -101,6 +110,47 @@ def follow_frozen(client, plan, record):
     raise TimeoutError('Frozen observation motion timed out')
 
 
+def run_minimal_sequence(problem,plans,args,check_area):
+    """Keep exact serial paths while using only the shared protection service."""
+    from uwa_cell_motion.minimal_execution import MinimalHardwareClient
+    selected=list(dict.fromkeys(plan['request']['selected'][0] for plan in plans))
+    client=MinimalHardwareClient(problem,'hardware',selected)
+    records=[]
+    try:
+        client.connect()
+        if args.prepare_stopped_programs:
+            from observe_calibration_start import released_area
+            from uwa_cell_tasks.minimal_reviewed_execution import start_programs
+            scene=released_area(getattr(args,'area_session',None))['session_id']
+            start_programs(client,args.output,selected,scene=scene)
+        for plan in plans:
+            check_area()
+            rid=plan['request']['selected'][0]
+            record=dict(arm=rid,success=False,phase='CONNECT',frozen_trajectory=True,
+                        protection_backend='minimal',command_limit_rad_s=args.command_cap)
+            began=time.monotonic()
+            try:
+                client.connect();follow_frozen(client,plan,record)
+            except KeyboardInterrupt as error:
+                record.update(error=str(error) or 'Operator cancelled the observation sequence')
+                try:record['stop_result']=client.stop()
+                except Exception as stop_error:record['stop_error']=str(stop_error)
+            except Exception as error:
+                record['error']=str(error)
+            finally:
+                record.update(total_wall_s=time.monotonic()-began,protection_status=client.protection_status)
+                records.append(record)
+                dump(args.output/('result-'+rid+'.json'),record)
+                dump(args.output/'sequence-result.json',dict(protection_backend='minimal',
+                    complete=len(records)==len(plans) and all(r['success'] for r in records),
+                    results=[{k:r.get(k) for k in ('arm','success','phase','error','total_wall_s')} for r in records]))
+            print(json.dumps({k:record.get(k) for k in ('arm','success','phase','error','total_wall_s')}),flush=True)
+            if not record['success']:
+                raise RuntimeError('Sequence stopped at '+rid+': '+record.get('error','unknown failure'))
+    finally:
+        client.destroy_node()
+
+
 def main(args):
     require_domain('hardware')
     def check_area():
@@ -118,6 +168,11 @@ def main(args):
             if problem.binding!=plan['hardware_binding'] or problem.spheres.geometry.assets!=plan['mesh_sha256'] or problem.cfg!=plan['config']:
                 raise ValueError('Active hardware model/assets/configuration changed; recompile')
         selected=[p['request']['selected'][0] for p in plans]
+        from uwa_cell_motion.protection_backend import minimal_enabled
+        if minimal_enabled():
+            run_minimal_sequence(problem,plans,args,check_area)
+            print('ALL_FOUR_OBSERVATION_POSES_REACHED',flush=True)
+            return
         # Serial jobs keep all actions/readers/managers alive across arm changes.
         # Construct/discover while native programs are STOPPED, before releasing
         # the existing holds, so graph allocation cannot interrupt a live start.

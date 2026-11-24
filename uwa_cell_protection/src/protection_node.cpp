@@ -3,6 +3,8 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -57,6 +59,7 @@ struct Arm
   Json ack = Json::object();
   std::string error;
   bool fallback_hold = false;
+  bool hold_switch_pending = false;
 };
 }
 class ProtectionNode : public rclcpp::Node
@@ -73,9 +76,14 @@ class ProtectionNode : public rclcpp::Node
   std::set<std::string> available_;
   std::map<std::string, double> recovery_baselines_;
   std::string recovery_sha_;
+  Json recovery_authorizations_ = Json::object();
+  std::set<std::string> recovery_required_arms_;
+  std::string collision_error_;
+  std::set<std::string> resume_notices_;
   bool paused_ = false;
   std::string reason_ = "RUNNING";
   uint64_t generation_ = 0;
+  bool command_sent_ = false;
   double timeout_ = .2, rate_ = 20.;
   rclcpp::Publisher<String>::SharedPtr status_pub_, state_pub_;
   rclcpp::Service<Trigger>::SharedPtr pause_service_, resume_service_, status_service_, recovery_service_;
@@ -85,6 +93,7 @@ public:
   ProtectionNode() : Node("protection", "/uwa_cell")
   {
     mode_ = declare_parameter<std::string>("mode", "mock");
+    generation_ = static_cast<uint64_t>(std::chrono::steady_clock::now().time_since_epoch().count());
     const auto file = declare_parameter<std::string>("model_config", "");
     declare_parameter<std::string>("recovery_plan_path", "");
     const char * domain_text = std::getenv("ROS_DOMAIN_ID");
@@ -118,7 +127,13 @@ public:
             if (value.is_object() && value.contains("generation") && value["generation"].is_number_unsigned() &&
                 value.contains("paused") && value["paused"].is_boolean() &&
                 value.contains("factor") && value["factor"].is_number() &&
-                value.contains("resumable") && value["resumable"].is_boolean()) arms_.at(rid).ack = value;
+                value.contains("resumable") && value["resumable"].is_boolean()) {
+              arms_.at(rid).ack = value;
+              if (!command_sent_ && value.at("paused").get<bool>()) {
+                paused_ = true; reason_ = "EXISTING CONTROLLER PAUSE; OPERATOR RESUME REQUIRED";
+              }
+              if (value.value("action_active", false) && value.value("resumable", false)) resume_notices_.erase(rid);
+            }
           } catch (const Json::exception &) { arms_.at(rid).error = "Invalid pause acknowledgement"; }
         });
       a.list = create_client<List>(a.ns + "/controller_manager/list_controllers");
@@ -139,7 +154,7 @@ public:
     }
     pause_service_ = create_service<Trigger>("/uwa_cell/protection/pause_all",
       [this](const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response) {
-        pause("OPERATOR PAUSE");
+        pause("OPERATOR PAUSE", true);
         response->success = true; response->message = status().dump();
       });
     resume_service_ = create_service<Trigger>("/uwa_cell/protection/resume_all",
@@ -154,13 +169,30 @@ public:
           response->message = value.dump(); return;
         }
         for (const auto & [id, arm] : arms_)
-          if (arm.ack.value("generation", uint64_t(0)) == generation_ &&
-              arm.ack.contains("resumable") && !arm.ack.value("resumable", true)) {
+          if (arm.hold_switch_pending) {
             response->success = false;
-            auto value = status(); value["command_error"] = id + ": previous trajectory cannot be resumed; plan a new path";
+            auto value = status(); value["command_error"] = id + ": hold transition pending; wait for its result before resume";
             response->message = value.dump(); return;
           }
-        if (paused_) { paused_ = false; reason_ = "OPERATOR RESUME"; ++generation_; publish_commands(); }
+        for (const auto & id : recovery_required_arms_) {
+          const auto & ack = arms_.at(id).ack;
+          if (ack.value("active_recovery_sha256", "") != recovery_sha_ || !ack.value("action_active", false)) {
+            response->success = false;
+            auto value = status(); value["command_error"] = id + ": checked recovery replacement is not yet active; original trajectory remains paused";
+            response->message = value.dump(); return;
+          }
+        }
+        for (const auto & [id, arm] : arms_)
+          if (arm.ack.value("generation", uint64_t(0)) == generation_ &&
+              arm.ack.contains("resumable") && !arm.ack.value("resumable", true)) {
+            if (arm.ack.value("action_active", false)) {
+              response->success = false;
+              auto value = status(); value["command_error"] = id + ": previous trajectory cannot be resumed; plan a new path";
+              response->message = value.dump(); return;
+            }
+            resume_notices_.insert(id);
+          }
+        paused_ = false; reason_ = "OPERATOR RESUME"; ++generation_; publish_commands();
         response->success = true; response->message = status().dump();
       });
     status_service_ = create_service<Trigger>("/uwa_cell/protection/status",
@@ -228,14 +260,26 @@ private:
   }
   void publish_commands()
   {
+    command_sent_ = true;
     const Json value{{"generation", generation_}, {"paused", paused_}, {"reason", reason_},
                      {"command_time_monotonic_s", monotonic()}};
-    String message; message.data = value.dump();
-    for (auto & [id, arm] : arms_) arm.command->publish(message);
+    for (auto & [id, arm] : arms_) {
+      auto per_arm = value;
+      if (recovery_authorizations_.contains(id)) {
+        per_arm["recovery_trajectory"] = recovery_authorizations_.at(id);
+        per_arm["recovery_reviewed_sha256"] = recovery_sha_;
+      }
+      String message; message.data = per_arm.dump(); arm.command->publish(message);
+    }
   }
-  void pause(const std::string & reason)
+  void pause(const std::string & reason, bool revoke_recovery_admission = false)
   {
-    if (paused_) return;
+    const bool had_admission = !recovery_authorizations_.empty();
+    if (revoke_recovery_admission) recovery_authorizations_ = Json::object();
+    if (paused_ && command_sent_) {
+      if (revoke_recovery_admission && had_admission) { reason_ = reason; ++generation_; publish_commands(); }
+      return;
+    }
     paused_ = true; reason_ = reason; ++generation_;
     publish_commands();  // Always before the optional one-shot inventory RPC.
     for (auto & [id, arm] : arms_) inspect_on_pause(id, generation_);
@@ -257,7 +301,10 @@ private:
           bool holding = false;
           for (const auto & controller : reply->controller) {
             if (controller.state != "active") continue;
-            if (controller.name == a.controller) { a.fallback_hold = false; return; }
+            if (controller.name == a.controller &&
+                controller.type == "uwa_cell_protection/PausableJointTrajectoryController") {
+              a.fallback_hold = false; return;
+            }
             if (controller.name == "collision_hold_controller") holding = true;
             bool owns_arm = false;
             for (const auto & interface : controller.claimed_interfaces)
@@ -273,10 +320,12 @@ private:
           request->strictness = Switch::Request::FORCE_AUTO;
           request->activate_asap = true;
           request->timeout.sec = 1;
+          a.hold_switch_pending = true;
           a.switch_controller->async_send_request(request,
             [this, id, generation](rclcpp::Client<Switch>::SharedFuture result) {
-              if (generation != generation_) return;
               auto & target = arms_.at(id);
+              target.hold_switch_pending = false;
+              if (generation != generation_) return;
               try {
                 const auto answer = result.get();
                 target.fallback_hold = answer->ok;
@@ -304,6 +353,9 @@ private:
         plan.at("reviewed_sha256").get<std::string>().size() != 64 ||
         !plan.contains("trajectories") || !plan.at("trajectories").is_object() || plan.at("trajectories").empty())
       throw std::runtime_error("Recovery requires matching model and bound reviewed trajectories");
+    for (auto it = plan.at("trajectories").begin(); it != plan.at("trajectories").end(); ++it)
+      if (!arms_.count(it.key()) || it.value().at("joint_names").get<std::vector<std::string>>() != arms_.at(it.key()).joints)
+        throw std::runtime_error("Recovery trajectory names do not match a configured arm");
     const auto & states = plan.at("states");
     const double tolerance = plan.at("start_tolerance_rad");
     if (!states.is_array() || states.size() < 2 || !std::isfinite(tolerance) || tolerance <= 0.)
@@ -343,8 +395,13 @@ private:
     if (!final.at("clear").get<bool>()) throw std::runtime_error("Recovery must end outside every 40 mm neighbor margin");
     recovery_baselines_ = std::move(baselines);
     recovery_sha_ = plan.at("reviewed_sha256");
+    recovery_authorizations_ = plan.at("trajectories");
+    recovery_required_arms_.clear();
+    for (auto it = recovery_authorizations_.begin(); it != recovery_authorizations_.end(); ++it)
+      recovery_required_arms_.insert(it.key());
     collisions_ = Json::array();
     reason_ = "CHECKED RECOVERY READY; OPERATOR RESUME REQUIRED";
+    ++generation_; publish_commands();
     evaluate();
   }
   void evaluate()
@@ -363,6 +420,7 @@ private:
       if (now - sample.received <= timeout_ && now - sample.source <= timeout_) available_.insert(id);
     }
     auto value = core_->evaluate(positions, available_);
+    collision_error_.clear();
     Json current = Json::array();
     for (const auto & conflict : value.at("collisions")) {
       const auto key = pair_key(conflict);
@@ -378,7 +436,11 @@ private:
         if (pair_key(pair) == key && pair.at("distance_m").get<double>() > .04) pair_clear = true;
       recovery_clear &= pair_clear;
     }
-    if (recovery_clear) { recovery_baselines_.clear(); recovery_sha_.clear(); }
+    if (recovery_clear) {
+      recovery_baselines_.clear(); recovery_sha_.clear(); recovery_authorizations_ = Json::object();
+      recovery_required_arms_.clear();
+      ++generation_; publish_commands();
+    }
     // Missing data does not add a stop and cannot erase a previously observed
     // unresolved collision involving that missing arm.
     for (const auto & conflict : collisions_) {
@@ -401,14 +463,17 @@ private:
   Json status()
   {
     Json states = Json::object(), unavailable = Json::array(), warnings = Json::array();
+    std::map<std::string, std::string> state_errors;
+    { std::lock_guard<std::mutex> lock(sample_mutex_); state_errors = source_errors_; }
     bool all_confirmed = true, all_zero = true;
     for (const auto & [id, arm] : arms_) {
-      const bool confirmed = generation_ != 0 && arm.ack.value("generation", uint64_t(0)) == generation_ &&
+      const bool confirmed = command_sent_ && arm.ack.value("generation", uint64_t(0)) == generation_ &&
         arm.ack.value("paused", !paused_) == paused_;
       Json entry = arm.ack;
       entry["confirmed"] = confirmed || (paused_ && arm.fallback_hold);
       entry["controller"] = arm.fallback_hold ? "collision_hold_controller" : arm.controller;
       entry["error"] = arm.error;
+      entry["hold_switch_pending"] = arm.hold_switch_pending;
       entry["resumable"] = arm.fallback_hold ? false : arm.ack.value("resumable", true);
       states[id] = entry;
       all_confirmed &= entry.at("confirmed").get<bool>();
@@ -417,11 +482,15 @@ private:
       if (!arm.error.empty()) warnings.push_back(id + ": " + arm.error);
     }
     if (!unavailable.empty()) warnings.push_back("COLLISION DATA UNAVAILABLE: affected body pairs are not monitored; motion continues");
-    if (generation_ && !all_confirmed) warnings.push_back("SOFTWARE PAUSE/RESUME ACKNOWLEDGEMENT UNCONFIRMED");
+    if (!collision_error_.empty()) warnings.push_back("COLLISION EVALUATION UNAVAILABLE: " + collision_error_);
+    for (const auto & arm : resume_notices_)
+      warnings.push_back(arm + ": previous trajectory unavailable; start a new reviewed task");
+    if (command_sent_ && !all_confirmed) warnings.push_back("SOFTWARE PAUSE/RESUME ACKNOWLEDGEMENT UNCONFIRMED");
     return {{"mode", mode_}, {"paused", paused_}, {"pausing", paused_ && !all_zero},
             {"state", paused_ ? (all_zero ? "PAUSED" : "PAUSE REQUESTED") : "RUNNING"},
             {"reason", reason_}, {"generation", generation_}, {"collision_data_available", unavailable.empty()},
             {"unavailable_arms", unavailable}, {"known_collisions", collisions_}, {"pairs", pair_status_},
+            {"state_errors", state_errors},
             {"warnings", warnings}, {"arms", states}, {"model_signature", signature_},
             {"recovery_active", !recovery_baselines_.empty()}, {"recovery_reviewed_sha256", recovery_sha_},
             {"evaluated_monotonic_s", monotonic()}};
@@ -431,6 +500,7 @@ private:
     try { evaluate(); }
     catch (const std::exception & error) {
       available_.clear();
+      collision_error_ = error.what();
       RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000, "Collision data unavailable; no automatic pause: %s", error.what());
     }
     String message; message.data = status().dump(); status_pub_->publish(message);

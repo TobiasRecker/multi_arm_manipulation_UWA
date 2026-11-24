@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cctype>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -37,6 +38,12 @@ class PausableJointTrajectoryController final
   std::shared_ptr<GoalHandle> retained_goal_;
   std::string retained_uuid_;
   std::string active_uuid_;
+  Json recovery_trajectory_;
+  std::string recovery_sha_;
+  std::string recovery_reserved_uuid_;
+  bool recovery_consumed_{true};
+  std::string active_recovery_sha_;
+  std::atomic<bool> active_recovery_valid_{false};
   double factor_{1.0};
   double acceleration_{0.2};
   double normal_velocity_{0.1};
@@ -50,6 +57,33 @@ class PausableJointTrajectoryController final
     return requested_pause_.load(std::memory_order_acquire) || factor_report_.load() < 1.0 - 1e-9;
   }
 
+  bool matches_recovery(const FollowJTrajAction::Goal & goal) const
+  {
+    if (!requested_pause_.load() || recovery_consumed_ || !recovery_trajectory_.is_object()) {
+      return false;
+    }
+    try {
+      const auto & trajectory = goal.trajectory;
+      if (trajectory.joint_names != recovery_trajectory_.at("joint_names").get<std::vector<std::string>>() ||
+        trajectory.points.size() != recovery_trajectory_.at("points").size()) {return false;}
+      for (size_t i = 0; i < trajectory.points.size(); ++i) {
+        const auto & actual = trajectory.points[i];
+        const auto & expected = recovery_trajectory_.at("points").at(i);
+        if (actual.positions != expected.at("positions").get<std::vector<double>>() ||
+          actual.velocities != expected.value("velocities", std::vector<double>{}) ||
+          actual.accelerations != expected.value("accelerations", std::vector<double>{}) ||
+          !actual.effort.empty()) {return false;}
+        const double seconds = expected.at("time").get<double>();
+        if (!std::isfinite(seconds) || seconds < 0.0) {return false;}
+        const int64_t expected_ns = std::llround(seconds * 1e9);
+        const int64_t actual_ns = int64_t(actual.time_from_start.sec) * 1000000000LL +
+          actual.time_from_start.nanosec;
+        if (std::abs(actual_ns - expected_ns) > 1) {return false;}
+      }
+      return true;
+    } catch (const std::exception &) {return false;}
+  }
+
   void command(const std_msgs::msg::String & message)
   {
     try {
@@ -61,6 +95,18 @@ class PausableJointTrajectoryController final
       }
       const auto generation = value.at("generation").get<uint64_t>();
       const bool paused = value.at("paused").get<bool>();
+      const auto reason = value.value("reason", std::string{});
+      Json recovery;
+      std::string recovery_sha;
+      if (paused && value.contains("recovery_trajectory")) {
+        recovery_sha = value.value("recovery_reviewed_sha256", std::string{});
+        if (recovery_sha.size() != 64 || !std::all_of(recovery_sha.begin(), recovery_sha.end(),
+          [](unsigned char ch) {return std::isxdigit(ch);})) {
+          throw std::invalid_argument("Recovery needs its reviewed SHA-256");
+        }
+        recovery = value.at("recovery_trajectory");
+        if (!recovery.is_object()) {throw std::invalid_argument("Recovery trajectory must be an object");}
+      }
       std::lock_guard<std::mutex> lock(admission_);
       if (have_command_ && generation <= generation_) {return;}
       if (paused && !requested_pause_.load()) {
@@ -71,7 +117,18 @@ class PausableJointTrajectoryController final
       }
       generation_ = generation;
       have_command_ = true;
-      reason_ = value.value("reason", std::string{});
+      reason_ = reason;
+      if (paused) {
+        recovery_reserved_uuid_.clear();
+        recovery_trajectory_ = nullptr;
+        recovery_sha_.clear();
+        recovery_consumed_ = true;
+        if (!recovery.is_null()) {
+          recovery_trajectory_ = std::move(recovery);
+          recovery_sha_ = std::move(recovery_sha);
+          recovery_consumed_ = false;
+        }
+      }
       requested_pause_.store(paused, std::memory_order_release);
     } catch (const std::exception & error) {
       RCLCPP_WARN(get_node()->get_logger(), "Ignored invalid pause command: %s", error.what());
@@ -86,6 +143,9 @@ class PausableJointTrajectoryController final
       {"factor", factor_report_.load()}, {"resumable", resumable},
       {"phase_time_s", phase_report_.load()}, {"action_active", active_report_.load()},
       {"reason", reason_}};
+    value["recovery_authorized"] = !recovery_consumed_;
+    value["active_recovery_sha256"] = active_report_.load() && active_recovery_valid_.load() ?
+      active_recovery_sha_ : "";
     if (active_report_.load()) {value["active_goal"] = active_uuid_;}
     std_msgs::msg::String message;
     message.data = value.dump();
@@ -129,23 +189,54 @@ public:
       [this](const rclcpp_action::GoalUUID & uuid,
       std::shared_ptr<const FollowJTrajAction::Goal> goal) {
         std::lock_guard<std::mutex> lock(admission_);
-        return rejects_new_motion() ? rclcpp_action::GoalResponse::REJECT :
-               Base::goal_received_callback(uuid, goal);
+        if (rejects_new_motion()) {
+          if (!recovery_reserved_uuid_.empty() || !matches_recovery(*goal)) {
+            return rclcpp_action::GoalResponse::REJECT;
+          }
+          const auto response = Base::goal_received_callback(uuid, goal);
+          if (response != rclcpp_action::GoalResponse::REJECT) {
+            recovery_reserved_uuid_ = rclcpp_action::to_string(uuid);
+          }
+          return response;
+        }
+        return Base::goal_received_callback(uuid, goal);
       },
       [this](std::shared_ptr<GoalHandle> goal) {
-        if (requested_pause_.load() && active_report_.load()) {deactivated_with_goal_ = true;}
+        std::lock_guard<std::mutex> lock(admission_);
+        if (rclcpp_action::to_string(goal->get_goal_id()) == active_uuid_) {
+          if (requested_pause_.load() && active_report_.load()) {deactivated_with_goal_ = true;}
+          active_recovery_valid_ = false;
+        }
         return Base::goal_cancelled_callback(goal);
       },
       [this](std::shared_ptr<GoalHandle> goal) {
         std::lock_guard<std::mutex> lock(admission_);
-        if (rejects_new_motion()) {
+        const auto uuid = rclcpp_action::to_string(goal->get_goal_id());
+        const bool recovery = uuid == recovery_reserved_uuid_ && matches_recovery(*goal->get_goal());
+        if (rejects_new_motion() && !recovery) {
           auto result = std::make_shared<FollowJTrajAction::Result>();
           result->error_code = FollowJTrajAction::Result::INVALID_GOAL;
           result->error_string = "Software pause received before goal admission completed";
           goal->abort(result);
           return;
         }
-        active_uuid_ = rclcpp_action::to_string(goal->get_goal_id());
+        active_uuid_ = uuid;
+        // A newly reviewed normal task owns its own lifecycle. A canceled or
+        // aborted previous task must not keep its old resumability diagnosis.
+        deactivated_with_goal_ = false;
+        if (recovery) {
+          recovery_consumed_ = true;
+          recovery_reserved_uuid_.clear();
+          retained_goal_ = goal;
+          retained_uuid_ = uuid;
+          active_recovery_sha_ = recovery_sha_;
+          active_recovery_valid_ = true;
+        } else {
+          retained_goal_.reset();
+          retained_uuid_.clear();
+          active_recovery_sha_.clear();
+          active_recovery_valid_ = false;
+        }
         Base::goal_accepted_callback(goal);
       });
     joint_command_subscriber_.reset();
@@ -168,6 +259,7 @@ public:
             (entry.status == action_msgs::msg::GoalStatus::STATUS_ABORTED ||
             entry.status == action_msgs::msg::GoalStatus::STATUS_CANCELED)) {
             deactivated_with_goal_ = true;
+            active_recovery_valid_ = false;
           }
         }
       });
@@ -187,6 +279,7 @@ public:
   controller_interface::CallbackReturn on_deactivate(const rclcpp_lifecycle::State & state) override
   {
     if (requested_pause_.load() && active_report_.load()) {deactivated_with_goal_ = true;}
+    active_recovery_valid_ = false;
     active_report_ = false;
     return Base::on_deactivate(state);
   }

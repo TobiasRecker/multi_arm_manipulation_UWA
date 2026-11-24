@@ -3,10 +3,11 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import sys
 
-from run_carton_program import Progress, logged_command, n100, offline_tool, upload, SSH_OPTIONS, N100_HOST
+from run_carton_program import Progress, logged_command, n100, offline_tool, SSH_OPTIONS, N100_HOST
 from open_multi_camera_capture import open_window, active_window
 
 REPO = Path(__file__).resolve().parents[1]
@@ -16,9 +17,20 @@ DEFINITION = REPO / 'config/multi_camera_calibration.json'
 CELL = 'src/multi_arm_manipulation_UWA'
 
 
+def remote_location(relative):
+    runtime = os.environ.get('UWA_MINIMAL_RUNTIME') if os.environ.get('UWA_PROTECTION_BACKEND')=='minimal' else None
+    if runtime and not Path(runtime).is_absolute():
+        raise ValueError('UWA_MINIMAL_RUNTIME must be an absolute N100 runtime path')
+    return f'{N100_HOST}:{runtime or "uwa-ur-runtime"}/{relative}'
+
+
+def upload(remote, local_file, log_path):
+    return logged_command(['/usr/bin/scp',*SSH_OPTIONS,local_file,remote_location(remote)],log_path,100)
+
+
 def download(remote, destination, log):
     return logged_command(['/usr/bin/scp', *SSH_OPTIONS, '-r',
-        f'{N100_HOST}:uwa-ur-runtime/{remote}', destination], log, 100)
+        remote_location(remote), destination], log, 100)
 
 
 def prepare_and_move(progress):
@@ -62,7 +74,7 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 /usr/bin/python3 "$1/observe_calibratio
     (out / 'execution-binding.json').write_text(json.dumps(dict(sequence_sha256=digest,
         helpers_sha256=bindings, area_session=snapshot['area_session']), indent=2) + '\n')
     logged_command(['/usr/bin/scp', *SSH_OPTIONS, '-r', out / 'plans',
-        f'{N100_HOST}:uwa-ur-runtime/{remote}/plans'], out / 'upload-plans.log', 100)
+        remote_location(remote+'/plans')], out / 'upload-plans.log', 100)
     progress.update('positioning', 'Moving the arms in order: left front, left rear, right front, right rear. Existing N100 protection remains active.')
     command = n100('''source src/multi_arm_manipulation_UWA/scripts/control_env.bash
 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 /usr/bin/python3 "$1/execute_calibration_observation_motion.py" \

@@ -24,6 +24,7 @@ find_package(srdfdom REQUIRED)
 find_package(ur_client_library REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(Threads REQUIRED)
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
 add_library(collision_core src/collision_core.cpp)
 target_include_directories(collision_core PUBLIC
@@ -35,6 +36,8 @@ add_executable(protection_node src/protection_node.cpp)
 target_link_libraries(protection_node collision_core ${rclcpp_TARGETS} ${std_msgs_TARGETS}
   ${std_srvs_TARGETS} ${sensor_msgs_TARGETS} ${controller_manager_msgs_TARGETS}
   ur_client_library::urcl Threads::Threads)
+add_executable(collision_replay src/collision_replay.cpp)
+target_link_libraries(collision_replay collision_core)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/pausable_jtc.cpp")
   add_library(pausable_jtc SHARED src/pausable_jtc.cpp)
@@ -46,7 +49,7 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/pausable_jtc.cpp")
   pluginlib_export_plugin_description_file(controller_interface controllers.xml)
   install(TARGETS pausable_jtc LIBRARY DESTINATION lib)
 endif()
-install(TARGETS collision_core protection_node
+install(TARGETS collision_core protection_node collision_replay
   ARCHIVE DESTINATION lib LIBRARY DESTINATION lib RUNTIME DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY include/ DESTINATION include)
 if(BUILD_TESTING)
@@ -58,5 +61,12 @@ if(BUILD_TESTING)
   target_include_directories(test_pause_ramp PRIVATE include)
   target_compile_options(test_pause_ramp PRIVATE -UNDEBUG)
   add_test(NAME pause_ramp COMMAND test_pause_ramp)
+  add_test(NAME protection_mock_api COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/mock_protection_integration.py --node $<TARGET_FILE:protection_node>)
+  set_tests_properties(protection_mock_api PROPERTIES TIMEOUT 30
+    ENVIRONMENT "ROS_DOMAIN_ID=67;ROS_LOCALHOST_ONLY=1")
 endif()
+ament_export_include_directories(include)
+ament_export_libraries(collision_core)
+ament_export_dependencies(nlohmann_json)
 ament_package()

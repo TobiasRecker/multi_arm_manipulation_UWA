@@ -37,6 +37,20 @@ def speed_text(percent):
     return f'{percent:.4g}%  ·  {2.5*percent:.4g} mm/s TCP  ·  {0.003*percent:.4g} rad/s per joint'
 
 
+def remote_runtime_command(script, args=(), *, environment=False):
+    runtime = os.environ.get('UWA_MINIMAL_RUNTIME')
+    if not runtime:
+        return 'bash ~/uwa-ur-runtime/' + script + (' ' + shlex.join(args) if args else '')
+    if not Path(runtime).is_absolute():
+        raise ValueError('UWA_MINIMAL_RUNTIME must be an absolute N100 runtime path')
+    command = ['bash', str(Path(runtime)/script), *args]
+    if environment:
+        command = ['env', 'UWA_PROTECTION_BACKEND=minimal',
+                   'UWA_MINIMAL_RUNTIME='+runtime,
+                   'UWA_MINIMAL_INSTALL='+str(Path(runtime)/'install_lyrical'), *command]
+    return shlex.join(command)
+
+
 class ReviewPanel(QtWidgets.QWidget):
     attention = QtCore.Signal(str)
     faultNotice = QtCore.Signal(str)
@@ -219,7 +233,7 @@ class ReviewPanel(QtWidgets.QWidget):
         params = [*args, '--json']
         if self.remote:
             # SSH joins argv into a remote shell command. Quote user-supplied series names.
-            params = ['bash ~/uwa-ur-runtime/review.sh ' + shlex.join(params)]
+            params = [remote_runtime_command('review.sh', params, environment=True)]
         process.start(self.backend[0], [*self.backend[1:], *params])
 
     def rpc_error(self, error):

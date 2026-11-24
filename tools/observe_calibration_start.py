@@ -8,6 +8,7 @@ import argparse
 import hashlib
 import importlib
 import json
+import os
 from pathlib import Path
 import time
 import xml.etree.ElementTree as ET
@@ -36,7 +37,15 @@ def released_area(expected=None):
 def observe(output):
     require_domain('hardware')
     status = released_area()
-    repo = Path.home() / 'uwa-ur-runtime/src/multi_arm_manipulation_UWA'
+    from uwa_cell_motion.protection_backend import minimal_enabled
+    minimal = minimal_enabled()
+    runtime = Path.home()/'uwa-ur-runtime'
+    if minimal:
+        if os.environ.get('UWA_MINIMAL_RUNTIME'):
+            runtime = Path(os.environ['UWA_MINIMAL_RUNTIME'])
+        elif os.environ.get('UWA_MINIMAL_INSTALL'):
+            runtime = Path(os.environ['UWA_MINIMAL_INSTALL']).parent
+    repo = runtime / 'src/multi_arm_manipulation_UWA'
     cfg = config(repo / 'uwa_cell_motion/config/hardware_carton_supported_trend.yaml')
     output.mkdir(parents=True, exist_ok=True)
     problem = HardwareProblem(output / 'model-context', cfg, repo / 'config/hardware_inventory.yaml')
@@ -50,6 +59,27 @@ def observe(output):
         canonical_collision_signature=collision_signature(ET.tostring(tree, encoding='unicode')),
         modules={name: hashlib.sha256(Path(importlib.import_module(name).__file__).read_bytes()).hexdigest()
                  for name in MODULES})
+    if minimal:
+        from uwa_cell_tasks.minimal_snapshot import observe as shared_snapshot
+        observation = shared_snapshot()
+        if observation.get('model_signature') != problem.signature:
+            raise ValueError('Shared C++ collision model differs from the observation planning model')
+        records = {}
+        start = {j:0. for names in problem.names.values() for j in names}
+        for rid in ROBOT_IDS:
+            sample = observation['arms'][rid]['samples'][-1]
+            records[rid] = dict(q=sample['actual_q'], v=sample.get('actual_qd',[0.]*6),
+                                device_stamp=sample['device_timestamp_s'],
+                                received=sample['received_monotonic_s'])
+            start.update(zip(joint_names(rid),sample['actual_q']))
+        released_area(status['session_id'])
+        dump(output/'snapshot.json',dict(schema_version=1,execution_mode='hardware',start=start,
+            source_records=records,hardware_binding=problem.binding,protection_backend='minimal',
+            source='Shared C++ actual joint snapshot; no stationarity or native-mode test',
+            area_session=status['session_id'],
+            tool_policy='unobserved fingers: full opening envelope; zero is a model coordinate'))
+        dump(output/'model-context.json',context)
+        return
     reader = RtdeStates(problem.profiles, cfg['state_timeout_s'])
     standstill = GuardState(cfg)
     try:

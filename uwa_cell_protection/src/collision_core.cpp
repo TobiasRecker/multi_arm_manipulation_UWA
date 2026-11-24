@@ -1,4 +1,5 @@
 #include "uwa_cell_protection/collision_core.hpp"
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -46,6 +47,10 @@ struct CollisionCore::Impl
   std::map<std::string, std::vector<Sphere>> spheres;
   std::map<unsigned, collision_detection::AllowedCollisionMatrix> matrices;
   std::map<std::string, std::vector<std::string>> names;
+  std::map<std::string, double> last_positions;
+  unsigned last_mask = 0;
+  bool cached = false;
+  Json last_result;
   double margin;
 
   Impl(const Json & config, const std::string & directory)
@@ -66,6 +71,11 @@ struct CollisionCore::Impl
     scene = std::make_unique<planning_scene::PlanningScene>(model);
     state = std::make_unique<moveit::core::RobotState>(model);
     state->setToDefaultValues();
+    // Hardware opening envelopes are defined at the fixed model coordinate
+    // zero, not at RobotState's midpoint default for bounded finger joints.
+    std::map<std::string, double> zero;
+    for (const auto & variable : model->getVariableNames()) zero[variable] = 0.;
+    state->setVariablePositions(zero);
     moveit_msgs::msg::CollisionObject floor;
     floor.header.frame_id = "world";
     floor.id = "calibration_floor";
@@ -126,6 +136,7 @@ Json CollisionCore::evaluate(const std::map<std::string, double> & positions,
 {
   auto & p = *impl_;
   unsigned mask = 0;
+  std::map<std::string, double> current_positions;
   for (unsigned i = 0; i < arm_ids.size(); ++i) {
     if (!available.count(arm_ids[i])) continue;
     mask |= 1u << i;
@@ -134,8 +145,10 @@ Json CollisionCore::evaluate(const std::map<std::string, double> & positions,
       if (it == positions.end() || !std::isfinite(it->second))
         throw std::runtime_error("Incomplete finite collision state: " + joint);
       p.state->setVariablePosition(joint, it->second);
+      current_positions[joint] = it->second;
     }
   }
+  if (p.cached && p.last_mask == mask && p.last_positions == current_positions) return p.last_result;
   p.state->update();
   Json conflicts = Json::array(), pairs = Json::array();
   if (mask) {
@@ -176,6 +189,8 @@ Json CollisionCore::evaluate(const std::map<std::string, double> & positions,
     pairs.push_back(entry);
     if (minimum <= p.margin) conflicts.push_back(entry);
   }
-  return {{"collisions", conflicts}, {"pairs", pairs}, {"clear", conflicts.empty()}};
+  p.last_result = {{"collisions", conflicts}, {"pairs", pairs}, {"clear", conflicts.empty()}};
+  p.last_positions = std::move(current_positions); p.last_mask = mask; p.cached = true;
+  return p.last_result;
 }
 }  // namespace uwa_cell_protection

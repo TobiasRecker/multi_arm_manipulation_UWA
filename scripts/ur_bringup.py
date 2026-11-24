@@ -194,6 +194,9 @@ def launch_driver(arm, get_transport):
     command = [
         'systemd-run', '--user', '--collect', f'--unit={unit}',
         f'--property=WorkingDirectory={workspace}', '--property=KillSignal=SIGINT',
+        *(['--setenv=UWA_PROTECTION_BACKEND=minimal', f'--setenv=UWA_WS={workspace}',
+           f'--setenv=UWA_MINIMAL_INSTALL={workspace}/install_lyrical']
+          if os.environ.get('UWA_PROTECTION_BACKEND') == 'minimal' else []),
         '/usr/bin/bash', '-c',
         'source "$1" && exec ros2 launch uwa_cell_control arms.launch.py '
         'mode:=hardware "arms:=$2" "inventory:=$3"',

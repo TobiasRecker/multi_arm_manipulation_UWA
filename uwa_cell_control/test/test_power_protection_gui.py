@@ -1,6 +1,7 @@
 """Software stop uses an independent transport and reports acknowledgements truthfully."""
 import json
 import os
+import shlex
 from pathlib import Path
 import sys
 import time
@@ -15,6 +16,7 @@ for directory in ('scripts', 'uwa_cell_control', 'uwa_cell_tasks'):
 
 from PySide6 import QtCore, QtWidgets
 from protection_bridge import response_packet
+from motion_review_panel import ReviewPanel, remote_runtime_command
 from ur_power_gui import ProtectionControls, Window, protection_command
 
 
@@ -133,10 +135,46 @@ def test_command_result_keeps_warning_and_does_not_turn_ack_into_physical_stop(t
         panel.shutdown()
 
 
-def test_bridge_mode_and_n100_command_are_explicit():
+def test_bridge_mode_and_n100_command_are_explicit(monkeypatch):
+    monkeypatch.delenv('UWA_MINIMAL_RUNTIME', raising=False)
     assert protection_command(mock=True)[-1] == 'mock'
     assert protection_command(mock=False)[-1] == 'hardware'
     remote = protection_command(n100=True)
     assert 'uwa-n100-robot-lan' in remote
     assert remote[-1] == 'bash ~/uwa-ur-runtime/protection.sh bridge --mode hardware'
+    monkeypatch.setenv('UWA_MINIMAL_RUNTIME', '/home/rosmatch/review candidates/minimal;literal')
+    assert protection_command(n100=True)[-1] == (
+        "bash '/home/rosmatch/review candidates/minimal;literal/protection.sh' bridge --mode hardware")
+    monkeypatch.setenv('UWA_MINIMAL_RUNTIME', 'relative-runtime')
+    with pytest.raises(ValueError, match='absolute'):
+        protection_command(n100=True)
+
+
+def test_pause_ramp_and_manual_hold_are_not_presented_as_completed_trajectory_pause(tmp_path, app):
+    panel = ProtectionControls([str(tmp_path/'does-not-exist')])
+    try:
+        panel.render_status(dict(paused=True, state='PAUSE REQUESTED', arms={
+            'left_front':dict(confirmed=True, paused=True, factor=.6),
+            'right_front':dict(confirmed=True, controller='collision_hold_controller')}))
+        assert panel.state_label.text().startswith('PAUSE REQUESTED')
+        assert 'PAUSING' in panel.arm_labels['left_front'].text()
+        assert 'fresh manual start required' in panel.arm_labels['right_front'].text()
+    finally:
+        panel.shutdown()
+
+
+def test_candidate_power_and_review_commands_keep_runtime_and_literal_arguments(monkeypatch):
+    runtime = '/home/rosmatch/review candidates/minimal;literal'
+    monkeypatch.setenv('UWA_MINIMAL_RUNTIME', runtime)
+    power = shlex.split(remote_runtime_command('power.sh', environment=True))
+    assert power == ['env', 'UWA_PROTECTION_BACKEND=minimal', 'UWA_MINIMAL_RUNTIME='+runtime,
+                     'UWA_MINIMAL_INSTALL='+runtime+'/install_lyrical', 'bash', runtime+'/power.sh']
+    captured = []
+    process = SimpleNamespace(start=lambda command,args:captured.append((command,args)))
+    panel = SimpleNamespace(remote=True,backend=['ssh','test-host'])
+    ReviewPanel.start_rpc(panel,process,['settings','--series-name','literal;$(no command)'])
+    assert captured[0][0] == 'ssh' and captured[0][1][0] == 'test-host'
+    review = shlex.split(captured[0][1][-1])
+    assert review[:6] == power[:5]+[runtime+'/review.sh']
+    assert review[6:] == ['settings','--series-name','literal;$(no command)','--json']
 

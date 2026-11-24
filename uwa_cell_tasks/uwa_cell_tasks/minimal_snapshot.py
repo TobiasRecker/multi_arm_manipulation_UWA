@@ -1,5 +1,6 @@
 """Read the shared native-state snapshot, without stationary or gripper probes."""
 import json
+import math
 import time
 
 import rclpy
@@ -34,9 +35,15 @@ def observe(mode='hardware', timeout=15.):
             rclpy.spin_once(node, timeout_sec=.05)
             records = latest.get('records', {})
             now = time.monotonic()
-            if set(records) == set(ROBOT_IDS) and all(
-                    now-row.get('received_monotonic_s', row.get('received', 0.)) <= .2
-                    for row in records.values()):
+            def usable(row):
+                if not isinstance(row,dict):
+                    return False
+                stamp = row.get('received_monotonic_s',row.get('received',0.))
+                q = row.get('q',())
+                return (type(stamp) in (int,float) and 0 <= now-stamp <= .2 and
+                        isinstance(q,list) and len(q)==6 and
+                        all(type(v) in (int,float) and math.isfinite(v) for v in q))
+            if set(records) == set(ROBOT_IDS) and all(usable(row) for row in records.values()):
                 break
             if now >= deadline:
                 raise TimeoutError('Current native positions unavailable for planning snapshot')

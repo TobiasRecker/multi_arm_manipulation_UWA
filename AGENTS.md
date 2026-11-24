@@ -1,5 +1,36 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Minimales Hardware-Schutzkonzept, Nutzerentscheidung 24.11.2026
+
+Der Nutzer hat das alte UWA-Schutzkonzept ausdrücklich verworfen und die
+Umsetzung des neuen Plans beauftragt. Diese Entscheidung ersetzt widersprechende
+frühere Anforderungen an UWA-Guards, Supervisoren, Watchdogs und Ablaufmonitore.
+
+- C++-Kern auf N100: Geometriekollisionen gegen Tisch, andere Arme und sich
+  selbst prüfen; gemeinsame manuelle oder geometrisch ausgelöste Arm-Pause.
+- Alle vier Arme pausieren. Originaltrajektorien bleiben für ausdrückliches
+  Resume erhalten. Laufende Greiferaktionen nicht ändern; Greifer ausschließlich
+  als vollständige Öffnungsgeometrie berücksichtigen.
+- Fehlende/veraltete Kollisionsdaten ausschließlich deutlich warnen, kein
+  automatischer Stopp. Keine Manager-/Hold-/Stillstands-/Geschwindigkeits-/
+  Kraft-/Greifer-/Besitzheartbeat-Wächter in den neuen Ausführungspfad übernehmen.
+- 40 mm zwischen den vier Nachbararm-Hüllen erhalten; Vollzell-FCL für alle
+  sechs Armpaare, Selbst-/Tischkollisionen mit bisherigen Ausnahmen. Keine neue
+  Tischmarge oder dynamische Stoppreserve ergänzen. FCL-Kontaktgrenze ist kein
+  Nachweis eines Live-Stopps vor Berührung.
+- Nach Geometrie-Pause nur freien Weg fortsetzen oder einen ausdrücklich
+  geprüften Rückzug aus der bereits verletzten Abstandsmarge ausführen.
+  Kein pauschaler Kollisions-Override; kein automatischer Rückzug aus realer
+  FCL-Durchdringung. Ersatzbahn vor Resume im pausierten Controller annehmen.
+- Native UR-Sicherheit und bestehende Planungs-/Befehlsgrenzen unverändert;
+  keine eigenmächtige Tempoänderung. Normale Controllerantworten bleiben
+  Ausführungsergebnisse, keine neue globale UWA-Stoppkaskade daraus ableiten.
+- Robot Power/Motion Review bleiben. Stop unabhängig von laufender GUI-Aktion
+  erreichbar und auf Englisch mit deutlich sichtbarem Text rückmelden.
+- Der neue Backendpfad ist `UWA_PROTECTION_BACKEND=minimal`. Den operativen
+  Altbetrieb bis zum eigenen Betriebswechsel erhalten; keine Mischaktivierung.
+  Historische Wächterregeln unten beschreiben nur diesen Altbetrieb.
+
 Bei Fehlern in UR-Treibern auch den offiziellen Quellstand von Universal Robots auf eine passende Korrektur prüfen (Nutzerwunsch vom 24.11.2026).
 
 ## Kartongriff mit zweiter OAK-Perspektive, Nutzerauftrag 24.11.2026

@@ -177,8 +177,9 @@ class MinimalHardwareClient(MotionClient):
         while self.paused:
             self.spin_once(timeout_sec=.05)
 
-    def activate(self, arms):
-        self.wait_unpaused()
+    def activate(self, arms, *, recovery=False):
+        if not recovery:
+            self.wait_unpaused()
         if not set(arms) <= set(self.selected):
             raise ValueError('Trajectory arm was not selected')
         name = 'joint_trajectory_controller' if self.mode == 'mock' else 'scaled_joint_trajectory_controller'
@@ -187,6 +188,9 @@ class MinimalHardwareClient(MotionClient):
             # A one-shot command transition, not a periodic manager/hold gate.
             controllers = self.service(ListControllers, namespace+'list_controllers',
                                        ListControllers.Request()).controller
+            configured = next((c for c in controllers if c.name == name),None)
+            if configured is None or configured.type != 'uwa_cell_protection/PausableJointTrajectoryController':
+                raise RuntimeError(arm+': minimal pausable controller is not loaded; complete the runtime cutover')
             if not any(c.name == name and c.state == 'active' for c in controllers):
                 request = SwitchController.Request()
                 request.strictness = SwitchController.Request.FORCE_AUTO
@@ -204,11 +208,16 @@ class MinimalHardwareClient(MotionClient):
         return dict(pause_requested=True, accepted=answer.success, message=answer.message,
                     standstill_confirmed=False, native_stop_requested_for=[])
 
-    def follow_group(self, trajectories, *, duration_s, segment=None):
+    def follow_group(self, trajectories, *, duration_s, segment=None, recovery=False,
+                     recovery_sha256=None):
         """Send exactly the checked paths; explicit pause never cancels them."""
-        self.wait_unpaused()
-        self.activate(trajectories)
-        self.wait_unpaused()
+        if recovery and (not isinstance(recovery_sha256,str) or len(recovery_sha256)!=64):
+            raise ValueError('Checked withdrawal needs its exact reviewed digest')
+        if not recovery:
+            self.wait_unpaused()
+        self.activate(trajectories,recovery=recovery)
+        if not recovery:
+            self.wait_unpaused()
         goals = {arm:build_goal(value) for arm, value in trajectories.items()}
         for arm in goals:
             self.wait(self.actions[arm].server_is_ready, timeout=3.)
@@ -224,6 +233,14 @@ class MinimalHardwareClient(MotionClient):
             if not handle.accepted:
                 raise RuntimeError(arm+': trajectory rejected')
             results[arm] = handle.get_result_async()
+        if recovery:
+            self.wait(lambda:all((self.protection_status or {}).get('arms',{}).get(arm,{}).get(
+                'active_recovery_sha256') == recovery_sha256 and
+                (self.protection_status or {}).get('arms',{}).get(arm,{}).get('action_active')
+                for arm in trajectories),timeout=3.)
+            response = self.service(Trigger,ROOT+'/resume_all',Trigger.Request())
+            if not response.success:
+                raise RuntimeError('Checked withdrawal remains paused: '+response.message)
         timer = PauseAwareClock()
         while not all(future.done() for future in results.values()):
             self.spin_once(timeout_sec=.01)
@@ -273,6 +290,13 @@ def execute(plan, output, mode):
             if trajectory != plan['trajectory']:
                 raise ValueError('Trajectory differs from its validated timing')
             trajectories = split_trajectory(trajectory, request['selected'])
+            if len(trajectories) > 1:
+                from uwa_cell_tasks.reviewed_carton import prove_group
+                proof, error = prove_group(problem,request['start'],trajectories,
+                    plan['config'].get('command_velocity_limit_rad_s',plan['config']['velocity_limit_rad_s']))
+                if error:
+                    raise ValueError('Parallel path cannot be retained under independent progress: '+error)
+                result['independent_progress_proof'] = proof
             result['stage'] = 'EXECUTION'
             client.follow_group(trajectories, duration_s=trajectory['duration_s'])
             result.update(success=True, stage='COMPLETE', phase_count=1,
