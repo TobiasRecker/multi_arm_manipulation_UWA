@@ -17,6 +17,14 @@ Messung keine Pose. Gemini 4 Hydrogen Low bestätigte sie anhand eines
 synthetischen Bilds. Der Suchfenster-Nachmesspfad ist zusätzlich mit einer
 lokalen Modellantwort geprüft.
 
+Nach Nutzerhinweis die Browser-Verdeckung an beiden Verbindungen korrigiert.
+Die Darstellung ordnet überlappende Holzflächen anhand ihrer Ebenen im
+gewählten Blickwinkel. Der Querbalken verdeckt beide Pfosten von der
+Schraubseite, von hinten gilt die umgekehrte Reihenfolge. Im Chrome-Vergleich
+2.910 überlappende Bildpunkte mit unabhängigen Sehstrahlen geprüft, von
+670 falschen Zuordnungen auf null. Beide Viewer und die Browserreferenz
+aus den bestehenden geprüften Plänen neu exportiert.
+
 Gazebo-Kontaktlauf `gazebo-contact-03` an die erste bestandene Browserbahn
 `browser-gazebo-reference` gebunden. Alle vier Pads bestätigten Aufnahme,
 26 Phasen vollständig, vier virtuelle Schrauben, ideales Gazebo-Festgelenk
@@ -48,11 +56,26 @@ Neuer normaler Library-Lauf mit frischen Eingaben:
 keinen zweiten Stiftlauf parallel starten. Details:
 [Resume-Zulassung](work/pen-resume-admission-20261125.md).
 
-Neuer Review `0d0d013960714d27b08f67239c3be286` für18,4067s wartet.
-Aktuellen Status erneut lesend bestätigt: RUNNING, left_rear gleiche
-Generation/confirmed=true/paused=false/Faktor1. Nur neue Anfahrt-/Einfahrt-
-Freigabe erforderlich; kein erneutes Resume angefordert. Kontakt erst
-nach neuem Einfahrfoto. Keine Bewegung dieses neuen Laufs bisher bestätigt.
+Review `0d0d013960714d27b08f67239c3be286` wurde freigegeben;
+Anfahrt und offene Einfahrt abgeschlossen. Nutzer brach wegen verbleibendem
+Versatz nach rechts im Wristbild ab und stellte den Stift um. Alte offene
+Kontaktfreigabe zurückgezogen; Arbeitsbereich danach ausdrücklich erneut
+freigegeben. Frische OAK-Pro-Auswertung scheitert an Kabelverdeckung von
+Marker97; kein erneuter Greifschluss oder Hub des Stiftprogramms.
+
+Nutzer beauftragt getrennt+100mm senkrecht nach oben, um das Kabel zu
+entfernen. Vollzellgeprüfte Bahn5,544s, unveränderte Orientierung und Tempo,
+Greifer offen. Genau ein Ziel angenommen, dann Client-Zeitüberschreitung:
+native UR IDLE/PAUSED ros.urp/Skalierung0, UWA selbst RUNNING ohne Kollision.
+Kein Hub gemessen; das Ziel bleibt im Controller aktiv. Keine zweite Bahn,
+keine Power-/Brake-/Play-Befehle. Nutzer erlaubt nun ausdrücklich Brake
+Release/Play, mit Vorrang für den parallelen Kartonprozess. Fortsetzung
+durch bestehende Library-Sperre zurückgestellt: neuer Kartonlauf
+`7d124f9a84e54252b3d7e0261e7ad981` benötigt die Roboter. Helfer nicht
+gestartet, keine nativen Befehle. Vor späterer Fortsetzung alle Startgelenke
+neu vergleichen und bei geänderter Szene erneut offline prüfen.
+Details: [100-mm-Hub](work/pen-up100-20261125.md).
+
 ## Kamerübergreifende Winkelgrenze3° genehmigt,25.11.2026
 
 Nutzer bestätigt ausdrücklich3° als ausreichend. `carton_multiview.py`
@@ -100,7 +123,55 @@ freigegeben. Nutzer nach Reihenfolge gefragt: Stift beenden und danach Karton,
 oder wartenden Stiftreview ausdrücklich ablehnen und Karton vorziehen.
 Kartonfortsetzung erst nach freier Library mit frischer Wahrnehmung/Snapshot.
 
-Die Zelle ist nach dem unabhängigen Stift-Fehlgriff wieder OPERATOR PAUSE.
+Nutzer entscheidet anschließend ausdrücklich: Karton fortsetzen, Stift soll
+im Zweifel warten. Beim aktuellen Lesen war der Stiftlauf bereits vor
+Kontakt beendet (`Review already interrupted`, Ende16:54:25AWST); kein
+Stiftreview verändert und kein laufender Auftrag abgebrochen. Aktueller
+Kernstatus RUNNING/OPERATOR RESUME, vollständige Kollisionsdaten, keine
+Kontakte/Warnungen, vier bestätigte Controller Faktor1 ohne aktive Actions.
+Die zwischenzeitliche Resume-Freigabe wurde in der Stiftarbeit bereits
+umgesetzt; hier kein weiteres Resume gesendet. Neuer normaler Kartonlauf
+`fa0bf4688408463487045dba0f6bac42`, Start17:02:03AWST, scheiterte17:02:11
+bereits in External-Control-Vorbereitung: right_front `ros.urp PAUSED`.
+Keine neue Bildaufnahme, Kartonfahrt oder Wiegehub in diesem Lauf.
+
+Diagnose17:04–17:09AWST: Safety-Report ohne neuen geometrischen Stopp.
+GUI-Audit zeigt16:49:42 für alle vier URs `ROBOT_EMERGENCY_STOP`,16:49:47
+wieder NORMAL, Programme weiter PAUSED. Wiederholte Start+ROS-Bedienung
+16:50/16:52 wurde ohne Befehle wegen PAUSED abgelehnt. Aktuelle native
+Lesung bestätigt rechts IDLE/NORMAL/PAUSED, links vorne POWER_OFF, links
+hinten IDLE. Quelle des Not-Aus nicht aus dem Audit beweisbar; keine
+gemessene Kollisions-/Geschwindigkeitsgrenze als Ursache vorhanden.
+Softwarekern RUNNING ist davon getrennt und kein nativer Bereitschaftsnachweis.
+Belege `setup/tasks/carton-weigh-20261125/n100-resume/`:
+`safety-priority-report.json`, `native-priority-status{,-02}.json`,
+`live-status-priority.json`. Kein Stop/Power/Brake/Play aus dieser Diagnose.
+Konkrete Freigabe angefragt: Arbeitsbereich nach Not-Aus frei, beide rechten
+pausierten Programme regulär stoppen, Start+ROS, danach frische Kartonplanung
+und normale Reviews. Nutzer hat anschließend ausdrücklich zugestimmt.
+17:15AWST beide rechten Programme korrekt identifiziert, NORMAL/IDLE,
+keine rechten Ziele aktiv; je ein reguläres Stop bestätigt, danach über
+bestehenden Starthelfer Brake Release/Play erfolgreich. Beide RUNNING,
+PLAYING, Reverse verbunden. Keine Treiber-/Schutzdienständerung, keine
+Greiferbefehle in dieser Vorbereitung. Links hinten wartet fremder100-mm-
+Auftrag UUID9a880049… bei nativ PAUSED; linke Arme daher ausdrücklich nicht
+vorbereitet/resumiert. Beleg `n100-resume/restart-right-approved.jsonl`.
+Neuer normaler Library-Lauf `7d124f9a84e54252b3d7e0261e7ad981`,
+Start17:15:54AWST. Nur diesen verfolgen, keine parallelen Kartonstarts.
+Frische Zweikameraprüfung erfolgreich11,776mm/1,3981°, OAK4 weiterhin1/0.
+Komplette Folge einschließlich gemeinsamem20-mm-Hub1,15406s offline geprüft.
+Motion Review `712adf9b817c407a9a419d6d81eb4d54`, SHA
+`08728c03bd892156a37bfb19aecf4e9215ef3005084bbd9e9fb888b79ad5750d`,
+wartet auf ausdrückliche Freigabe der neuen hohen Anfahrt/offenen Einfahrt
+14,98546s. Neuer Griff20mm höher als bisher, daher high risk trotz Vertrauen100.
+Noch keine Kartonbewegung/kein Greifschluss; Kontakt/Hub erst nach frischem
+Einfahrbild. Konkrete Chatfreigabe dieser Revision angefragt, nicht erteilt
+oder als GUI-Klick dargestellt.
+Kamerareferenzen
+weiter gültig bis26.11.03:19AWST, sofern Kamera/Board nicht verstellt wurden.
+
+Historischer Zwischenstand vor dem oben belegten Resume: Die Zelle war nach
+dem unabhängigen Stift-Fehlgriff wieder OPERATOR PAUSE.
 Die frühere Resume-Freigabe wurde bereits vor diesem erneuten Stopp verwendet;
 diesen neuen manuellen Stopp nicht eigenmächtig aufheben. Vor tatsächlicher
 Fortsetzung aktuelle Arbeitsfläche und ausdrückliches Resume/Review klären.

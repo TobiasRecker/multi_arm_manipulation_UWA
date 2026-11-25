@@ -246,26 +246,97 @@ function dot(point, radius, color, outline = '#152333') {
   ctx.fill();
   ctx.stroke();
 }
-function drawShapes(shapes) {
-  shapes.sort((a, b) => a.depth - b.depth);
-  for (const shape of shapes) {
-    if (shape.kind === 'sphere') dot(shape.point, shape.radius, shape.color);
-    else if (shape.kind === 'tool') {
-      const width = Math.max(2, 2 * shape.radius * scale / ratio);
-      line(shape.start, shape.end, shape.color, width);
-      if (shape.tip) dot(shape.end, 2.8 * ratio, '#ffffff');
-    } else {
-      ctx.beginPath();
-      ctx.moveTo(...shape.points[0].slice(0, 2));
-      for (const point of shape.points.slice(1)) ctx.lineTo(...point.slice(0, 2));
-      ctx.closePath();
-      ctx.fillStyle = shape.color;
-      ctx.strokeStyle = shape.outline;
-      ctx.lineWidth = .65 * ratio;
-      ctx.fill();
+function polygon(points) {
+  ctx.beginPath();
+  ctx.moveTo(...points[0].slice(0, 2));
+  for (const point of points.slice(1)) ctx.lineTo(...point.slice(0, 2));
+  ctx.closePath();
+}
+function paintShape(shape) {
+  if (shape.kind === 'sphere') dot(shape.point, shape.radius, shape.color);
+  else if (shape.kind === 'tool') {
+    line(shape.start, shape.end, shape.color, Math.max(2, 2 * shape.radius * scale / ratio));
+    if (shape.tip) dot(shape.end, 2.8 * ratio, '#ffffff');
+  } else if (shape.kind === 'screw') {
+    line(shape.outside, shape.point, shape.color, 2);
+    dot(shape.point, 3.5 * ratio, shape.color, '#222a34');
+  } else {
+    if (shape.originalPoints) {
+      // Cover antialiasing seams at the cuts while preserving the original outline.
+      ctx.save();
+      polygon(shape.originalPoints);
+      ctx.clip();
+      polygon(shape.points);
+      ctx.strokeStyle = shape.color;
+      ctx.lineWidth = 1;
       ctx.stroke();
+      ctx.restore();
+    }
+    polygon(shape.points);
+    ctx.fillStyle = shape.color;
+    ctx.fill();
+    ctx.strokeStyle = shape.outline;
+    ctx.lineWidth = .65 * ratio;
+    if (shape.originalPoints) {
+      ctx.save();
+      ctx.clip();
+      polygon(shape.originalPoints);
+      ctx.stroke();
+      ctx.restore();
+    } else ctx.stroke();
+  }
+}
+const backToFront = (a, b) => a.depth - b.depth;
+
+function facePlane(points) {
+  const origin = points[0];
+  const [a, b] = points.slice(1, 3).map(point => point.map((v, i) => v - origin[i]));
+  const normal = [a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2], a[0]*b[1] - a[1]*b[0]];
+  const length = Math.hypot(...normal);
+  const distance = point => normal.reduce((sum, v, i) => sum + v * (point[i] - origin[i]), 0) / length;
+  return {distance, positiveIsNear: normal[2] >= 0};
+}
+
+// A long face can be nearer at one overlap and farther at another. Partition
+// the faces by plane before painting so both joints remain correct in orbit.
+function paintScene(shapes) {
+  const divider = shapes.find(shape => shape.kind === 'face');
+  if (!divider) {
+    shapes.sort(backToFront).forEach(paintShape);
+    return;
+  }
+  const {distance, positiveIsNear} = facePlane(divider.originalPoints || divider.points);
+  const negative = [], positive = [], onPlane = [divider];
+  const epsilon = 1e-8;
+  for (const shape of shapes) {
+    if (shape === divider) continue;
+    const points = shape.kind === 'face' ? shape.points : [shape.center];
+    const distances = points.map(distance);
+    const low = Math.min(...distances), high = Math.max(...distances);
+    if (low >= -epsilon && high <= epsilon) onPlane.push(shape);
+    else if (low >= -epsilon) positive.push(shape);
+    else if (high <= epsilon) negative.push(shape);
+    else {
+      const front = [], back = [];
+      for (let i = 0; i < points.length; i++) {
+        const next = (i + 1) % points.length;
+        const d = distances[i], e = distances[next];
+        if (d >= -epsilon) front.push(points[i]);
+        if (d <= epsilon) back.push(points[i]);
+        if ((d > epsilon && e < -epsilon) || (d < -epsilon && e > epsilon)) {
+          const intersection = points[i].map((v, axis) => v + d/(d-e)*(points[next][axis] - v));
+          front.push(intersection);
+          back.push(intersection);
+        }
+      }
+      const originalPoints = shape.originalPoints || points;
+      positive.push({...shape, points: front, originalPoints});
+      negative.push({...shape, points: back, originalPoints});
     }
   }
+  paintScene(positiveIsNear ? negative : positive);
+  onPlane.sort(backToFront).forEach(paintShape);
+  paintScene(positiveIsNear ? positive : negative);
 }
 function draw() {
   ratio = window.devicePixelRatio || 1;
@@ -284,14 +355,14 @@ function draw() {
   const frame = frameAt(modelTime);
   const tables = [];
   for (const vertices of data.tables) addBox(tables, vertices, tableColors, '#202f40');
-  drawShapes(tables);
+  tables.sort(backToFront).forEach(paintShape);
   const shapes = [];
   for (const upright of data.uprights) addBox(shapes, corners(upright.size_m, upright.pose), woodColors, '#5d3824');
   if (frame.pose) addBox(shapes, corners(data.crossbar_size_m, frame.pose), woodColors, '#513623');
   for (const [arm, points] of Object.entries(frame.world)) {
     points.forEach((center, index) => {
       const point = project(center);
-      shapes.push({kind: 'sphere', point, depth: point[2], radius: data.radii[arm][index] * scale,
+      shapes.push({kind: 'sphere', point, center: point, depth: point[2], radius: data.radii[arm][index] * scale,
                    color: armColors[arm]});
     });
   }
@@ -299,24 +370,26 @@ function draw() {
     let shaftStart = project(frame.tool_base);
     if (frame.tool_body.length === 2) {
       const [start, end] = frame.tool_body.map(project);
-      shapes.push({kind: 'tool', start, end, depth: (start[2] + end[2]) / 2,
+      const center = start.map((value, index) => (value + end[index]) / 2);
+      shapes.push({kind: 'tool', start, end, center, depth: center[2],
                    radius: data.tool_radii_m.body, color: '#ebb45f'});
       shaftStart = end;
     }
     const end = project(frame.tool_tip);
-    shapes.push({kind: 'tool', start: shaftStart, end, depth: (shaftStart[2] + end[2]) / 2,
+    const center = shaftStart.map((value, index) => (value + end[index]) / 2);
+    shapes.push({kind: 'tool', start: shaftStart, end, center, depth: center[2],
                  radius: data.tool_radii_m.shaft, color: '#e6edf6', tip: true});
   }
-  drawShapes(shapes);
   for (const screw of data.screws) {
     const active = frame.screw === screw.id;
     if (!active && !frame.fastened.includes(screw.id)) continue;
     const color = active ? '#a4f3ff' : '#e9fcff';
-    const face = project(screw.entry_m);
+    const point = project(screw.entry_m);
     const outside = project(screw.entry_m.map((v, i) => v - .02 * screw.direction[i]));
-    line(outside, face, color, 2);
-    dot(face, 3.5 * ratio, color, '#222a34');
+    const center = project(screw.entry_m.map((v, i) => v - .001 * screw.direction[i]));
+    shapes.push({kind: 'screw', point, outside, center, depth: center[2], color});
   }
+  paintScene(shapes);
 }
 function refresh() {
   const frame = frameAt(modelTime);
