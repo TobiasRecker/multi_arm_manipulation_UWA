@@ -24,6 +24,7 @@ const workflowPhase = {
   wrist_diagnostic: "wrist",
   oak_entry_capture: "wrist",
   n100_contact: "contact_review",
+  weighing_complete: "weigh",
   pen_positioning: "motion_review",
   pen_grasp_lift: "contact_review",
   entry_capture: "contact_review",
@@ -287,6 +288,19 @@ function summarizeResult(result) {
     ["Contact", result.contact],
     ["Wrist check", result.wrist],
   ];
+  if (result.weighing) {
+    const w = result.weighing;
+    rows.push(["Estimated mass", Number.isFinite(w.mass_kg) ? `${w.mass_kg.toFixed(2)} kg (estimate)` : "UNAVAILABLE"]);
+    rows.push(["Load observation", w.assessment]);
+    for (const [arm, value] of Object.entries(w.arms || {})) {
+      const fraction = Number.isFinite(value.load_fraction) ? ` · ${(100 * value.load_fraction).toFixed(0)}% of total` : "";
+      rows.push([arm.replaceAll("_", " "), `${value.load_n.toFixed(2)} N additional vertical load${fraction}`]);
+    }
+    rows.push(["Measurement limits", "Sample scatter is not absolute weighing accuracy. Positive load does not prove all four pad contacts or exclude slipping."]);
+    if (w.warnings?.length) rows.push(["Measurement warnings", w.warnings.join("; ")]);
+  } else if (result.measurement_error) {
+    rows.push(["Weighing", `UNAVAILABLE · ${result.measurement_error}`]);
+  }
   for (const [label, value] of rows) {
     if (typeof value === "string" && value) {
       evidence.append(element("dt", "", label), element("dd", "", value));

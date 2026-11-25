@@ -132,8 +132,9 @@ def test_sequence_cannot_target_another_arm_or_skip_lift(tmp_path,monkeypatch):
     with pytest.raises(ValueError,match='changed'):execute.load_sequence(tmp_path,'0'*64)
 
 
-@pytest.mark.parametrize('phase,close_fails',[('approach',False),('contact',False),('contact',True)])
-def test_reviewed_execution_order_and_no_lift_after_failed_close(tmp_path,monkeypatch,phase,close_fails):
+@pytest.mark.parametrize('phase,failed_operation',[
+    ('approach',None),('approach','activate'),('approach','open'),('contact',None),('contact','close')])
+def test_reviewed_execution_order_and_failed_gripper_stops_sequence(tmp_path,monkeypatch,phase,failed_operation):
     import execute_pen_grasp as execute
     from contextlib import contextmanager
     from types import SimpleNamespace
@@ -167,12 +168,15 @@ def test_reviewed_execution_order_and_no_lift_after_failed_close(tmp_path,monkey
         def __init__(self,arm):assert arm=='left_rear'
         def __enter__(self):return self
         def __exit__(self,*a):pass
-        def activate(self):events.append('activate')
-        def open(self,**kw):events.append('open')
-        def close_gripper(self,**kw):
-            events.append('close')
-            if close_fails:raise RuntimeError('Close failed')
+        def command(self,operation,feedback):
+            events.append(operation)
+            feedback(dict(registers=dict(ACT=1,STA=3,FLT=0,FOR=255,SPE=255)))
+            if failed_operation==operation:raise RuntimeError(operation+' failed')
             return dict(success=True)
+        def activate(self,feedback=None):return self.command('activate',feedback)
+        def open(self,feedback=None,**kw):return self.command('open',feedback)
+        def close_gripper(self,**kw):
+            return self.command('close',kw['feedback'])
     monkeypatch.setattr(execute,'GripperClient',Gripper)
     monkeypatch.setattr(execute,'follow_frozen',lambda c,p,r:events.append(p['trajectory']['label']))
     monkeypatch.setattr(execute,'photo_packet',lambda *a:dict(original_sha256='f'*64))
@@ -182,9 +186,18 @@ def test_reviewed_execution_order_and_no_lift_after_failed_close(tmp_path,monkey
         (out/'workflow.json').write_text(json.dumps(dict(success=True,phase='WAITING_VISUAL_REVIEW',sequence_sha256='s'*64,
             entry_finished_unix=0.,arm_commands=[],finger_commands=[])))
     args=SimpleNamespace(plans=tmp_path,output=out,phase=phase,sequence_sha256='s'*64,entry=tmp_path/'entry')
-    if close_fails:
-        with pytest.raises(RuntimeError,match='Close failed'):execute.run(args)
-        assert 'lift' not in events and 'open' not in events
+    if failed_operation:
+        with pytest.raises(RuntimeError,match=failed_operation+' failed'):execute.run(args)
+        report=json.loads((out/'workflow.json').read_text())
+        assert report['phase']=='GRIPPER_'+failed_operation.upper()+'_FAILED'
+        assert report['success'] is False
+        failed=report['finger_commands'][-1]
+        assert failed['operation']==failed_operation and failed['phase']=='FAILED'
+        assert failed['last_feedback']['registers']['FOR']==255
+        assert events.count(failed_operation)==1
+        assert 'entry' not in events and 'lift' not in events
+        if failed_operation=='activate':assert 'open' not in events
+        if failed_operation=='close':assert 'open' not in events
     else:
         execute.run(args)
         if phase=='approach':

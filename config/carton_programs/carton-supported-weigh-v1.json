@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "program_id": "carton-supported-weigh-v1",
+  "task": "carton_supported_grasp",
+  "asset_id": "carton_avocado_v1",
+  "asset_version": 1,
+  "pregrasp_m": 0.15,
+  "contact_design": {
+    "depth_below_continuous_wall_top_m": 0.012090763478302801,
+    "elbow_signs": {
+      "right_front": -1
+    },
+    "preferred_ik_seeds": {
+      "right_front": [
+        -5.231667152953398,
+        -2.0702897048215143,
+        -1.1545407599672843,
+        -1.4883142141785808,
+        1.5743026531495736,
+        -0.5339841813626958
+      ],
+      "right_rear": [
+        -0.6585323329124558,
+        -2.1194263619224905,
+        -1.0841980386102144,
+        -1.509741525602388,
+        1.5710972846863966,
+        0.8959402741524013
+      ]
+    },
+    "seed_origin": "RF previous successful19November high approach, RR current high pose explicitly accepted by user. Seeds only; solve fresh current target and recheck whole task, never replay.",
+    "posture_reason": "19November user feedback: RF elbow-down high pose cannot complete this table grasp; retain previously successful elbow branch. Task-specific, not a universal arm posture ban. Weighing variant25November: grasp20mm higher so the modeled closing contact occurs at the fingertip pads before the inner knuckles. This is an offline candidate, not a demonstrated hardware grasp."
+  }
+}

@@ -28,6 +28,12 @@ werden ausdrücklich geprüft. Die Freigabe ist an die konkrete Revision gebunde
 Nach erfolgreicher Entnahme bleibt der Arm oben mit geschlossenem Greifer.
 Bei Fehlern wird kein möglicherweise belasteter Greifer automatisch geöffnet,
 kein Griff wiederholt und keine alternative ungeprüfte Bahn ausgeführt.
+Der Workflow protokolliert Aktivieren, Öffnen und Schließen einzeln mit
+Ergebnis oder Fehler und der letzten vorhandenen Action-Rückmeldung.
+Greifer-Timeouts im aktualisierten Transport nennen den Parameterschritt,
+Sollwerte und zuletzt gelesene Register; es werden dafür keine zusätzlichen
+Geräteabfragen eingeführt. Der Transport muss auf dem Steuerhost geladen sein;
+der lokale Quellstand allein aktualisiert keinen laufenden Greiferdienst.
 
 ## Wahrnehmung
 
@@ -129,3 +135,15 @@ ausgelöst. Bedienoberflächenzugriff war nicht verfügbar; den aktiven
 Programmeintrag und seine Aktionen über den lokalen HTTP-Katalog verifiziert.
 59 gezielte Tests und die run-spezifische N100-Import-/Plandateiprüfung
 bestanden; letztere erzeugte keine ROS-Clients oder Bewegungs-/Greiferbefehle.
+
+Erster anschließender realer Lauf am24.11. erreichte die Vorposition, brach
+jedoch bei der Greifervorbereitung vor der Einfahrt ab. Die Ursache der nicht
+bestätigten Parameter ist noch offen; siehe [Diagnose](../work/pen-gripper-abort-20261124.md).
+Die Diagnoseergänzung vom25.11. ist mit55 gezielten Offline-Tests geprüft und
+der Transport auf dem wieder erreichbaren N100 geladen. Parameterproben bei
+inaktivem Greifer bestätigten serverseitig FOR0/SPE16. Nach erneuter
+Bereitschaft und ausdrücklicher Nutzerfreigabe bestand um15:18AWST ein
+einzelner realer Aktivierungs-/Öffnungstest über die reguläre ROS-API:
+ACT1/STA3/FLT0/OBJ3/POS3/PRE0/FOR0/SPE16. Der ursprüngliche Timeout trat
+dabei nicht erneut auf; eine dauerhafte Ursachenbehebung ist nicht
+nachgewiesen. Kein erfolgreicher realer Stiftgriff ist damit nachgewiesen.

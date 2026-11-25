@@ -172,6 +172,8 @@ def view(record, directory):
             marker.color.r, marker.color.g, marker.color.b, marker.color.a = 1., .65, .18, .6
             packet.markers.append(marker)
         markers.publish(packet)
+        carton_packet = packet
+        carton_base_z = [marker.pose.position.z for marker in packet.markers]
 
     app = QtWidgets.QApplication([])
     window = QtWidgets.QWidget()
@@ -224,6 +226,13 @@ def view(record, directory):
         if pos >= timeline.duration:
             playing = False
         phase, arms, positions = timeline.at(pos)
+        if carton and carton.get('lift'):
+            lift = carton['lift']
+            u = min(1.,max(0.,pos/lift['duration_s'])) if phase == lift['phase'] else 0.
+            dz = lift['height_m']*(10*u**3-15*u**4+6*u**5)
+            for marker,z in zip(carton_packet.markers,carton_base_z):
+                marker.pose.position.z = z+dz
+            markers.publish(carton_packet)
         if pen:
             pose = (pen_chain.forward(positions) @ np.asarray(pen['T_tool0_adapter'])
                     if phase == 'lift' else np.asarray(pen['T_world_adapter']))

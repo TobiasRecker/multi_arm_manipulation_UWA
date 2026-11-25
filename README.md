@@ -1,5 +1,9 @@
 # UWA four-arm laboratory cell
 
+The [carton weighing extension](docs/carton_weighing.md) stores unloaded wrist
+forces and plans a joint20mm lift. It is locally prepared and checked; N100
+installation and the first real weighing run are still pending.
+
 **Program library → [Pick pen from holder](docs/pen_grasp_library.md)**
 uses OAK Pro/OpenCV with Gemini as an ROI fallback and plans a complete
 left-rear pickup. **Inspect pen** and **Plan pickup only** send no robot or

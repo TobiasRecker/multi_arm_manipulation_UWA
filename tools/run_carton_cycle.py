@@ -47,6 +47,7 @@ def arguments():
     ap.add_argument("--expected-observations", type=Path,
                     help="Original N100 snapshot used in a prepared approach")
     ap.add_argument("--close-after-review", action="store_true")
+    ap.add_argument("--weigh", action="store_true", help="Plan the joint20mm weighing lift before any approach")
     ap.add_argument("--visual-confirmed", action="store_true",
                     help="Agent inspected this actual post-entry image")
     ap.add_argument("--start-ros-programs", action="store_true",
@@ -69,6 +70,8 @@ def arguments():
     ap.add_argument("--reason", help="Specific justification for this plan or actual contact image")
     ap.add_argument("--config", type=Path, default=REPO/"uwa_cell_motion/config/hardware_carton_supported_trend.yaml")
     args = ap.parse_args()
+    if args.weigh and not args.plan_only:
+        ap.error('--weigh is a planning option; execution uses the weighing step bound into the staged plan')
     if bool(args.risk) != bool(args.reason and args.reason.strip()):
         ap.error("Provide --risk and a nonempty --reason together")
     if args.speed_percent is not None and not args.plan_only:
@@ -270,6 +273,10 @@ def plan_offline(flow, args):
     }
     recipe, pregrasp_m = resolve_recipe(flow, args)
     _, paths = prepare_approach(flow, args, joint, tcp, recipe, observations, object_pose, pregrasp_m)
+    if args.weigh:
+        flow.phase("plan_weigh", "prepare_carton_weigh.py", "--plan", flow.out,
+                   "--output", flow.out/"weigh-plan")
+        flow.report["weighing_requested"] = True
     flow.report.update(success=True, phase="OFFLINE_APPROACH_PREPARED", speed_percent=speed,
                        review_bundles=[str(path) for path in paths])
 
@@ -415,6 +422,11 @@ def staged_approach(flow, args, status, photo):
                                   sha256=receipt["files"]["recipe/program.json"])
     flow.report["staged_approach"] = dict(path=str(directory), receipt_sha256=file_sha256(receipt_path),
                                           speed_percent=receipt["speed_percent"])
+    if receipt.get("weighing_requested"):
+        if not {"weigh-plan/proof.json", "weigh-plan/review.json", "weigh-plan/preview.urdf"} <= receipt["files"].keys():
+            raise ValueError("The requested weighing lift is missing from the checked approach")
+        flow.report["weigh_plan"] = dict(path=str(directory/"weigh-plan"),
+            review_sha256=receipt["files"]["weigh-plan/review.json"])
     flow.save()
     return runners, paths
 
@@ -532,6 +544,9 @@ def approach(flow, args, store):
     meta["reason"] += "\nAt the confirmed held high pose, activate and fully open both carton grippers (raw force 0, speed 16) before entry."
     if not args.risk:
         assess_library_step(flow, store, meta, preview)
+    if flow.report.get('weigh_plan'):
+        meta['risk'] = 'high'
+        meta['reason'] += '\nWeighing variant: grasp20mm higher than the previous supported grip, with the complete joint20mm lift already checked. This grasp height has not been demonstrated on hardware.'
     with flow.approval(store, meta, preview) as identifier:
         for (name, tool, source, value), bundle, sha in zip(runners, paths, meta["components"], strict=True):
             store.check_active(identifier, sha)
@@ -582,9 +597,28 @@ def close_after_entry(flow, args, store):
                 components=[component], entry_state_sha256=state_sha, capture_sha256=image["original_sha256"],
                 explicit_regular_start=bool(starts), program_start_arms=starts, scene_session=flow.report["scene_session"],
                 arms=["right_front","right_rear"], requires_area=True)
-    if not args.risk:
+    weigh = flow.report.get("weigh_plan")
+    if weigh:
+        directory = Path(weigh['path'])
+        if file_sha256(directory/'review.json') != weigh['review_sha256']:
+            raise ValueError('Weigh lift changed since approach review')
+        lift = read_json(directory/'review.json')
+        proof = read_json(directory/'proof.json')
+        actual_start = preview['start']
+        if (set(proof['start']) != set(actual_start) or
+                any(abs(proof['start'][j]-q) > .001 for j,q in actual_start.items())):
+            raise ValueError('Entry result differs from the prepared lift start')
+        preview.update(groups=[dict(g,phase='weigh') for g in lift['groups']],duration_s=proof['duration_s'])
+        if preview.get('carton'):
+            preview['carton'] = dict(preview['carton'],lift=dict(phase='weigh',height_m=.020,duration_s=proof['duration_s']))
+        meta.update(summary='Store unloaded force reference, close, lift20mm with both right arms and estimate mass',
+            components=[component,weigh['review_sha256']],duration_s=proof['duration_s'],risk='high')
+        meta['reason'] += '\nNew weighing step: joint20mm lift and finite before/after force measurements. Holds the lifted carton afterwards. No automatic opening/lowering or force safety monitor.'
+    if not args.risk and not weigh:
         assess_library_step(flow, store, meta, preview, visual_confirmed=args.visual_confirmed)
     with flow.approval(store, meta, preview) as identifier:
+        if weigh:
+            flow.phase('force_reference','carton_weigh_phase.py','reference','--output',out/'force-reference')
         flow.phase("close", "carton_gripper_phase.py", "close", "--state", state_path, "--output", out/"grasp",
                    "--execute", "--visual-confirmed", "--review-id", identifier,
                    "--review-image-sha256", image["original_sha256"],
@@ -596,6 +630,17 @@ def close_after_entry(flow, args, store):
         if not contact.get("success") or not verified:
             raise ValueError("Final static contact hold unconfirmed")
         flow.report.update(success=True, phase="SUPPORTED_CONTACT_HELD")
+        if weigh:
+            flow.report.update(success=False,phase='SUPPORTED_CONTACT_AWAITING_WEIGH')
+            flow.phase('force_supported','carton_weigh_phase.py','supported','--output',out/'force-supported')
+            flow.phase('weigh','carton_weigh_phase.py','lift','--plan',directory,
+                '--reference',out/'force-reference','--supported',out/'force-supported',
+                '--review-id',identifier,'--reviewed-sha256',weigh['review_sha256'],
+                '--config',args.config,'--output',out/'weighing')
+            weighing=read_json(out/'weighing/result.json')
+            flow.report.update(success=weighing['success'],phase=weighing['phase'],
+                weighing=weighing.get('weighing'),measurement_available=weighing['measurement_available'],
+                measurement_error=weighing.get('measurement_error'))
 
 
 def main():
@@ -656,7 +701,9 @@ def main():
         expected = "OFFLINE_APPROACH_PREPARED"
     else:
         expected = "SUPPORTED_CONTACT_HELD" if args.close_after_review else "WAITING_VISUAL_REVIEW"
-    return 0 if report["phase"] == expected else 1
+    completed = {expected}
+    if args.close_after_review:completed.update(('CARTON_LIFTED_AND_WEIGHED','CARTON_LIFTED_WEIGHING_UNAVAILABLE'))
+    return 0 if report["phase"] in completed and (report.get('success') or expected=='WAITING_VISUAL_REVIEW') else 1
 
 
 if __name__ == "__main__":

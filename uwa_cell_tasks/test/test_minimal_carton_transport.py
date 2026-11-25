@@ -144,3 +144,35 @@ def test_legacy_upload_target_ignores_inactive_candidate_setting(tmp_path,monkey
     monkeypatch.setattr(program,'logged_command',lambda command,*a,**k:calls.append(command))
     program.upload('setup/task/entry/',tmp_path/'image',tmp_path/'log')
     assert calls[0][-1]==f'{program.N100_HOST}:uwa-ur-runtime/setup/task/entry/'
+
+
+@pytest.mark.parametrize('recovers', [True, False])
+def test_contact_image_retry_is_bounded_and_never_repeats_approach(tmp_path, monkeypatch, recovers):
+    from unittest.mock import Mock
+    error = 'An OAK4 standard image acquired after the current work-area or entry boundary is required'
+    waiting = dict(phase='WAITING_VISUAL_REVIEW',last_image_error=error)
+    done = dict(phase='SUPPORTED_CONTACT_HELD',success=True)
+    codes = iter([2, 0 if recovers else 2])
+    calls = []
+    class Process:
+        stdout = ()
+        def __enter__(self):return self
+        def __exit__(self,*unused):pass
+        def wait(self):return next(codes)
+    def transport(script,*args):
+        calls.append(args)
+        return ['mock transport']
+    monkeypatch.setattr(program, 'n100', transport)
+    monkeypatch.setattr(program.subprocess, 'Popen', lambda *a, **k: Process())
+    reports = Mock(side_effect=[json.dumps(waiting),json.dumps(done if recovers else waiting)])
+    monkeypatch.setattr(program,'logged_command',reports)
+    progress = program.Progress(tmp_path)
+    if recovers:
+        assert program.request_review(progress,'cycle','contact','--close-after-review') == done
+    else:
+        with pytest.raises(RuntimeError, match='OAK4 standard image'):
+            program.request_review(progress,'cycle','contact','--close-after-review')
+    starts = [args for args in calls if '--close-after-review' in args]
+    assert len(starts) == 2 and all('--prepared-approach' not in args for args in starts)
+    assert reports.call_count == 2
+    assert (tmp_path/'contact-image-retry.json').exists()

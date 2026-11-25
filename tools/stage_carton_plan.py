@@ -254,9 +254,50 @@ def stage(plan, output, target_root, target_workspace, description_share=None, d
                       source_sha256=file_hash(output / source_plan), preview_urdf=str(preview_target))
         write_json(output / relative, bundle)
 
+    weighing_requested = workflow.get('weighing_requested', False)
+    if weighing_requested:
+        relative = Path('weigh-plan')
+        proof = read_json(plan/relative/'proof.json')
+        bundle = read_json(plan/relative/'review.json')
+        if (not proof.get('success') or proof.get('phase') != 'OFFLINE_WEIGH_LIFT_PREPARED'
+                or proof.get('height_m') != .020 or bundle.get('phase') != 'weigh'
+                or bundle.get('checker') != checked or bundle.get('model_signature') != old_base_signature
+                or bundle.get('hardware_binding') != old_binding
+                or bundle.get('joint_limit_rad_s') != joint_cap or bundle.get('tcp_limit_m_s') != tcp_cap):
+            raise ValueError('Weigh lift does not match the frozen approach, model or speed')
+        verify_file(plan/relative/'proof.json', bundle['source_sha256'])
+        mapping = {plan/ENTRY: ENTRY, plan/'review-entry.json': Path('review-entry.json'),
+                   source_pose: Path('inputs/object-pose.json'), source_recipe/SCENE.name: SCENE}
+        expected = {*map(str,mapping), str(REPO/'tools/prepare_carton_weigh.py'),
+                    str(REPO/'tools/prepare_carton_open_entry.py'),
+                    str(REPO/'tools/carton_weigh_phase.py'),str(REPO/'uwa_cell_tasks/uwa_cell_tasks/carton_weighing.py')}
+        if set(proof['inputs']) != expected:
+            raise ValueError('Unexpected weighing proof inputs')
+        rebased = {}
+        for name, digest in proof['inputs'].items():
+            source_path = Path(name); verify_file(source_path,digest)
+            if source_path in mapping:
+                target = target_root/mapping[source_path]; digest = file_hash(output/mapping[source_path])
+            else:
+                target = staging.resource(source_path,digest)
+            rebased[str(target)] = digest
+        proof['inputs'] = rebased
+        write_json(output/relative/'proof.json',proof)
+        preview = plan/relative/'preview.urdf'
+        if Path(bundle['preview_urdf']) != preview:
+            raise ValueError('Unexpected weigh preview path')
+        verify_file(preview,bundle['preview_urdf_sha256'])
+        if any(m.get('filename','').startswith('file:') for m in ET.parse(preview).findall('.//mesh')):
+            raise ValueError('Non-portable weigh preview mesh')
+        target_preview = staging.copy(preview,relative/'preview.urdf')
+        bundle.update(model_signature=new_base_signature,hardware_binding=new_binding,
+            source_sha256=file_hash(output/relative/'proof.json'),preview_urdf=str(target_preview))
+        write_json(output/relative/'review.json',bundle)
+
     files = {str(path.relative_to(output)): file_hash(path)
              for path in sorted(output.rglob("*")) if path.is_file()}
     receipt = dict(schema_version=1, speed_percent=workflow["speed_percent"], checker_sha256=checked["sha256"],
+                   weighing_requested=weighing_requested,
                    snapshot_sha256=inputs["observations"]["sha256"], object_pose_sha256=inputs["object_pose"]["sha256"],
                    target_resources=staging.resources, files=files,
                    staged_at=datetime.now(timezone.utc).isoformat())

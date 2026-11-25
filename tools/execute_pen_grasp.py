@@ -83,6 +83,26 @@ def load_sequence(folder,expected):
     return sequence,plans
 
 
+def gripper_step(report,save,operation,command,**request):
+    """Retain existing action feedback; no additional reads or command retries."""
+    record=dict(arm=ARM,operation=operation,success=False,phase='RUNNING',**request)
+    report['finger_commands'].append(record)
+    report.update(success=False,phase='GRIPPER_'+operation.upper()+'_RUNNING');save()
+    def feedback(state):
+        # Keep only the latest existing action feedback in memory. Write the
+        # workflow at the action boundary rather than adding per-poll disk I/O.
+        record['last_feedback']=state
+    try:
+        result=command(feedback=feedback,**request)
+    except BaseException as error:
+        record.update(phase='FAILED',error=str(error) or 'Interrupted')
+        report['phase']='GRIPPER_'+operation.upper()+'_FAILED';save()
+        raise
+    record.update(success=True,phase='COMPLETE',result=result)
+    report['phase']='GRIPPER_'+operation.upper()+'_COMPLETED';save()
+    return result
+
+
 def run(args):
     require_domain('hardware')
     args.plans=args.plans.resolve();args.output=args.output.resolve()
@@ -130,10 +150,12 @@ def run(args):
                         for i,plan in enumerate(plans[:2]):
                             component=sequence['segments'][i]['sha256'];store.begin_component(identifier,component,'motion')
                             if i==1:
-                                report['finger_commands'].append(dict(arm=ARM,operation='activate_then_open',force_raw=0,speed_raw=16));save()
-                                gripper.activate();gripper.open(force_raw=0,speed_raw=16)
+                                gripper_step(report,save,'activate',gripper.activate)
+                                gripper_step(report,save,'open',gripper.open,force_raw=0,speed_raw=16)
                             record=dict(phase=sequence['segments'][i]['phase'],success=False)
-                            report['arm_commands'].append(record);save();follow_frozen(client,plan,record);save()
+                            report['phase']=sequence['segments'][i]['phase'].upper()+'_RUNNING'
+                            report['arm_commands'].append(record);save();follow_frozen(client,plan,record)
+                            report['phase']=sequence['segments'][i]['phase'].upper()+'_COMPLETED';save()
                     report.update(phase='WAITING_VISUAL_REVIEW',entry_finished_unix=time.time(),sequence_sha256=args.sequence_sha256,
                                   motion_review=identifier,success=True);save()
             else:
@@ -151,16 +173,19 @@ def run(args):
                     from uwa_cell_tasks.reviewed_carton_execution import _start_matches
                     client.health();_start_matches(problem,client,plans[2]['request']['start'])
                     store.begin_component(identifier,component,'contact')
-                    report['finger_commands'].append(dict(arm=ARM,operation='close',force_raw=sequence['definition']['force_raw'],speed_raw=sequence['definition']['gripper_speed_raw']));save()
                     with GripperClient(ARM) as gripper:
-                        report['close_result']=gripper.close_gripper(force_raw=sequence['definition']['force_raw'],speed_raw=sequence['definition']['gripper_speed_raw'])
+                        report['close_result']=gripper_step(report,save,'close',gripper.close_gripper,
+                            force_raw=sequence['definition']['force_raw'],speed_raw=sequence['definition']['gripper_speed_raw'])
                     report['phase']='GRIPPER_CLOSE_COMPLETED';save()
-                    record=dict(phase='lift',success=False);report['arm_commands'].append(record);save()
+                    record=dict(phase='lift',success=False);report['arm_commands'].append(record)
+                    report['phase']='LIFT_RUNNING';save()
                     follow_frozen(client,plans[2],record)
                     report.update(phase='PEN_LIFT_COMPLETED',success=True,contact_review=identifier,
                         qualification='Close action and checked lift completed; holding force and pen-tip TCP are not measured')
                     save()
     except BaseException as error:
+        if report['phase'].endswith('_RUNNING'):
+            report['phase']=report['phase'].removesuffix('_RUNNING')+'_FAILED'
         report.update(success=False,error=str(error) or 'Interrupted');save()
         # Ordinary task errors never open a potentially loaded gripper or retry.
         if isinstance(error,KeyboardInterrupt) and client is not None:

@@ -21,6 +21,7 @@ REPO = Path(__file__).resolve().parents[1]
 WORKSPACE = REPO.parents[1]
 CELL = REPO.relative_to(WORKSPACE)
 PROGRAM = "carton-supported-v1"
+WEIGH_PROGRAM = "carton-supported-weigh-v1"
 CAMERA_PROGRAM = "oak4-camera-calibration-v1"
 INTRINSICS = Path("setup/calibration/oak_capture_proposal_20261118/calibration_candidate_v1/oak_pose_candidate.json")
 LIVE_PROFILE = CELL / "uwa_cell_motion/config/hardware_carton_supported_trend.yaml"
@@ -178,13 +179,15 @@ def live_inputs(path, *, camera_id="oak4"):
         raise ValueError("Live mode is disabled in the local configuration.")
     fields = {"enabled", "intrinsics", "roi", "face_roi", "camera_reference_pose", "camera_session", "planar_texture"}
     if camera_id == "oak4":
-        fields.add("secondary_camera")
+        fields.update(("secondary_camera", "weigh_after_grasp"))
     else:
         fields.add("gemini_enabled")
     if set(config) - fields:
         raise ValueError("Live config contains unknown fields.")
     if not isinstance(config.get("planar_texture", False), bool):
         raise ValueError("planar_texture must be true or false.")
+    if not isinstance(config.get('weigh_after_grasp',False),bool):
+        raise ValueError('weigh_after_grasp must be true or false.')
     if "camera_session" in config:
         session = config["camera_session"]
         if not isinstance(session, str) or not session.strip() or config.get("camera_reference_pose"):
@@ -270,7 +273,7 @@ def n100(script, *args):
     return ["/usr/bin/ssh", *SSH_OPTIONS, "-T", N100_HOST, command]
 
 
-def n100_preflight(out, program):
+def n100_preflight(out, program, *, weigh=False):
     files = [
         CELL / "tools/run_carton_cycle.py",
         CELL / "tools/register_carton_from_oak.py",
@@ -280,6 +283,11 @@ def n100_preflight(out, program):
         CELL / "config/carton_programs" / f"{program}.json",
         LIVE_PROFILE,
     ]
+    # Task code only; the collision core and controllers are not modified.
+    if weigh:
+        files.extend(CELL/path for path in ('tools/carton_weigh_phase.py','tools/prepare_carton_weigh.py',
+            'uwa_cell_tasks/uwa_cell_tasks/carton_weighing.py',
+            f'config/carton_programs/{WEIGH_PROGRAM}.json'))
     arguments = []
     for file in files:
         with (WORKSPACE / file).open("rb") as source:
@@ -723,7 +731,8 @@ def register_multiview(config, progress, recipe, image, metadata, *, window_cach
 def prepare_local_approach(program, progress, config, observations, status, checker_prefix, camera, *, window_cache=None):
     out = progress.output
     progress.update("oak_capture", "Capturing a current native OAK4 photo for carton registration.")
-    cache_command = offline_tool("prepare_carton_recipe.py", "--program", program, "--cache-dir", RECIPE_CACHE)
+    recipe_program = WEIGH_PROGRAM if config.get('weigh_after_grasp',False) else program
+    cache_command = offline_tool("prepare_carton_recipe.py", "--program", recipe_program, "--cache-dir", RECIPE_CACHE)
     with ThreadPoolExecutor(max_workers=1) as workers:
         recipe_ready = workers.submit(logged_command, cache_command, out / "static-recipe.log", 120,
                                       separate_stdout=True)
@@ -740,6 +749,7 @@ def prepare_local_approach(program, progress, config, observations, status, chec
     command = offline_tool("run_carton_cycle.py", "--plan-only", "--recipe", recipe,
                            "--observations", observations, "--object-pose", pose,
                            "--speed-percent", status["settings"]["speed_percent"], "--output", plan,
+                           *(['--weigh'] if config.get('weigh_after_grasp',False) else []),
                            checker_prefix=checker_prefix)
     try:
         logged_command(command, out / "offline-plan.log", 240)
@@ -796,7 +806,7 @@ def transfer_approach(remote, target_workspace, plan, image, metadata, config, o
     return options
 
 
-def request_review(progress, remote_run, stage, *args):
+def request_review(progress, remote_run, stage, *args, _image_retry=True):
     command = n100(f"""source {shlex.quote(str(CELL / 'scripts/control_env.bash'))}
 # Avoid competing with the controller-manager and guard callbacks on the N100.
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
@@ -820,6 +830,14 @@ exec /usr/bin/python3 -u {shlex.quote(str(CELL / 'tools/run_carton_cycle.py'))} 
     report_command = n100('exec cat -- "$1"\n', f"{remote_run}/workflow.json")
     report = json.loads(logged_command(report_command, progress.output / f"n100-{stage}-workflow.json", 20))
     if code:
+        if (_image_retry and stage == 'contact' and report.get('phase') == 'WAITING_VISUAL_REVIEW'
+                and report.get('last_image_error') ==
+                'An OAK4 standard image acquired after the current work-area or entry boundary is required'):
+            write_session(progress.output/'contact-image-retry.json', dict(
+                first_report=report, action='Repeat the unchanged image validation once; no approach replay'))
+            shutil.copyfile(log_path, progress.output/'n100-contact-first-attempt.log')
+            progress.update('contact_image_check', 'Repeating the unchanged image time check before contact review.')
+            return request_review(progress, remote_run, stage, *args, _image_retry=False)
         raise RuntimeError(report.get("error") or report.get("last_image_error") or f"N100 {stage} failed. See {log_path.name}.")
     return report
 
@@ -837,7 +855,8 @@ def run_live(program, progress, config_path):
             raise ValueError("Calibrate the OAK4 before starting the carton program.")
         session = validate_session(load_json(session_path), config["intrinsics"])
         write_session(out / "camera-session.json", session)
-    target_workspace, status, checker_prefix = n100_preflight(out, program)
+    target_workspace, status, checker_prefix = n100_preflight(out, program,
+        **({'weigh':True} if config.get('weigh_after_grasp',False) else {}))
     remote = f"setup/tasks/skill-library-carton-{uuid.uuid4().hex}"
     (out / "n100-run.txt").write_text(remote + "\n")
     camera = carton_camera(out, config["focus"])
@@ -869,8 +888,17 @@ def run_live(program, progress, config_path):
     report = request_review(progress, cycle, "contact", "--close-after-review",
                             "--entry-image", f"{remote}/entry/standard.png",
                             "--entry-metadata", f"{remote}/entry/metadata.json")
-    if report.get("phase") != "SUPPORTED_CONTACT_HELD" or report.get("success") is not True:
+    if report.get("phase") not in {"SUPPORTED_CONTACT_HELD","CARTON_LIFTED_AND_WEIGHED","CARTON_LIFTED_WEIGHING_UNAVAILABLE"} or report.get("success") is not True:
         raise ValueError("The N100 did not confirm the supported contact hold.")
+    if report['phase'].startswith('CARTON_LIFTED'):
+        result=report.get('weighing')
+        message=('Lift completed; weighing unavailable: '+str(report.get('measurement_error')) if not result else
+            f"Lift completed. Estimated mass {result['mass_kg']:.2f} kg; {result['assessment']}. Sample scatter is not absolute accuracy."
+            if result['mass_kg'] is not None else 'Lift completed; differential mass invalid. Check measurement settings.')
+        progress.update('weighing_complete',message,weighing=result)
+        return dict(remote_run=cycle,contact='Both grippers closed and joint20mm lift completed.',
+                    weighing=result,measurement_available=report['measurement_available'],
+                    measurement_error=report.get('measurement_error'))
     return {
         "remote_run": cycle,
         "contact": "N100 confirmed supported contact hold after operator review.",

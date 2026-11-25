@@ -1,5 +1,183 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Karton-Kraftreferenz und Wiegehub vorbereitet,25.11.2026
+
+Nutzerauftrag24.11.: Kraftreferenz beider rechten URs vor dem Greifen speichern,
+anschließend gemeinsam20mm höher anheben und Lastübernahme/Masse beurteilen.
+Nutzer bestätigt leeren Karton, geschätzt500g–1kg, keine präzise Waage. Keine
+Referenzmasse oder Genauigkeitsprüfung daraus ableiten. Nach Nutzerpause am
+25.11. fortgesetzt. Keine Roboter-/Greiferbefehle für diese Erweiterung gesendet.
+
+Endliche output-only-RTDE-Messung und signierte Kraftdifferenzauswertung in
+`carton_weighing.py`, Taskausführung in `carton_weigh_phase.py`. Je Fenster
+0,5s Setzzeit und2s bei20Hz, beide Arme parallel. Referenz vor Schließen,
+tischgestütztes Fenster nach Schließen, Fenster nach abgeschlossenem Hub.
+Payload/COG/TCP-Offset unverändert voraussetzen; Änderungen machen Masse
+ungültig. Beide Lastanteile und Streuung ausgeben; keine50/50-Annahme, kein
+neuer Wächter, keine globale Pause oder automatische Öffnung/Absenkung aus
+Messwerten. Native Sensor-/Payloadkonfiguration, Safety-Kern und Controller
+unverändert. Ein abgeschlossener Hub wird bei Messfehler nicht wiederholt.
+
+Offline-Compiler prüft die gesamte Folge vor Anfahrt. Zunächst meldete das
+zusätzliche Kartonmodell beim alten Griff Nicht-Pad-Kontakt an inneren
+Greifergelenken. Öffnungshüllen als unveränderten primären Zellnachweis und
+nominelle Padkontaktgeometrie als getrenntes Aufgabenmodell behandeln.
+Auch bei erster nomineller Schließberührung ist der alte Griff nicht frei.
+Begrenzte Höhenstudie:10mm höher reicht nicht,20mm höher erlaubt zuerst
+modellierten Padkontakt. Separate Entwurfsvariante
+`config/carton_programs/carton-supported-weigh-v1.json`: Greifpunkt20mm höher,
+übrige Haltungsvorgaben übernommen. Noch kein realer Griffnachweis dieser
+Höhe. Anfahrt und Kontakt/Hub verlangen dafür normale explizite hohe Reviews;
+kein altes Schrittvertrauen übernehmen.
+
+Vollständige Offline-Folge erfolgreich in
+`setup/tasks/carton-weigh-20261125/complete-plan/`, nur Archiv-Eingaben des
+24.-November-Laufs. Beide Arme gemeinsam, Wiegehub1,149305077s, unveränderte
+0,1rad/s-/83,33mm/s-TCP-Grenzen; bei diesem kurzen Weg bindet0,2rad/s².
+Primärer unabhängiger Fortschrittsnachweis mit40-mm-Marge bestanden. Bewegtes
+Kartonmodell/Controllerpolynome257-mal geprüft; maximale TCP-Abweichung
+<0,42µm im Modell. Nomineller Kontaktwinkel~0,493447rad ist weder gemessene
+Öffnung noch Fingerkommando. Anfangs nur sich lösenden Kontakt der5mm nach
+unten erweiterten Kartonhülle mit den koplanaren Tischen zulassen; nach Hub
+15mm Hüllenfreiheit. Keine Nicht-Pad-Ausnahmen. Reale Padkontakte,
+Klemmtragfähigkeit, Schlupffreiheit oder genaue Synchronität nicht behaupten.
+
+Lokal: Zyklusintegration, hashgebundener Transfer, separate Kontaktkomponente
+für den Hub, Library-Ausgabe und RViz-Werkstückhub vorbereitet. Option
+`weigh_after_grasp: true` wählt die neue Variante. Bisherige Live-Konfiguration
+noch unverändert; kein unbemerktes Aktivieren einer nicht installierten Folge.
+Lokales Staging `staged/`, `staging.log`; tatsächlicher Dateilader auf ROSmini
+in `executor-files-local.log`. Details [Wiegehub](docs/carton_weighing.md).
+
+Offen: Installation und Read-only-RTDE-Formatprüfung auf N100, danach aktueller
+neuer realer Griff samt Wiegehub. SSH192.168.8.5 lief in Timeout; separater
+vorhandener mDNS-Zugang `miniminiPC.local` nicht auflösbar. Nichts auf N100
+geändert. Aktueller physischer Karton-/Zellzustand wurde nicht bestätigt.
+Keinen unbelasteten Referenzwert aus dem zuletzt geschlossenen Griff ableiten.
+Vor realem Neustart Arbeitsraum/aktuellen Zustand und ggf. reguläres Öffnen
+abklären; Kamerareferenzen sind nach12h zu erneuern. Das ist kein neuer
+Hardware-Freigabenachweis.81 gezielte Offline-Softwareprüfungen bestanden;
+`regression-final.log` im Nachweisordner. Python-Kompilierung und Diffprüfung
+bestanden. Lokales Staging umfasst60 gehashte Dateien; der lokale
+Dateilader akzeptiert genau eine gemeinsame RF/RR-Wiegegruppe.
+UI-/RViz-Änderungen noch ohne neuen Sichtnachweis; ein JavaScript-Parser
+stand in dieser Sitzung nicht zur Verfügung. Vor Aktivierung auf N100 den
+realen output-only-RTDE-Rezeptaufbau und die Anzeige prüfen.
+Geprüfte Kommandospitzen: RF0,074376rad/s und0,199999rad/s²,
+RR0,072975rad/s und0,196394rad/s² (`command-extrema.json`).
+`deployment-manifest.json` hält genau die noch nicht übertragenen Taskquellen
+und ihre Hashes fest.
+
+
+## Stiftlauf: Greifervorbereitung abgebrochen, Diagnose25.11.2026
+
+Nutzer hat die Diagnose nach einer Pause wieder freigegeben. Der reale Lauf
+`7d8b308369e34fd28f14c7b31bca49d7` vom24.11. erreichte mit **left_rear** die
+Vorposition erfolgreich, scheiterte danach beim Öffnungsaufruf vor der
+vertikalen Einfahrt. Kein Schließen und kein Ausheben. Der Lauf meldete
+19:11:19AWST den generischen15-s-Greifer-Timeout; Reviewstore protokollierte
+denselben Fehler bereits19:11:12. Beide Zeitquellen getrennt erhalten.
+
+Drei nachgelagerte Registerabfragen vom24.11.: ACT1/STA3/FLT0/POS3/PRE0,
+FOR255/SPE255 statt angeforderterFOR0/SPE16. Der Transport bestätigt FOR vor
+SPE und vor POS/GTO; Fehler daher wahrscheinlich in der Kraftparametrierung.
+Die damaligen Action-Rückmeldungen fehlen, deshalb keine endgültige Ursache
+oder genaue fehlgeschlagene SET-Operation behaupten. Minimalstatus danach
+RUNNING ohne gemeldete Kollision; die zugänglichen Safety-Quellen enthalten
+keinen passenden Kollisionsauslöser, das Minimaljournal war nicht verfügbar.
+Tatsächlich gemessene Gelenkgeschwindigkeit beim Abbruch nicht aufgezeichnet;
+genehmigte/geplante Grenze bleibt0,1rad/s.
+
+Reine Aufgabendiagnostik ergänzt: getrennte Aktivierungs-/Öffnungs-/
+Schließergebnisse, letzte vorhandene Action-Rückmeldung und konkrete
+Fehlerphase. Transport-Timeouts nennen Schritt, Soll und letzte Register;
+keine zusätzlichen Abfragen, Wiederholungen oder geänderten Befehlsgrenzen.
+Sicherheitsprogramm unverändert. Nach Nutzerhinweis auf wieder erreichbaren
+N100 am25.11. fortgesetzt;55 gezielte Offline-Tests bestanden.
+
+Hersteller-URCap aus dem N100-Archiv hashgeprüft zurückgeholt. Einmalige
+Parameterproben bei ACT0/STA0/FLT0/GTO0: ausschließlich `SET FOR 0`, danach
+bei bestätigtemFOR0 `SET SPE 16`. Jeweils drei anschließende Registerabfragen
+bestätigen den neuen Wert, ACT/STA/POS/PRE bleiben unverändert. Keine ACT-,
+POS-, GTO-, Armfahr-, Power-, Brake- oder Play-Befehle gesendet. Das ist eine
+Bestätigung des Serverzustands, kein Nachweis realer Hardwareparametrierung
+oder einer Öffnung: native Abfrage meldet POWER_OFF/NORMAL, Programm läuft
+nicht, geladen `/programs/<unnamed>.urp`.
+
+Diagnosetransport auf N100 mit Rücksicherung installiert, alle vier Adapter
+vorher unbeschäftigt. Nur `uwa-grippers.service` neu geladen, Invocation
+`b9a65565d3b64b6782f7eaf663ea9447`. Transport-SHA256
+`b4edec5680b891c45e89d710f2510a9885af6c7ebcc79931d3c4a921b74a0534`.
+Danach alle neun Register aller vier Greifer unverändert; left_rear weiter
+inaktiv, FOR0/SPE16. Stift-Ausführungshelfer lokal für den normalen nächsten
+hashgebundenen Library-Transfer aktualisiert, kein Wiederanlauf des alten Runs.
+
+Zellenzustand vor dem Greifertest separat: PAUSED/COLLISION, zwölf FCL-Kontakte links vorne
+gegen rechten Tisch gemeldet, Kollisionsdaten rechts vorne fehlen. Kein
+Resume oder Eingriff in diese Pause. Dies ist kein nachgewiesener Auslöser
+des gestrigen Stiftfehlers.
+
+**Einzelner realer Greifertest25.11.,15:18:51–15:18:54AWST erfolgreich.**
+Nutzer bestätigt mit „erledigt“ sowohl Bereitschaft als auch den angefragten
+einmaligen Aktivierungs-/Öffnungstest ohne Armfahrt. Vorher nativ RUNNING,
+NORMAL, `ros.urp` läuft; Schutzpause bleibt bestehen. Genau ein Aktivierungs-
+und ein Öffnungsaufruf über den regulären ROS-Client. Nach Aktivierung
+ACT1/STA3/FLT0/POS165, FOR/SPE noch255; anschließender Öffnungsauftrag bestätigt
+FOR0 zuerst, dannSPE16 und schließlich OBJ3/POS3/PRE0/COU0.53 vorhandene
+Action-Rückmeldungen gespeichert. Keine Wiederholung, keine Arm-, Power-,
+Brake-, Play- oder Resume-Befehle. Transportänderung betrifft nur Diagnostik;
+der ursprüngliche Fehler wurde nicht reproduziert und ist nicht als dauerhaft
+behoben nachgewiesen. Kein Stift geschlossen oder ausgehoben.
+
+Abschließender Schutzstatus PAUSED/OPERATOR PAUSE, vollständige Kollisionsdaten,
+keine aktuellen Kontakte. Pausenursache hat sich zwischen den lesenden
+Abfragen geändert; kein Pausen-/Resumeaufruf durch diese Diagnose. Der linke
+hintere Greifer bleibt aktiviert/offen bei FOR0/SPE16. Nachweise und Fortsetzung:
+[Arbeitsnotiz](work/pen-gripper-abort-20261124.md),
+`setup/tasks/pen-debug-20261125/`.
+
+## Supported carton grasp mit Minimalbetrieb erfolgreich, 24.11.2026,19:03AWST
+
+Library-Lauf `c0ea7847aa8e49dd99b7ab6aa6b7f144`, gestarteter N100-Aufgabenpfad
+`minimal-candidates/minimal.upWhPwQC/setup/tasks/skill-library-carton-2004ca438cc048848d3a93010a8a431c/cycle`.
+Hochanfahrt, Greifervorbereitung und gemeinsame Einfahrt beider rechter Arme
+erfolgreich über `protection_backend=minimal`. Einfahrabschluss
+`BOTH_OPEN_AT_WALL_HELD_NO_CLOSE`; Originaltempo0,1rad/s/83,33mm/s TCP.
+Keine Änderung am Safety-Kern, seinen Controllern oder Grenzwerten in diesem
+Debugging. Anbindung/Dateizuordnung des Aufgabenprogramms separat korrigiert;
+Einzelheiten im folgenden Integrationsabschnitt.
+
+Erster Kontaktaufruf scheiterte vor dem Schließen an der bestehenden
+Foto-Zeitprüfung: OAK4-Metadatenende19:00:46,922 lag beim Aufruf vor dem
+N100-Jetzt19:00:46,642. Foto nach Einfahrabschluss aufgenommen. Einfahrbild
+unabhängig angesehen: Karton tischgestützt, beide offenen Greifer um die
+vorgesehenen Seitenwände. Abgeleitete reine Inspektionsansicht
+`entry-photo/inspection.jpg` im Library-Lauf, Original/Metadaten erhalten.
+
+Runner wiederholt diese unveränderte Bildvalidierung künftig genau einmal
+bei `WAITING_VISUAL_REVIEW`/diesem Bildfehler, bevor er Kontakt freigeben kann;
+kein erneutes Anfahren, keine Toleranz-/Metadatenänderung.70 gezielte Offline-
+Softwareprüfungen bestanden, einschließlich begrenztem Wiederholungsfall und
+dauerhaft ungültigem Bild. Der bestehende N100-Kontaktschritt desselben Laufs
+wurde nach Behebung erneut aufgerufen, ausschließlich Kontaktfortsetzung.
+Freigabe `f7002ef9761a4751a17933de47a0c604` laut Reviewstore durch Bedienung
+angenommen (`actor=operator`); der Agent sendete keine `decide`-Freigabe.
+
+Ergebnis: `success=true`, Workflow `SUPPORTED_CONTACT_HELD`, beide regulären
+Schließbefehle erfolgreich (`GRIPPER_CLOSE_COMPLETED`). RF OBJ2/POS202,
+RR OBJ2/POS203, jeweils rawFOR0/SPE16. Dies sind Kontaktregister/Programmerfolg,
+kein Nachweis vier einzelner Pads, gemessener Klemmkraft oder tragfähigem Hub.
+Karton bleibt auf dem Tisch; keine Hub-/Transport-/Öffnungsfahrt angefordert.
+Abschließender Kernstatus RUNNING, vollständige Kollisionsdaten, keine
+Warnung/Kollision, vier bestätigte Controller ohne laufende Action, Faktor1.
+
+Die ursprüngliche Library-Zeile bleibt als historischer Fotozeit-Fehlversuch
+erhalten; die tatsächlich erfolgreiche Kontaktfortsetzung liegt gesondert in
+`setup/tasks/uwa_program_library/c0ea7847aa8e49dd99b7ab6aa6b7f144/contact-continuation/result.json`.
+N100-Originalworkflow ist erfolgreich. Weitere Nachweise:
+`setup/tasks/carton-library-debug-20261124/minimal-final-grasp.json`,
+`minimal-final-protection.json`, `minimal-library-regression.log`.
+
 ## Stiftgriff in der Program library, 24.11.2026
 
 Nutzer beauftragt nach der Bildprüfung ein eigenes Programm nach Vorbild
@@ -141,7 +319,15 @@ vorige Datei `setup/tasks/run_carton_cycle.before-canonical-assets.py` im Kandid
 Reines Datei-Staging nach `setup/tasks/canonical-model-check/prepared` auf N100;
 `checked_problem`-Modellprüfung dort ohne ROS-Goals gestartet. Keine neue
 Safety-Logik, kein Kern-/Controllerwechsel und weiterhin keine Armfahrt in
-diesen Integrationsversuchen.
+diesen Integrationsversuchen. Lauf `42561b7e82a641ee83543edb697eb538`
+passierte Geometrieprüfung und Motion Review, wurde vor Fahrziel wegen
+Hardware-Bindung abgelehnt: der Description-Quellpfad wurde auch für
+Kalibrierdateien umgebunden. Remapping auf `meshes/` begrenzt; Armkalibrierungen
+bleiben im Kandidaten.68 Softwareprüfungen einschließlich dieser Trennung
+bestanden. Vollständiges erneutes Datei-Staging unter
+`setup/tasks/binding-model-check/prepared` auf N100: `checked_problem` und
+`read_bundle` für HIGH und ENTRY bestanden, inklusive Hashes, Checker,
+Modell, Originalquellen und Hardwarebindung. Kein Goal für diese Datei-Prüfung.
 
 ## Sicherheitsprogramm: ausdrückliche Freigabe vor Erweiterungen, 24.11.2026
 
@@ -177,10 +363,12 @@ beendet. Quellen, Reproduktion und weitere Nachweise:
 
 Nutzer hat das Video anschließend unter
 `https://youtu.be/YHpvsQd1fE8` veröffentlicht. Neuer englischer Eintrag auf
-seiner Projektwebsite lokal in`src/tobiasrecker.github.io` vorbereitet,
-gerendert und als`0b9b6fc` committed. Veröffentlichung auf GitHub wartet auf
-Schreibzugang (Connector403, lokal keine GitHub-Anmeldung). Stand und
-Fortsetzung im Workspace-HANDOVER.
+seiner Projektwebsite in`src/tobiasrecker.github.io` erstellt, gerendert
+und mit Commit`0b9b6fc` veröffentlicht. Nach Nutzerbestätigung funktioniert
+hierfür ein eigener Repository-Deploy-Key. Live-Eintrag mit Videolink und
+passendem Vorschaubild geprüft:
+`https://tobiasrecker.github.io/projects.html#cooperative-task-programming`.
+Zugang und Nachweise im Workspace-HANDOVER.
 
 ## ChArUco: professioneller Neudruck und fertige PDFs, 24.11.2026
 

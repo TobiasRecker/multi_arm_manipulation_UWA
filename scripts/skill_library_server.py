@@ -110,9 +110,19 @@ class Runs:
 
     def catalog(self):
         camera = self.camera_status()
+        try:
+            weigh = read_json(self.live_config).get('weigh_after_grasp') is True
+        except (OSError, ValueError, TypeError, AttributeError):
+            weigh = False
+        stages = [dict(s) for s in STAGES]
+        if weigh:
+            stages[3]['description'] = 'Check the complete high approach, open entry and joint20mm lift before any motion. The weighing variant grasps20mm higher.'
+            stages[-1].update(title='Reference, grasp and lift',description='Review the actual entry, save unloaded wrist forces, close both grippers and execute the reviewed joint20mm lift.')
+            stages.append(dict(id='weigh',title='Estimate mass and load sharing',description='Compare finite force measurements before closing and after lifting. Show both arm shares and measurement limits; hold the lifted carton.'))
         program = dict(id=PROGRAM_ID, title="Supported carton grasp",
-                       description="Both right arms grasp the known Avocado carton at its measured pose and hold it on the table.",
-                       object="Avocado carton", arms=["Right front", "Right rear"], stages=STAGES,
+                       description=('Both right arms grasp the carton20mm higher, lift it20mm together and estimate its mass from wrist forces.' if weigh else
+                           "Both right arms grasp the known Avocado carton at its measured pose and hold it on the table."),
+                       object="Avocado carton", arms=["Right front", "Right rear"], stages=stages,
                        demo_available=True, live_available=camera["live_blocker"] is None, **camera)
         program['camera_program'] = CAMERA_PROGRAM
         calibration = dict(id=CAMERA_PROGRAM, kind="camera_calibration", title="OAK camera calibration",

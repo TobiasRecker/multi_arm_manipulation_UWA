@@ -57,8 +57,9 @@ class Robotiq:
             if reply != b'ack':
                 raise RuntimeError('Gripper command rejected; no automatic retry')
 
-    def _wait(self, predicate, deadline, feedback, activation=False):
+    def _wait(self, predicate, deadline, feedback, activation=False, *, stage, expected):
         consecutive = 0
+        state = None
         while time.monotonic() < deadline:
             state=self.status(); regs=state['registers']; feedback(state)
             if regs['FLT'] >= 8 or (not activation and regs['FLT'] != 0):
@@ -67,7 +68,10 @@ class Robotiq:
             if consecutive >= 2:
                 return state
             time.sleep(.05)
-        raise TimeoutError('Gripper outcome unconfirmed; no reset/open or automatic command retry')
+        registers = ('not observed during this step' if state is None else
+                     ' '.join(f'{key}={value}' for key, value in state['registers'].items()))
+        raise TimeoutError(f'Gripper outcome unconfirmed during {stage}; expected {expected}; '
+                           f'last registers: {registers}; no reset/open or automatic command retry')
 
     def command(self, operation, position, speed, force, timeout, feedback=lambda value: None):
         self.validate(operation, position, speed, force, timeout)
@@ -79,10 +83,12 @@ class Robotiq:
             if state['activated'] and state['fault_free']:
                 return state
             self._set([('ACT', 0)])
-            self._wait(lambda r:r['ACT']==0 and r['STA']==0, deadline, feedback, activation=True)
+            self._wait(lambda r:r['ACT']==0 and r['STA']==0, deadline, feedback, activation=True,
+                       stage='activation reset', expected='ACT=0 STA=0')
             self._set([('ACT', 1)])
             return self._wait(lambda r:r['ACT']==1 and r['STA']==3 and r['FLT']==0,
-                              deadline, feedback, activation=True)
+                              deadline, feedback, activation=True,
+                              stage='activation', expected='ACT=1 STA=3 FLT=0')
         state=self.status()
         if not state['activated'] or not state['fault_free']:
             raise RuntimeError('Gripper inactive/faulted; explicit activation required, no MOVE sent')
@@ -93,11 +99,11 @@ class Robotiq:
         # latched from an earlier move, so a new POS can itself start motion.
         self._set([('FOR', force)])
         self._wait(lambda r:r['ACT']==1 and r['STA']==3 and r['FOR']==force,
-                   deadline, feedback)
+                   deadline, feedback, stage='force confirmation', expected=f'ACT=1 STA=3 FOR={force}')
         self._set([('SPE', speed)])
         self._wait(lambda r:r['ACT']==1 and r['STA']==3 and r['SPE']==speed and r['FOR']==force,
-                   deadline, feedback)
+                   deadline, feedback, stage='speed confirmation', expected=f'ACT=1 STA=3 SPE={speed} FOR={force}')
         self._set([('POS', position)])
         self._set([('GTO', 1)])
         return self._wait(lambda r:r['ACT']==1 and r['STA']==3 and r['PRE']==position and r['OBJ'] in (1,2,3),
-                          deadline, feedback)
+                          deadline, feedback, stage='movement completion', expected=f'ACT=1 STA=3 PRE={position} OBJ=1/2/3')

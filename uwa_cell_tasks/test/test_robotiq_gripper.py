@@ -71,7 +71,23 @@ def test_unconfirmed_speed_or_force_never_changes_position_or_starts_motion(monk
     # Bound the confirmation loop deterministically without a real delay.
     clock=iter([0.,0.,.1,2.1])
     monkeypatch.setattr('uwa_cell_tasks.robotiq_gripper.time.monotonic',lambda:next(clock))
-    with pytest.raises(TimeoutError):device.command(1,128,10,0,2.)
+    with pytest.raises(TimeoutError) as failure:device.command(1,128,10,0,2.)
+    assert 'during force confirmation' in str(failure.value)
+    assert 'expected ACT=1 STA=3 FOR=0' in str(failure.value)
+    assert 'FOR=255' in str(failure.value)
     # Do not queue another parameter until the preceding force write is read
     # back; in particular never reach POS/GTO after an ACK-only outcome.
     assert device.writes==[{'FOR':0}]
+
+
+def test_unconfirmed_speed_reports_readback_without_reaching_position(monkeypatch):
+    device=Device();device.regs.update(ACT=1,STA=3,SPE=255)
+    device._set=lambda pairs:device.writes.append(dict(pairs))
+    clock=iter([0.,0.,.1,.2,.3,2.1])
+    monkeypatch.setattr('uwa_cell_tasks.robotiq_gripper.time.monotonic',lambda:next(clock))
+    monkeypatch.setattr('uwa_cell_tasks.robotiq_gripper.time.sleep',lambda _:None)
+    with pytest.raises(TimeoutError) as failure:device.command(1,128,16,0,2.)
+    assert 'during speed confirmation' in str(failure.value)
+    assert 'expected ACT=1 STA=3 SPE=16 FOR=0' in str(failure.value)
+    assert 'SPE=255' in str(failure.value)
+    assert device.writes==[{'FOR':0},{'SPE':16}]

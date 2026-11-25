@@ -58,6 +58,20 @@ frühere Anforderungen an UWA-Guards, Supervisoren, Watchdogs und Ablaufmonitore
 
 Bei Fehlern in UR-Treibern auch den offiziellen Quellstand von Universal Robots auf eine passende Korrektur prüfen (Nutzerwunsch vom 24.11.2026).
 
+## Kraftreferenz und Wiegehub am Karton, Nutzerauftrag 24.11.2026
+
+- Vor dem Greifschluss die unbelasteten Handgelenkkräfte beider rechten URs
+  speichern; anschließend gemeinsam20mm anheben und die zusätzlichen
+  vertikalen Kräfte im gemeinsamen Weltframe auswerten. Masse aus ihrer
+  vorzeichenrichtigen Summe bestimmen, Lastanteile getrennt anzeigen;
+  keine50/50-Verteilung voraussetzen. Gesamte Folge vor der Anfahrt planen.
+- Nutzerangabe: Karton leer, geschätzt500g bis1kg, keine präzise Waage.
+  Dies ist keine gemessene Vergleichsmasse oder Akzeptanzgrenze.
+- Endliche Aufgabenmessung, keine Änderung am Sicherheitsprogramm und kein
+  neuer Kraft-/Schlupfwächter. Messstreuung von absoluter Genauigkeit und
+  plausibler Lastübernahme von einem Nachweis aller vier Padkontakte trennen.
+  Keine unbelastete Referenz aus einem bereits geschlossenen Griff ableiten.
+
 ## Kartongriff mit zweiter OAK-Perspektive, Nutzerauftrag 24.11.2026
 
 - Neuere Nutzerentscheidung24.11.: OAK4 als bevorzugte metrische Quelle
