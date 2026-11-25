@@ -17,7 +17,7 @@ for directory in ('scripts', 'uwa_cell_control', 'uwa_cell_tasks'):
 from PySide6 import QtCore, QtWidgets
 from protection_bridge import response_packet
 from motion_review_panel import ReviewPanel, remote_runtime_command
-from ur_power_gui import ProtectionControls, Window, protection_command, instance_address
+from ur_power_gui import ProtectionControls, Window, protection_command, instance_address, present
 
 
 def wait_for(app, condition):
@@ -26,6 +26,15 @@ def wait_for(app, condition):
         app.processEvents()
         time.sleep(.01)
     assert condition()
+
+
+def test_confirm_safety_guidance_reports_mode_without_claiming_configuration_changed():
+    heading, level, guidance = present(dict(
+        code='confirm_safety', state=dict(mode='CONFIRM_SAFETY', safety='NORMAL')))
+    assert (heading, level) == ('CHECK ARM', 'warn')
+    assert guidance == ('Controller reports CONFIRM_SAFETY. If it persists, '
+                        'check the safety message at the Teach Pendant.')
+    assert 'configuration' not in guidance.lower()
 
 
 @pytest.fixture

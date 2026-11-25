@@ -6,6 +6,7 @@ No URScript, Dashboard, controller-manager or robot power commands exist here.
 """
 import math
 import socket
+import threading
 import time
 from .hardware_preparation import GripperObserver
 
@@ -15,16 +16,29 @@ class Robotiq:
         self.host, self.port, self.enabled = host, port, enabled
         self.max_force_raw, self.max_speed_raw = max_force_raw, max_speed_raw
         self.last_requested = None
+        self._transaction = threading.local()
 
-    def status(self):
-        # For mock tests the same strict observer connects only to loopback.
+    def _reader(self):
+        if getattr(self._transaction, 'active', False):
+            existing = getattr(self._transaction, 'reader', None)
+            if existing is not None:
+                return existing
         observer = GripperObserver.__new__(GripperObserver)
         observer.socket = socket.create_connection((self.host, self.port), timeout=.5)
         observer.socket.settimeout(.5); observer.timeout=.5; observer.buffer=b''
+        if getattr(self._transaction, 'active', False):
+            self._transaction.reader = observer
+        return observer
+
+    def status(self):
+        # One command owns one connection, including its strict GET replies.
+        # Independent read requests keep their existing output-only connection.
+        observer = self._reader()
         try:
             return observer.snapshot()
         finally:
-            observer.close()
+            if not getattr(self._transaction, 'active', False):
+                observer.close()
 
     def validate(self, operation, position, speed, force, timeout):
         if not self.enabled:
@@ -45,9 +59,13 @@ class Robotiq:
         if any(k not in allowed or type(v) is not int or not 0 <= v <= 255 for k, v in pairs):
             raise ValueError('Invalid Robotiq SET')
         command = ('SET '+' '.join(f'{k} {v}' for k, v in pairs)+'\n').encode('ascii')
-        # Acknowledgement is three bytes in the vendor script. Close this SET
-        # connection afterwards so optional trailing newlines cannot pollute GET.
-        with socket.create_connection((self.host, self.port), timeout=.5) as wire:
+        # Vendor ACK is exactly three bytes. Keep SET and confirmation GETs on
+        # the same command connection: real RF/RR probes25November confirmed
+        # parameter readback there after the former reconnect path failed.
+        retained = getattr(self._transaction, 'active', False)
+        wire = (self._reader().socket if retained else
+                socket.create_connection((self.host, self.port), timeout=.5))
+        try:
             wire.settimeout(.5); wire.sendall(command); reply=b''
             while len(reply) < 3:
                 chunk=wire.recv(3-len(reply))
@@ -56,6 +74,9 @@ class Robotiq:
                 reply += chunk
             if reply != b'ack':
                 raise RuntimeError('Gripper command rejected; no automatic retry')
+        finally:
+            if not retained:
+                wire.close()
 
     def _wait(self, predicate, deadline, feedback, activation=False, *, stage, expected):
         consecutive = 0
@@ -74,6 +95,21 @@ class Robotiq:
                            f'last registers: {registers}; no reset/open or automatic command retry')
 
     def command(self, operation, position, speed, force, timeout, feedback=lambda value: None):
+        self.validate(operation, position, speed, force, timeout)
+        if getattr(self._transaction, 'active', False):
+            raise RuntimeError('A gripper command is already active on this thread')
+        self._transaction.active = True
+        self._transaction.reader = None
+        try:
+            return self._command(operation, position, speed, force, timeout, feedback)
+        finally:
+            reader = self._transaction.reader
+            self._transaction.active = False
+            self._transaction.reader = None
+            if reader is not None:
+                reader.close()
+
+    def _command(self, operation, position, speed, force, timeout, feedback):
         self.validate(operation, position, speed, force, timeout)
         deadline=time.monotonic()+timeout
         if operation == 2:

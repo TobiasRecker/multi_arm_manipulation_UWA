@@ -115,7 +115,12 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 /usr/bin/python3 -u "$1/execute_pen_gra
             lines=(out/('n100-'+phase+'.log')).read_text().strip().splitlines()
             raise RuntimeError('N100 pen '+phase+' failed before a result was saved: '+(lines[-1] if lines else str(error))) from error
         raise
-    report=json.loads((out/'execution/workflow.json').read_text())
+    workflow=out/'execution/workflow.json'
+    if not workflow.is_file():
+        lines=(out/('n100-'+phase+'.log')).read_text().strip().splitlines()
+        raise RuntimeError('N100 pen '+phase+' failed before a workflow was saved: '+
+                           (lines[-1] if lines else 'Inspect the N100 run log.'))
+    report=json.loads(workflow.read_text())
     if code or not report.get('success'):raise RuntimeError(report.get('error') or 'N100 pen '+phase+' failed; inspect run log and Motion review')
     return report
 

@@ -164,3 +164,35 @@ Fristen oder Parameterbestätigung umgesetzt. Diagnoseänderung ist geladen;
 eine dauerhafte Ursachenbehebung ist damit nicht bewiesen. Der nächste
 vollständige Stiftlauf benötigt wie bisher aktuelle Wahrnehmung/Planung
 und normale Motion-/Kontaktfreigaben; kein automatisches Wiederanlaufen.
+
+## Neuer vollständiger Stiftlauf,25.11.2026
+
+Nutzer beauftragt ausdrücklich, das Stiftgreifen von vorne erneut zu probieren.
+Aktiver GUI-Library-Endpunkt Port45937, PID50424, Backendminimal und explizit
+`minimal.upWhPwQC` über Prozessumgebung bestätigt. Kein Oberflächenzugriff
+verfügbar; normale Library-HTTP-Schnittstelle verwendet, keine GUI-Klicks
+behauptet. USB-Referenz frisch vom25.11.,15:19:52AWST,12h gültig.
+
+Erster neuer Lauf `707e121e75a444b286eb9c4a04f5c931`,15:23:21AWST, registriert
+und vollständig geplant. Währenddessen änderte sich Arbeitsbereichssitzung
+von `f6b9a18fe25a4f108420b9a5ce30df1a` zu
+`465bb4cc216643a6a8f116b63ad4bf61`. Ausführungshelfer lehnt vor Review und
+Gerätebefehlen ab. Kein Greiferfehler, keine ausgeführte Teilbahn. Der Runner
+meldete zunächst irreführend fehlendes `execution/workflow.json`, weil der
+leere Ausgabepfad existierte. Fehlerrückmeldung korrigiert, sodass die letzte
+eigentliche N100-Exception erhalten bleibt; keine Änderung an Freigabeprüfung
+oder Ausführung.20 Stift-Regressionstests einschließlich dieses Falls bestanden.
+
+Vollständig neuer zweiter Lauf `a49718ebcac64a849d218afb8c618704`,
+Start15:25:24AWST, mit neuer Aufnahme und aktueller Sitzung. OpenCV beide
+Marker ohne Gemini-Fallback, RMS1,55583px. Vollständige Bahnprüfung bestanden,
+73,13194s gesamt; genehmigte0,1rad/s und83,33mm/s TCP unverändert.
+Anfangsfoto unabhängig angesehen: Stift im grünen Halter, beide Marker
+sichtbar. Ganze Folge vor der Anfahrt vorhanden und geprüft.
+
+Ab15:26:21 wartet normaler Review `743ee5361d9944d79515d9d588c19246` für
+Anfahrt/Einfahrt. Aufgabenvertrauen0, Arbeitsbereich freigegeben. Keine
+Agentenfreigabe gesetzt. Nutzer um Prüfung/Freigabe im Motion review und
+ausdrückliches RESUME der bestehenden Bedienerpause gebeten. Fortsetzung
+dieses laufenden Prozesses nach normalen UI-Entscheidungen beobachten;
+keinen weiteren Lauf parallel starten.

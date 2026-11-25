@@ -18,6 +18,12 @@ für kleine Prüfungen, Wächter oder Diagnostik. Bereits ausdrücklich für die
 Änderung erteilte Freigaben gelten weiter und müssen nicht erneut eingeholt werden.
 Diese Regel betrifft das Sicherheitsprogramm, nicht reine Dokumentationspflege.
 
+Konkrete Nutzerfreigabe25.11.2026: nach eigenem erfolgreich bestätigtem
+Programmladen den Übergang CONFIRM_SAFETY/NORMAL innerhalb des bestehenden
+30-s-Ladezeitfensters mit bestehendem250-ms-Abstand abwarten und den GUI-Hinweis
+sachlich korrigieren. Zusätzliche Dashboard-Abfragen nur während dieses Übergangs;
+dauerhafte/native Sperren weiter melden. Keine Freigabe weiterer Überwachung.
+
 ## Minimales Hardware-Schutzkonzept, Nutzerentscheidung 24.11.2026
 
 Der Nutzer hat das alte UWA-Schutzkonzept ausdrücklich verworfen und die

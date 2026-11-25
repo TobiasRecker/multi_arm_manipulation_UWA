@@ -1,8 +1,8 @@
 # UWA four-arm laboratory cell
 
 The [carton weighing extension](docs/carton_weighing.md) stores unloaded wrist
-forces and plans a joint20mm lift. It is locally prepared and checked; N100
-installation and the first real weighing run are still pending.
+forces and plans a joint20mm lift. It is installed and file-checked on the N100. The first real weighing run
+is pending a gripper parameter readback issue.
 
 **Program library → [Pick pen from holder](docs/pen_grasp_library.md)**
 uses OAK Pro/OpenCV with Gemini as an ROI fallback and plans a complete

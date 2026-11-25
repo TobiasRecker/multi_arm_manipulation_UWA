@@ -1,11 +1,15 @@
 # Kraftreferenz und20-mm-Wiegehub
 
-Stand25.11.2026: lokal implementiert und offline geprüft. Auf dem N100 noch
-nicht installiert oder ausgeführt:192.168.8.5 war per SSH nicht erreichbar,
-`miniminiPC.local` nicht auflösbar. Die bisherige Live-Konfiguration ist noch
-unverändert; die Erweiterung erst nach Installation der passenden Taskdateien
-über `weigh_after_grasp: true` in `setup/skill_library/live-carton.json` wählen.
+Stand25.11.2026: Taskdateien auf N100 installiert, tatsächlicher Dateilader
+und beide endlichen RTDE-Kraftrezepte geprüft. Die Library unter
+`http://127.0.0.1:8780` verwendet jetzt `weigh_after_grasp: true`.
+Noch kein Wiegehub: Nach Aktivierung scheitert die normale Greiferparametrierung
+an abweichenden FOR-/SPE-Rückmeldungen, bevor POS/GTO gesendet werden.
+Gezielter Parametervergleich separat angefragt. Details im aktuellen HANDOVER.
 Keine Änderung an Schutzkern, Controllern, nativer UR-Sicherheit oder Payload.
+Der unveränderte Schutzdienst wurde nach Routerunterbrechung und ausdrücklicher
+Nutzerfreigabe im pausierten Leerlauf neu gestartet; frische Geometrie frei,
+anschließend genehmigtes Resume mit vier bestätigten Controllern.
 
 ## Ablauf
 

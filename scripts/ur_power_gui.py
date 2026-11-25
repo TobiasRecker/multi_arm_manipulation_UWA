@@ -25,7 +25,8 @@ GUIDANCE = {
     'program_in_use': 'Another program is active. Review it at the Teach Pendant.',
     'local_control': 'Select Remote Control at the Teach Pendant.',
     'safety_blocked': 'Check the safety message at the Teach Pendant.',
-    'confirm_safety': 'Review the installation and safety confirmation at the Teach Pendant.',
+    'confirm_safety': ('Controller reports CONFIRM_SAFETY. If it persists, '
+                       'check the safety message at the Teach Pendant.'),
     'unsaved_program': 'Save or discard the program edits at the Teach Pendant.',
     'unreachable': 'Check the control box, Ethernet and Dashboard Server.',
     'readback_lost': 'Status lost after a command. Check the Teach Pendant.',

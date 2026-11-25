@@ -227,9 +227,9 @@ def running_target(arm, state):
 
 
 def safety_check(state):
-    if state.mode == 'CONFIRM_SAFETY':
-        raise Blocked('confirm_safety', 'PolyScope verlangt eine Sicherheitsbestätigung.',
-                      'Installation und Sicherheitskonfiguration vor Ort prüfen und ggf. am Teach Pendant bestätigen.')
+    if state.mode == 'CONFIRM_SAFETY' and state.safety in SAFE:
+        raise Blocked('confirm_safety', 'Roboter meldet CONFIRM_SAFETY.',
+                      'Native Initialisierung und eine etwaige Bestätigungsaufforderung am Teach Pendant prüfen.')
     if state.safety in SAFE or (state.mode == 'BOOTING' and state.safety == 'UNDEFINED_SAFETY_MODE'):
         return
     safety = state.safety
@@ -308,8 +308,16 @@ def wait_for(dash, arm, step, get_transport, report, *, seconds, clock=time.mono
     while True:
         state = inspect(dash, arm)
         report['state'] = asdict(state)
-        safety_check(state)
-        if step == 'load' and state.program == arm.program and state.playback == 'STOPPED':
+        # A successful load also switches the associated installation. The UR
+        # may briefly validate it before returning to POWER_OFF. Only this
+        # command's existing wait tolerates CONFIRM_SAFETY with NORMAL safety;
+        # no power/play command is sent until the mode has cleared.
+        confirming_load = (step == 'load' and state.mode == 'CONFIRM_SAFETY'
+                           and state.safety == 'NORMAL')
+        if not confirming_load:
+            safety_check(state)
+        if (step == 'load' and not confirming_load and state.program == arm.program
+                and state.playback == 'STOPPED'):
             return
         if step == 'power on' and state.mode in ('IDLE', 'RUNNING'):
             return
@@ -325,6 +333,8 @@ def wait_for(dash, arm, step, get_transport, report, *, seconds, clock=time.mono
             raise Blocked('local_control', 'Während der Vorbereitung wurde auf Local Control gewechselt.',
                           'Am Teach Pendant wieder Remote Control wählen.')
         if clock() >= end:
+            if confirming_load:
+                safety_check(state)
             if step in ('play', 'wait_ros'):
                 _, linked = get_transport(arm)
                 report['ros_reverse_connected'] = linked

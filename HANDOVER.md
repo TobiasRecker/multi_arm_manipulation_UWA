@@ -1,5 +1,99 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## N100 wieder erreichbar; Wiegeerweiterung installiert,25.11.,15:05–15:25AWST
+
+Nutzer erklärt Routerneustart. Beide eingerichteten SSH-Zugänge wieder
+funktionsfähig. Fünf ausschließlich aufgabenbezogene Dateien nach Manifest-
+und Vorgängerversionprüfung installiert, einschließlich Paketlink für das
+neue Pythonmodul. Sicherung/Beleg auf N100:
+`setup/tasks/carton-weigh-install-20261125/receipt.json` in der aktiven
+Minimal-Runtime. Kein Safety-/Controllerquellstand oder Grenzwert geändert.
+
+Direktes neues output-only-RTDE-Rezept auf beiden rechten URs erfolgreich:
+je41 Pakete/2s, Payload jeweils1kg. `force-recipe-check.json` ist ausdrücklich
+**keine unbelastete Referenz**; kein Kartongewicht daraus bestimmen. Erster
+N100-Dateiladetest lehnte den Offline-Beispielplan wegen unterschiedlicher
+`libur_controllers.so`-Bindung ab. Vorhandenen passenden ROSmini-Prüfstand
+`setup/skill_library/n100-checker` verwendet und vollständige Folge neu
+geplant, keine bloße Hashänderung. `complete-plan-n100-checker/`,
+`staged-n100-checker/`, N100`carton-weigh-qualified-v2/prepared/`:60 Dateien,
+alle Ressourcen und tatsächlicher Wiegeplan-Lader erfolgreich überprüft;
+keine Ausführung dieser Archiv-Eingaben. Beleg `n100-resume/executor-file-check.log`.
+
+Vorbereitung: Die gemeinsame Quelle veröffentlichte für LF/LR/RR sechs
+Nullen und für RF alte Werte. Direktes LF-RTDE zeigte aktuelle Nichtnull-
+Winkel; die gemeldeten LF-/Tischkontakte sind daher kein Nachweis einer
+aktuellen realen Kollision. Safety-Log zuerst gelesen; Journal zeigt
+Netzabbrüche/Wiederverbindungen. Beide hinteren URs waren POWER_OFF.
+Nutzer bestätigt aktuelle freie Arbeitsfläche und tischgestützten leeren
+Karton sowie Öffnen/Neugreifen; separat Start+ROS, unveränderten Dienst-
+neustart im Stillstand und Resume nur nach aktuellen freien Daten genehmigt.
+Unser Start+ROS-Aufruf wurde wegen bereits laufender Vorbereitung abgewiesen;
+deren anschließender normaler Status bestätigt alle vier ready/PLAYING/NORMAL.
+Keinen zweiten Start parallel ausgeführt. Schutzdienst nur bei vier
+pausierten bestätigten Controllern ohne Action neu gestartet, Pause sofort
+wieder angefordert. Danach vollständige aktuelle Geometrie ohne Kontakte,
+explizites Resume. Alle vier quittieren Faktor1, kein Armziel aktiv.
+RR meldet weiter die beim Pausezeitpunkt gespeicherte einmalige Inventarwarnung;
+seine separate Controllerliste bestätigt den aktiven vorgesehenen Pausable-JTC.
+Keine Sicherheitsprogrammänderung zur Warnungsunterdrückung durchgeführt.
+
+Library unter`http://127.0.0.1:8780` taskbezogen gestartet; Browserhost weiterhin
+nicht verfügbar, keine GUI-Klicks behaupten. `weigh_after_grasp=true` nach
+Installation/Dateiprüfung aktiviert. Neue Kamerakalibrierung über normalen
+Library-Endpunkt, Lauf`afe3838f9bd54cbf888fc4756db83926`: OAK4 17Marker/1,42px,
+OAK Pro16Marker/1,288px; gültig bis26.11.~03:19AWST. Aktuelles OAK4-Bild zeigt
+Karton weiterhin tischgestützt zwischen rechten Greifern. Arbeitsbereich neu
+bestätigt, Session`465bb4cc216643a6a8f116b63ad4bf61`; Vertrauen100 und Tempo
+33⅓% unverändert.
+
+Aktueller Blocker: normale Öffnung zunächst vor MOVE abgelehnt, weil Greifer
+inaktiv waren. Nach regulärer Aktivierung erreichten beide ACT1/STA3/FLT0/
+POS3/PRE0, aber die folgende Parameterbestätigung schlug fehl: RF erwartet
+SPE16/FOR0, zuletztSPE0/FOR16; RR erwartetFOR0, zuletztSPE255/FOR255.
+Kein neuer POS-/GTO-/Armzielbefehl wurde von diesen fehlgeschlagenen MOVE-
+Aufrufen gesendet; Aktivierungsbefehle wurden ausgeführt. Originalergebnisse
+`release-before-new-grasp.json`, `activate-and-open.json` in den N100-Belegen.
+Noch kein neuer Library-Greiflauf oder Wiegehub, kein gemessenes Kartongewicht.
+
+Geplanter eng begrenzter Parametervergleich: einmalFOR0 undSPE16 je rechtem
+bereits offenem Greifer auf derselben durchgehend offenen TCP-Verbindung;
+keine ACT/POS/GTO-/Armbefehle. Automatische Freigabeprüfung lehnte diesen
+zusätzlichen direkten Parametervergleich mangels ausdrücklicher Freigabe ab.
+Nicht ausgeführt, keine Umgehung. Konkrete Nutzerfreigabe dafür angefragt.
+Weitere Originalnachweise lokal`setup/tasks/carton-weigh-20261125/n100-resume/`
+und`n100-artifacts/`. Frühere Installations-/Erreichbarkeitsblocker unten sind
+für den Stand ab15:05AWST überholt.
+
+
+## Erste Tagesinbetriebnahme: verfrühter Pendant-Hinweis,25.11.2026
+
+Heutiges Robot-Power-Log15:17 zeigt bei left_rear und right_rear direkt nach
+erfolgreichem `load ros.urp` samt `tobias.installation` kurz
+CONFIRM_SAFETY/NORMAL. Bereits15:17:32 wieder POWER_OFF/NORMAL; zweiter Start
+ohne erneutes Laden bis15:18:13 erfolgreich. Nutzer meldet keine Änderung oder
+Popup am Pendant. Kein Beleg für eine geänderte Sicherheitskonfiguration.
+Die Startlogik interpretiert den einzelnen nativen Zwischenzustand zu früh als
+manuell erforderliche Sicherheitsbestätigung. Ein täglicher UWA-Prüftimer ist
+hier nicht implementiert. Alte Aktionshinweise können als `Last action` bleiben.
+
+Ausdrücklich durch „ja bitte :)“ genehmigte und auf N100 installierte Korrektur:
+nur nach eigenem erfolgreichem Laden
+CONFIRM_SAFETY/NORMAL im vorhandenen30-s-Startfenster mit bestehendem250-ms-
+Abstand auslaufen lassen, danach sofort regulär fortfahren; dauerhafte native
+Sperren konkret melden. Zusätzliche Dashboard-Abfragen nur beim Startübergang.
+Kein Zusatzsleep im regulären Ladefall.50 gezielte Prüfungen bestanden, inklusive
+vollständigem Kaltstart im Double ohne doppelte Befehle und dauerhaftem nativen
+Bestätigungszustand ohne Power/Play. Tatsächlich installierte Datei zusätzlich
+auf N100 rein im Speicher geprüft; keine echten Roboterbefehle oder Dienstneustarts.
+Startskript SHA256 `4cfa159e3a9439851c5d60202f8140727322e220f1d89eac5ecaa38c7e69d0cd`;
+Rücksicherung im Kandidaten `validation/first-start-confirm-safety-20261125.t18lm8qd/`.
+Backend greift beim nächsten Startaufruf. Neuer sachlicher englischer GUI-Text
+liegt lokal bereit; offene Stiftfreigabe erhalten und GUI PID50406 nicht
+unterbrochen, Text wird beim nächsten Öffnen geladen. Ein neuer echter Kaltstart
+wurde für diese Prüfung nicht ausgelöst.
+[Ablauf und Primärquellen](work/ur-first-start-confirm-safety-20261125.md).
+
 ## Karton-Kraftreferenz und Wiegehub vorbereitet,25.11.2026
 
 Nutzerauftrag24.11.: Kraftreferenz beider rechten URs vor dem Greifen speichern,

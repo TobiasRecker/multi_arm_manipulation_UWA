@@ -230,3 +230,20 @@ def test_plan_only_stops_before_any_execution_upload_or_review(tmp_path,monkeypa
     assert result['duration_s']==12 and result['arm']=='left_rear'
     assert 'no robot or gripper commands' in result['motion'].lower()
     camera.stop.assert_called_once()
+
+
+def test_remote_preflight_error_is_preserved_without_redispatch(tmp_path,monkeypatch):
+    from unittest.mock import MagicMock
+    (tmp_path/'execution-helpers.json').write_text('{}')
+    process=MagicMock()
+    process.__enter__.return_value=process
+    process.stdout=['Traceback (most recent call last):\n',
+                    'ValueError: Work area changed since planning; capture and plan again\n']
+    process.wait.return_value=1
+    popen=Mock(return_value=process)
+    monkeypatch.setattr(runner.subprocess,'Popen',popen)
+    monkeypatch.setattr(runner,'n100',lambda *a:['fixture'])
+    monkeypatch.setattr(runner,'download',lambda *a:None)  # Existing empty remote output directory.
+    with pytest.raises(RuntimeError,match='Work area changed since planning'):
+        runner.remote_review(runner.Progress(tmp_path),'fixture','approach','s'*64)
+    popen.assert_called_once()
