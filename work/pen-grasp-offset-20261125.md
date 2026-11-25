@@ -107,3 +107,39 @@ Keine neue reale Stiftfahrt. Offene Reihenfolge: Boardbestätigung zuordnen,
 gegebenenfalls Aufgabenreferenz aktivieren, frische komplette Planung vom
 wirklichen aktuellen Zustand und getrennte normale Bewegungs-/Kontaktreviews.
 Kein Resume aus der Diagnose ableiten.
+
+## Board bestätigt, Aufgabenreferenz aktiviert
+
+Nutzer bestätigt25.11. ausdrücklich, dass das linke Board weder bewegt noch
+verändert wurde, und beauftragt die Fortsetzung. Damit ist die oben offene
+physische Voraussetzung erfüllt. Aktive Definition `pen-left-rear-v1.json`
+auf `reference_board=left` umgestellt, Bestätigungsprovenienz dort und in
+AGENTS festgehalten. Keine gemeinsame rechte Kamera-/Basisbindung geändert.
+Vorherige Abschnitte beschreiben den vorbereiteten Zustand vor dieser Antwort.
+Nächster Versuch mit neuen Bildern, tatsächlichem Gelenkstart und den
+normalen Motion-/Kontaktreviews; archivierten20,155-s-Entwurf nicht ausführen.
+
+Nach Aktivierung erneut23 Stifttests bestanden
+(`activated-left-reference-regression.log`). Gemeinsame Library zunächst
+belegt durch Kartonlauf `1adaf627563c4e259db7f2352923bfb9`; unberührt gelassen.
+Dieser endete vor seiner Fahrt ohne geprüften Hochanfahrweg. Danach neuer
+Stiftlauf `52befffcfa974f6390b4658d081ae7d4` über aktiven Port45937 gestartet,
+25.11.,16:23:41AWST. Er liest neue Gelenke und nimmt ein neues Stiftbild auf;
+kein Archivplan wird gefahren. Vor Start bestätigt: PAUSED/OPERATOR PAUSE,
+keine aktiven Arm-Actions und keine gemeldeten Kollisionen. Weitere Schritte
+und aktuelle Reviews dieses Laufs verfolgen; keinen zweiten Lauf parallel
+starten. Freigabe/Resume werden nicht aus der Boardbestätigung abgeleitet.
+
+Neues Anfangsbild unabhängig angesehen: Stift weiterhin im Halter, Marker
+sichtbar. Aktueller linker Boardfit17Marker/0,719805px Prüf-RMS; Penfit
+1,592902px. Ganze neue Folge geprüft: Anfahrt2,300266s, Einfahrt8,033682s,
+Lift8,033682s, insgesamt18,367631s. q6-Anfahrt vom wirklichen aktuellen
+Start nur−7,029°. Controllerpolynomspitzen innerhalb0,1rad/s und0,2rad/s²,
+neuer Ausführungshelfer einschließlich `NO_OBJECT_CONTACT` im übertragenen
+SHA-Manifest bestätigt. Nachweis `current-left-reference-plan-validation.json`.
+
+Seit16:24:18AWST Review `b0d81aa4580b48b0b8cc4a38e6e1ce1a` ausstehend.
+Nutzer ausdrücklich um zunächst nur Anfahrt/Einfahrt plus RESUME gebeten;
+Kontakt erst nach Prüfung des neuen tatsächlichen Einfahrbildes. Keine
+Agentenentscheidung für diesen neuen hochriskanten Kontakt, keine Änderung
+des Aufgabenvertrauens.

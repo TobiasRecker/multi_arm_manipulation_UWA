@@ -12,7 +12,7 @@ from carton_camera_session import read_json, sha256, validate_session, write_ses
 import carton_hydrogen
 
 CENTER_LIMIT_M = .030
-ANGLE_LIMIT_DEG = 2.
+ANGLE_LIMIT_DEG = 3.
 
 
 def transform(value):
@@ -82,10 +82,11 @@ def select_pose(poses, verification=None, *, dimensions=None):
     first, second, anchor, comparison = compare_poses(*poses, dimensions)
     distance, angle = comparison['position_difference_m'], comparison['angle_difference_deg']
     # User24November: OAK4 remains metric primary; accept centre discrepancy up to30mm.
-    if distance > CENTER_LIMIT_M or angle >= ANGLE_LIMIT_DEG:
+    # User25November: accept up to3degrees; roundoff at the exact boundary only.
+    if distance > CENTER_LIMIT_M or angle > ANGLE_LIMIT_DEG + 1e-12:
         suffix = ' after 180-degree symmetry alignment' if dimensions is not None else ''
         raise PoseDisagreement(f'Camera poses disagree{suffix}: {distance*1000:.3f} mm / {angle:.3f} deg '
-                               '(limits centre <=30 mm / angle <2 deg).', comparison)
+                               f'(limits centre <=30 mm / angle <={ANGLE_LIMIT_DEG:g} deg).', comparison)
     return first.copy(), dict(mode='primary_checked', **comparison,
                         centre_limit_m=CENTER_LIMIT_M, angle_limit_deg=ANGLE_LIMIT_DEG,
                         symmetry_policy='upright_half_turn' if dimensions is not None else 'labelled_frame',

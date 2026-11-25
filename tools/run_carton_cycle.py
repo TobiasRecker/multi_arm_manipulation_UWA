@@ -537,11 +537,17 @@ def approach(flow, args, store):
     meta["program_start_arms"] = starts
     meta["scene_session"] = status["session_id"]
     preparation = REPO / "tools/carton_gripper_phase.py"
+    high_evidence_path = Path(runners[0][3])/'evidence.json'
+    open_before_high = bool(read_json(high_evidence_path).get('open_right_grippers_required'))
     meta["gripper_preparation"] = dict(
-        after="high", before="entry", arms=["right_front", "right_rear"],
+        after="current table-supported pose" if open_before_high else "high",
+        before="high" if open_before_high else "entry", arms=["right_front", "right_rear"],
         operations=["activate_if_inactive", "open"], force_raw=0, speed_raw=16,
         source_sha256=file_sha256(preparation))
-    meta["reason"] += "\nAt the confirmed held high pose, activate and fully open both carton grippers (raw force 0, speed 16) before entry."
+    meta["reason"] += ("\nActivate and fully open both carton grippers at the reviewed current table-supported start before the high approach; its carton check requires open fingers. Full-opening cell geometry remains unchanged."
+        if open_before_high else "\nAt the confirmed held high pose, activate and fully open both carton grippers (raw force 0, speed 16) before entry.")
+    if open_before_high:
+        meta['gripper_preparation']['state_sha256'] = file_sha256(high_evidence_path)
     if not args.risk:
         assess_library_step(flow, store, meta, preview)
     if flow.report.get('weigh_plan'):
@@ -550,12 +556,14 @@ def approach(flow, args, store):
     with flow.approval(store, meta, preview) as identifier:
         for (name, tool, source, value), bundle, sha in zip(runners, paths, meta["components"], strict=True):
             store.check_active(identifier, sha)
-            if name == "entry":
+            if (name == 'high' and open_before_high) or (name == 'entry' and not open_before_high):
                 if file_sha256(preparation) != meta["gripper_preparation"]["source_sha256"]:
                     raise ValueError("Gripper preparation source changed since review")
+                if open_before_high and file_sha256(high_evidence_path) != meta['gripper_preparation']['state_sha256']:
+                    raise ValueError('Reviewed open-jaw start evidence changed')
                 flow.phase("prepare_grippers", "carton_gripper_phase.py", "prepare",
-                           "--state", out/"high/result.json", "--execute",
-                           "--output", out/"prepare-grippers")
+                           "--state", high_evidence_path if open_before_high else out/"high/result.json", "--execute",
+                           "--output", out/"prepare-grippers", *(['--current-planned-start'] if open_before_high else []))
                 prepared = read_json(out/"prepare-grippers/result.json")
                 if not prepared.get("success") or prepared.get("phase") != "ACTIVE_OPEN_HELD":
                     raise ValueError("Active open grippers unconfirmed at high pose; no entry")

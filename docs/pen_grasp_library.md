@@ -41,11 +41,14 @@ der lokale Quellstand allein aktualisiert keinen laufenden Greiferdienst.
 ## Wahrnehmung
 
 USB-OAK-D Pro AF `18443010314F3B1300`, Fokus112, native4056×3040; die
-Ethernet-OAK4 ist ein anderes Gerät. Die vorhandene separate USB-Kamerareferenz
-zum rechten Tischboard wird mit ihren fokusgebundenen Intrinsics verwendet.
-Sie gilt12Stunden ab ihrer Aufnahme. Bei verstellter Kamera oder Referenzboard
-zuerst **OAK camera calibration** ausführen. Keine globale Kalibrierung wird
-beim Stiftstart geschrieben.
+Ethernet-OAK4 ist ein anderes Gerät. Die fokusgebundenen Intrinsics und die
+bestehende zwölfstündige USB-Kamerasitzung werden übernommen. Für die
+Stiftpose wird seit25.11. **das linke Tischboard im aktuellen Stiftbild**
+als lokaler Bezug verwendet: mindestens12 Marker und Prüf-RMS<2px. Der
+Nutzer bestätigt dieses Board als unverändert seit der Basiszuordnung.
+Die linke Referenz wird pro Lauf mit Bild-/Quellhash gespeichert; fehlt ihr
+Nachweis, erfolgt kein stiller Rückfall auf den widersprüchlichen rechten
+Bezug. Keine globale Kalibrierung oder Basisbindung wird dabei geschrieben.
 
 Marker97 liegt oben,96 auf der Seite senkrecht zu den Greifflächen. Beide sind
 `DICT_4X4_100`,30mm einschließlich schwarzem Rand.97 gehört hier zum Stift,
@@ -159,6 +162,7 @@ dies für künftige Läufe. Die Zelle ist auf ausdrücklichen Auftrag pausiert.
 Eine kürzere vollständig geprüfte symmetrische Orientierung ist offline
 nachgewiesen. Der Bezug zum rechten Tisch widerspricht im Einfahrbild dem
 linken Board um rund40mm seitlich. Ein aktueller lokaler linker Boardfit ist
-als optionaler Compilerpfad vorbereitet; **die aktive Programmdefinition
-ist dafür noch nicht umgestellt**. Zuerst die unveränderte physische Lage
-des linken Boards klären. [Diagnose und Einschränkungen](../work/pen-grasp-offset-20261125.md).
+vorbereitet und nach Nutzerbestätigung des unbewegten/unveränderten linken
+Boards in der aktiven Programmdefinition eingeschaltet. Ein neuer realer
+Versuch benötigt aktuelle Eingaben und Reviews.
+[Diagnose und Einschränkungen](../work/pen-grasp-offset-20261125.md).

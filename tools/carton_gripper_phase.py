@@ -103,6 +103,8 @@ def main():
     ap.add_argument('--start-ros-programs',action='store_true',help='Explicit unloaded regular program startup after graph creation, before close; no native safety acknowledgement')
     ap.add_argument('--review-id', help='N100 contact review for the supported carton pilot')
     ap.add_argument('--review-image-sha256', help='Digest of the actual post-entry image in that review')
+    ap.add_argument('--current-planned-start',action='store_true',
+                    help='Prepare open grippers at the explicitly reviewed open-jaw high-approach start')
     args=ap.parse_args()
     if bool(args.review_id) != bool(args.review_image_sha256) or (args.review_id and (args.phase != 'close' or not args.execute)):
         ap.error('A contact review and its image are used together for executed closing only')
@@ -111,9 +113,15 @@ def main():
     state=json.loads(state_bytes);wanted='AT_HIGH_PREGRASP_HELD_NO_CONTACT' if args.phase=='prepare' else 'BOTH_OPEN_AT_WALL_HELD_NO_CLOSE'
     if args.phase=='close' and args.execute and state.get('review_id') and not args.review_id:
         ap.error('A reviewed entry needs the matching contact review')
-    if not state.get('success') or state.get('phase')!=wanted:raise ValueError('Confirmed '+wanted+' result required')
-    if args.phase in ('close','release') and args.execute and not args.visual_confirmed:ap.error('Inspect actual entry/support before using --visual-confirmed')
     from uwa_cell_motion.protection_backend import minimal_enabled
+    if args.current_planned_start:
+        if not (minimal_enabled() and args.execute and args.phase=='prepare'
+                and state.get('artifact_type')=='offline_hardware_pregrasp_evidence'
+                and state.get('status')=='GEOMETRIC_PATH_FOUND' and state.get('saved_start_valid')
+                and state.get('open_right_grippers_required')):
+            raise ValueError('Reviewed open-jaw high-approach evidence required for current-start preparation')
+    elif not state.get('success') or state.get('phase')!=wanted:raise ValueError('Confirmed '+wanted+' result required')
+    if args.phase in ('close','release') and args.execute and not args.visual_confirmed:ap.error('Inspect actual entry/support before using --visual-confirmed')
     if minimal_enabled():
         from uwa_cell_tasks.minimal_gripper_phase import run
         return run(args,state_bytes,state)

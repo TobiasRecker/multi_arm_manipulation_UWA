@@ -121,6 +121,46 @@ def canonical_base(description):
     return ET.canonicalize(ET.tostring(root, encoding='unicode'), strip_text=True)
 
 
+class OpenCartonCollision:
+    """Task-only open-jaw carton check plus the unchanged full-opening cell."""
+    def __init__(self, primary, carton):
+        self.primary, self.carton = primary, carton
+        self.bounds = primary.bounds
+
+    def check(self, positions, contacts=False):
+        first = self.primary.check(positions, contacts=contacts)
+        return first if not first[0] else self.carton.check(positions, contacts=contacts)
+
+
+def open_carton_collision(problem, frozen, directory):
+    """Change only the right tool's task-object representation, with no ACM exemptions."""
+    from copy import deepcopy
+    from urllib.parse import unquote, urlparse
+    from uwa_cell_calibration.model import CollisionModel
+    root, original = ET.fromstring(frozen), ET.fromstring(problem.original_description)
+    hashes = {}
+    for link in root.findall('link'):
+        if not any(link.get('name','').startswith(a+'_robotiq_85_') for a in ('right_front','right_rear')):
+            continue
+        source = original.find("link[@name='%s']" % link.get('name'))
+        for collision in list(link.findall('collision')):
+            link.remove(collision)
+        for collision in source.findall('collision'):
+            link.append(deepcopy(collision))
+            for mesh in collision.findall('.//mesh'):
+                uri = urlparse(mesh.get('filename'))
+                if uri.scheme != 'file':
+                    raise ValueError('Expected local hardware gripper mesh')
+                path = Path(unquote(uri.path)).resolve(strict=True)
+                hashes[str(path)] = hashlib.sha256(path.read_bytes()).hexdigest()
+    auxiliary = CollisionModel(ET.tostring(root,encoding='unicode'),directory)
+    # Exactly the original mechanical exclusions; every robot/carton pair remains checked.
+    for item in ET.parse(problem.directory/'moveit/robot.srdf').findall('disable_collisions'):
+        auxiliary.scene.allowed_collision_matrix.set_entry(item.get('link1'),item.get('link2'),True)
+    primary = getattr(problem,'base_collision',problem.collision)
+    return OpenCartonCollision(primary,auxiliary), hashes
+
+
 def checked_problem(directory, evidence_directory, inventory, *, command_velocity=.1):
     from uwa_cell_calibration.model import CollisionModel
     from uwa_cell_control.parallel_scan import collision_signature
@@ -166,9 +206,14 @@ def checked_problem(directory, evidence_directory, inventory, *, command_velocit
     # add NO touch exemptions between carton and tools/robots.
     base_srdf = ET.fromstring((Path(directory)/'moveit/robot.srdf').read_text())
     problem.base_collision = problem.collision
-    problem.collision = CollisionModel(frozen, Path(directory)/'carton-moveit')
-    for entry in base_srdf.findall('disable_collisions'):
-        problem.collision.scene.allowed_collision_matrix.set_entry(entry.get('link1'), entry.get('link2'), True)
+    if evidence.get('open_right_grippers_required'):
+        problem.collision, hashes = open_carton_collision(problem,frozen,Path(directory)/'carton-moveit')
+        if hashes != evidence.get('open_gripper_mesh_sha256'):
+            raise ValueError('Open gripper task mesh changed')
+    else:
+        problem.collision = CollisionModel(frozen, Path(directory)/'carton-moveit')
+        for entry in base_srdf.findall('disable_collisions'):
+            problem.collision.scene.allowed_collision_matrix.set_entry(entry.get('link1'), entry.get('link2'), True)
     problem.supplemental_signature = evidence['model_signature']
     problem.pregrasp_evidence = evidence
     return problem

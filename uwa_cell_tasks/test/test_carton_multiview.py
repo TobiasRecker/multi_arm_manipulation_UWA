@@ -26,8 +26,8 @@ def test_cross_view_remeasurement_keeps_strict_fit_and_comparison(tmp_path, monk
     primary = tmp_path/'primary'
     secondary = tmp_path/'secondary'
     candidate = tmp_path/'candidate'
-    for directory, yaw in [(primary, 2.5), (secondary, 0.),
-                           (candidate, 1. if outcome == 'accepted' else 3.)]:
+    for directory, yaw in [(primary, 3.5), (secondary, 0.),
+                           (candidate, 1. if outcome == 'accepted' else 4.)]:
         directory.mkdir()
         (directory/'object-pose.json').write_text(json.dumps(dict(T_world_object_candidate=pose(yaw=yaw).tolist())))
         (directory/'registration.json').write_text(json.dumps(dict(success=True)))
@@ -64,10 +64,24 @@ def test_preferred_pose_is_unchanged_when_second_view_agrees_across_yaw_wrap():
     assert decision['weights']==[1.,0.]
 
 
-@pytest.mark.parametrize('second', [pose(.030001), pose(0, 2.), pose(.04), pose(0, 180)])
+@pytest.mark.parametrize('second', [pose(.030001), pose(0, 3.000001), pose(.04), pose(0, 180)])
 def test_disagreement_is_never_averaged_or_silently_downgraded(second):
     with pytest.raises(ValueError, match='disagree'):
         multi.select_pose([pose(), second])
+
+
+@pytest.mark.parametrize('yaw,accepted',[(2.31,True),(3.,True),(3.000001,False)])
+def test_three_degree_boundary_preserves_primary(yaw,accepted):
+    primary=pose(.12,5.)
+    secondary=pose(.12,5.+yaw)
+    if not accepted:
+        with pytest.raises(multi.PoseDisagreement,match='angle <=3 deg'):
+            multi.select_pose([primary,secondary])
+    else:
+        selected,decision=multi.select_pose([primary,secondary])
+        np.testing.assert_array_equal(selected,primary)
+        assert decision['angle_limit_deg']==3.
+        assert decision['weights']==[1.,0.]
 
 
 @pytest.mark.parametrize('yaw', [0., 37., 179.5, -179.5])

@@ -187,6 +187,10 @@ def stage(plan, output, target_root, target_workspace, description_share=None, d
     source["path"] = str(staging.resource(Path(source["path"]), source["sha256"]))
     evidence["mesh_sha256"] = {str(staging.resource(Path(path), digest)): digest
                                for path, digest in evidence["mesh_sha256"].items()}
+    if evidence.get('open_right_grippers_required'):
+        evidence['open_gripper_mesh_sha256'] = {
+            str(staging.resource(Path(path),digest)):digest
+            for path,digest in evidence['open_gripper_mesh_sha256'].items()}
 
     scene = read_json(source_recipe / SCENE.name)
     asset = Path(scene["asset_directory"])

@@ -19,7 +19,7 @@ vorhandenen Inlier-/Projektionskriterien, Tischauflage und mindestens zwei
 übereinstimmende Bildhypothesen. Gemini-Konfidenz ersetzt diese Nachweise
 nicht. Seit neuer Nutzerentscheidung24.11. gilt für den kamerübergreifenden
 Vergleich **Mittelpunktabweichung bis einschließlich30mm und Winkelabweichung
-unter2°**. Die strengeren Kriterien innerhalb einer Einzelbildregistrierung
+bis einschließlich3°**. Die strengeren Kriterien innerhalb einer Einzelbildregistrierung
 bleiben erhalten. Auf Nutzerkorrektur vom
 24.11. werden die aufrechten180°-Darstellungen vorher als gleichwertig
 zugeordnet. Die zweite Pose bleibt beim selben physischen Karton, ihr

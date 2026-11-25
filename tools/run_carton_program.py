@@ -276,6 +276,7 @@ def n100(script, *args):
 def n100_preflight(out, program, *, weigh=False):
     files = [
         CELL / "tools/run_carton_cycle.py",
+        CELL / "tools/carton_gripper_phase.py",
         CELL / "tools/register_carton_from_oak.py",
         CELL / "tools/carton_camera_session.py",
         CELL / "tools/start_carton_browser_programs.py",

@@ -84,11 +84,16 @@ Bei Fehlern in UR-Treibern auch den offiziellen Quellstand von Universal Robots 
 
 ## Kartongriff mit zweiter OAK-Perspektive, Nutzerauftrag 24.11.2026
 
+- Nutzerfreigabe25.11.: Für den kamerübergreifenden Kartonvergleich bis
+  einschließlich3° Winkelabweichung akzeptieren. Dies ersetzt die frühere
+  strikte2°-Grenze. OAK4-Pose als alleinige metrische Quelle,30mm Zentrum,
+ 180°-Symmetrie und Einzelbildkriterien weiterverwenden.
+
 - Neuere Nutzerentscheidung24.11.: OAK4 als bevorzugte metrische Quelle
   verwenden, keine Mittelung mit der USB-OAK. Bei zwei gültigen Posen die
   Zentren im gemeinsamen Zellframe vergleichen und Abweichungen bis
-  einschließlich30mm akzeptieren.180°-Symmetrie berücksichtigen; bisherige
-  Winkelgrenze<2° und Einzelbildkriterien erhalten. OAK4-Pose einschließlich
+  einschließlich30mm akzeptieren.180°-Symmetrie berücksichtigen; obige
+  Winkelgrenze bis3° und Einzelbildkriterien erhalten. OAK4-Pose einschließlich
   Armtransformationen unverändert an die Planung geben. Die Einschätzung,
   dass OAK4 genauer sei, ist eine Nutzerbewertung, kein neuer Messnachweis.
   Diese Entscheidung ersetzt die frühere gleichgewichtete Mittelung und
@@ -347,6 +352,12 @@ angezeigten Arme und die Revision gebunden.
   steht ganz oben in HANDOVER.md.
 
 ## Physisches Zeichenwerkzeug (2026-11-19)
+
+- Nutzer bestätigt25.11.: linkes festes Tischboard seit der übernommenen
+  Basiszuordnung weder bewegt noch verändert. Stiftaufnahme lokal auf dieses
+  Board beziehen; aktuelle linke Boardpose aus demselben nativen Stiftbild
+  bestimmen. Übernommene Basisanbindungen und gemeinsamen rechten Kamerabezug
+  anderer Programme dafür nicht umschreiben.
 
 - Nutzerhinweis und Offline-Nachweis25.11.: Bei der Stiftaufnahme die beiden
  180°-äquivalenten Greiforientierungen vor der Auswahl vergleichen. Nicht die

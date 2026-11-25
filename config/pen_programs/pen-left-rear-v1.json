@@ -4,6 +4,8 @@
   "task": "pen_holder_grasp",
   "arm": "left_rear",
   "camera_config": "setup/skill_library/carton-usb.json",
+  "reference_board": "left",
+  "reference_provenance": "User confirmed 25 November 2026: the adopted left table board has not been moved or modified; measure its pose in the current native pen image.",
   "dictionary": "DICT_4X4_100",
   "top_marker_id": 97,
   "side_marker_id": 96,

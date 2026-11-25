@@ -145,6 +145,13 @@ def prepare(args):
         start.update(zip(names[:6], q)); start.update({j: 0. for j in names[6:]})
     goal_frames = {a:targets(problem.original_description,source_plan['candidate']['contacts'],t,args.pregrasp_m)[a]
                    for a,t in object_frames.items()}
+    open_meshes = None
+    if not problem.check(dict(start=start,joint_names=[]),[]):
+        from uwa_cell_tasks.hardware_carton_approach import open_carton_collision
+        candidate, hashes = open_carton_collision(problem,problem.description,out/'open-carton-moveit')
+        if candidate.check(start)[0]:
+            problem.collision = candidate
+            open_meshes = hashes
     selected=tuple(args.arm) if args.arm else MEMBERS
     goals = {}
     for arm in selected:
@@ -235,6 +242,8 @@ def prepare(args):
         status='GEOMETRIC_PATH_FOUND' if path is not None else 'NO_CHECKED_PATH_FOUND',
         saved_start_valid=start_valid, saved_start=start, selected=list(selected),world_object_candidate=T.tolist(),
         goals=goal_frames, attempts=attempts,
+        open_right_grippers_required=open_meshes is not None,
+        open_gripper_mesh_sha256=open_meshes,
         path=None if path is None else dict(kind=kind, joint_names=normalized['joint_names'], waypoints=path),
         model_signature=problem.signature, mesh_sha256=problem.spheres.geometry.assets,
         thresholds=problem.thresholds(), configuration=cfg,

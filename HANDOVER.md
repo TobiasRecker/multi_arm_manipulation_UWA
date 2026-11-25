@@ -1,5 +1,14 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Kamerübergreifende Winkelgrenze3° genehmigt,25.11.2026
+
+Nutzer bestätigt ausdrücklich3° als ausreichend. `carton_multiview.py`
+akzeptiert nun bis einschließlich3° (nur numerische Rundung an der Grenze),
+bei weiterhin30mm Zentrum, unveränderter OAK4-Pose als alleiniger metrischer
+Quelle und gleicher180°-Symmetrie. Einzelbildkriterien unverändert.
+Keine Änderung am N100-Schutzprogramm, Controllern oder Geschwindigkeit.
+Neue aktuelle Planung/Library-Fortsetzung und Prüfnachweis folgen.
+
 ## Stiftfahrt: seitlicher Fehlgriff und Symmetrie,25.11.2026
 
 Nutzer meldet nach Lauf `a49718ebcac64a849d218afb8c618704` mehrere Zentimeter
@@ -24,17 +33,29 @@ Markern/0,403px Prüf-RMS ergibt für den Stift ungefähr40mm seitliche
 Änderung bei1,4mm Höhe. Ähnlicher Befund bereits im Bild vom24.11.
 Modellinterne Ist-Tool0-Abweichung zur angefahrenen Sollpose nur0,048mm;
 dies ist keine absolute externe Genauigkeitsmessung. Übernommene Basen
-unverändert. Nutzer nach unverändertem linkem Board gefragt, Antwort offen.
+unverändert. Nutzer bestätigt anschließend ausdrücklich: linkes Board weder
+bewegt noch verändert; Fortsetzung beauftragt.
 
-Optionalen aktuellen linken Boardfit im Stiftcompiler vorbereitet; aktive
-Programmdefinition verwendet ihn noch nicht. Entwurf mit demselben alten
+Aktuellen linken Boardfit im Stiftcompiler vorbereitet und nach dieser
+Bestätigung in der Programmdefinition mit `reference_board=left` aktiviert.
+Entwurf mit demselben alten
 Start vollständig offline geprüft:20,155s, q6−12,512°, Zieländerung
-[−40,118,−4,348,+3,187]mm. Keine Ausführung dieses Entwurfs. Erst Boardbezug
-klären, danach neue Eingaben/Planung und normale Reviews. Aufgabenlogik
+[−40,118,−4,348,+3,187]mm. Keine Ausführung dieses archivierten Entwurfs.
+Neue Eingaben/Planung vom tatsächlichen Zustand und normale Reviews folgen.
+Aufgabenlogik
 beendet leeres Schließen jetzt vor dem Hub mit `NO_OBJECT_CONTACT`, ohne
 zusätzliche Abfragen, Wächter oder gemeinsame Stopps.23 gezielte Tests
 bestanden. Keine Änderung am Sicherheitsprogramm. Einzelheiten/Artefakte:
 [Stift-Fehlgriff](work/pen-grasp-offset-20261125.md).
+
+Aktueller korrigierter Lauf `52befffcfa974f6390b4658d081ae7d4` gestartet
+25.11.,16:23:41AWST nach Ende des belegenden Kartonlaufs. Neue Aufnahme/
+Gelenke, linker Boardfit17Marker/0,7198px Prüf-RMS, Penfit1,5929px.
+Vollständiger Plan18,3676s, q6-Anfahrt−7,029°, unveränderte0,1rad/s und
+0,2rad/s²; aktueller Ausführungshelfer mit leerem-Griff-Abbruch SHA-gebunden.
+Review `b0d81aa4580b48b0b8cc4a38e6e1ce1a` wartet auf Bedienung.
+Nutzer um Anfahrt-/Einfahrtfreigabe und RESUME gebeten, Kontakt danach erst
+anhand des neuen tatsächlichen Einfahrbildes. Kein zweiter Stiftlauf starten.
 
 ## N100 wieder erreichbar; Wiegeerweiterung installiert,25.11.,15:05–15:25AWST
 
