@@ -111,3 +111,37 @@ def test_catalog_exposes_weighing_step_when_configured(tmp_path,monkeypatch):
     assert carton['stages'][-1]['id']=='weigh'
     assert '20mm higher' in carton['description']
     assert not carton['live_available']
+
+
+@pytest.mark.parametrize('open_at_start',[False,True])
+def test_approach_prepares_open_fingers_at_the_reviewed_required_boundary(tmp_path,monkeypatch,open_at_start):
+    import time
+    run=tmp_path/'cycle';run.mkdir();high=tmp_path/'prepared/high-plan';high.mkdir(parents=True)
+    (high/'evidence.json').write_text(json.dumps(dict(open_right_grippers_required=open_at_start)))
+    runners=[('high','high.py','--evidence',high),('entry','entry.py','--plan',tmp_path/'entry.json')]
+    paths=[tmp_path/'review-high.json',tmp_path/'review-entry.json'];events=[];packets=[]
+    class Flow:
+        out=run
+        report={}
+        def save(self):pass
+        @contextmanager
+        def approval(self,store,meta,preview):packets.append(meta);yield 'review'
+        def phase(self,name,tool,*args):
+            events.append((name,list(args)))
+            if '--output' in args:
+                directory=Path(args[args.index('--output')+1]);directory.mkdir(parents=True,exist_ok=True)
+                phase='ACTIVE_OPEN_HELD' if name=='prepare_grippers' else 'DONE'
+                (directory/'result.json').write_text(json.dumps(dict(success=True,phase=phase)))
+    store=SimpleNamespace(status=lambda:dict(area_released=True,area_released_at=time.time()-10,session_id='area',settings=dict(speed_percent=100/3)),check_active=lambda *args:None)
+    monkeypatch.setattr(cycle,'current_capture',lambda *args:(None,None,{}))
+    monkeypatch.setattr(cycle,'staged_approach',lambda *args:(runners,paths))
+    monkeypatch.setattr(cycle,'requested_program_starts',lambda *args:[])
+    monkeypatch.setattr(cycle,'motion_packet',lambda *args:(dict(components=['high-hash','entry-hash'],reason='fixture',stage='motion'),{}))
+    args=SimpleNamespace(image=None,metadata=None,prepared_approach=tmp_path/'prepared',start_ros_programs=False,risk='high',reason='approved fixture')
+    cycle.approach(Flow(),args,store)
+    order=[name for name,_ in events]
+    assert order==(['prepare_grippers','high','entry'] if open_at_start else ['high','prepare_grippers','entry'])
+    preparation=next(values for name,values in events if name=='prepare_grippers')
+    assert ('--current-planned-start' in preparation) is open_at_start
+    assert preparation[preparation.index('--state')+1]==(high/'evidence.json' if open_at_start else run/'high/result.json')
+    assert packets[0]['gripper_preparation']['before']==('high' if open_at_start else 'entry')

@@ -1,5 +1,11 @@
 # UWA four-arm laboratory cell
 
+The [wood frame assembly demo](docs/wood_frame_demo.md) reuses the two-arm
+rigid carry and axial tool paths for a crossbar and four fastening sites.
+The Browser replay includes synthetic camera registration and all three
+active arms. A separate Gazebo runner plays the checked motion with contact
+physics and an idealized assembly joint.
+
 The [carton weighing extension](docs/carton_weighing.md) stores unloaded wrist
 forces and plans a joint20mm lift. It is installed and file-checked on the N100. The first real weighing run
 is in progress after fixing the gripper parameter readback.

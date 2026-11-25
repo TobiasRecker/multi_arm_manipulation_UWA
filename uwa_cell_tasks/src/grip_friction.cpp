@@ -24,11 +24,12 @@ public:
   {
     model_ = model;
     coefficient_ = sdf->Get<double>("coefficient");
+    object_model_ = sdf->Get<std::string>("object_model", "uwa_grasp_carton").first;
     connection_ = events.Connect<Contact>(
       [this](const Entity & first, const Entity & second, const auto &, const auto &,
              const auto &, const auto &, size_t, auto & surface) {
-        if ((pads_.count(first) && carton_collisions_.count(second)) ||
-            (pads_.count(second) && carton_collisions_.count(first))) {
+        if ((pads_.count(first) && object_collisions_.count(second)) ||
+            (pads_.count(second) && object_collisions_.count(first))) {
           surface.frictionCoeff = coefficient_;
           surface.secondaryFrictionCoeff = coefficient_;
         }
@@ -38,18 +39,18 @@ public:
   void PreUpdate(const gz::sim::UpdateInfo &, gz::sim::EntityComponentManager & ecm) override
   {
     namespace c = gz::sim::components;
-    if (pads_.size() == 4 && !carton_collisions_.empty() && ecm.HasEntity(carton_))
+    if (pads_.size() == 4 && !object_collisions_.empty() && ecm.HasEntity(object_))
       return;
-    const auto carton = ecm.EntityByComponents(c::Model(), c::Name("uwa_grasp_carton"));
-    if (carton != carton_) {
-      carton_ = carton;
-      carton_collisions_.clear();
+    const auto object = ecm.EntityByComponents(c::Model(), c::Name(object_model_));
+    if (object != object_) {
+      object_ = object;
+      object_collisions_.clear();
     }
     ecm.Each<c::Collision, c::Name>(
       [&](const Entity & collision, const c::Collision *, const c::Name * name) {
         const auto parent_model = ecm.ParentEntity(ecm.ParentEntity(collision));
-        if (parent_model == carton_ && carton_ != gz::sim::kNullEntity)
-          carton_collisions_.insert(collision);
+        if (parent_model == object_ && object_ != gz::sim::kNullEntity)
+          object_collisions_.insert(collision);
         if (parent_model != model_ || !IsGripPad(name->Data()))
           return true;
         if (pads_.insert(collision).second)
@@ -68,10 +69,11 @@ private:
   }
 
   double coefficient_{};
+  std::string object_model_;
   Entity model_{gz::sim::kNullEntity};
-  Entity carton_{gz::sim::kNullEntity};
+  Entity object_{gz::sim::kNullEntity};
   std::unordered_set<Entity> pads_;
-  std::unordered_set<Entity> carton_collisions_;
+  std::unordered_set<Entity> object_collisions_;
   gz::common::ConnectionPtr connection_;
 };
 }  // namespace uwa_cell_tasks

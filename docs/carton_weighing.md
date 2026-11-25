@@ -16,6 +16,10 @@ anschließend genehmigtes Resume mit vier bestätigten Controllern.
 
 1. Beide Kamerareferenzen und eine aktuelle Kartonpose verwenden. Anfahrt,
    Einfahrt und gemeinsamer20-mm-Hub werden vollständig vor der Anfahrt geprüft.
+   Beginnt der Lauf bereits unten mit offenen Greifern am Karton, bindet
+   der Review deren reguläre Aktivierung/Öffnung vor der hohen Anfahrt. Der
+   Karton wird dann mit offener rechter Fingergeometrie geprüft, gemeinsam
+   mit dem unveränderten vollen Öffnungsmodell für Zelle/Arme/Tische.
 2. Die Variante `carton-supported-weigh-v1` greift20mm höher als der bisherige
    unterstützte Griff. Grund: Beim bisherigen Griff meldet das konservative
    Aufgabenmodell zuerst Kontakt mit inneren Greifergelenken. In der höheren

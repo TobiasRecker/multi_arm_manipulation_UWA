@@ -1,5 +1,58 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Holzrahmen in Browser und Gazebo, 25.11.2026
+
+Zwei rechte URs tragen den Querbalken gemeinsam. Links hinten fährt parallel
+zur Vorposition und setzt je zwei axiale Werkzeugzyklen an beiden Pfosten.
+Links vorne bleibt geparkt. Die simulierte Vorrichtung verwendet 340 mm
+Pfostenabstand, um beide Schraubzugänge mit der 40-mm-Nachbararmmarge zu
+erreichen. Bedienung und Rezept in [Holzrahmen-Demo](docs/wood_frame_demo.md).
+
+Browser-Nominalfall und 5°-Variante aus markerlosen synthetischen Bildern
+bestanden. OAK Pro lieferte den Fit bei teilweiser Verdeckung der ersten
+Ansicht. 26 Phasen, 48,49/49,10 s Modellzeit, jeweils 3,57 s gemeinsame
+Aktivbewegung der drei Arme. Nachweise mit Sechs-Paar-FCL, Bild-Overlay und
+Chromewiedergabe vorhanden. Bei vollständiger Verdeckung ergab die lokale
+Messung keine Pose. Gemini 4 Hydrogen Low bestätigte sie anhand eines
+synthetischen Bilds. Der Suchfenster-Nachmesspfad ist zusätzlich mit einer
+lokalen Modellantwort geprüft.
+
+Gazebo-Kontaktlauf `gazebo-contact-03` an die erste bestandene Browserbahn
+`browser-gazebo-reference` gebunden. Alle vier Pads bestätigten Aufnahme,
+26 Phasen vollständig, vier virtuelle Schrauben, ideales Gazebo-Festgelenk
+bestätigt. Balkenpose nach Öffnen und Rückzug unverändert, 0,83 mm und
+0,39° vom Soll. 68,66 s Simulationszeit. 500 kg/m³ Modelldichte und 1,0
+Padreibung sind Simulationsannahmen. Ergebnisse und lokales Gazebo-Overlay
+unter `setup/tasks/wood_frame_20261125/`. Quellstand der aktiven N100- und
+Simulationsdienste erhalten. Die reale Stufe wartet auf die Werkzeug- und
+Montagevermessung samt eigener Inbetriebnahmefreigabe.
+
+## Stiftfreigabe angekommen, Resume-Übergang korrigiert,25.11.2026
+
+Lauf `52befffcfa974f6390b4658d081ae7d4` scheiterte vor der ersten Bewegung
+mit `left_rear: trajectory rejected`; keine Einfahrt/Greiferbefehle.
+Bediener-Approved16:34:56 korrekt. Resume16:35:38,148; gemeinsame RUNNING-
+Antwort16:35:38,180 noch mit alter pausierter left_rear-Quittung/Faktor0.
+Alle Quittungen erst16:35:38,315 bestätigt; Reviewfehler unmittelbar danach.
+Starker Quell-/Zeitnachweis für Zielversand vor lokaler Resume-Zulassung;
+genauer lokaler Sperrwert beim Goalcallback nicht als Einzelprobe vorhanden.
+Aktuell RUNNING/NORMAL, keine gemeldete Kollision und alle Controller bestätigt.
+
+Nur Stift-Aufgabenhelfer/Runner korrigiert: vor nächstem Armkommando vorhandene
+Resume-Quittung derselben Generation und fertige Rampe links hinten anhand
+bereits abonnierter Daten abwarten. Kein zusätzlicher RPC/Wächter, kein
+automatisches Resume/Retry, keine Tempo- oder Schutzprogrammänderung. Zustand
+wird im Lauftext ausdrücklich angezeigt.29 gezielte Offline-Tests bestanden.
+Neuer normaler Library-Lauf mit frischen Eingaben:
+`060e937a67c346d2b04263e86998a365`, Start16:42:36AWST. Neue Reviews verfolgen;
+keinen zweiten Stiftlauf parallel starten. Details:
+[Resume-Zulassung](work/pen-resume-admission-20261125.md).
+
+Neuer Review `0d0d013960714d27b08f67239c3be286` für18,4067s wartet.
+Aktuellen Status erneut lesend bestätigt: RUNNING, left_rear gleiche
+Generation/confirmed=true/paused=false/Faktor1. Nur neue Anfahrt-/Einfahrt-
+Freigabe erforderlich; kein erneutes Resume angefordert. Kontakt erst
+nach neuem Einfahrfoto. Keine Bewegung dieses neuen Laufs bisher bestätigt.
 ## Kamerübergreifende Winkelgrenze3° genehmigt,25.11.2026
 
 Nutzer bestätigt ausdrücklich3° als ausreichend. `carton_multiview.py`
@@ -7,7 +60,50 @@ akzeptiert nun bis einschließlich3° (nur numerische Rundung an der Grenze),
 bei weiterhin30mm Zentrum, unveränderter OAK4-Pose als alleiniger metrischer
 Quelle und gleicher180°-Symmetrie. Einzelbildkriterien unverändert.
 Keine Änderung am N100-Schutzprogramm, Controllern oder Geschwindigkeit.
-Neue aktuelle Planung/Library-Fortsetzung und Prüfnachweis folgen.
+36 gezielte Prüfungen der3°-Grenze bestanden. Neuer Library-Lauf
+`1adaf627563c4e259db7f2352923bfb9` bestand den aktuellen Kameravergleich
+14,119mm/1,40528° mit unveränderter OAK4-Pose; keine Bewegung. Danach
+`NO_CHECKED_PATH_FOUND`, start_valid=false, keine Suchversuche. Exakte
+Offline-Diagnose: primäres volles Zellmodell frei; die zusätzliche statische
+Kartonhülle überschneidet die volle Öffnungshülle eines RF-Fingertips, obwohl
+beide rechten Greifer bestätigt offen sind. Kein Nachweis einer aktuellen
+realen Arm-/Tischkollision daraus ableiten.
+
+Aufgabenfix: Nur in diesem Startfall zusätzlich offene rechte Greifergeometrie
+gegen den Karton prüfen, UND das unveränderte primäre volle Öffnungsmodell
+gegen Zelle/Arme/Tische. Linke Greifer behalten auch im Zusatzmodell volle
+Hüllen. Keine Robot-/Kartonkontakt-Ausnahmen ergänzen. Neun Originalmeshes
+separat hashen/stagen/präzise auf N100 nachweisen. Review bindet vor der hohen
+Anfahrt reguläre Aktivierung/Öffnung an den aktuellen tischgestützten Start;
+falls diese Vorbereitung nicht bestätigt ist, keine Armfahrt. Alte Starts
+mit vollständig freier Öffnungshülle behalten ihre Vorbereitung nach high.
+Keine zusätzlichen Laufzeitwächter, kein Safety-Core-/Controllerupdate.
+
+Vollständige Folge mit den gespeicherten aktuellen Eingaben erfolgreich:
+`setup/tasks/carton-weigh-20261125/open-start-plan/`; high7,26076s,
+entry7,61427s, Hub1,15206s, beide Arme in jeder Phase gemeinsam. Alle
+unveränderten Geschwindigkeits-/Kollisionsgrenzen erhalten.113 gezielte
+Offline-Tests bestanden (einschließlich UND-Verknüpfung beider Kollisions-
+modelle, Erhalt fremder Körper, Meshbindung und richtiger Open-Befehlsfolge).
+Vier Taskdateien versionsgeprüft mit Sicherung auf N100 installiert,
+keine Dienste neu gestartet. N100-Dateiprüfung erfolgreich:60 gebundene
+Dateien/Ressourcen, offene Startkonfiguration im tatsächlichen Aufgabenlader
+frei, high und Hub jeweils eine gemeinsame RF/RR-Gruppe. Beleg
+`n100-resume/open-start-n100-check.log`. Keine Arm-/Greiferbefehle aus dieser
+Dateiprüfung.
+
+Der anschließende normale Startversuch wurde vom Library-Server ohne neuen
+Kartonlauf abgelehnt (`Another library run is already active`). Andere
+Aufgabe: `060e937a67c346d2b04263e86998a365`, Pick pen from holder,
+seit16:42:36AWST, Phase Motion Review vor der Fahrt. Nicht abgebrochen oder
+freigegeben. Nutzer nach Reihenfolge gefragt: Stift beenden und danach Karton,
+oder wartenden Stiftreview ausdrücklich ablehnen und Karton vorziehen.
+Kartonfortsetzung erst nach freier Library mit frischer Wahrnehmung/Snapshot.
+
+Die Zelle ist nach dem unabhängigen Stift-Fehlgriff wieder OPERATOR PAUSE.
+Die frühere Resume-Freigabe wurde bereits vor diesem erneuten Stopp verwendet;
+diesen neuen manuellen Stopp nicht eigenmächtig aufheben. Vor tatsächlicher
+Fortsetzung aktuelle Arbeitsfläche und ausdrückliches Resume/Review klären.
 
 ## Stiftfahrt: seitlicher Fehlgriff und Symmetrie,25.11.2026
 

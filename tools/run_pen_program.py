@@ -102,7 +102,13 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 /usr/bin/python3 -u "$1/execute_pen_gra
             cwd=WORKSPACE,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True) as child:
         for line in child.stdout:
             log.write(line);log.flush()
-            if line.startswith('WAITING_FOR_'):
+            if line.startswith('WAITING_CONTROLLER_RESUME'):
+                progress.update('pen_positioning' if phase=='approach' else 'pen_grasp_lift',
+                    'Waiting for the left-rear controller to confirm operator RESUME; no new motion review is required.')
+            elif line.startswith('CONTROLLER_RESUME_CONFIRMED'):
+                progress.update('pen_positioning' if phase=='approach' else 'pen_grasp_lift',
+                    'Controller resume confirmed. Executing the checked left-rear pen '+phase+'.')
+            elif line.startswith('WAITING_FOR_'):
                 progress.update('motion_review' if phase=='approach' else 'contact_review',
                     'Review this pen '+phase+' in UWA Robot Power. Left rear only.')
             elif line.startswith('REVIEW_ACCEPTED_'):

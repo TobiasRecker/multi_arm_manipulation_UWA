@@ -154,6 +154,8 @@ def test_reviewed_execution_order_and_failed_gripper_stops_sequence(tmp_path,mon
     monkeypatch.setattr(execute,'motion_context',lambda:__import__('contextlib').nullcontext())
     monkeypatch.setattr(execute,'HardwareProblem',lambda *a:SimpleNamespace(binding='binding',spheres=SimpleNamespace(geometry=SimpleNamespace(assets={})),cfg={}))
     client=Mock(owned=set());client.connect.side_effect=lambda:events.append('connect')
+    client.protection_status=dict(paused=False,generation=3,arms=dict(left_rear=dict(
+        confirmed=True,paused=False,generation=3,factor=1.)))
     monkeypatch.setattr(minimal_execution,'MinimalHardwareClient',lambda *a:client)
     store=Mock();store.status.return_value=dict(area_released=True,session_id='session',settings=dict(speed_percent=100/3))
     store.begin_component.side_effect=lambda *a:events.append('bound-dispatch')
@@ -302,3 +304,52 @@ def test_left_board_reference_uses_current_image_without_changing_right_session(
     cv2.imwrite(str(image),np.full((3040,4056),255,np.uint8))
     with pytest.raises(ValueError,match='checked left-table board fit'):
         compiler.camera_frame(xml,session,image,optics,dict(reference_board='left'),tmp_path)
+
+
+def test_pen_dispatch_waits_for_existing_resume_ack_and_ramp(monkeypatch):
+    import execute_pen_grasp as execute
+    from types import SimpleNamespace
+    monkeypatch.setattr(execute,'minimal_enabled',lambda:True)
+    def status(generation,confirmed,paused,factor):
+        return dict(paused=False,generation=10,arms=dict(left_rear=dict(
+            generation=generation,confirmed=confirmed,paused=paused,factor=factor)))
+    client=SimpleNamespace(protection_status=status(9,False,True,0.))
+    updates=iter([status(10,True,False,.5),status(10,True,False,1.)])
+    spins=[]
+    def spin_once(timeout_sec):
+        spins.append(timeout_sec);client.protection_status=next(updates)
+    client.spin_once=spin_once
+    report={};save=Mock()
+    execute.await_pen_controller(client,report,save)
+    assert spins==[.05,.05] and save.call_count==1
+    assert report['controller_before_dispatch']['arm']['factor']==1.
+    assert report['controller_before_dispatch']['arm']['generation']==10
+    # Already enabled: no delay and no additional read/service/stop request.
+    execute.await_pen_controller(client,report,save)
+    assert spins==[.05,.05] and save.call_count==1
+
+
+@pytest.mark.parametrize('status',[None,{},dict(paused=True),
+    dict(paused=False,generation=1,arms={})])
+def test_pen_resume_admission_does_not_guess_missing_confirmation(status):
+    import execute_pen_grasp as execute
+    assert not execute.pen_controller_ready(status)
+
+
+def test_controller_resume_wait_is_not_presented_as_another_motion_review(tmp_path,monkeypatch):
+    from unittest.mock import MagicMock
+    (tmp_path/'execution-helpers.json').write_text('{}')
+    process=MagicMock();process.__enter__.return_value=process
+    process.stdout=['WAITING_CONTROLLER_RESUME\n','CONTROLLER_RESUME_CONFIRMED\n'];process.wait.return_value=0
+    popen=Mock(return_value=process)
+    monkeypatch.setattr(runner.subprocess,'Popen',popen)
+    monkeypatch.setattr(runner,'n100',lambda *a:['fixture'])
+    def download(*args):
+        (tmp_path/'execution').mkdir()
+        (tmp_path/'execution/workflow.json').write_text('{"success":true}')
+    monkeypatch.setattr(runner,'download',download)
+    progress=Mock(output=tmp_path)
+    runner.remote_review(progress,'fixture','approach','s'*64)
+    assert [c.args[0] for c in progress.update.call_args_list]==['pen_positioning','pen_positioning']
+    assert 'no new motion review' in progress.update.call_args_list[0].args[1]
+    popen.assert_called_once()

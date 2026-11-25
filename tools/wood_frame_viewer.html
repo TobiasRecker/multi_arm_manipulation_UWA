@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UWA | Wood frame assembly</title>
+<style>
+:root { color-scheme: dark; --page: #0d141d; --panel: #172332; --line: #526782; --ink: #f5f8fd; --muted: #c4d2e5; --amber: #ffce81; --cyan: #92e2f2; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 16px/1.45 system-ui, sans-serif; }
+main { max-width: 1450px; margin: auto; padding: 24px; }
+header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 26px; margin-bottom: 18px; }
+h1, h2, p { margin: 0; }
+h1 { font-size: clamp(1.7rem, 3vw, 2.4rem); letter-spacing: -.025em; }
+h2 { font-size: 1rem; margin-bottom: 10px; }
+header p, .hint, .metric-key { color: var(--muted); }
+header strong { color: var(--amber); }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(250px, 320px); gap: 16px; }
+.panel { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.scene { overflow: hidden; }
+.view-wrap { position: relative; }
+canvas { display: block; width: 100%; height: clamp(360px, 58vh, 640px); background: #1a293a; touch-action: none; cursor: grab; }
+canvas:active { cursor: grabbing; }
+.view-controls { position: absolute; right: 10px; top: 10px; display: flex; flex-wrap: wrap; justify-content: end; gap: 5px; }
+button, select, textarea { font: inherit; color: var(--ink); background: #26394f; border: 1px solid #7c94b3; border-radius: 6px; }
+button { cursor: pointer; padding: 7px 11px; }
+button:hover, select:hover { background: #35506a; }
+button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible, canvas:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
+#play { background: var(--amber); color: #142030; border-color: var(--amber); font-weight: 700; min-width: 112px; }
+.controls { padding: 14px; display: grid; gap: 9px; }
+.transport { display: flex; flex-wrap: wrap; align-items: center; gap: 9px 14px; }
+select { padding: 6px; max-width: 100%; }
+#clock { margin-inline-start: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#progress { width: 100%; padding: 0; margin: 0; accent-color: var(--amber); }
+#stage { font-weight: 700; font-size: 1.05rem; }
+aside { display: grid; align-content: start; gap: 12px; }
+aside section { padding: 13px; }
+#result { color: var(--amber); border: 1px solid var(--amber); padding: 7px 10px; border-radius: 6px; font-weight: 700; }
+#result[data-ok="true"] { color: #b9f5d2; border-color: #79be9b; }
+#phaseJump { width: 100%; }
+#inspect { margin-top: 9px; }
+#roles, #screws { list-style: none; padding: 0; margin: 8px 0 0; }
+#roles li, #screws li { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.screw-status { margin-left: auto; color: var(--muted); font-size: .86rem; }
+.screw-status[data-active="true"] { color: var(--cyan); font-weight: 700; }
+.screw-status[data-installed="true"] { color: #b9f5d2; font-weight: 700; }
+details { margin-top: 14px; padding: 12px; }
+details:first-child { margin-top: 0; }
+summary { cursor: pointer; font-weight: 700; }
+#images { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+figure { margin: 10px 0 0; }
+figure:first-child:last-child { max-width: 550px; }
+img { width: 100%; display: block; border: 1px solid var(--line); border-radius: 6px; }
+figcaption { margin-top: 4px; }
+.metric { display: flex; gap: 12px; justify-content: space-between; margin-top: 8px; }
+.metric-value { text-align: right; overflow-wrap: anywhere; }
+#failure { margin-top: 8px; color: #ffcfbd; overflow-wrap: anywhere; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 820px) { main { padding: 12px; } .layout { grid-template-columns: 1fr; } aside { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); } }
+@media (max-width: 480px) { .view-controls button { padding: 5px 8px; } #clock { margin-inline-start: 0; } }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div><h1>Wood frame assembly</h1><p>UWA robot cell · Browser simulation</p></div>
+  <p><strong>Kinematic model</strong> · Simulated screws and grip</p>
+</header>
+<div class="layout">
+  <section class="panel scene" aria-label="Model playback">
+    <div class="view-wrap">
+      <canvas id="view" aria-label="Rotatable view of the four-arm cell and wood frame" tabindex="0"></canvas>
+      <div class="view-controls" aria-label="Camera views">
+        <button id="orbit" type="button">Orbit</button><button id="top" type="button">Top</button><button id="joint" type="button">Joints</button>
+      </div>
+    </div>
+    <div class="controls">
+      <div id="stage" aria-live="polite"></div>
+      <input id="progress" type="range" min="0" max="1000" value="0" aria-label="Model time">
+      <div class="transport">
+        <button id="play" type="button">Play model</button><button id="restart" type="button">Restart</button>
+        <label>Speed <select id="speed"><option value="1">1×</option><option value="3">3×</option><option value="10" selected>10×</option></select></label>
+        <output id="clock" aria-label="Model time in seconds"></output>
+      </div>
+      <p class="hint">Drag or use arrow keys to orbit. Scroll to zoom.</p>
+    </div>
+  </section>
+  <aside>
+    <section class="panel">
+      <h2>Model result</h2><div id="result"></div><p id="failure" hidden></p>
+      <ul id="roles" aria-label="Robot roles"></ul>
+    </section>
+    <section class="panel">
+      <h2><label for="phaseJump">Jump to phase</label></h2><select id="phaseJump"></select>
+      <button id="inspect" type="button" hidden>Inspect localization</button>
+    </section>
+    <section class="panel">
+      <h2 id="fasteners">Virtual screws</h2><ol id="screws" aria-labelledby="fasteners"></ol>
+    </section>
+    <section class="panel" id="metricsSection" hidden><h2>Offline checks</h2><div id="metrics"></div></section>
+  </aside>
+</div>
+<details class="panel" id="localization" hidden>
+  <summary>Pickup localization</summary><p id="cameraNote" class="hint"></p><div id="images"></div><div id="viewNotes" class="hint"></div>
+</details>
+<details class="panel" id="program" hidden><summary>Task program</summary><pre id="policy"></pre></details>
+</main>
+<script>
+const data = __DATA__;
+const element = id => document.getElementById(id);
+const canvas = element('view');
+const ctx = canvas.getContext('2d');
+const armLabels = {left_front: 'Left front', left_rear: 'Left rear', right_front: 'Right front', right_rear: 'Right rear'};
+const armColors = {left_front: '#8ee7f6', left_rear: '#b7c8d8', right_front: '#58afef', right_rear: '#b39cf9'};
+const woodColors = ['#aa7040', '#c38b53', '#9e6337', '#be8050', '#6c452e', '#f4ca8a'];
+const tableColors = ['#3e5367', '#435c72', '#3e5367', '#435c72', '#35495b', '#63839c'];
+const faces = [[0, 1, 3, 2], [4, 6, 7, 5], [0, 4, 5, 1], [2, 3, 7, 6], [0, 2, 6, 4], [1, 5, 7, 3]];
+const cleanLabel = text => text.replaceAll('_', ' ').replace(/^./, s => s.toUpperCase());
+const phaseById = new Map(data.phases.map(phase => [phase.id, phase]));
+const screwRows = new Map();
+let yaw = -.72, pitch = .57, zoom = 1.1, viewCenter = data.view_center_m;
+let modelTime = 0, playing = false, lastTick = null, drag = null;
+let scale = 1, ratio = 1;
+
+const result = element('result');
+result.textContent = data.result_label;
+result.dataset.ok = String(data.complete);
+if (data.failure) {
+  element('failure').hidden = false;
+  element('failure').textContent = data.failure;
+}
+for (const arm of Object.keys(armLabels)) {
+  const li = document.createElement('li');
+  const dot = document.createElement('span');
+  dot.className = 'legend-dot';
+  dot.style.background = armColors[arm];
+  const role = data.holders.includes(arm) ? 'hold' : data.worker === arm ? 'fasten' : 'parked';
+  li.append(dot, `${armLabels[arm]} · ${role}`);
+  element('roles').append(li);
+}
+for (const phase of data.phases) {
+  const option = document.createElement('option');
+  option.value = phase.id;
+  option.textContent = phase.label;
+  element('phaseJump').append(option);
+}
+for (const screw of data.screws) {
+  const li = document.createElement('li');
+  const state = document.createElement('span');
+  state.className = 'screw-status';
+  li.append(screw.label, state);
+  screwRows.set(screw.id, state);
+  element('screws').append(li);
+}
+for (const [key, value] of data.metrics) {
+  const row = document.createElement('div');
+  const label = document.createElement('span');
+  const metric = document.createElement('span');
+  row.className = 'metric';
+  label.className = 'metric-key';
+  metric.className = 'metric-value';
+  label.textContent = key;
+  metric.textContent = value;
+  row.append(label, metric);
+  element('metrics').append(row);
+  element('metricsSection').hidden = false;
+}
+if (data.localization) {
+  const details = element('localization');
+  details.hidden = false;
+  const inspect = element('inspect');
+  inspect.hidden = false;
+  inspect.onclick = () => {
+    details.open = true;
+    details.scrollIntoView({block: 'start'});
+    details.querySelector('summary').focus({preventScroll: true});
+  };
+  element('cameraNote').textContent = data.localization.description;
+  for (const note of data.localization.notes) {
+    const p = document.createElement('p');
+    p.textContent = note;
+    element('viewNotes').append(p);
+  }
+  for (const image of data.localization.images) {
+    const figure = document.createElement('figure');
+    const img = document.createElement('img');
+    const caption = document.createElement('figcaption');
+    img.src = image.src;
+    img.alt = image.label;
+    caption.textContent = image.label;
+    figure.append(img, caption);
+    element('images').append(figure);
+  }
+}
+if (data.policy) {
+  element('program').hidden = false;
+  element('policy').textContent = data.policy;
+}
+
+function frameAt(time) {
+  let low = 0, high = data.frames.length;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    if (data.frames[mid].time_s <= time + 1e-8) low = mid + 1;
+    else high = mid;
+  }
+  return data.frames[Math.max(0, low - 1)];
+}
+function project(point) {
+  const [x, y, z] = point.map((value, index) => value - viewCenter[index]);
+  const horizontal = x * Math.cos(yaw) - y * Math.sin(yaw);
+  const depth = x * Math.sin(yaw) + y * Math.cos(yaw);
+  return [canvas.width / 2 + scale * horizontal,
+          canvas.height / 2 - scale * (z * Math.cos(pitch) - depth * Math.sin(pitch)),
+          z * Math.sin(pitch) + depth * Math.cos(pitch)];
+}
+function line(start, end, color, width = 1) {
+  ctx.beginPath();
+  ctx.moveTo(...start.slice(0, 2));
+  ctx.lineTo(...end.slice(0, 2));
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width * ratio;
+  ctx.stroke();
+}
+function corners(size, pose) {
+  return Array.from({length: 8}, (_, i) => {
+    const local = size.map((value, axis) => (i & (4 >> axis) ? .5 : -.5) * value);
+    return pose.slice(0, 3).map(row => row[3] + local.reduce((sum, value, axis) => sum + row[axis] * value, 0));
+  });
+}
+function addBox(shapes, vertices, colors, outline) {
+  const projected = vertices.map(project);
+  for (const [index, face] of faces.entries()) {
+    const points = face.map(i => projected[i]);
+    shapes.push({kind: 'face', points, depth: points.reduce((total, point) => total + point[2], 0) / 4,
+                 color: colors[index], outline});
+  }
+}
+function dot(point, radius, color, outline = '#152333') {
+  ctx.beginPath();
+  ctx.arc(point[0], point[1], Math.max(1, radius), 0, 2 * Math.PI);
+  ctx.fillStyle = color;
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = .8 * ratio;
+  ctx.fill();
+  ctx.stroke();
+}
+function drawShapes(shapes) {
+  shapes.sort((a, b) => a.depth - b.depth);
+  for (const shape of shapes) {
+    if (shape.kind === 'sphere') dot(shape.point, shape.radius, shape.color);
+    else if (shape.kind === 'tool') {
+      const width = Math.max(2, 2 * shape.radius * scale / ratio);
+      line(shape.start, shape.end, shape.color, width);
+      if (shape.tip) dot(shape.end, 2.8 * ratio, '#ffffff');
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(...shape.points[0].slice(0, 2));
+      for (const point of shape.points.slice(1)) ctx.lineTo(...point.slice(0, 2));
+      ctx.closePath();
+      ctx.fillStyle = shape.color;
+      ctx.strokeStyle = shape.outline;
+      ctx.lineWidth = .65 * ratio;
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+}
+function draw() {
+  ratio = window.devicePixelRatio || 1;
+  const width = Math.floor(canvas.clientWidth * ratio);
+  const height = Math.floor(canvas.clientHeight * ratio);
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+  scale = Math.min(width, height) / 2.65 * zoom;
+  ctx.clearRect(0, 0, width, height);
+  for (let grid = -1.6; grid <= 1.61; grid += .2) {
+    line(project([grid, -1.6, 0]), project([grid, 1.6, 0]), '#3d526b');
+    line(project([-1.6, grid, 0]), project([1.6, grid, 0]), '#3d526b');
+  }
+  const frame = frameAt(modelTime);
+  const tables = [];
+  for (const vertices of data.tables) addBox(tables, vertices, tableColors, '#202f40');
+  drawShapes(tables);
+  const shapes = [];
+  for (const upright of data.uprights) addBox(shapes, corners(upright.size_m, upright.pose), woodColors, '#5d3824');
+  if (frame.pose) addBox(shapes, corners(data.crossbar_size_m, frame.pose), woodColors, '#513623');
+  for (const [arm, points] of Object.entries(frame.world)) {
+    points.forEach((center, index) => {
+      const point = project(center);
+      shapes.push({kind: 'sphere', point, depth: point[2], radius: data.radii[arm][index] * scale,
+                   color: armColors[arm]});
+    });
+  }
+  if (frame.tool_tip && frame.tool_base) {
+    let shaftStart = project(frame.tool_base);
+    if (frame.tool_body.length === 2) {
+      const [start, end] = frame.tool_body.map(project);
+      shapes.push({kind: 'tool', start, end, depth: (start[2] + end[2]) / 2,
+                   radius: data.tool_radii_m.body, color: '#ebb45f'});
+      shaftStart = end;
+    }
+    const end = project(frame.tool_tip);
+    shapes.push({kind: 'tool', start: shaftStart, end, depth: (shaftStart[2] + end[2]) / 2,
+                 radius: data.tool_radii_m.shaft, color: '#e6edf6', tip: true});
+  }
+  drawShapes(shapes);
+  for (const screw of data.screws) {
+    const active = frame.screw === screw.id;
+    if (!active && !frame.fastened.includes(screw.id)) continue;
+    const color = active ? '#a4f3ff' : '#e9fcff';
+    const face = project(screw.entry_m);
+    const outside = project(screw.entry_m.map((v, i) => v - .02 * screw.direction[i]));
+    line(outside, face, color, 2);
+    dot(face, 3.5 * ratio, color, '#222a34');
+  }
+}
+function refresh() {
+  const frame = frameAt(modelTime);
+  const phase = phaseById.get(frame.phase);
+  const label = phase ? phase.label : cleanLabel(frame.phase);
+  const stage = `${modelTime >= data.duration_s && data.complete ? 'Complete' : playing ? 'Playing' : 'Paused'} · ${label}`;
+  if (element('stage').textContent !== stage) element('stage').textContent = stage;
+  element('phaseJump').value = frame.phase;
+  element('clock').textContent = `${modelTime.toFixed(1)} / ${data.duration_s.toFixed(1)} s model time`;
+  element('progress').value = data.duration_s ? modelTime / data.duration_s * 1000 : 0;
+  element('fasteners').textContent = `Virtual screws · ${frame.fastened.length}/${data.screws.length}`;
+  for (const [id, state] of screwRows) {
+    const installed = frame.fastened.includes(id);
+    const active = frame.screw === id;
+    state.dataset.installed = installed;
+    state.dataset.active = active;
+    state.textContent = installed ? 'Installed' : active ? 'In progress' : 'Pending';
+  }
+  draw();
+}
+function stop() {
+  playing = false;
+  lastTick = null;
+  element('play').textContent = 'Play model';
+}
+function seek(time) {
+  stop();
+  modelTime = time;
+  refresh();
+}
+function tick(now) {
+  if (!playing) return;
+  if (lastTick !== null) modelTime = Math.min(data.duration_s, modelTime + (now - lastTick) / 1000 * Number(element('speed').value));
+  lastTick = now;
+  if (modelTime >= data.duration_s) stop();
+  refresh();
+  if (playing) requestAnimationFrame(tick);
+}
+element('play').disabled = data.duration_s === 0;
+element('progress').disabled = data.duration_s === 0;
+element('play').onclick = () => {
+  if (playing) stop();
+  else {
+    if (modelTime >= data.duration_s) modelTime = 0;
+    element('play').textContent = 'Pause model';
+    playing = true;
+    requestAnimationFrame(tick);
+  }
+  refresh();
+};
+element('restart').onclick = () => seek(0);
+element('progress').oninput = event => seek(Number(event.target.value) * data.duration_s / 1000);
+element('phaseJump').onchange = event => seek(phaseById.get(event.target.value).start_s);
+function viewpoint(angle, elevation, magnification, center = data.view_center_m) {
+  yaw = angle; pitch = elevation; zoom = magnification; viewCenter = center; draw();
+}
+element('orbit').onclick = () => viewpoint(-.72, .57, 1.1);
+element('top').onclick = () => viewpoint(0, Math.PI / 2, 1.1);
+element('joint').onclick = () => viewpoint(data.joint_view_yaw_rad, .31, 2.75, data.joint_view_center_m);
+canvas.addEventListener('pointerdown', event => {
+  drag = [event.clientX, event.clientY];
+  canvas.setPointerCapture(event.pointerId);
+});
+for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(name, () => drag = null);
+canvas.addEventListener('pointermove', event => {
+  if (!drag) return;
+  yaw += (event.clientX - drag[0]) * .009;
+  pitch = Math.max(-.2, Math.min(Math.PI / 2, pitch + (event.clientY - drag[1]) * .009));
+  drag = [event.clientX, event.clientY];
+  draw();
+});
+canvas.addEventListener('wheel', event => {
+  event.preventDefault();
+  zoom = Math.max(.35, Math.min(4.5, zoom * Math.exp(-event.deltaY * .001)));
+  draw();
+}, {passive: false});
+canvas.addEventListener('keydown', event => {
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+  event.preventDefault();
+  if (event.key === 'ArrowLeft') yaw -= .12;
+  if (event.key === 'ArrowRight') yaw += .12;
+  if (event.key === 'ArrowUp') pitch = Math.min(Math.PI / 2, pitch + .12);
+  if (event.key === 'ArrowDown') pitch = Math.max(-.2, pitch - .12);
+  draw();
+});
+window.addEventListener('resize', draw);
+refresh();
+</script>
+</body>
+</html>

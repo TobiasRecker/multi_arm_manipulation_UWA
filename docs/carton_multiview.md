@@ -17,9 +17,9 @@ die bisherige Robotersteuerung.
 Eine gültige Einzelpose verlangt unverändert lokale Bildmerkmale, die
 vorhandenen Inlier-/Projektionskriterien, Tischauflage und mindestens zwei
 übereinstimmende Bildhypothesen. Gemini-Konfidenz ersetzt diese Nachweise
-nicht. Seit neuer Nutzerentscheidung24.11. gilt für den kamerübergreifenden
-Vergleich **Mittelpunktabweichung bis einschließlich30mm und Winkelabweichung
-bis einschließlich3°**. Die strengeren Kriterien innerhalb einer Einzelbildregistrierung
+nicht. Nutzerentscheidung24.11. zum Zentrum und Ergänzung25.11. zum Winkel:
+Der kamerübergreifende Vergleich erlaubt **Mittelpunktabweichung bis
+einschließlich30mm und Winkelabweichung bis einschließlich3°**. Die strengeren Kriterien innerhalb einer Einzelbildregistrierung
 bleiben erhalten. Auf Nutzerkorrektur vom
 24.11. werden die aufrechten180°-Darstellungen vorher als gleichwertig
 zugeordnet. Die zweite Pose bleibt beim selben physischen Karton, ihr

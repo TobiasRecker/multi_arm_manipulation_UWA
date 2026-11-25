@@ -38,6 +38,12 @@ Sollwerte und zuletzt gelesene Register; es werden dafür keine zusätzlichen
 Geräteabfragen eingeführt. Der Transport muss auf dem Steuerhost geladen sein;
 der lokale Quellstand allein aktualisiert keinen laufenden Greiferdienst.
 
+**Approved** gibt die geprüfte Aufgabe frei; ein bestehender Software-Stopp
+braucht zusätzlich das ausdrückliche **RESUME**. Vor einem neuen Armkommando
+wartet das Stiftprogramm die vorhandene Resume-Bestätigung und vollständige
+Freigaberampe links hinten ab. „Waiting for the left-rear controller to
+confirm operator RESUME“ bezeichnet diesen Übergang, keine neue Reviewfrage.
+
 ## Wahrnehmung
 
 USB-OAK-D Pro AF `18443010314F3B1300`, Fokus112, native4056×3040; die

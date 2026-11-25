@@ -103,6 +103,28 @@ def gripper_step(report,save,operation,command,**request):
     return result
 
 
+def pen_controller_ready(status):
+    """The existing controller admission conditions, for this task's next command."""
+    if not isinstance(status,dict) or status.get('paused') is not False:return False
+    arm=status.get('arms',{}).get(ARM,{})
+    return (arm.get('confirmed') is True and arm.get('paused') is False
+            and isinstance(status.get('generation'),int)
+            and arm.get('generation')==status['generation']
+            and isinstance(arm.get('factor'),(int,float)) and arm['factor']>=1.-1e-9)
+
+
+def await_pen_controller(client,report,save):
+    """Wait once at command handoff, using already subscribed status only."""
+    if not minimal_enabled():return
+    if not pen_controller_ready(client.protection_status):
+        report['phase']='WAITING_CONTROLLER_RESUME';save()
+        print('WAITING_CONTROLLER_RESUME',flush=True)
+        while not pen_controller_ready(client.protection_status):client.spin_once(timeout_sec=.05)
+        print('CONTROLLER_RESUME_CONFIRMED',flush=True)
+    report['controller_before_dispatch']=dict(generation=client.protection_status['generation'],
+        arm=dict(client.protection_status['arms'][ARM]))
+
+
 def run(args):
     require_domain('hardware')
     args.plans=args.plans.resolve();args.output=args.output.resolve()
@@ -153,6 +175,7 @@ def run(args):
                                 gripper_step(report,save,'activate',gripper.activate)
                                 gripper_step(report,save,'open',gripper.open,force_raw=0,speed_raw=16)
                             record=dict(phase=sequence['segments'][i]['phase'],success=False)
+                            await_pen_controller(client,report,save)
                             report['phase']=sequence['segments'][i]['phase'].upper()+'_RUNNING'
                             report['arm_commands'].append(record);save();follow_frozen(client,plan,record)
                             report['phase']=sequence['segments'][i]['phase'].upper()+'_COMPLETED';save()
@@ -181,12 +204,15 @@ def run(args):
                         report['phase']='NO_OBJECT_CONTACT';save()
                         raise RuntimeError('Pen grasp unconfirmed: close action reported no object contact; no lift sent')
                     record=dict(phase='lift',success=False);report['arm_commands'].append(record)
+                    await_pen_controller(client,report,save)
                     report['phase']='LIFT_RUNNING';save()
                     follow_frozen(client,plans[2],record)
                     report.update(phase='PEN_LIFT_COMPLETED',success=True,contact_review=identifier,
                         qualification='Close action and checked lift completed; holding force and pen-tip TCP are not measured')
                     save()
     except BaseException as error:
+        if minimal_enabled() and client is not None:
+            report['controller_on_failure']=client.protection_status
         if report['phase'].endswith('_RUNNING'):
             report['phase']=report['phase'].removesuffix('_RUNNING')+'_FAILED'
         report.update(success=False,error=str(error) or 'Interrupted');save()

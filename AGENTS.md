@@ -1,5 +1,17 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Holzrahmen-Demo, Nutzerentscheidung 25.11.2026
+
+- Reihenfolge der Übertragung ist Browser, Gazebo, reale Zelle. Zwei Arme
+  tragen den Querbalken gemeinsam und setzen ihn mit gleichem Überstand vor
+  zwei fest montierte Pfosten. Der dritte Arm fährt während des Transports
+  vor und setzt pro Verbindung zwei Schrauben. Vor dem Realbetrieb richtet
+  der Bediener Werkzeug und Schrauben vor dem Lauf her.
+- Zuerst Bilderkennung ohne Marker am Holz. Spiegelungen und umgedrehte
+  Balkenseiten sind gleichwertig, wenn sie dieselbe Quadergeometrie einnehmen.
+  Gemini 4 Hydrogen über Antigravity unterstützt schwierige Bildbefunde;
+  metrische Pose und Freigaben kommen aus der lokalen Auswertung und Prüfung.
+
 ## Genehmigungspflicht für Änderungen am Sicherheitsprogramm, 24.11.2026
 
 Vor der Umsetzung einer Änderung am Sicherheitsprogramm ist die **ausdrückliche

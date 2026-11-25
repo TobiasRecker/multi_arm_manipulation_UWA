@@ -98,3 +98,46 @@ def test_scoped_release_can_reuse_other_holds_without_any_rpc():
     assert answer['resource_holds_confirmed'] and answer['latches_confirmed']
     supervisor['ports']['left_rear']['held']=False
     assert not retained_holds(supervisor,arms)['resource_holds_confirmed']
+
+
+def test_open_carton_check_requires_both_full_cell_and_exact_open_scene():
+    from types import SimpleNamespace
+    from uwa_cell_tasks.hardware_carton_approach import OpenCartonCollision
+    calls=[]
+    def model(name,free):
+        def check(state,contacts=False):calls.append((name,contacts));return free,[name]
+        return SimpleNamespace(bounds={'joint':(-1.,1.)},check=check)
+    for primary,auxiliary,expected in [(False,True,False),(True,False,False),(True,True,True)]:
+        calls.clear();base=model('full-opening cell',primary)
+        combined=OpenCartonCollision(base,model('open carton',auxiliary))
+        assert combined.check({'joint':0.},contacts=True)[0] is expected
+        assert combined.bounds is base.bounds
+        assert calls==([('full-opening cell',True),('open carton',True)] if primary else [('full-opening cell',True)])
+
+
+def test_task_open_scene_preserves_other_arms_cell_geometry_and_every_carton_pair(tmp_path,monkeypatch):
+    import hashlib
+    from types import SimpleNamespace
+    import xml.etree.ElementTree as ET
+    from uwa_cell_tasks.hardware_carton_approach import open_carton_collision
+    import uwa_cell_calibration.model as models
+    mesh=tmp_path/'finger mesh.stl';mesh.write_bytes(b'exact hardware mesh fixture')
+    original=f'<robot name="cell"><link name="right_front_robotiq_85_left_finger_tip_link"><collision><geometry><mesh filename="{mesh.as_uri()}"/></geometry></collision></link></robot>'
+    frozen='<robot name="cell"><link name="right_front_robotiq_85_left_finger_tip_link"><collision><geometry><sphere radius="0.1"/></geometry></collision></link><link name="left_rear_robotiq_85_left_finger_tip_link"><collision><geometry><sphere radius="0.2"/></geometry></collision></link><link name="right_front_forearm_link"><collision><geometry><sphere radius="0.3"/></geometry></collision></link><link name="pregrasp_carton_static"><collision><geometry><box size="1 1 1"/></geometry></collision></link></robot>'
+    (tmp_path/'moveit').mkdir();(tmp_path/'moveit/robot.srdf').write_text('<robot name="cell"><disable_collisions link1="mechanical_a" link2="mechanical_b"/></robot>')
+    captured={};allowed=[]
+    def collision(xml,directory):
+        captured['xml']=xml
+        return SimpleNamespace(scene=SimpleNamespace(allowed_collision_matrix=SimpleNamespace(set_entry=lambda *args:allowed.append(args))))
+    monkeypatch.setattr(models,'CollisionModel',collision)
+    base=SimpleNamespace(bounds={})
+    problem=SimpleNamespace(original_description=original,directory=tmp_path,collision=base)
+    result,hashes=open_carton_collision(problem,frozen,tmp_path/'aux')
+    root=ET.fromstring(captured['xml'])
+    assert result.primary is base
+    assert root.find("link[@name='right_front_robotiq_85_left_finger_tip_link']/collision/geometry/mesh") is not None
+    assert root.find("link[@name='left_rear_robotiq_85_left_finger_tip_link']/collision/geometry/sphere").get('radius')=='0.2'
+    assert root.find("link[@name='right_front_forearm_link']/collision/geometry/sphere").get('radius')=='0.3'
+    assert root.find("link[@name='pregrasp_carton_static']/collision/geometry/box") is not None
+    assert allowed==[('mechanical_a','mechanical_b',True)]
+    assert hashes=={str(mesh.resolve()):hashlib.sha256(mesh.read_bytes()).hexdigest()}

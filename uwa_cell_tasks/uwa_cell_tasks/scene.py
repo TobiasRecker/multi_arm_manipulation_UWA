@@ -218,14 +218,14 @@ def fingertip_contact_primitives(root):
 def contact_description(description, controllers_path, finger_damping=.04,coarse=.02,fine=.004,fine_start=.65,geometry_metadata=None,
                         gear_stiffness=10.,motor_stiffness=10.,transmission='native_gear',
                         arm_velocity=.05,arm_acceleration=.5,finger_velocity_limit=.05,motor_torque_limit=.35, motion_arms=ARMS,
-                        grip_contact_friction=None):
+                        grip_contact_friction=None, *, fingertips_prepared=False):
     """Opt-in profile; default cell description/controllers stay unchanged.
 
     Contact fingers are force servos with measured independent joints. URDF
     mimic is removed only in this profile so collision FK uses real fingers.
     """
     root = ET.fromstring(description)
-    primitives=fingertip_contact_primitives(root)
+    primitives=[] if fingertips_prepared else fingertip_contact_primitives(root)
     if geometry_metadata is not None:geometry_metadata.extend(primitives)
     control = root.find('ros2_control')
     arm_backend=ET.SubElement(root,'ros2_control',name='ContactArms',type='system')

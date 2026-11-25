@@ -17,16 +17,18 @@ namespace uwa_cell_tasks {
 class TaskTelemetry : public gz::sim::System,public gz::sim::ISystemConfigure,public gz::sim::ISystemPreUpdate
 {
   std::string namespace_;
+  std::string object_model_;
   rclcpp::Node::SharedPtr node_;
   rclcpp::Publisher<rosgraph_msgs::msg::Clock>::SharedPtr clock_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr contacts_,pose_;
   int64_t last_{-10000000};
-  gz::sim::Entity carton_{gz::sim::kNullEntity};
+  gz::sim::Entity object_{gz::sim::kNullEntity};
 public:
   void Configure(const gz::sim::Entity &,const std::shared_ptr<const sdf::Element> & sdf,
     gz::sim::EntityComponentManager &,gz::sim::EventManager &) override
   {
     namespace_=sdf->Get<std::string>("ros_namespace");
+    object_model_=sdf->Get<std::string>("object_model", "uwa_grasp_carton").first;
     if(namespace_.rfind("/uwa_grasp_",0)!=0)throw std::runtime_error("Private task telemetry namespace required");
   }
   void PreUpdate(const gz::sim::UpdateInfo & info,gz::sim::EntityComponentManager & ecm) override
@@ -46,14 +48,14 @@ public:
     if(stamp>=last_ && stamp-last_<10000000)return;
     last_=stamp;rosgraph_msgs::msg::Clock time;
     time.clock.sec=stamp/1000000000LL;time.clock.nanosec=stamp%1000000000LL;clock_->publish(time);
-    if(carton_==gz::sim::kNullEntity || !ecm.HasEntity(carton_))
-      carton_=ecm.EntityByComponents(gz::sim::components::Name("uwa_grasp_carton"),gz::sim::components::Model());
-    if(carton_==gz::sim::kNullEntity)return;
+    if(object_==gz::sim::kNullEntity || !ecm.HasEntity(object_))
+      object_=ecm.EntityByComponents(gz::sim::components::Name(object_model_),gz::sim::components::Model());
+    if(object_==gz::sim::kNullEntity)return;
     // PreUpdate reads the completed previous physics result, not a predicted
     // pose or a synthetic attachment. Label that one-step-old measurement.
     const double measured_stamp=std::max(0.,std::chrono::duration<double>(info.simTime-info.dt).count());
     using Json=nlohmann::json;
-    const auto actual=gz::sim::worldPose(carton_,ecm);
+    const auto actual=gz::sim::worldPose(object_,ecm);
     const gz::math::Matrix3d rotation(actual.Rot());
     Json transform=Json::array();
     for(int row=0;row<3;++row)transform.push_back({rotation(row,0),rotation(row,1),rotation(row,2),actual.Pos()[row]});
@@ -69,7 +71,7 @@ public:
         for(const auto & contact:data->Data().contact()) {
           const std::string a=gz::sim::scopedName(contact.collision1().id(),ecm,"::");
           const std::string b=gz::sim::scopedName(contact.collision2().id(),ecm,"::");
-          if(a.find("uwa_grasp_carton")==std::string::npos && b.find("uwa_grasp_carton")==std::string::npos)continue;
+          if(a.find(object_model_)==std::string::npos && b.find(object_model_)==std::string::npos)continue;
           supported=supported || a.find("table_plate")!=std::string::npos || b.find("table_plate")!=std::string::npos;
           for(const std::string arm:{"right_front","right_rear"})for(const std::string side:{"left","right"}) {
             const std::string name=arm+"_robotiq_85_"+side+"_finger_tip_pad";
