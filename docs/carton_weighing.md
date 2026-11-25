@@ -3,9 +3,10 @@
 Stand25.11.2026: Taskdateien auf N100 installiert, tatsächlicher Dateilader
 und beide endlichen RTDE-Kraftrezepte geprüft. Die Library unter
 `http://127.0.0.1:8780` verwendet jetzt `weigh_after_grasp: true`.
-Noch kein Wiegehub: Nach Aktivierung scheitert die normale Greiferparametrierung
-an abweichenden FOR-/SPE-Rückmeldungen, bevor POS/GTO gesendet werden.
-Gezielter Parametervergleich separat angefragt. Details im aktuellen HANDOVER.
+Noch kein abgeschlossener Wiegehub: Der Greifer-Parametrierungsblocker ist
+mit einer Verbindung pro Auftrag behoben und über die normale ROS-Öffnung
+beider rechter Greifer bestätigt. Der erste aktuelle Library-Lauf ist
+gestartet; Details und Nachweise im aktuellen HANDOVER.
 Keine Änderung an Schutzkern, Controllern, nativer UR-Sicherheit oder Payload.
 Der unveränderte Schutzdienst wurde nach Routerunterbrechung und ausdrücklicher
 Nutzerfreigabe im pausierten Leerlauf neu gestartet; frische Geometrie frei,

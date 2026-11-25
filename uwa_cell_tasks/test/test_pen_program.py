@@ -133,7 +133,7 @@ def test_sequence_cannot_target_another_arm_or_skip_lift(tmp_path,monkeypatch):
 
 
 @pytest.mark.parametrize('phase,failed_operation',[
-    ('approach',None),('approach','activate'),('approach','open'),('contact',None),('contact','close')])
+    ('approach',None),('approach','activate'),('approach','open'),('contact',None),('contact','close'),('contact','empty')])
 def test_reviewed_execution_order_and_failed_gripper_stops_sequence(tmp_path,monkeypatch,phase,failed_operation):
     import execute_pen_grasp as execute
     from contextlib import contextmanager
@@ -172,7 +172,7 @@ def test_reviewed_execution_order_and_failed_gripper_stops_sequence(tmp_path,mon
             events.append(operation)
             feedback(dict(registers=dict(ACT=1,STA=3,FLT=0,FOR=255,SPE=255)))
             if failed_operation==operation:raise RuntimeError(operation+' failed')
-            return dict(success=True)
+            return dict(success=True,contact_detected=failed_operation!='empty')
         def activate(self,feedback=None):return self.command('activate',feedback)
         def open(self,feedback=None,**kw):return self.command('open',feedback)
         def close_gripper(self,**kw):
@@ -186,7 +186,12 @@ def test_reviewed_execution_order_and_failed_gripper_stops_sequence(tmp_path,mon
         (out/'workflow.json').write_text(json.dumps(dict(success=True,phase='WAITING_VISUAL_REVIEW',sequence_sha256='s'*64,
             entry_finished_unix=0.,arm_commands=[],finger_commands=[])))
     args=SimpleNamespace(plans=tmp_path,output=out,phase=phase,sequence_sha256='s'*64,entry=tmp_path/'entry')
-    if failed_operation:
+    if failed_operation=='empty':
+        with pytest.raises(RuntimeError,match='no object contact; no lift sent'):execute.run(args)
+        report=json.loads((out/'workflow.json').read_text())
+        assert report['phase']=='NO_OBJECT_CONTACT' and report['success'] is False
+        assert events.count('close')==1 and 'lift' not in events and 'open' not in events
+    elif failed_operation:
         with pytest.raises(RuntimeError,match=failed_operation+' failed'):execute.run(args)
         report=json.loads((out/'workflow.json').read_text())
         assert report['phase']=='GRIPPER_'+failed_operation.upper()+'_FAILED'
@@ -247,3 +252,53 @@ def test_remote_preflight_error_is_preserved_without_redispatch(tmp_path,monkeyp
     with pytest.raises(RuntimeError,match='Work area changed since planning'):
         runner.remote_review(runner.Progress(tmp_path),'fixture','approach','s'*64)
     popen.assert_called_once()
+
+
+def test_symmetric_grasp_candidates_compare_short_rotation_before_path_search():
+    from types import SimpleNamespace
+    from scipy.spatial.transform import Rotation
+    import prepare_pen_grasp as compiler
+    names=compiler.joint_names('left_rear')
+    initial=np.array([0.,-1.8,1.9,-1.6,-1.57,-1.44])
+    start=dict(zip(names,initial))
+    adapter=np.eye(4);adapter[:3,:3]=Rotation.from_euler('z',98,degrees=True).as_matrix()
+    calls=[]
+    def ik(arm,state,pose):
+        calls.append(pose)
+        goal=initial.copy();goal[-1]+=np.radians(175 if len(calls)==1 else -5)
+        return [goal]
+    candidates,errors=compiler.grasp_candidates(SimpleNamespace(ik=ik),start,adapter,DEFINITION,np.eye(4))
+    assert len(calls)==2 and not errors
+    assert candidates[0]['symmetry_sign']==-1
+    assert candidates[0]['wrist_3_delta_deg']==pytest.approx(-5)
+    assert candidates[1]['wrist_3_delta_deg']==pytest.approx(175)
+
+
+def test_left_board_reference_uses_current_image_without_changing_right_session(tmp_path):
+    import prepare_pen_grasp as compiler
+    import yaml
+    cfg=yaml.safe_load((REPO/'uwa_cell_description/config/cell_layout.yaml').read_text())['charuco']
+    board=cv2.aruco.CharucoBoard((7,5),.04,.028,cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_100),np.arange(17,dtype=np.int32))
+    board.setLegacyPattern(cfg.get('legacy_pattern',False))
+    optics=dict(image_size=[4056,3040],K=[[3000,0,2028],[0,3000,1520],[0,0,1]],D=[0]*5)
+    tc=np.eye(4);tc[:3,:3]=Rotation.from_euler('xyz',[.1,.2,.05]).as_matrix();tc[:3,3]=[-.14,-.1,1.3]
+    corners=np.array([[0,0,0],[.28,0,0],[.28,.2,0],[0,.2,0]],float)
+    uv=cv2.projectPoints(corners,cv2.Rodrigues(tc[:3,:3])[0],tc[:3,3],np.array(optics['K'],float),np.zeros(5))[0].reshape(-1,2)
+    warp=cv2.getPerspectiveTransform(np.array([[0,0],[1399,0],[1399,999],[0,999]],np.float32),uv.astype(np.float32))
+    image=tmp_path/'pen.png'
+    cv2.imwrite(str(image),cv2.warpPerspective(board.generateImage((1400,1000)),warp,(4056,3040),borderValue=255))
+    xml='<robot name="fixture"><link name="world"/>'
+    for side,x in [('left',-.9),('right',0.)]:
+        xml+=f'<link name="{side}_charuco"/><joint name="{side}" type="fixed"><parent link="world"/><child link="{side}_charuco"/><origin xyz="{x} 0 .9"/></joint>'
+    xml+='</robot>'
+    twl=np.eye(4);twl[:3,3]=[-.9,0,.9];expected=twl@np.linalg.inv(tc)
+    wrong=expected.copy();wrong[0,3]+=.04
+    twr=np.eye(4);twr[:3,3]=[0,0,.9]
+    session=dict(T_camera_board=(np.linalg.inv(wrong)@twr).tolist());original=copy.deepcopy(session)
+    frame,audit=compiler.camera_frame(xml,session,image,optics,dict(reference_board='left'),tmp_path)
+    assert np.linalg.norm(frame[:3,3]-expected[:3,3])<.005
+    assert audit['camera_translation_from_right_session_m'][0]==pytest.approx(-.04,abs=.005)
+    assert audit['board']=='left_table_board' and session==original
+    cv2.imwrite(str(image),np.full((3040,4056),255,np.uint8))
+    with pytest.raises(ValueError,match='checked left-table board fit'):
+        compiler.camera_frame(xml,session,image,optics,dict(reference_board='left'),tmp_path)

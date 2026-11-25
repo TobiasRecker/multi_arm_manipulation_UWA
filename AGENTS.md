@@ -66,6 +66,10 @@ Bei Fehlern in UR-Treibern auch den offiziellen Quellstand von Universal Robots 
 
 ## Kraftreferenz und Wiegehub am Karton, Nutzerauftrag 24.11.2026
 
+- Nutzerfreigabe25.11.: gezielte SET-Befehle zur Greiferdiagnose sind
+  ausdrücklich erlaubt. Bestehende Rohwertfreigaben beibehalten; für den
+  aktuellen Kartonablauf FOR0/SPE16.
+
 - Vor dem Greifschluss die unbelasteten Handgelenkkräfte beider rechten URs
   speichern; anschließend gemeinsam20mm anheben und die zusätzlichen
   vertikalen Kräfte im gemeinsamen Weltframe auswerten. Masse aus ihrer
@@ -343,6 +347,12 @@ angezeigten Arme und die Revision gebunden.
   steht ganz oben in HANDOVER.md.
 
 ## Physisches Zeichenwerkzeug (2026-11-19)
+
+- Nutzerhinweis und Offline-Nachweis25.11.: Bei der Stiftaufnahme die beiden
+ 180°-äquivalenten Greiforientierungen vor der Auswahl vergleichen. Nicht die
+  erste geometrisch gültige Orientierung allein wegen ihrer Suchreihenfolge
+  übernehmen. Kurzer Gelenkweg bleibt der vollständigen Anfahr-/Einfahr-/
+  Aushebeprüfung untergeordnet; kein pauschaler Symmetrie-Kollisionsoverride.
 
 - Nutzerauftrag24.11.2026: eigenes Library-Programm nach Vorbild Supported
   carton grasp, aber Stiftaufnahme mit **left_rear**. OAK-Pro/OpenCV zuerst,

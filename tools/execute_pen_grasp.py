@@ -177,6 +177,9 @@ def run(args):
                         report['close_result']=gripper_step(report,save,'close',gripper.close_gripper,
                             force_raw=sequence['definition']['force_raw'],speed_raw=sequence['definition']['gripper_speed_raw'])
                     report['phase']='GRIPPER_CLOSE_COMPLETED';save()
+                    if not report['close_result'].get('contact_detected'):
+                        report['phase']='NO_OBJECT_CONTACT';save()
+                        raise RuntimeError('Pen grasp unconfirmed: close action reported no object contact; no lift sent')
                     record=dict(phase='lift',success=False);report['arm_commands'].append(record)
                     report['phase']='LIFT_RUNNING';save()
                     follow_frozen(client,plans[2],record)

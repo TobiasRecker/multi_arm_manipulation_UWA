@@ -26,6 +26,9 @@ von dem des Kartonprogramms getrennt; die erste Bewegung und der erste Kontakt
 werden ausdrücklich geprüft. Die Freigabe ist an die konkrete Revision gebunden.
 
 Nach erfolgreicher Entnahme bleibt der Arm oben mit geschlossenem Greifer.
+Meldet der vorhandene Schließabschluss keinen Objektkontakt, endet die
+Aufgabe vor dem Hub mit `NO_OBJECT_CONTACT`. Objektkontakt allein beweist
+weiterhin keine tragfähige Klemmung oder tatsächliche Stiftanwesenheit.
 Bei Fehlern wird kein möglicherweise belasteter Greifer automatisch geöffnet,
 kein Griff wiederholt und keine alternative ungeprüfte Bahn ausgeführt.
 Der Workflow protokolliert Aktivieren, Öffnen und Schließen einzeln mit
@@ -79,7 +82,8 @@ Gemini-Antwort und SHA-Bindungen bleiben im Run-Ordner.
   MarkerflächeY=15,5mm und MarkerzentrumZ=33mm. GreifreferenzZ=46mm nahe dem
   oberen Adapterende, damit die Backen den Halterrand freihalten. Robotiq-TCP
   nominell145mm ab Greiferbasis, weiterhin keine reale TCP-Einmessung.
-- Zwei um180° gedrehte Greiferorientierungen und mehrere IK-Zweige prüfen.
+- Beide um180° äquivalenten Greiferorientierungen und mehrere IK-Zweige vor
+  der Auswahl nach Gelenkweg vergleichen und die Kandidaten vollständig prüfen.
   Ganze Folge und Freiräume entscheiden, danach Weglänge/Anfahrt. Kein
   Austausch des benannten Arms und kein unvollständiger Anfahrplan.
 - Reale Werkskinematiken, alle sechs Armpaare, Selbst-/Tisch-FCL und bestehende
@@ -147,3 +151,14 @@ einzelner realer Aktivierungs-/Öffnungstest über die reguläre ROS-API:
 ACT1/STA3/FLT0/OBJ3/POS3/PRE0/FOR0/SPE16. Der ursprüngliche Timeout trat
 dabei nicht erneut auf; eine dauerhafte Ursachenbehebung ist nicht
 nachgewiesen. Kein erfolgreicher realer Stiftgriff ist damit nachgewiesen.
+
+Beim anschließenden vollständigen Lauf25.11. meldete der Nutzer einen
+seitlichen Fehlgriff. Der Hub wurde nach angenommener Kontaktfreigabe trotz
+fehlendem Objektkontakt ausgeführt; obige Aufgabenentscheidung korrigiert
+dies für künftige Läufe. Die Zelle ist auf ausdrücklichen Auftrag pausiert.
+Eine kürzere vollständig geprüfte symmetrische Orientierung ist offline
+nachgewiesen. Der Bezug zum rechten Tisch widerspricht im Einfahrbild dem
+linken Board um rund40mm seitlich. Ein aktueller lokaler linker Boardfit ist
+als optionaler Compilerpfad vorbereitet; **die aktive Programmdefinition
+ist dafür noch nicht umgestellt**. Zuerst die unveränderte physische Lage
+des linken Boards klären. [Diagnose und Einschränkungen](../work/pen-grasp-offset-20261125.md).

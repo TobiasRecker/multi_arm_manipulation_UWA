@@ -1,6 +1,100 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Stiftfahrt: seitlicher Fehlgriff und Symmetrie,25.11.2026
+
+Nutzer meldet nach Lauf `a49718ebcac64a849d218afb8c618704` mehrere Zentimeter
+seitlichen Fehler bei plausibler Höhe sowie unnötige Handgelenksdrehung.
+Anfahrt/Einfahrt wurden nach Bedienerreview ausgeführt. Kontaktreview wurde
+ebenfalls angenommen; bei der Diagnose waren Schließen und Hub schon beendet.
+Workflow `PEN_LIFT_COMPLETED` bedeutet hier **keinen bestätigten Stiftgriff**:
+Schließresultat contact_detected=false, OBJ3/POS227/PRE255/FOR0/SPE16.
+Auf ausdrückliche nachträgliche Nutzerfreigabe alle vier Arme pausiert;
+PAUSED/OPERATOR PAUSE, vier pausierte/bestätigte Controller ohne aktive Action.
+Keine weitere Greifer-/Armfahrt oder ein Resume durch diese Diagnose.
+
+q6-Anfahrt tatsächlich+174,603°. Ursache im Aufgabenplaner: erste gültige
+Symmetrie genommen. Jetzt beide Orientierungen vor vollständiger Bahnprüfung
+nach Gelenkweg vorreihen. Offline mit gleichem archiviertem Start und altem
+Kamerabezug vollständige gültige Alternative−5,397°,17,759s statt73,132s;
+unverändert0,1rad/s, keine Tempoerhöhung oder Kollisionsausnahme.
+
+Referenzgegenprobe im Einfahrbild: rechter Boardbezug konsistent (0,740px),
+am linken Board83,817px Projektionsfehler. Unabhängiger linker Fit mit17
+Markern/0,403px Prüf-RMS ergibt für den Stift ungefähr40mm seitliche
+Änderung bei1,4mm Höhe. Ähnlicher Befund bereits im Bild vom24.11.
+Modellinterne Ist-Tool0-Abweichung zur angefahrenen Sollpose nur0,048mm;
+dies ist keine absolute externe Genauigkeitsmessung. Übernommene Basen
+unverändert. Nutzer nach unverändertem linkem Board gefragt, Antwort offen.
+
+Optionalen aktuellen linken Boardfit im Stiftcompiler vorbereitet; aktive
+Programmdefinition verwendet ihn noch nicht. Entwurf mit demselben alten
+Start vollständig offline geprüft:20,155s, q6−12,512°, Zieländerung
+[−40,118,−4,348,+3,187]mm. Keine Ausführung dieses Entwurfs. Erst Boardbezug
+klären, danach neue Eingaben/Planung und normale Reviews. Aufgabenlogik
+beendet leeres Schließen jetzt vor dem Hub mit `NO_OBJECT_CONTACT`, ohne
+zusätzliche Abfragen, Wächter oder gemeinsame Stopps.23 gezielte Tests
+bestanden. Keine Änderung am Sicherheitsprogramm. Einzelheiten/Artefakte:
+[Stift-Fehlgriff](work/pen-grasp-offset-20261125.md).
+
 ## N100 wieder erreichbar; Wiegeerweiterung installiert,25.11.,15:05–15:25AWST
+
+Ergänzung15:27–15:38AWST: Nutzer genehmigt den einzelnen Parametervergleich
+und danach ausdrücklich generell gezielte SET-Befehle für die Greiferdiagnose.
+Der zunächst abgelehnte Vergleich wurde erst danach ausgeführt. Auf derselben
+TCP-Verbindung zeigten RF undRR nach genauFOR0/SPE16 jeweils drei stabile
+korrekte Rücklesungen; keine ACT/POS/GTO-Befehle in diesem Vergleich.
+
+Transportfix: Ein normaler Greiferauftrag hält nun eine Verbindung für seine
+SETs und bestätigenden GETs. Unabhängige Lesethreads behalten eigene
+Verbindungen; Verbindung nach Abschluss/Fehler schließen. Keine geänderten
+Fristen, Parameterbestätigungen oder automatischen Befehlswiederholungen.
+40 gezielte Transport-/API-Tests und81 bestehende Karton-/Reviewprüfungen
+bestanden. Direkte Framing-/Lebensdauerprüfung mit fragmentierten Antworten,
+falschem ACK und gleichzeitigem separatem Leser. Alte Diagnoseänderungen
+im gemeinsamen SDK erhalten. SDK-SHA256 nach Fix:
+`a6f9eb336ee3f00ea8d2f3130c8c27d16845958fe2fe880e5ca7adffe6ab1137`.
+
+Vor Installation wurde eine andere laufende Review-Aufgabe erkannt; Abbruch
+vor jeder SDK-Änderung. Erst nach deren Ende und bei vier untätigen Greifern
+Base- und Kandidatenquellen mit exakten Vorgängerhashes/Sicherung aktualisiert
+und nur `uwa-grippers.service` neu geladen; maximale Rohwerte0/16 erhalten.
+Schutz-/Armcontroller unverändert. Danach normale ROS-Öffnung beider rechten
+Greifer einmal erfolgreich: ACT1/STA3/FLT0/OBJ3/POS3/PRE0/FOR0/SPE16.
+Damit aktueller Parametrierungsblocker beseitigt; ein einmaliger Vergleich
+allein wäre kein dauerhafter Nachweis gewesen. Hardwarebeleg
+`normal-open-with-fixed-transport.json`, Sicherungen `transport-backup/`.
+
+Erster aktueller Library-Lauf wurde noch vor jeder Fahrt am Kameravergleich
+abgewiesen:13,304mm Zentrum,2,521° Winkel;30mm erfüllt, striktes<2° nicht.
+Begrenzte bestehende OAK4-Nachmessung änderte den Widerspruch nicht; letzte
+Hydrogenrunde lief in Timeout. Gesonderte freigegebene USB-/Hydrogen-Nachmessung
+ergab weiter2,378°, daher nicht zur Ausführung übernommen. Keine Grenzlockerung.
+Anhand des aktuellen USB-Originalbilds engeren Karton-/Wandausschnitt gewählt:
+ROI[1400,1350,2800,2600], FaceROI[1500,1400,2700,2050]. Dieselbe native
+Standardauswertung besteht damit die bisherigen Einzelbildkriterien und
+12,447mm/1,71544° Gegenvergleich. OAK4-Pose exakt unverändert, Gewichte1/0.
+Beleg`usb-crop-native/result.json`; Suchfenster in `carton-usb.json` gespeichert,
+vorherige Konfiguration gesichert. Kein Genauigkeitsnachweis daraus ableiten.
+Neuer normaler Library-Lauf15:49:58AWST mit frischen Aufnahmen/Snapshot:
+`26c717534906463d95d90ebe6a75c241`: erneut vor Bewegung am Vergleich
+13,348mm/2,311° abgewiesen. Bestehende drei OAK4-/Hydrogen-Runden blieben
+bei3,054°; nicht übernommen. Ein zusätzlicher engerer OAK4-Aufdruckcrop
+(alle Einzelbildkriterien unverändert) ergab3,010°, ebenfalls verworfen;
+primäre Standardfenster deshalb unverändert. Erste erfolgreiche USB-Crop-
+Nachmessung ist kein Stabilitätsnachweis für frische Bilder.
+Nutzerentscheidung angefragt: explizite alte<2°-Grenze weiter diagnostizieren
+oder kamerübergreifend bis3° erlauben; OAK4-Vorrang und30mm unverändert.
+Bis zu dieser Antwort keine Winkelgrenze geändert, kein weiterer Live-Lauf,
+keine neue Armtrajektorie/kein Wiegehub. Nur diesen weiterverfolgen;
+der erste Lauf bleibt als ursprünglicher Ablehnungsnachweis erhalten.
+
+Neuer normaler Library-Lauf gestartet15:37:56AWST:
+`f1c17f764e9f4775a32e2ef8f6b426bd`. Verwendet aktuelle Bilder/Gelenkdaten
+und aktivierte Wiegevariante; noch keine Greiffahrt/Wiegeauswertung zum
+Zeitpunkt dieses Zwischenstands. Weiteren Ablauf anhand dieses Laufs
+verfolgen, nicht einen zweiten parallel starten. Frühere Beschreibung des
+Parametrierungsblockers im folgenden Abschnitt ist damit überholt.
+
 
 Nutzer erklärt Routerneustart. Beide eingerichteten SSH-Zugänge wieder
 funktionsfähig. Fünf ausschließlich aufgabenbezogene Dateien nach Manifest-

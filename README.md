@@ -2,7 +2,7 @@
 
 The [carton weighing extension](docs/carton_weighing.md) stores unloaded wrist
 forces and plans a joint20mm lift. It is installed and file-checked on the N100. The first real weighing run
-is pending a gripper parameter readback issue.
+is in progress after fixing the gripper parameter readback.
 
 **Program library → [Pick pen from holder](docs/pen_grasp_library.md)**
 uses OAK Pro/OpenCV with Gemini as an ROI fallback and plans a complete

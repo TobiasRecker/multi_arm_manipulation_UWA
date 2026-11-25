@@ -194,6 +194,61 @@ def portable(plan,remote):
     return plan
 
 
+def grasp_candidates(problem,state,adapter,definition,gripper):
+    """Compare both symmetric grasp orientations before validating complete paths."""
+    down=-np.array([0.,0.,1.]);x=adapter[:3,0].copy();x[2]=0;x/=np.linalg.norm(x)
+    initial=np.asarray([state[j] for j in joint_names(ARM)])
+    candidates=[];errors=[]
+    for sign in (1,-1):
+        R=np.column_stack([sign*x,np.cross(down,sign*x),down]);base=np.eye(4);base[:3,:3]=R
+        base[:3,3]=(adapter[:3,:3]@definition['mount']['grasp_center_m']+adapter[:3,3]
+                        -R@np.array([0,0,definition['gripper_tcp_from_base_m']]))
+        contact=base@np.linalg.inv(gripper)
+        try:
+            for goal in problem.ik(ARM,state,pose_goal(ARM,contact)):
+                delta=np.asarray(goal)-initial
+                candidates.append(dict(symmetry_sign=sign,contact=contact,goal=goal,
+                    joint_distance_rad=float(np.linalg.norm(delta)),
+                    wrist_3_delta_deg=float(np.degrees(delta[-1]))))
+        except ValueError as error:errors.append(str(error))
+    # Endpoint travel only orders the search. Every accepted candidate still
+    # needs complete approach, entry and carried-pen collision/timing proofs.
+    return sorted(candidates,key=lambda row:row['joint_distance_rad']),errors
+
+
+def camera_frame(description,session,image,optics,definition,directory):
+    """Task-local board fit; retain the shared right-camera session unchanged."""
+    right=Chain(description,'world','right_charuco').forward({})@np.linalg.inv(transform(session['T_camera_board']))
+    board_name=definition.get('reference_board','right')
+    if board_name=='right':return right,dict(board='right_table_board',source='shared_camera_session')
+    if board_name!='left':raise ValueError('Pen reference_board must be left or right')
+    import cv2
+    import importlib.util
+    from uwa_cell_motion.common import load_layout,default_layout_path
+    file=REPO.parents[1]/'src/oak_camera_calibration/tools/oak4_charuco.py'
+    spec=importlib.util.spec_from_file_location('pen_board_reference',file)
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    board=module.Board(load_layout(default_layout_path())['charuco'],'left')
+    raw=cv2.imread(str(image))
+    if raw is None or list(raw.shape[1::-1])!=optics['image_size']:
+        raise ValueError('Current native pen image required for the left-board reference')
+    observation=board.observe(raw);fit=board.pose(observation,optics)
+    fit_ids=set(fit.get('fit_marker_ids',[]));check_ids=set(fit.get('check_marker_ids',[]))
+    if (fit.get('status')!='POSE_CANDIDATE' or fit.get('image_check_passed') is not True
+            or not 0<=fit.get('held_out_rms_px',float('inf'))<2.
+            or len(fit_ids|check_ids)<12 or not check_ids or fit_ids&check_ids
+            or not (fit_ids|check_ids)<=set(range(17))):
+        raise ValueError('A current checked left-table board fit with at least 12 markers is required')
+    left=Chain(description,'world','left_charuco').forward({})@np.linalg.inv(transform(fit['T_camera_board']))
+    audit=dict(board='left_table_board',source='current_pen_image',pose=fit,
+        image_sha256=hashlib.sha256(image.read_bytes()).hexdigest(),T_world_camera=left.tolist(),
+        detector_sha256=hashlib.sha256(file.read_bytes()).hexdigest(),
+        camera_translation_from_right_session_m=(left[:3,3]-right[:3,3]).tolist(),
+        qualification='Local reference to adopted left board; shared right session and base bindings unchanged')
+    dump(directory/'left-camera-reference.json',audit)
+    return left,audit
+
+
 def compile_plan(args):
     out=args.output.resolve();out.mkdir(parents=True,exist_ok=False)
     definition=json.loads(args.definition.read_text());remote=json.loads(args.context.read_text());snapshot=json.loads(args.snapshot.read_text())
@@ -209,8 +264,10 @@ def compile_plan(args):
             or sorted(problem.spheres.geometry.assets.values())!=sorted(remote['mesh_sha256'].values())):
         raise ValueError('ROSmini and N100 collision models differ')
     camera=json.loads(args.camera.read_text());session=validate_session(json.loads(args.session.read_text()),args.camera)
-    T_world_camera=Chain(problem.original_description,'world','right_charuco').forward({})@np.linalg.inv(transform(session['T_camera_board']))
+    T_world_camera,reference=camera_frame(problem.original_description,session,args.image,camera,definition,out)
     pose=perceive(args.image,camera,T_world_camera,definition,out/'perception')
+    pose['camera_reference']=reference
+    dump(out/'perception/object-pose.json',pose)
     adapter=transform(pose['T_world_adapter']);state=dict(snapshot['start'])
     tip=adapter[:3,3]+adapter[:3,2]*definition['mount']['pen_tip_z_m']
     table=Chain(problem.original_description,'world','left_table_top').forward({})
@@ -222,46 +279,40 @@ def compile_plan(args):
     problem.directory=out/'static'
     problem.chains={ARM:Chain(problem.original_description,'world',ARM+'_tool0')}
     gripper=Chain(problem.original_description,ARM+'_tool0',ARM+'_robotiq_85_base_link').forward({})
-    down=-np.array([0.,0.,1.]);x=adapter[:3,0].copy();x[2]=0;x/=np.linalg.norm(x)
     envelope=speed_envelope(problem,[ARM],remote['config']['command_velocity_limit_rad_s'],args.tcp_cap)
-    trials=[];chosen=None
-    for sign in (1,-1):
-        R=np.column_stack([sign*x,np.cross(down,sign*x),down]);base=np.eye(4);base[:3,:3]=R
-        base[:3,3]=(adapter[:3,:3]@definition['mount']['grasp_center_m']+adapter[:3,3]
-                        -R@np.array([0,0,definition['gripper_tcp_from_base_m']]))
-        contact=base@np.linalg.inv(gripper)
+    candidates,trials=grasp_candidates(problem,state,adapter,definition,gripper)
+    chosen=None;selected=None
+    for candidate in candidates:
+        contact,goal=candidate['contact'],candidate['goal']
         try:
-            goals=problem.ik(ARM,state,pose_goal(ARM,contact))
-            for goal in goals:
-                try:
-                    entry_up=linear_path(problem,state,contact,goal,definition['pregrasp_m'])
-                    entry=smooth_trajectory(entry_up[::-1],envelope,remote['config'])
-                    request=dict(schema_version=1,start=state,goals={ARM:entry_up[-1].tolist()})
-                    approach=problem.plan(request,'rrtconnect',seed=2411)
-                    if not approach['success']:raise ValueError(approach.get('error','Approach failed'))
-                    approach['trajectory']=retime(approach['trajectory'],ARM,envelope)
-                    endpoint=dict(state,**dict(zip(joint_names(ARM),goal)))
-                    prestate=dict(state,**dict(zip(joint_names(ARM),entry_up[-1])))
-                    # Moving pen is attached at exactly the reviewed contact pose.
-                    carried,carried_xml=task_scene(problem,adapter,definition,out/'carried',tool_adapter=np.linalg.inv(contact)@adapter)
-                    old=problem.collision;problem.collision=carried
-                    lift_path=linear_path(problem,endpoint,contact,goal,definition['lift_m'])
-                    lift=smooth_trajectory(lift_path,envelope,remote['config'])
-                    problem.collision=old
-                    phases=[('approach',state,approach['trajectory'],scene),('entry',prestate,entry,scene),('lift',endpoint,lift,carried)]
-                    proofs={}
-                    for name,start,traj,collision in phases:
-                        problem.collision=base_collision
-                        proof,error=prove_group(problem,start,{ARM:traj},remote['config']['command_velocity_limit_rad_s'],collision)
-                        if error:raise ValueError(name+': '+error)
-                        proofs[name]=proof
-                    chosen=(phases,approach,contact,carried_xml,proofs)
-                    break
-                except ValueError as error:trials.append(str(error))
-                finally:problem.collision=scene
-            if chosen:break
+            entry_up=linear_path(problem,state,contact,goal,definition['pregrasp_m'])
+            entry=smooth_trajectory(entry_up[::-1],envelope,remote['config'])
+            request=dict(schema_version=1,start=state,goals={ARM:entry_up[-1].tolist()})
+            approach=problem.plan(request,'rrtconnect',seed=2411)
+            if not approach['success']:raise ValueError(approach.get('error','Approach failed'))
+            approach['trajectory']=retime(approach['trajectory'],ARM,envelope)
+            endpoint=dict(state,**dict(zip(joint_names(ARM),goal)))
+            prestate=dict(state,**dict(zip(joint_names(ARM),entry_up[-1])))
+            # Moving pen is attached at exactly the reviewed contact pose.
+            carried,carried_xml=task_scene(problem,adapter,definition,out/'carried',tool_adapter=np.linalg.inv(contact)@adapter)
+            old=problem.collision;problem.collision=carried
+            lift_path=linear_path(problem,endpoint,contact,goal,definition['lift_m'])
+            lift=smooth_trajectory(lift_path,envelope,remote['config'])
+            problem.collision=old
+            phases=[('approach',state,approach['trajectory'],scene),('entry',prestate,entry,scene),('lift',endpoint,lift,carried)]
+            proofs={}
+            for name,start,traj,collision in phases:
+                problem.collision=base_collision
+                proof,error=prove_group(problem,start,{ARM:traj},remote['config']['command_velocity_limit_rad_s'],collision)
+                if error:raise ValueError(name+': '+error)
+                proofs[name]=proof
+            chosen=(phases,approach,contact,carried_xml,proofs);selected=candidate
+            break
         except ValueError as error:trials.append(str(error))
-    dump(out/'search.json',dict(attempts=trials))
+        finally:problem.collision=scene
+    def audit(row):return {k:v for k,v in row.items() if k not in ('contact','goal')}
+    dump(out/'search.json',dict(attempts=trials,candidates=[audit(row) for row in candidates],
+                               selected=None if selected is None else audit(selected)))
     if not chosen:raise ValueError('No complete collision-checked pen approach/entry/lift: '+'; '.join(trials[-4:]))
     phases,approach,contact,carried_xml,proofs=chosen
     task_binding=dict(
@@ -304,8 +355,10 @@ def inspect_image(args):
     out=args.output.resolve();out.mkdir(parents=True,exist_ok=False)
     xml,_=render_description(load_layout(default_layout_path()),out/'display-model')
     session=validate_session(json.loads(args.session.read_text()),args.camera)
-    frame=Chain(xml,'world','right_charuco').forward({})@np.linalg.inv(transform(session['T_camera_board']))
-    pose=perceive(args.image,json.loads(args.camera.read_text()),frame,json.loads(args.definition.read_text()),out/'perception')
+    camera=json.loads(args.camera.read_text());definition=json.loads(args.definition.read_text())
+    frame,reference=camera_frame(xml,session,args.image,camera,definition,out)
+    pose=perceive(args.image,camera,frame,definition,out/'perception');pose['camera_reference']=reference
+    dump(out/'perception/object-pose.json',pose)
     print(json.dumps(dict(success=True,inspection_only=True,reprojection_rms_px=pose['reprojection_rms_px'])))
 
 
