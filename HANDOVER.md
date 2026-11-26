@@ -1,5 +1,145 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Return to Home: Greifer inaktiv, 26.11.2026
+
+Öffnungsreview `a4ef61404c954c1da568e76aac7fb426` um 12:55:34 AWST
+freigegeben, um 12:55:38 in der Öffnungsphase abgebrochen. Beide Aktionen
+wiesen den Auftrag beim Lesen der Robotiq-Register vor dem ersten SET ab.
+Beide rechten Greifer meldeten in der anschließenden Abfrage ACT=0,
+STA=0 und FLT=0, POS=226 vorne und POS=224 hinten. Keine Fingerbewegung
+durch diesen Auftrag, kein senkrechter Rückzug und keine Homefahrt.
+N100-Schutzstatus mit verfügbaren Daten und ohne Kollisionskonflikt.
+`uwa-grippers.service` ist seit 25.11. 15:36 AWST aktiv, ohne Neustart
+oder Journaleintrag am 26.11. Ursache der Deaktivierung offen.
+
+Aktuelles OAK4-Bild zeigt den Karton zwischen den Fingern. Bediener
+bestätigt, dass der Karton frei hängt und aus der aktuellen Höhe fallen
+darf. Die geplanten rund 16 mm liegen unter den für diese Ablage
+genehmigten 50 mm. Die Offline-Prüfung deckt das reguläre Öffnen aus dem
+Griff ab. Die Robotiq-Aktivierung fährt durch die mechanischen Endlagen
+und braucht eine gesonderte Freigabe mit freiem Fingerweg. Bis zur
+Entlastung und Freigabe der Fingerwege vor Ort wurde keine Aktivierung
+ausgelöst. Befunde unter
+`setup/tasks/return_home_20261126/commissioning/open-failure/`.
+
+Bei der Fortsetzungsprüfung um 13:03 AWST sind beide Greifer weiter
+inaktiv (ACT=0, STA=0, FLT=0), unverändert bei POS=226 und POS=224.
+OAK4 zeigt den Karton weiter im Griff. Kein offenes Review, keine
+aktiven Armziele, kein vom N100 gemeldeter geometrischer Konflikt.
+Foto unter `setup/tasks/return_home_20261126/commissioning/continue-crymhv_2/`.
+Die reale Einzelaktivierung links hinten vom 25.11. enthält POS=0 vor
+dem Schließen bis zum beobachteten POS=230 und endete bei POS=165.
+Die Rückmeldungen belegen einen Schließhub im Kalibrierzyklus und
+keinen Gleichlauf für zwei Geräte. Mit dem Karton zwischen den Backen
+blieb die Fortsetzung lesend.
+
+Bediener hat den Karton mit einem Buch abgestützt und die Aktivierung
+beauftragt. Das neue OAK4-Foto zeigt die Unterlage und die beiden
+Kartonwände weiterhin zwischen den Backen. Register und Schutzstatus
+entsprechen der vorigen Abfrage. Für die Bergung vor Ort Robotiq **E-Open**
+am jeweiligen Teach Pendant verwenden, bevor mit freiem Fingerweg die
+Aktivierung über ROS erfolgt. Das Handbuch beschreibt E-Open als langsames
+Öffnen mit geringer Kraft auch im inaktiven Zustand. Diese Funktion ist
+nicht Teil der eingesetzten ROS-Greifer-API. Kein Aktivierungs- oder
+Fahrbefehl gesendet. Foto unter
+`setup/tasks/return_home_20261126/commissioning/supported-ow4w00fr/`.
+
+Bediener meldete die Bergung erledigt. N100 um 13:12 AWST bestätigt für
+beide rechten Greifer ACT=1, STA=3, FLT=0, POS=3, PRE=0 und Leerlauf.
+Die Greifer sind bereits aktiv und offen. Das neue OAK4-Bild zeigt den
+abgestützten Karton mit geöffneten Backen. Schutzstatus ohne gemeldeten
+Konflikt, kein aktives Armziel oder offenes Review. Kein weiterer
+Aktivierungs- oder Fahrbefehl gesendet. Foto unter
+`setup/tasks/return_home_20261126/commissioning/cleared-oqv399zf/`.
+Für die anschließende Rückfahrt die abgestützte Kartonlage und den
+freigegebenen Arbeitsraum aktuell berücksichtigen.
+
+Bediener beauftragte anschließend die Rückfahrt. Für das Buch und den
+abgestützten Karton wurde aus der aktuellen OAK4-Aufnahme und der
+bisherigen Kartonregistrierung eine stationäre Modellhülle verwendet.
+Der Bildvergleich mit unveränderten Tischreferenzen ergab für fünf
+Kartonmerkmale 0–5 px Verschiebung bei 1600 px Bildbreite. Die Hülle
+beansprucht 10 mm zusätzlich je Seite und deckt Tischhöhe bis 23 mm
+über der bisherigen Kartonbasis ab. Die Zugabe ist eine konservative
+Modellannahme, keine Messung der Buchdicke. Aus frischen Vierarmständen
+bestehen der gemeinsame senkrechte Rückzug um 150 mm (6,72 s) und der
+gemeinsame Homeweg über die aufrechte Zwischenstellung (46,92 s).
+Modelle, Foto, eingefrorener Plan und Prüfergebnisse unter
+`setup/tasks/return_home_20261126/commissioning/open-recovery-xzBw30Q4/`.
+Beide Greifer vor dem Review erneut offen und fehlerfrei bestätigt.
+Beide Bahngruppen mit bildgebundener Evidenz in einem **Motion Review**
+`7bacce5cb4c2419b9a5918f36a901661` auf N100. Freigabe am Bedienplatz.
+
+Dieses Review wurde um 13:18:49 AWST freigegeben. Nach 41,6 s ohne
+ausgewiesene UWA-Pause fehlte die Rückmeldung für den vorgesehenen
+6,72-s-Rückzug. Beide Ziele waren vom Controller akzeptiert und blieben
+nach dem Abbruch zunächst aktiv. Beide Arme waren zu diesem Zeitpunkt
+innerhalb 0,006° der jeweiligen Startstellung. Kein Kollisionskonflikt,
+Homegruppe nicht gesendet. Der Bediener meldete, dass **Play** an den URs
+zunächst nicht gedrückt war. Nach Play liefen die verbliebenen Ziele ab.
+Bei der gezielten Stornierungsabfrage war das vordere Ziel bereits beendet,
+das hintere endete vor Bearbeitung des Stornos (Rückgabecode 3). Danach
+beide ohne aktive Ziele und innerhalb 0,004° am vorgesehenen Rückzugsende.
+Positionsnachweis in `after-play.json`, Stornierungsabfrage und alte
+Ergebnisse im gleichen Laufordner. Der zweite Plan enthält nur die
+verbleibende gemeinsame Homefahrt. Beide rechten Dashboards meldeten
+vor dem neuen Review RUNNING/NORMAL/PLAYING `ros.urp` mit nativer Skalierung 1.
+Neue Nachweise unter
+`setup/tasks/return_home_20261126/commissioning/home-after-play-4FttPjme/`.
+
+Der Aufgabenrunner liest jetzt vor den Öffnungsbefehlen einmal den Status
+aller Mitglieder der Griffgruppe parallel. Wenn ein Greifer seine
+Bereitschaft nicht bestätigt, enthält der Phasenbericht den Fehler je Arm
+und die Gruppe erhält keinen Öffnungsbefehl. 41 isolierte Return-to-Home-
+und Motion-Review-Tests bestanden. Die Korrektur wird beim nächsten Lauf
+mit dessen Aufgabenrunner übertragen.
+
+## RTDE-Zeitzuordnung im N100-Minimalbetrieb, 26.11.2026
+
+Nutzer genehmigte die Korrektur samt möglicher zusätzlicher Rechenzeit pro
+Paket und meldete, dass es zum gespeicherten Ereignis links vorne keine
+tatsächliche Kollision gab. Im aufgezeichneten 18-s-Fenster lag die
+Empfangszeit aktuell, während links vorne das alte Quellalter rund 3 s
+betrug. Offline-Replay desselben Fensters mit laufbezogenem Zeitabgleich
+ergibt links vorne höchstens 70,2 ms. Vier C++-/Mock-Prüfungen auf N100
+bestanden, einschließlich dauerhaft verspäteter und zurückspringender
+Zeitstempel sowie kleiner Uhrdrift.
+
+Aktiv im dauerhaften `uwa-minimal-protection.service`, Invocation
+`6374c97cee93499dbdc466037020fa7f`. Nur Schutzprozess und zugehörige
+Quellen ausgetauscht. Gleiche Kollisions- und URCL-Bibliotheken, bestehende
+0,2-s-Quell-/Empfangsgrenze. Der neue Abgleich beginnt pro ausgehandeltem
+RTDE-Stream, verwirft unplausible Zeitfolgen und korrigiert innerhalb des
+Latenzfensters bis 1 ms je Sekunde. Kein zusätzliches Netzpolling.
+
+Beim Wechsel alle vier Controller pausiert und ohne Ziele. Größte Differenz
+vorher/nachher 0,00006568 rad. Software-Pause erneut bestätigt, kein Resume
+und keine Fahrt. Die unmittelbare Aktivierungsprüfung meldet für alle
+Arme verfügbare Kollisionsdaten und keinen aktuellen Konflikt.
+Über 30,45 s und 597 Zustandsmeldungen blieb das größte Quellalter links
+vorne bei 48,0 ms und über alle Arme bei 50,4 ms. Sämtliche 596
+Statusmeldungen bestätigten die Software-Pause, verfügbare Kollisionsdaten
+und keine Kollision. Die größte beobachtete Gelenkspanne war 0,000176 rad.
+Rücksicherung auf N100 unter `review-candidates/rtde-clock.I818quMn/`.
+Nachweise unter `setup/tasks/return_home_20261126/rtde-clock/`.
+
+Erneute 3-mm-Kartonprobe in Motion Review
+`6816a825dd72491e84bce1b0cb66a930` nach Bedienerfreigabe und Resume um
+12:46:55 AWST erfolgreich. Aus den Encoderständen abgeleiteter Absenkweg
+2,968 mm vorne und 3,001 mm hinten. Größter beobachteter relativer
+Vertikalversatz in jeweils 14 Stichproben 0,104 mm. Beide Greifer halten
+weiter. Das ist ein Nachweis für diesen kurzen Schritt. Daten unter
+`setup/tasks/return_home_20261126/commissioning/after-clock/` und
+`settled-after-clock/`. Die Fortsetzung nutzt den frischen Endstand.
+Eine erste Freigabeanfrage für die Fortsetzung wurde vor jedem Befehl zurückgezogen,
+weil Hydrogens direkte Homewege nur seriell bestanden. Der Compiler prüft
+seither weitere Wegvarianten auf gemeinsame Fahrt, bevor er seriell plant.
+Die neue Fortsetzung hat ca. 16 mm berechneten Restspalt, geprüften
+senkrechten Rückzug und eine gemeinsame Homegruppe über die aufrechte
+Zwischenstellung. Öffnungsreview `a4ef61404c954c1da568e76aac7fb426`
+ab 12:52 AWST bei Aufgabenvertrauen `Unsure`. Artefakte unter
+`setup/tasks/return_home_20261126/commissioning/release-parallel-after-clock/`.
+
 ## OAK-Rohrhalter und mobile Boardaufnahme, 26.11.2026
 
 - Linke USB-OAK-D Pro in der gemeinsamen Gazebo-/RViz-Darstellung mit

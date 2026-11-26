@@ -29,8 +29,9 @@
 - Gemini 4 Hydrogen als Strategieberatung nutzen. Codex prüft die erste
   beladene Revision unabhängig. Weitere Freigaben erfolgen in **Motion
   review** nach Hardwarerisiko. Für reines geometrisches Roboter-zu-Roboter-
-  Risiko bei unbeladener geprüfter Fahrt ist **low** zulässig. Annäherung
-  mit gemeinsam gehobenem Karton und Greiferöffnung sind **high**.
+  Risiko bei unbeladener geprüfter Fahrt ist **low** zulässig. Die
+  Inbetriebnahmefahrt mit gemeinsam gehobenem Karton ist **high**. Die
+  geprüfte Freigabe in der stabilen aktuellen Kartonablage ist **low**.
 - Kurzer Fall mit maximalem, objekt- und ablagegebundenem Restspalt prüfen.
   Die Freigabe folgt der konkreten Risikostufe und dem Aufgabenvertrauen. Nutzer
   erlaubt für den ersten Karton-Pilot Arm-IDs, Hubhöhe und Phasenfolge über
@@ -49,6 +50,11 @@
   metrische Pose und Freigaben kommen aus der lokalen Auswertung und Prüfung.
 
 ## Genehmigungspflicht für Änderungen am Sicherheitsprogramm, 24.11.2026
+
+Konkrete Nutzerfreigabe 26.11.2026: Korrektur der RTDE-Zeitzuordnung im
+aktiven N100-Schutzprogramm einschließlich möglicher zusätzlicher
+Rechenzeit pro Paket. Frischegrenze 0,2 s erhalten. Laut Nutzer keine
+tatsächliche Kollision bei der gespeicherten Meldung links vorne.
 
 Vor der Umsetzung einer Änderung am Sicherheitsprogramm ist die **ausdrückliche
 Genehmigung des Nutzers** erforderlich, sobald mindestens eine Bedingung zutrifft:

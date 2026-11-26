@@ -1,4 +1,5 @@
 #include "uwa_cell_protection/collision_core.hpp"
+#include "uwa_cell_protection/rtde_source_clock.hpp"
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -219,10 +220,19 @@ public:
     for (auto & reader : readers_) if (reader.joinable()) reader.join();
   }
 private:
-  void accept(const std::string & id, double stamp, const std::vector<double> & q, const std::vector<double> & v)
+  void accept(const std::string & id, double stamp, const std::vector<double> & q,
+    const std::vector<double> & v, RtdeSourceClock * clock = nullptr)
   {
     if (!finite(q) || !finite(v) || !std::isfinite(stamp)) return;
     const double now = monotonic();
+    if (clock) {
+      const auto source = clock->observe(stamp, now);
+      if (!source) return;
+      std::lock_guard<std::mutex> lock(sample_mutex_);
+      samples_[id] = Sample{q, v, stamp, now, *source};
+      source_errors_.erase(id);
+      return;
+    }
     std::lock_guard<std::mutex> lock(sample_mutex_);
     auto previous = samples_.find(id);
     if (previous != samples_.end() && stamp == previous->second.stamp) return;
@@ -241,7 +251,10 @@ private:
         const std::vector<std::string> outputs{"timestamp", "actual_q", "actual_qd"};
         const std::vector<std::string> inputs;  // Output-only: no registers or robot commands.
         urcl::rtde_interface::RTDEClient client(ip, notifier, outputs, inputs, rate_);
-        if (!client.init(1, std::chrono::milliseconds(500), 1) || !client.start(true))
+        if (!client.init(1, std::chrono::milliseconds(500), 1))
+          throw std::runtime_error("RTDE output connection unavailable");
+        RtdeSourceClock clock(monotonic());
+        if (!client.start(true))
           throw std::runtime_error("RTDE output connection unavailable");
         urcl::rtde_interface::DataPackage package(client.getOutputRecipe());
         while (!done_) {
@@ -249,7 +262,7 @@ private:
           double stamp;
           urcl::vector6d_t q, v;
           if (package.getData("timestamp", stamp) && package.getData("actual_q", q) && package.getData("actual_qd", v))
-            accept(id, stamp, {q.begin(), q.end()}, {v.begin(), v.end()});
+            accept(id, stamp, {q.begin(), q.end()}, {v.begin(), v.end()}, &clock);
         }
       } catch (const std::exception & error) {
         std::lock_guard<std::mutex> lock(sample_mutex_);

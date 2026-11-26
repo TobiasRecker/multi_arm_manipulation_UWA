@@ -2,8 +2,8 @@
 """Run a single frozen Return to Home phase on the active N100 task host."""
 
 import argparse
-from concurrent.futures import ThreadPoolExecutor, wait
-from contextlib import contextmanager
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import ExitStack, contextmanager
 import hashlib
 import json
 from pathlib import Path
@@ -295,15 +295,32 @@ def preview_for(plan, current, photo):
 
 
 def open_grippers(arms, report, save):
-    def opening(arm):
-        with GripperClient(arm) as client:
-            return client.open(force_raw=0, speed_raw=16)
+    with ExitStack() as stack, ThreadPoolExecutor(max_workers=len(arms)) as pool:
+        clients = {arm: stack.enter_context(GripperClient(arm)) for arm in arms}
+        reads = {arm: pool.submit(client.status) for arm, client in clients.items()}
+        readiness = report["gripper_readiness"] = {}
+        for arm, future in reads.items():
+            try:
+                state = future.result()
+            except Exception as error:
+                readiness[arm] = dict(ready=False, error=str(error))
+                continue
+            registers = state.get("registers", {})
+            activation = {key: registers.get(key) for key in ("ACT", "STA", "FLT")}
+            enabled = state.get("actuation_enabled")
+            busy = state.get("busy")
+            ready = activation == {"ACT": 1, "STA": 3, "FLT": 0} and enabled is True and busy is False
+            readiness[arm] = dict(ready=ready, **activation, actuation_enabled=enabled, busy=busy)
+        save()
+        blocked = [f"{arm} ({', '.join(f'{key}={value}' for key, value in state.items() if key != 'ready')})"
+                   for arm, state in readiness.items() if not state["ready"]]
+        if blocked:
+            raise RuntimeError("No gripper commands sent. Grippers not ready: " + "; ".join(blocked))
 
-    report["finger_commands"] = {arm: "submitted" for arm in arms}
-    save()
-    with ThreadPoolExecutor(max_workers=len(arms)) as pool:
-        futures = {arm: pool.submit(opening, arm) for arm in arms}
-        wait(futures.values())
+        report["finger_commands"] = {arm: "submitted" for arm in arms}
+        save()
+        futures = {arm: pool.submit(client.open, force_raw=0, speed_raw=16)
+                   for arm, client in clients.items()}
         for arm, future in futures.items():
             try:
                 response = future.result()
@@ -368,10 +385,13 @@ def run(args):
                 for arm, trajectory in group["trajectories"].items():
                     envelope.check_trajectory(arm, trajectory["points"])
         photo = None
-        if item:
+        scene_photo = plan.get("scene_photo_sha256")
+        if item or scene_photo is not None:
             if args.photo is None or args.metadata is None:
-                raise ValueError("A fresh OAK4 image is required for this object phase.")
+                raise ValueError("A fresh OAK4 image is required for this reviewed scene.")
             photo = entry_photo(args.photo, args.metadata, earliest, time.time())
+            if scene_photo is not None and photo["original_sha256"] != scene_photo:
+                raise ValueError("The current scene photograph differs from the frozen plan evidence.")
         preview = preview_for(plan, current, photo)
         summaries = dict(lower="Carry and lower", open="Open the grippers",
                          withdraw="Confirm landed object and withdraw", home="Return to Home")
@@ -386,6 +406,8 @@ def run(args):
             reason = ("First joint descent probe. The 3 mm descent is separately reviewed and existing N100 data "
                       "are recorded for its duration." if item.get("commissioning") else
                       "Confirm the grip group, held object and placement against the current photograph.")
+        elif scene_photo is not None:
+            reason = "Confirm the clear work area, open grippers and supported carton shown in the photograph."
         else:
             reason = "Checked unloaded Home path, with the other arms and task objects in the cell model."
         stage = "contact" if kind == "open" else "motion"

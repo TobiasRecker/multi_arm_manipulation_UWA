@@ -110,6 +110,22 @@ def test_force_preview_uses_bounded_steps_in_the_contact_region():
     assert all(delta[2] == pytest.approx(-.001) and speed == .005 for _, delta, speed in probe)
 
 
+def test_home_tries_a_parallel_alternative_before_serial_fallback(monkeypatch):
+    import prepare_return_home as compiler
+
+    def proof(_problem, _start, trajectories, _speed, _extra):
+        if len(trajectories) == 2 and any(t["route"] == "direct" for t in trajectories.values()):
+            return None, "Independently progressed direct routes overlap"
+        return {"min_clearance_m": .1}, None
+
+    monkeypatch.setattr(compiler, "home_candidates",
+                        lambda _p, _s, _a, route, *_: dict(route=route, duration_s=1.))
+    monkeypatch.setattr(compiler, "prove_group", proof)
+    groups, uses = compiler.plan_home(None, {}, ARMS[:2], list(ROUTES), .1, .08, None)
+    assert [g["arms"] for g in groups] == [list(ARMS[:2])]
+    assert set(uses.values()) == {"upright_then_base"}
+
+
 def test_drop_gap_and_landing_inside_support(monkeypatch):
     import prepare_return_home as compiler
     monkeypatch.setattr(compiler, "Chain", lambda *_: SimpleNamespace(forward=lambda _: np.eye(4)))
@@ -138,7 +154,8 @@ def test_partial_open_reports_each_arm_and_prevents_continue(monkeypatch):
                 if arm == ARMS[1]:
                     raise TimeoutError("Controller result unknown")
                 return dict(success=True, position_raw=3, status=dict(registers=dict(OBJ=3, PRE=0, FLT=0, POS=3)))
-            yield SimpleNamespace(open=opening)
+            yield SimpleNamespace(open=opening, status=lambda: dict(
+                registers=dict(ACT=1, STA=3, FLT=0), actuation_enabled=True, busy=False))
         return scope()
 
     monkeypatch.setattr(executor, "GripperClient", make_gripper)
@@ -148,6 +165,28 @@ def test_partial_open_reports_each_arm_and_prevents_continue(monkeypatch):
     assert sorted(reads) == sorted(ARMS[:2])
     assert result["finger_commands"][ARMS[0]]["success"]
     assert not result["finger_commands"][ARMS[1]]["success"]
+
+
+def test_inactive_gripper_prevents_opening_the_whole_group(monkeypatch):
+    @contextmanager
+    def make_gripper(arm):
+        def status():
+            active = arm == ARMS[0]
+            return dict(registers=dict(ACT=int(active), STA=3 if active else 0, FLT=0),
+                        actuation_enabled=True, busy=False)
+
+        def opening(**_):
+            pytest.fail(f"Unexpected opening command for {arm}")
+
+        yield SimpleNamespace(status=status, open=opening)
+
+    monkeypatch.setattr(executor, "GripperClient", make_gripper)
+    result = dict(finger_commands={})
+    with pytest.raises(RuntimeError, match=rf"No gripper commands sent.*{ARMS[1]}.*ACT=0, STA=0, FLT=0"):
+        executor.open_grippers(ARMS[:2], result, lambda: None)
+    assert not result["finger_commands"]
+    assert result["gripper_readiness"][ARMS[0]]["ready"]
+    assert not result["gripper_readiness"][ARMS[1]]["ready"]
 
 
 def test_home_trust_is_task_specific_and_never_auto_approves_high(tmp_path):

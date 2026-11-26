@@ -543,6 +543,20 @@ def plan_home(problem, start, arms, routes, speed, tcp, extra):
         proof, error = prove_group(problem, start, safe, speed, extra)
         if error is None:
             return [group_from_proof(start, safe, proof, "Return to Home")], used
+        # The first individually valid routes need not be compatible in
+        # parallel. Try the other route families before serial scheduling.
+        for route in routes:
+            if all(choice == route for choice in used.values()):
+                continue
+            try:
+                paired = {arm: safe[arm] if used[arm] == route else
+                          home_candidates(problem, start, arm, route, speed, tcp)
+                          for arm in safe}
+            except ValueError:
+                continue
+            proof, error = prove_group(problem, start, paired, speed, extra)
+            if error is None:
+                return [group_from_proof(start, paired, proof, "Return to Home")], dict.fromkeys(paired, route)
     # The stationary neighbours at the start of each serial alternative differ.
     for order in itertools.permutations(arms):
         state, groups, choices = dict(start), [], {}

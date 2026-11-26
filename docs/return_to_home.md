@@ -42,6 +42,12 @@ placement. If the scene or the measured start changed, request a new plan.
 Unloaded Home paths with only modeled structural risk can use the existing
 trust-based low-risk approval.
 
+The opening phase reads the entire grip group's readiness before dispatching
+any opening command. An unavailable, inactive, faulted, busy or disabled
+gripper blocks the group's opening and appears in the phase report. If
+activation is required, use a separate operation with a clear finger path.
+For a held object, arrange on-site support and recovery first.
+
 A release onto verified support is the default. **Bounded drop** uses the
 operator's maximum drop height for a newly entered object and a bound profile in
 `setup/skill_library/return-home-profiles/<id>.json` and the corresponding

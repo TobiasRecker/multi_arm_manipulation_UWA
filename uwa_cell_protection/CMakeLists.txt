@@ -61,6 +61,10 @@ if(BUILD_TESTING)
   target_include_directories(test_pause_ramp PRIVATE include)
   target_compile_options(test_pause_ramp PRIVATE -UNDEBUG)
   add_test(NAME pause_ramp COMMAND test_pause_ramp)
+  add_executable(test_rtde_source_clock test/test_rtde_source_clock.cpp)
+  target_include_directories(test_rtde_source_clock PRIVATE include)
+  target_compile_options(test_rtde_source_clock PRIVATE -UNDEBUG)
+  add_test(NAME rtde_source_clock COMMAND test_rtde_source_clock)
   add_test(NAME protection_mock_api COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_CURRENT_SOURCE_DIR}/test/mock_protection_integration.py --node $<TARGET_FILE:protection_node>)
   set_tests_properties(protection_mock_api PROPERTIES TIMEOUT 30
