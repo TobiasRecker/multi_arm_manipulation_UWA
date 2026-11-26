@@ -1,5 +1,33 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## OAK-Rohrhalter und mobile Boardaufnahme, 26.11.2026
+
+- Linke USB-OAK-D Pro in der gemeinsamen Gazebo-/RViz-Darstellung mit
+  aus dem Lieferpaket exportiertem Kameraträger und Rohrschuh, Ø19-mm-Mast
+  und vorhandenem Tischfuß. Nutzer bestätigt Veranschaulichung ohne
+  separate Kalibrierung und vorläufig abgeleitete Lage. Optik, Intrinsics,
+  TF und Sensoreinstellungen wie bisher. Im Standardmodell etwa 60,16°
+  abwärts, 1.227 mm Anschlagabstand, Achse 7,9 mm innerhalb der
+  nominalen Tischkante. Mögliche ca. 12 mm Überkante am Fuß dokumentiert.
+  [Daten und Vorschau](hardware/oak_d_pro_left/README.md#visualisierung-des-aufgebauten-halters-2026-11-26)
+- Zwei Lyrical-Pakete gebaut, vier Visuals im laufenden Gazebo-Modell
+  nachgewiesen. RViz verwendet dieselben Extrakte aus SDF. 16 vorhandene
+  Offline-Tests bestanden. Der Test zur vollständigen rechten
+  Tischabdeckung scheitert im nominalen Layout auch mit den Dateien
+  des Ausgangscommits. Keine neue Laufzeitprüfung.
+- [Rechter Halter](hardware/oak_4d_right/README.md) als parametrische CAD-
+  Baugruppe und acht geschlossene Druck-STLs einschließlich Tischlehre.
+  Überwiegend gedruckte Klemmung über zwei M8-Zugstangen und Stahl-Gegenplatte,
+  lange Ø19-mm-Rohrführung, Drei-Punkt-Anlage und lösbarer oberer Slider
+  fürs mobile 450 × 360 × 3-mm-Board. M4-Kameraträger am OAK-4-D-
+  Hersteller-CAD geprüft. Kandidat bei 60° mit 1.270-mm-Rohr kommt auf
+  ca. 2,10 m optische Höhe. Ideale Projektion zeigt beide bestehenden
+  festen Muster im Bild. Physische Passung, Steifigkeit, Kabel und
+  spätere Kameraregistrierung stehen aus.
+- Dritte Kamera ist laut Nutzer angekommen. Ihr Einbau und die
+  Einmessung des mobilen Boards zur relativen Tischmessung folgen separat.
+  Seitlicher Boardanschlag bleibt separat.
+
 ## Object scan und Asset Library, 26.11.2026
 
 - `object-scan-v1` im bestehenden Loopback-Webserver von **UWA Robot Power**.
@@ -30,6 +58,35 @@
   Stabile manuelle Umpositionierung ist in der aktuellen Aufnahmefolge nutzbar.
 
 ## Return to Home, 26.11.2026
+
+Nutzer meldet 19 mm Restspalt und erlaubt für den aktuellen stabilen
+Avocado-Karton bis 50 mm Fallhöhe. Profil bindet diese Ablage an den
+Grifflauf, verwendet 5 mm Planungsannahme zur Messunsicherheit und
+bewertet Öffnen nach bestandener Fallraumprüfung als **low**. Der
+senkrechte Rückzug wird ebenfalls **low**, wenn die aufgeweitete
+Landehülle geprüft ist. Neue Objekte haben eine Eingabe für die Fallhöhe.
+
+Einmalige 3-mm-Realmessfahrt für beide rechten Arme in **Motion Review**
+`f0bd4b31bcd140568e4f0ea858469c87` vom Bediener freigegeben. Der N100
+beendete die Phase vor dem ersten Fahr- oder Greiferbefehl wegen einer
+bestehenden Softwarepause. Keine Gleichlaufmessung dieses Realschritts.
+Aus dem erwarteten Endzustand sind 16 mm Restspalt, Fallraum, offene
+Rückfahrt und Home offline geprüft.
+
+Safety Log: Die Kollisionspause stammt von 10:31:52 AWST und betrifft
+links vorne (Handgelenk/Greifer) gegen rechte Tischplatte, FCL-Kontaktgrenze
+0 mm. Neu eingelesene vier Gelenkstände bestehen sowohl MoveIt als auch
+das installierte C++-Replay. Der Live-Kern behält den gespeicherten
+Konflikt bei fehlenden gültigen Daten für links vorne. Die sechs
+passiven Zustandsmeldungen zeigten 19–29 ms seit Empfang, aber
+3,062–3,072 s berechnetes Quellalter bei 0,2 s Grenzwert. Zeitzuordnung
+prüfen und die aktive Ursache vor erneuter Ausführung klären.
+Kein Resume und keine Änderung am Schutzdienst. Der Aufgabenrunner
+meldet den bestehenden Konflikt künftig vor der Review-Anfrage.
+
+**Force-based placement** hat eine langsame Offline-Vorschau, reale
+Lastübergabe mit Schaumstoff ist noch nicht qualifiziert. Daten unter
+`setup/tasks/return_home_20261126/commissioning/`.
 
 Library-Programm, Hydrogen-Beratung und Motion Review für Griffgruppen
 mit einem bis vier Armen ergänzt. Bedienung und Nachweis in

@@ -104,10 +104,26 @@ def recorded_object(row, directory, problem, start):
     support = np.asarray(binding["T_world_object_candidate"])
     raised = support.copy()
     raised[2, 3] += proof["height_m"]
+    expected = proof["end"]
+    prior = None
+    if any(max(abs(a - b) for a, b in zip(q_of(start, arm), q_of(expected, arm), strict=True)) > START_TOLERANCE
+           for arm in CARTON_ARMS):
+        continuation = HELD_DIR / "avocado-carton-continuation.json"
+        profile = HELD_DIR / "avocado-carton.json"
+        if continuation.is_file() and profile.is_file() and not row.get("commissioning"):
+            candidate = read(continuation)
+            phase = (WORKSPACE / candidate["source_phase"]).resolve()
+            if (candidate.get("grasp_run") == row["run_id"]
+                    and candidate.get("profile_sha256") == file_hash(profile)
+                    and candidate.get("model_identity") == model_identity(problem)
+                    and phase.is_relative_to(WORKSPACE / "setup/tasks")
+                    and phase.is_file() and candidate.get("phase_sha256") == file_hash(phase)):
+                prior = candidate
+                expected = prior["expected_end"]
     estimates = []
     for arm in CARTON_ARMS:
-        if max(abs(a - b) for a, b in zip(q_of(start, arm), q_of(proof["end"], arm), strict=True)) > START_TOLERANCE:
-            raise ValueError(f"{arm}: current joints differ from the saved lift end. Enter a current measured object.")
+        if max(abs(a - b) for a, b in zip(q_of(start, arm), q_of(expected, arm), strict=True)) > START_TOLERANCE:
+            raise ValueError(f"{arm}: current joints differ from the saved lift or reviewed probe end.")
         chain = problem.chains[arm]
         estimates.append(chain.forward(start) @ np.linalg.inv(chain.forward(proof["end"])) @ raised)
     if (np.linalg.norm(estimates[0][:3, 3] - estimates[1][:3, 3]) > .001
@@ -119,7 +135,8 @@ def recorded_object(row, directory, problem, start):
                 release=row["release"], pose=estimates[0], support=support, table="right", boxes=boxes,
                 bottom_points=raw_points, tolerance=None,
                 nominal_jaws=proof["nominal_contact_joints"], support_sides=["left", "right"],
-                evidence_run=row["run_id"])
+                evidence_run=row["run_id"], commissioning=row.get("commissioning", False),
+                measured_initial_gap_m=prior["measured_gap_m"] if prior else None)
 
 
 def manual_object(row):
@@ -131,7 +148,7 @@ def manual_object(row):
     return dict(name=row["name"], profile=row["profile"], arms=row["arms"], action=row["action"],
                 release=row["release"], pose=pose, support=support, table=row["table"], boxes=[box],
                 bottom_points=corners(box), tolerance=row["position_error_m"], nominal_jaws={},
-                support_sides=[row["table"]])
+                support_sides=[row["table"]], max_drop_m=row.get("max_drop_m"))
 
 
 def bottom(obj, pose):
@@ -208,12 +225,41 @@ def support_check(problem, obj):
     if drop:
         uncertainty = obj["tolerance"]
         maximum = profile.get("max_release_gap_m")
+        if type(maximum) in (int, float) and obj.get("max_drop_m") is not None:
+            maximum = min(maximum, obj["max_drop_m"])
         if (type(maximum) not in (int, float) or not np.isfinite(maximum)
                 or uncertainty is None or maximum <= 2 * uncertainty):
             raise ValueError(f"{obj['name']}: qualified drop gap cannot enclose the placement uncertainty.")
-        gap = (2 * uncertainty + min(maximum - 2 * uncertainty, .001)) / 2
+        nominal_start = bottom(obj, obj["pose"]) - float(table[2, 3])
+        in_place = np.linalg.norm(obj["pose"][:2, 3] - pose[:2, 3]) < .0001
+        initial_gap = obj.get("measured_initial_gap_m")
+        if initial_gap is None:
+            initial_gap = profile.get("measured_initial_gap_m", nominal_start)
+        if (type(initial_gap) not in (int, float) or not np.isfinite(initial_gap)
+                or abs(nominal_start - initial_gap) > uncertainty):
+            raise ValueError(f"{obj['name']}: measured and modelled release clearance disagree.")
+        descent = 0.
+        if obj.get("commissioning"):
+            descent = profile.get("commissioning_descent_m")
+            if (obj.get("evidence_run") != profile.get("commissioning_grasp_run") or not in_place
+                    or type(descent) not in (int, float) or not 0 < descent <= .003):
+                raise ValueError("The requested commissioning descent does not match this measured carton grip.")
+        gap = initial_gap - descent
+        if in_place and position_in_drop_range(gap, uncertainty, maximum):
+            release = obj["pose"].copy()
+            release[2, 3] -= descent
+            obj["reported_gap_m"] = gap
+            return release, float(table[2, 3]), nominal_start - descent, drift
+        if obj.get("commissioning"):
+            raise ValueError("The bounded carton probe would leave an unverified release gap.")
+        gap = min(maximum - uncertainty, uncertainty + .001)
+        obj["reported_gap_m"] = gap
         release[2, 3] += gap
     return release, float(table[2, 3]), gap, drift
+
+
+def position_in_drop_range(gap, uncertainty, maximum):
+    return gap - uncertainty > 0. and gap + uncertainty <= maximum
 
 
 def scene_model(problem, objects, carried, directory, *, open_arms=(), inflate=None):
@@ -252,7 +298,7 @@ def scene_model(problem, objects, carried, directory, *, open_arms=(), inflate=N
             collision = ET.SubElement(body, "collision")
             ET.SubElement(collision, "origin", xyz=xyz((lo + hi) / 2))
             ET.SubElement(ET.SubElement(collision, "geometry"), "box",
-                          size=xyz(hi - lo + 2 * padding))
+                          size=xyz(hi - lo + 2 * np.array([padding, padding, 0.])))
     model = CollisionModel(ET.tostring(root, encoding="unicode"), directory)
     base_srdf = ET.parse(problem.directory / "moveit/robot.srdf")
     for pair in base_srdf.findall("disable_collisions"):
@@ -396,6 +442,11 @@ def check_start(problem, state):
 def coupled_qualification(obj, delta):
     if len(obj["arms"]) < 2:
         return None
+    if obj.get("commissioning"):
+        descent = obj["qualification"]["commissioning_descent_m"]
+        if np.allclose(delta, [0., 0., -descent], rtol=0., atol=1e-9):
+            return None
+        return f"{obj['name']}: only the bound vertical commissioning descent is authorized."
     evidence = obj["qualification"].get("loaded_sync", {})
     skew = evidence.get("max_phase_skew_fraction")
     translation = evidence.get("allowable_relative_translation_m")
@@ -518,11 +569,26 @@ def plan_home(problem, start, arms, routes, speed, tcp, extra):
     raise ValueError("No checked Home schedule. " + details)
 
 
+def vertical_placement_legs(down, force_preview):
+    if not force_preview or down >= 0.:
+        return [("Lower together", np.array([0., 0., down]), None)]
+    # Prototype only. The final centimetre is covered by bounded 1 mm
+    # approaches at the preview's tip-speed cap. A real profile must
+    # qualify both figures against the particular foam and object.
+    search = min(-down, .01)
+    steps = max(1, int(np.ceil(search / .001)))
+    legs = [("Approach the contact region", np.array([0., 0., down + search]), None)]
+    legs.extend(("Force probe preview", np.array([0., 0., -search / steps]), .005) for _ in range(steps))
+    return legs
+
+
 def plan_loaded(problem, model, objects, obj, start, jaws, ranking, speed, tcp):
     origin = obj["pose"].copy()
     offset = obj["release_pose"][:3, 3] - origin[:3, 3]
     horizontal = np.array([*offset[:2], 0.])
-    in_place = np.linalg.norm(horizontal) < .00001
+    in_place = np.linalg.norm(horizontal) < .0001
+    if in_place:
+        horizontal[:] = 0.
     failures = []
     offline = None
     for route in (("lower_in_place",) if in_place else ranking):
@@ -536,18 +602,18 @@ def plan_loaded(problem, model, objects, obj, start, jaws, ranking, speed, tcp):
         obj["pose"] = origin.copy()
         state, groups, blockers = start, [], []
         phases = [
-            ("Raise for clearance", np.array([0., 0., lift])),
-            ("Carry to the support", horizontal),
-            ("Lower together", np.array([0., 0., offset[2] - lift])),
+            ("Raise for clearance", np.array([0., 0., lift]), None),
+            ("Carry to the support", horizontal, None),
         ]
+        phases.extend(vertical_placement_legs(offset[2] - lift, obj["release"] == "force"))
         try:
-            for label, delta in phases:
+            for label, delta, tcp_cap in phases:
                 if np.linalg.norm(delta) < .00001:
                     continue
                 if blocker := coupled_qualification(obj, delta):
                     blockers.append(blocker)
                 paths = pose_path(problem, state, obj["arms"], delta)
-                trajectories = timed(problem, paths, speed, tcp)
+                trajectories = timed(problem, paths, speed, min(tcp, tcp_cap) if tcp_cap else tcp)
                 proof, error = prove_group(problem, state, trajectories, speed)
                 if error:
                     raise ValueError(f"{label}: {error}")
@@ -590,10 +656,13 @@ def assemble(args):
         objects.append(obj)
     placed = [obj for obj in objects if obj["action"] == "place"]
     kept = [obj for obj in objects if obj["action"] == "keep"]
+    commissioning = any(obj.get("commissioning") for obj in placed)
     live_blockers = []
     for obj in placed:
         release, table, gap, drift = support_check(problem, obj)
         obj.update(release_pose=release, table_height=table, gap=gap, landing_drift=drift)
+        if obj["release"] == "force":
+            live_blockers.append(f"{obj['name']}: force-based placement needs a qualified contact profile and foam reference.")
         if obj["tolerance"] is None:
             live_blockers.append(f"{obj['name']}: placement uncertainty has no current measurement or qualified profile.")
     reports, state = [], dict(start)
@@ -607,6 +676,16 @@ def assemble(args):
         ranking = advice.get("placement_routes", PLACEMENT_ROUTES)
         state, groups, blockers, route = plan_loaded(problem, model, objects, obj, state, jaws, ranking, speed, tcp)
         live_blockers.extend(blocker for blocker in dict.fromkeys(blockers) if blocker not in live_blockers)
+        if commissioning:
+            if len(groups) != 1 or not np.allclose(groups[0]["object_delta_m"], [0., 0., -.003], atol=1e-9):
+                raise ValueError("The commissioning revision must contain only the 3 mm vertical descent.")
+            reports.append(dict(name=obj["name"], arms=obj["arms"], link=obj["link"], loaded=groups, retreat=[],
+                                placement_route=route, start_pose=first_pose.tolist(),
+                                release_pose=obj["release_pose"].tolist(), support_pose=obj["support"].tolist(),
+                                release=obj["release"], gap_m=obj["gap"], reported_gap_m=obj["reported_gap_m"],
+                                position_error_m=obj["tolerance"], commissioning=True,
+                                qualification_sha256=obj["qualification"].get("sha256")))
+            continue
         release_model = scene_model(problem, objects, carried, folder / "release")
         for item in carried:
             allow_pads(release_model, item, True)
@@ -626,21 +705,28 @@ def assemble(args):
             for fraction in np.linspace(0., 1., 33):
                 pose = obj["pose"].copy()
                 pose[2, 3] -= fraction * obj["gap"]
-                if not fall.check(actual_scene(fall, objects, dict(state, **jaws), moving=obj, pose=pose))[0]:
-                    raise ValueError(f"{obj['name']}: the profiled fall envelope intersects the cell.")
-                # Onset can precede the end of the open action. Check every
-                # opening sweep against the falling body with only intended
-                # pad faces exempted and all gripper structures still checked.
-                allow_pads(fall, obj, True)
+                open_state = actual_scene(fall, objects, dict(state, **jaws), moving=obj, pose=pose)
+                if not fall.check(open_state)[0]:
+                    fall.check(open_state, contacts=True)
+                    raise ValueError(f"{obj['name']}: the profiled fall envelope intersects the cell "
+                                     f"at progress {fraction:.2f}.")
+                # During grip separation the carton still follows the
+                # nominal contact region. Apply the free landing allowance
+                # after release, in the full-open test above.
                 for arm in obj["arms"]:
                     joint = problem.names[arm][6]
                     for jaw in np.linspace(obj["nominal_jaws"][joint], 0., 33):
                         sample = dict(state, **dict(jaws, **{joint: jaw}))
-                        if not fall.check(actual_scene(fall, objects, sample, moving=obj, pose=pose))[0]:
-                            raise ValueError(f"{arm}: a partial opening obstructs the profiled fall envelope.")
-                allow_pads(fall, obj, False)
+                        bound = actual_scene(release_model, objects, sample, moving=obj, pose=pose)
+                        if not release_model.check(bound)[0]:
+                            release_model.check(bound, contacts=True)
+                            raise ValueError(f"{arm}: a partial opening obstructs the profiled fall envelope "
+                                             f"at {fraction:.2f} fall progress, jaw {jaw:.3f} rad.")
         obj["pose"] = obj["support"].copy()
         obj["placed"] = True
+        release_risk = "low" if (obj["release"] == "drop"
+                                  and obj["qualification"].get("release_hardware_risk") == "low") else "high"
+        landing_envelope = {obj["link"]: obj["landing_drift"]} if release_risk == "low" else None
         retreat_model = scene_model(problem, objects, carried, folder / "retreat", open_arms=obj["arms"])
         for item in carried:
             allow_pads(retreat_model, item, True)
@@ -655,25 +741,41 @@ def assemble(args):
             raise ValueError(f"{obj['name']} · vertical withdrawal: {error}")
         retreat = group_from_proof(state, trajectories, proof, "Withdraw straight up")
         check_cartesian(problem, retreat_model, objects, state, retreat, delta, nominal=jaws)
+        withdraw_risk = "high"
+        if landing_envelope:
+            spread = scene_model(problem, objects, carried, folder / "retreat-landing-envelope",
+                                 open_arms=obj["arms"], inflate=landing_envelope)
+            for item in carried:
+                allow_pads(spread, item, True)
+            spread_proof, obstruction = prove_group(problem, state, trajectories, speed, StaticScene(spread, objects, jaws))
+            if not obstruction:
+                withdraw_risk = "low"
+                retreat["landing_envelope_proof"] = spread_proof
+                obj["placed_padding_m"] = obj["landing_drift"]
         reports.append(dict(name=obj["name"], arms=obj["arms"], link=obj["link"], loaded=groups, retreat=[retreat],
                             placement_route=route,
                             start_pose=first_pose.tolist(), release_pose=obj["release_pose"].tolist(),
                             support_pose=obj["support"].tolist(), release=obj["release"],
                             gap_m=obj["gap"], position_error_m=obj["tolerance"],
+                            reported_gap_m=obj.get("reported_gap_m", obj["gap"]),
+                            release_risk=release_risk, withdraw_risk=withdraw_risk,
+                            commissioning=obj.get("commissioning", False),
                             qualification_sha256=obj["qualification"].get("sha256")))
         state = endpoints(state, trajectories)
     excluded = {arm for item in kept for arm in item["arms"]}
     extra = None
-    if objects:
+    if objects and not commissioning:
         # Preserve the exact-open model for released grippers while retaining
         # the primary all-opening arm collision proof.
         finished = [arm for item in placed for arm in item["arms"]]
-        static = scene_model(problem, objects, kept, args.output / "home-scene", open_arms=finished)
+        padding = {obj["link"]: obj.get("placed_padding_m", 0.) for obj in placed}
+        static = scene_model(problem, objects, kept, args.output / "home-scene", open_arms=finished, inflate=padding)
         jaws = determine_jaws(static, problem, objects, kept, dict(state))
         jaws = {key: jaws[key] for obj in kept for key in obj["nominal_jaws"]}
         extra = StaticScene(static, objects, jaws)
-    home, routes = plan_home(problem, state, [arm for arm in request["arms"] if arm not in excluded],
-                             advice["home_routes"], speed, tcp, extra)
+    home, routes = ([], {}) if commissioning else plan_home(
+        problem, state, [arm for arm in request["arms"] if arm not in excluded],
+        advice["home_routes"], speed, tcp, extra)
     end = state
     for group in home:
         end = endpoints(end, group["trajectories"])
@@ -684,6 +786,7 @@ def assemble(args):
     document = dict(kind="return_to_home", version=1, model_signature=snapshot["model_signature"],
                     model_identity=model_identity(problem), start=start, end=end, objects=reports,
                     kept_arms=sorted(excluded), home=home, home_routes=routes, advice=advice,
+                    commissioning=commissioning,
                     joint_limit_rad_s=speed, tcp_limit_m_s=tcp, speed_percent=args.speed_percent,
                     robot_description=preview.read_text(), object_tracks=object_tracks,
                     live_blockers=live_blockers, snapshot_sha256=file_hash(args.snapshot),

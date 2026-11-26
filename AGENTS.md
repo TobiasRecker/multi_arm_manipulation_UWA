@@ -15,6 +15,13 @@
 
 ## Return to Home, Nutzerentscheidung 26.11.2026
 
+- Nutzermessung 19 mm Restspalt für den aktuell gehaltenen Avocado-Karton.
+  Bis zu 50 mm Fallhöhe für diesen Karton und die stabile aktuelle Ablage
+  freigegeben. Fallen/Kippen hier niedriges Hardwarerisiko. Für weitere
+  Objekte die Fallhöhe abfragen und das Freigaberisiko einzeln bewerten.
+- Kraftbasiertes Ablegen als langsamer, begrenzter Aufgabenmodus für
+  empfindliche Teile gewünscht. Nutzer hat dafür Schaumstoffmatten besorgt.
+  Profil und Kontaktmessung für die konkrete Matte und Last qualifizieren.
 - Für jede bestätigte Griffgruppe mit einem bis vier Armen **Put down**
   oder **Keep holding** anbieten. Stehen gelassene Lasten bleiben mit ihren
   Armen Hindernisse für die übrige geprüfte Homefahrt. Neue Objekte dürfen
@@ -24,8 +31,8 @@
   review** nach Hardwarerisiko. Für reines geometrisches Roboter-zu-Roboter-
   Risiko bei unbeladener geprüfter Fahrt ist **low** zulässig. Annäherung
   mit gemeinsam gehobenem Karton und Greiferöffnung sind **high**.
-- Kurzer Fall nur mit maximalem, objekt- und ablagegebundenem Restspalt im
-  qualifizierten Profil. Konkrete Öffnung ausdrücklich freigeben. Nutzer
+- Kurzer Fall mit maximalem, objekt- und ablagegebundenem Restspalt prüfen.
+  Die Freigabe folgt der konkreten Risikostufe und dem Aufgabenvertrauen. Nutzer
   erlaubt für den ersten Karton-Pilot Arm-IDs, Hubhöhe und Phasenfolge über
   Antigravity. Bilder, Gelenkwinkel, Weltkoordinaten und Logs bleiben lokal.
 
@@ -443,8 +450,18 @@ angezeigten Arme und die Revision gebunden.
   Konkretisierung19.11.: vorhandenes 1.200-mm-Edelstahlrohr Ø19 mm als
   Säule, vier bereits vorhandene Tischbohrungen durchschrauben. Lange
   Rohrführung, geringer Materialeinsatz, Tischfuß vor Kamerakopf.
-  Entwurf und Druckteile unter `hardware/oak_d_pro_left/`. Bei der
-  späteren Modellierung Kamera und Mast an den linken Tisch binden.
+  Entwurf und Druckteile unter `hardware/oak_d_pro_left/`.
+- Nutzerentscheid 26.11.: Rohr, Schuh und Tischfuß links in Gazebo/RViz
+  zur Veranschaulichung darstellen. Optik aus Kamerakalibrierung übernehmen,
+  Halterung lotrecht daraus ableiten. Keine eigene Kalibrierung oder
+  Kollisionseinbindung für Rohr und Halter beauftragt.
+- Rechts überwiegend gedruckte, bohrungsfreie Klemme für die OAK 4 D
+  und das vertikale mobile PRO-v1-Board (450 × 360 × 3 mm).
+  35 mm Tischholz, Stahlprofil 32 × 32 mm mit seiner nahen Fläche
+  35 mm hinter der Tischkante, Rohrachse 30 mm innen. Board zum
+  Roboterraum vor dem Rohr, seitlicher Anschlag separat. Die dritte
+  Kamera für die relative Tischmessung ist eingetroffen und noch nicht
+  montiert. [CAD und Bedienung](hardware/oak_4d_right/README.md).
 
 ## Hinteres Armpaar als Offline-Lehrer (2026-11-17)
 

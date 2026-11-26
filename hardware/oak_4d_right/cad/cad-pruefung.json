@@ -1,0 +1,148 @@
+{
+  "parameter_mm": {
+    "table": 35,
+    "setback": 35,
+    "rail": 32,
+    "bore": 19.4,
+    "board": 3,
+    "board_height": 360,
+    "rod_length": 1270,
+    "tilt": 60
+  },
+  "print_parts": [
+    {
+      "name": "oberteil",
+      "size_mm": [
+        113.0,
+        144.0,
+        153.0
+      ],
+      "volume_cm3": 374.128
+    },
+    {
+      "name": "unterbacke",
+      "size_mm": [
+        106.0,
+        144.0,
+        30.003
+      ],
+      "volume_cm3": 313.455
+    },
+    {
+      "name": "board_schelle_innen",
+      "size_mm": [
+        30.502,
+        44.0,
+        39.011
+      ],
+      "volume_cm3": 17.829
+    },
+    {
+      "name": "board_schelle_aussen",
+      "size_mm": [
+        17.502,
+        44.0,
+        20.024
+      ],
+      "volume_cm3": 9.356
+    },
+    {
+      "name": "board_schieber",
+      "size_mm": [
+        13.802,
+        44.0,
+        36.0
+      ],
+      "volume_cm3": 8.957
+    },
+    {
+      "name": "kamerakopf_rohr",
+      "size_mm": [
+        57.0,
+        36.0,
+        97.007
+      ],
+      "volume_cm3": 56.57
+    },
+    {
+      "name": "kamerakopf_traeger",
+      "size_mm": [
+        89.0,
+        45.0,
+        98.0
+      ],
+      "volume_cm3": 34.122
+    },
+    {
+      "name": "passprobe_tisch",
+      "size_mm": [
+        89.0,
+        80.0,
+        16.0
+      ],
+      "volume_cm3": 14.848
+    }
+  ],
+  "overlaps_mm3": {
+    "oberteil / holzplatte_referenz": 0.0,
+    "unterbacke / stahlprofil_referenz": 0.0,
+    "oberteil / stahlrohr": 0.0,
+    "kamerakopf_rohr / stahlrohr": 0.0,
+    "kamerakopf_rohr / kamerakopf_traeger": 0.0,
+    "oberteil / charuco_referenz": 0.0,
+    "board_schieber / charuco_referenz": 0.0,
+    "board_schelle_innen / charuco_referenz": 0.0,
+    "kamerakopf_traeger / oak_4d_referenz": 0.0,
+    "kamerakopf_rohr / oak_4d_referenz": 0.0,
+    "unterbacke / stahl_gegenplatte": 0.0,
+    "board_schelle_innen / stahlrohr": 0.0,
+    "board_schelle_aussen / stahlrohr": 0.0,
+    "oberteil / m8_zugschraube_1": 0.0,
+    "oberteil / m8_zugschraube_2": 0.0,
+    "unterbacke / m8_zugschraube_1": 0.0,
+    "unterbacke / m8_zugschraube_2": 0.0,
+    "tilt_25_deg": 0.0,
+    "tilt_26_deg": 0.0,
+    "tilt_27_deg": 0.0,
+    "tilt_28_deg": 0.0,
+    "tilt_29_deg": 0.0,
+    "tilt_30_deg": 0.0,
+    "tilt_31_deg": 0.0,
+    "tilt_32_deg": 0.0,
+    "tilt_33_deg": 0.0,
+    "tilt_34_deg": 0.0,
+    "tilt_35_deg": 0.0,
+    "tilt_36_deg": 0.0,
+    "tilt_37_deg": 0.0,
+    "tilt_38_deg": 0.0,
+    "tilt_39_deg": 0.0,
+    "tilt_40_deg": 0.0,
+    "tilt_41_deg": 0.0,
+    "tilt_42_deg": 0.0,
+    "tilt_43_deg": 0.0,
+    "tilt_44_deg": 0.0,
+    "tilt_45_deg": 0.0,
+    "tilt_46_deg": 0.0,
+    "tilt_47_deg": 0.0,
+    "tilt_48_deg": 0.0,
+    "tilt_49_deg": 0.0,
+    "tilt_50_deg": 0.0,
+    "tilt_51_deg": 0.0,
+    "tilt_52_deg": 0.0,
+    "tilt_53_deg": 0.0,
+    "tilt_54_deg": 0.0,
+    "tilt_55_deg": 0.0,
+    "tilt_56_deg": 0.0,
+    "tilt_57_deg": 0.0,
+    "tilt_58_deg": 0.0,
+    "tilt_59_deg": 0.0,
+    "tilt_60_deg": 0.0,
+    "tilt_61_deg": 0.0,
+    "tilt_62_deg": 0.0,
+    "tilt_63_deg": 0.0,
+    "tilt_64_deg": 0.0,
+    "tilt_65_deg": 0.0,
+    "M12_plug_to_carrier": 0.0,
+    "board_extraction_sampled_path": 0.0
+  }
+}

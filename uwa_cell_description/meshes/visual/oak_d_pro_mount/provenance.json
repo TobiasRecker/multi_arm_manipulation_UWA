@@ -1,0 +1,64 @@
+{
+  "units": "m",
+  "sources": {
+    "shoe": {
+      "source": "Rod_shoe_19mm.stl",
+      "source_sha256": "7946643bc76565bb883d6907bcfcf0e434ba09a959277c10ef757314ee833aff",
+      "visual_sha256": "f37a976181896d06e01a6abfd3191d84b14ef8574bf2d30b8bb6f3b1baeee700",
+      "bounds_m": [
+        [
+          -0.01699972152709961,
+          -0.029,
+          -0.062
+        ],
+        [
+          0.017,
+          0.017,
+          0.015
+        ]
+      ]
+    },
+    "carrier": {
+      "source": "Camera_carrier_OAK_D_Pro.stl",
+      "source_sha256": "b955db61559fcc7873ff7cfbee5194099ea0bc168a28a392a2f964bf2480c6b4",
+      "visual_sha256": "fbb908ddf8345b585c6fbeb24417c4912de1870bb4c9a126b6ad787188cfe9c1",
+      "bounds_m": [
+        [
+          -0.045,
+          -0.014997297286987305,
+          -0.014998306274414062
+        ],
+        [
+          0.045,
+          0.025,
+          0.028
+        ]
+      ]
+    },
+    "foot": {
+      "source": "rohrhalter-19mm.stl",
+      "source_sha256": "a0d2a6a883c6c349e6063a5b77ed402999e0e1cff4d8d8569536e726cdeae8e5",
+      "visual_sha256": "23660795b97cbad9a81689ff08aaa2bea7df67f4b9e97ea2a28cfc87b120d229",
+      "bounds_m": [
+        [
+          -0.06199938201904297,
+          -0.022499996948242184,
+          0.0
+        ],
+        [
+          0.06199938201904297,
+          0.1784457046508789,
+          0.145
+        ]
+      ]
+    }
+  },
+  "assembly_sha256": "91b42c91b324d846fbfbbc8311fbeb70cde6a1d90dcf4f21c82061378dee9c61",
+  "neutral_flip_rgb_mm": [
+    0,
+    47.35,
+    15.236
+  ],
+  "shoe_socket_stop_mm": -27,
+  "table_foot_rod_stop_mm": 4
+}

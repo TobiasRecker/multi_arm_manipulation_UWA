@@ -37,8 +37,12 @@ with TemporaryDirectory(prefix="return-home-model-") as folder:
     if snapshot["model_signature"] != model.signature:
         raise ValueError("The active N100 collision model differs from its local planning model.")
     snapshot["model_identity"] = binding["model_identity"](model)
+if sys.argv[3] == "live":
+    from uwa_cell_motion.minimal_execution import protection_call
+    protection = protection_call("status")["detail"]
+    status["protection"] = {key: protection[key] for key in ("known_collisions", "unavailable_arms")}
 print(json.dumps(dict(snapshot=snapshot, status=status), allow_nan=False))
-' "$1" "$2"
+' "$1" "$2" "$3"
 """
 
 
@@ -102,11 +106,12 @@ def recorded_fixture(out, runs):
     return request, snapshot
 
 
-def observe(out):
+def observe(out, *, live=False):
     if selected_runtime() is None:
         raise ValueError("Open the Library from the active N100 minimal Robot Power instance.")
     module = (REPO / "tools/return_home_model.py").read_text()
-    raw = logged_command(n100(OBSERVE, CELL, module), out / "n100-observation.log", 30, separate_stdout=True)
+    raw = logged_command(n100(OBSERVE, CELL, module, "live" if live else "plan"),
+                         out / "n100-observation.log", 30, separate_stdout=True)
     data = json.loads(raw)
     if data["snapshot"].get("protection_backend") != "minimal":
         raise ValueError("The configured N100 did not provide minimal protection state.")
@@ -123,8 +128,11 @@ def strategy(request, *, use_model=True):
 
 
 def phase_list(plan):
-    for index in range(len(plan["objects"])):
-        yield "lower", True
+    for item in plan["objects"]:
+        if item["loaded"]:
+            yield "lower", True
+        if item.get("commissioning"):
+            continue
         yield "open", True
         yield "withdraw", True
     if plan["home"]:
@@ -133,7 +141,14 @@ def phase_list(plan):
 
 def summarize(plan, path):
     phases = [group for obj in plan["objects"] for group in obj["loaded"] + obj["retreat"]] + plan["home"]
-    text = " → ".join(group["phase"] for group in phases) or "Selected arms already Home or keeping their held loads."
+    steps = []
+    for obj in plan["objects"]:
+        steps.extend(group["phase"] for group in obj["loaded"])
+        if not obj.get("commissioning"):
+            steps.append("Open grippers")
+            steps.extend(group["phase"] for group in obj["retreat"])
+    steps.extend(group["phase"] for group in plan["home"])
+    text = " → ".join(steps) or "Selected arms already Home or keeping their held loads."
     return dict(plan=text, motion=" ".join(plan["live_blockers"]) or "Whole-cell geometry checked.",
                 kept_arms=", ".join(plan["kept_arms"]), strategy=plan["advice"]["reason"],
                 strategy_source=plan["advice"]["source"], duration_s=sum(group["duration_s"] for group in phases),
@@ -141,7 +156,7 @@ def summarize(plan, path):
 
 
 def wait_for_first_review(out, path, first_marker, progress, result):
-    if not load_json(path)["objects"] or first_marker.is_file():
+    if not any(item["loaded"] for item in load_json(path)["objects"]) or first_marker.is_file():
         return
     progress.update("pilot_review", "First loaded Return to Home revision awaits independent Codex review.", result=result)
     mark = out / "pilot-review.json"
@@ -154,6 +169,27 @@ def wait_for_first_review(out, path, first_marker, progress, result):
             return
         time.sleep(.5)
     raise TimeoutError("The first-use Codex review expired before motion review.")
+
+
+def record_carton_continuation(out):
+    path = out / "planning/plan.json"
+    plan = load_json(path)
+    report_file = out / "phase-0.json"
+    report = load_json(report_file)
+    request = load_json(out / "request.json")
+    item, = plan["objects"]
+    probe, = item["loaded"]
+    segment, = report["segments"]
+    delta = probe["object_delta_m"]
+    if (plan.get("commissioning") is not True or report["success"] is not True
+            or report["plan_sha256"] != sha(path) or report.get("finger_commands")
+            or segment.get("executed") is not True or delta[:2] != [0., 0.] or abs(delta[2] + .003) > 1e-9):
+        raise ValueError("Carton continuation needs a confirmed 3 mm commissioning phase.")
+    path = WORKSPACE / "setup/skill_library/return-home-profiles/avocado-carton-continuation.json"
+    write(path, dict(grasp_run=request["objects"][0]["run_id"], profile_sha256=item["qualification_sha256"],
+                     expected_end=plan["end"], measured_gap_m=item["reported_gap_m"],
+                     model_identity=plan["model_identity"], phase_sha256=sha(report_file),
+                     source_phase=str(report_file.relative_to(WORKSPACE))))
 
 
 def remote_phase(remote, index, digest, status, out, phase, picture):
@@ -195,7 +231,9 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 /usr/bin/python3 -Bu "$folder/execute_r
         for line in child.stdout:
             stream.write(line)
             stream.flush()
-            if line.startswith("WAITING_FOR_"):
+            if line.strip() == "WAITING_FOR_OPERATOR_RESUME":
+                yield "resume", None
+            elif line.startswith("WAITING_FOR_"):
                 yield "waiting", line.strip().rsplit(" ", 1)[-1]
             elif line.startswith("REVIEW_ACCEPTED_"):
                 yield "accepted", line.strip().rsplit(" ", 1)[-1]
@@ -233,11 +271,18 @@ def execute(plan, path, out, status, live_config, progress, result):
                     message = ("Review the current phase in UWA Robot Power." if event == "waiting"
                                else "Review accepted. Executing the frozen phase on the N100.")
                     progress.update(phase, message, result=dict(result, review_id=value))
+                elif event == "resume":
+                    progress.update(phase, "Review approved. Waiting for explicit operator RESUME in UWA Robot Power.",
+                                    result=result)
     finally:
         if camera is not None:
             camera.stop()
-    if plan["objects"] and not first_marker.exists():
+    if plan["objects"] and not plan.get("commissioning") and not first_marker.exists():
         write(first_marker, dict(plan_sha256=sha(path), run=out.name))
+    if plan.get("commissioning"):
+        record_carton_continuation(out)
+        return dict(result, commissioning=True, remote_run=remote,
+                    motion="Commissioning descent complete. Both grippers keep holding the carton.")
     return dict(result, remote_run=remote, motion="All selected and released arms have completed the checked sequence.")
 
 
@@ -249,12 +294,16 @@ def run(args, progress):
         status = {"settings": {"speed_percent": 100 / 3}}
     else:
         request = validate_request(load_json(args.request))
-        snapshot, status = observe(out)
+        snapshot, status = observe(out, live=args.mode == "live")
         if args.mode == "live":
             if not status["area_released"]:
                 raise ValueError("Release the work area in UWA Robot Power before preparing a live return.")
             if status["pending"]:
                 raise ValueError("Finish the existing Motion Review before starting Return to Home.")
+            if status["protection"]["known_collisions"]:
+                conflict = status["protection"]["known_collisions"][0]
+                links = " / ".join(conflict.get("links", []))
+                raise ValueError(f"The N100 retains a geometry conflict ({links}). Inspect the UWA Robot Power Safety log.")
     write(out / "snapshot.json", snapshot)
     write(out / "request.json", request)
     progress.update("planning", "Requesting one bounded Hydrogen strategy, then checking every phase locally.")
@@ -309,8 +358,13 @@ def main():
         fields = {"result": summarize(load_json(path), path)} if path.is_file() else {}
         progress.update("failed", str(error), error=str(error), **fields)
         return 1
-    progress.update("done", "Return to Home complete." if args.mode == "live"
-                    else "Offline Return to Home plan saved. No motion commands sent.", result=result)
+    if result.get("commissioning"):
+        message = "Commissioning descent complete. Both grippers keep holding the carton."
+    elif args.mode == "live":
+        message = "Return to Home complete."
+    else:
+        message = "Offline Return to Home plan saved. No motion commands sent."
+    progress.update("done", message, result=result)
     return 0
 
 

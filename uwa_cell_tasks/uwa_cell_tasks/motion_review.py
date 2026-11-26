@@ -176,8 +176,9 @@ class ReviewStore:
             raise ValueError("Unsupported task, stage or risk")
         if not meta["reason"].strip() or not meta["components"]:
             raise ValueError("A reason and a bound action are required")
-        if meta["stage"] == "contact" and (meta["risk"] == "low" or not preview.get("image")):
-            raise ValueError("Contact requires current visual evidence and at least medium risk")
+        if meta["stage"] == "contact" and (not preview.get("image")
+                or (meta["risk"] == "low" and meta["task"] != "return_to_home")):
+            raise ValueError("Contact requires current visual evidence and an eligible risk rating")
         content = encoded(preview)
         sha = digest(encoded([operation, meta, digest(content.encode())]).encode())
         with self.write() as db:

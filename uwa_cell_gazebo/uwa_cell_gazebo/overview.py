@@ -59,6 +59,13 @@ def camera_config(layout, camera='oak4'):
         if camera == 'oak_usb':
             cfg.update(model='uwa_oak_usb', frame_id='oak_usb_rgb_optical_frame',
                        topic='/uwa_cell/oak_usb/rgb', width=width//2, height=height//2)
+            if source.get('visual_mount') == 'oak_d_pro_left':
+                left = layout['tables']['left']
+                rotation = Rotation.from_euler('xyz', left['rpy']).as_matrix()
+                tabletop = np.eye(4)
+                tabletop[:3, :3] = rotation
+                tabletop[:3, 3] = left['xyz'] + rotation[:, 2] * left['height']
+                cfg['mount_tabletop'] = tabletop.tolist()
         k = np.array(source['K'], dtype=float)
         for i, scale in enumerate((cfg['width']/width, cfg['height']/height)):
             k[i] *= scale
@@ -176,7 +183,7 @@ def model_sdf(cfg, *, image_sensors=True):
     sensor_pose, _ = transforms(cfg)
     rpy = Rotation.from_matrix(sensor_pose[:3, :3]).as_euler('xyz')
     ET.SubElement(link, 'pose').text = ' '.join(map(str, [*sensor_pose[:3,3], *rpy]))
-    append_sdf_visuals(model, link, sensor_pose, cfg['camera'])
+    append_sdf_visuals(model, link, sensor_pose, cfg['camera'], cfg.get('mount_tabletop'))
     if not image_sensors:return ET.tostring(root,encoding='unicode')
     sensor = ET.SubElement(link, 'sensor', name='oak_rgb', type='camera')
     for key, value in [('always_on','true'), ('update_rate',str(cfg['rate'])),

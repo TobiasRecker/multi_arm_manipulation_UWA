@@ -97,3 +97,30 @@ Das Modell entsteht mit OpenCascade aus
   src/multi_arm_manipulation_UWA/hardware/oak_d_pro_left/make_table_mount.py \
   --bore 19.4 --output /tmp/uwa-oak-mount
 ```
+
+## Visualisierung des aufgebauten Halters, 2026-11-26
+
+[Modellvorschau mit Details](simulation-rohrhalter.png)
+
+Das Lieferpaket `OAK_D_Pro_Holder_complete` enthält den Rohrschuh und
+den Kameraträger. Die Visuals stammen aus seinen STL-Exporten und dem
+Tischfuß dieses Ordners. Der abgeleitete Drehpunkt berücksichtigt die
+Überkopfmontage um die rückseitige Schraubenmitte. Das Optikzentrum
+und die native Orientierung kommen aus dem bestehenden Kalibrierprofil.
+Die Öffnung des oberen Schuhs zeigt zum senkrechten Ø19-mm-Rohr.
+Unterhalb beträgt der Abstand zwischen den Anschlägen im Modell
+1.227 mm. Die nominelle Rohrlänge wurde zuvor mit etwa 1.200 mm angegeben.
+Die modellierte Rohrachse liegt rund 8 mm innerhalb der Tischkante.
+Der Fuß kann dadurch etwa 12 mm überstehen. Diese Darstellungsmaße sind abgeleitet.
+
+Gazebo und RViz verwenden dieselben vier Visuals für Träger, Schuh,
+Mast und Fuß. Keine Kontakt- oder Kollisionskörper. Die Aufnahme läuft
+weiter über die bisherige Kameraextrinsik. Die
+[rechte OAK-4-D-Klemme](../oak_4d_right/README.md) ist ein eigener
+mechanischer Entwurf.
+
+Die Meter-STLs lassen sich mit
+`export_mount_visuals.py /home/rosmatch/Downloads/OAK_D_Pro_Holder_complete`
+in der vorhandenen Umgebung `.venvs/oak-model` exportieren.
+Die Kamera-STLs für den Betrieb liegen im installierten
+`uwa_cell_description` und werden ohne CAD-Laufzeit geladen.

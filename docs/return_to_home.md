@@ -42,15 +42,23 @@ placement. If the scene or the measured start changed, request a new plan.
 Unloaded Home paths with only modeled structural risk can use the existing
 trust-based low-risk approval.
 
-A release onto verified support is the default. **Short drop from object
-profile** requires a bound profile in
+A release onto verified support is the default. **Bounded drop** uses the
+operator's maximum drop height for a newly entered object and a bound profile in
 `setup/skill_library/return-home-profiles/<id>.json` and the corresponding
 `<id>-evidence.json`. The profile binds the arm IDs, table, collision model
 signature, `geometry_sha256` and `evidence_sha256`. The recorded carton uses
 the ID `avocado-carton`. Record the qualified `position_error_m`,
 `max_release_gap_m`, `landing_xy_error_m` and `upright_drop_qualified` in the
 profile for a drop. The fall path and release gap including uncertainty are
-checked for this revision. Every short drop is explicitly reviewed.
+checked for this revision. A qualified stable drop can be rated low and use
+the existing task trust. Other contact approvals still require current images.
+
+**Force-based placement** is a preview option pending qualification of a
+real force-based task. The contact criteria need a measured carried-load
+reference, a bounded approach rate and travel, and a separate foam support
+model. The offline preview of the final centimetre uses steps of up to 1 mm
+and a planned 5 mm/s TCP cap. The intended task detects load transfer to the
+foam between bounded steps before opening.
 
 For multi-arm carrying, the bound profile also needs `loaded_sync` with the
 measured worst `max_phase_skew_fraction`, the object's
@@ -84,3 +92,21 @@ The fresh OAK4 photograph shows the two arms holding the carton over the
 table gap. The visible view alone gives no metric bottom-to-plate gap.
 The pilot stayed offline and the grippers were left holding. Evidence is
 under `setup/tasks/return_home_20261126/`.
+
+The operator subsequently measured a 19 mm gap and approved a maximum 50 mm
+drop for this carton and placement. The separate 3 mm commissioning option
+prepares only a synchronized vertical descent with both grippers closed.
+The nominal remaining gap is 16 mm with a 5 mm planning allowance. The first
+probe always requires explicit approval. Its runner records the existing
+N100 joint and controller samples during that one motion for later analysis.
+The nominal continuation through release, vertical withdrawal and Home also
+passes offline from the predicted probe endpoint. Its widened landing area
+passes the withdrawal test, which permits the low-risk task-trust policy.
+
+The operator approved the first probe. The N100 reported a pre-existing
+geometry pause before dispatch. Its 10:31:52 AWST event lists the left-front
+wrist/gripper and the right table. The current four-arm snapshot clears the
+installed C++ model in replay. The live evaluator retains the conflict while
+the left-front source is unavailable. The estimated source age was around
+3.06 s against its existing 0.2 s limit. The probe sent no arm or gripper
+commands. Incident files are in the commissioning subdirectory.

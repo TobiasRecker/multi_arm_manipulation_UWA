@@ -17,6 +17,7 @@ external_camera_pair:
       - [-0.010159219469632332, 0.7316387824980249, 0.6816168147900811, -1.2130461230370666]
       - [0.0, 0.0, 0.0, 1.0]
   oak_usb:
+    visual_mount: oak_d_pro_left
     device_id: "18443010314F3B1300"
     focus: 112
     image_size: [4056, 3040]

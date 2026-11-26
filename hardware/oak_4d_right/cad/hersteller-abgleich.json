@@ -1,0 +1,19 @@
+{
+  "source_url": "https://oak-files.fra1.cdn.digitaloceanspaces.com/OAK4-D/260430_OAK4-D-ALL_CCMS_ENCLOSURE.step",
+  "source_sha256": "471394928f901827450b6e74f9c3482475be46666ed69f9b059dfb80f3367d09",
+  "rear_m4_centres_native_mm": [
+    [
+      -37.5,
+      11.5,
+      -36.44
+    ],
+    [
+      37.5,
+      11.5,
+      -36.44
+    ]
+  ],
+  "rear_cover_carrier_interference_mm3": 0.0,
+  "nominal_plug_carrier_interference_mm3": 0.0,
+  "plug_envelope_assumed": true
+}

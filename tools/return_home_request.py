@@ -59,13 +59,16 @@ def validate_request(value):
             raise ValueError("Select every arm in a grip group before choosing Put down.")
         if row.get("source") == "carton":
             fields = {"source", "run_id", "arms", "action", "release"}
-            if (set(row) != fields or members != list(CARTON_ARMS)
+            if (set(row) not in (fields, fields | {"commissioning"}) or members != list(CARTON_ARMS)
                     or not isinstance(row.get("run_id"), str) or not RUN_ID.fullmatch(row["run_id"])):
                 raise ValueError("Choose a completed two-arm carton lift from the Library.")
+            if "commissioning" in row and (type(row["commissioning"]) is not bool
+                    or row["action"] != "place" or row["release"] != "drop"):
+                raise ValueError("A carton commissioning probe uses the profiled drop release.")
         elif row.get("source") == "manual":
             required = {"source", "arms", "action", "release", "name", "size_m",
                         "pose_xyz_yaw_deg", "position_error_m", "table", "target_xy_m", "profile"}
-            if set(row) != required:
+            if set(row) not in (required, required | {"max_drop_m"}):
                 raise ValueError("Enter measured geometry, pose and support for the manual object.")
             name, profile = row["name"], row["profile"]
             if not isinstance(name, str) or not name.strip() or len(name) > 80:
@@ -83,10 +86,14 @@ def validate_request(value):
             error = vector([row["position_error_m"]], 1, "pose/placement error (m)")[0]
             if error < 0:
                 raise ValueError("Pose/placement error must be nonnegative.")
+            if "max_drop_m" in row and vector([row["max_drop_m"]], 1, "maximum drop height (m)")[0] < 0:
+                raise ValueError("Maximum drop height must be nonnegative.")
         else:
             raise ValueError("Choose an archived carton or enter a measured object.")
-        if row.get("release") not in ("support", "drop"):
-            raise ValueError("Choose supported release or the profiled short drop.")
+        if row.get("release") not in ("support", "drop", "force"):
+            raise ValueError("Choose supported release, profiled drop or force-based placement.")
+    if any(row.get("commissioning") for row in objects) and (len(objects) != 1 or arms != list(CARTON_ARMS)):
+        raise ValueError("The commissioning probe moves only the two arms holding the recorded carton.")
     return dict(arms=arms, objects=objects, scene_confirmed=True)
 
 

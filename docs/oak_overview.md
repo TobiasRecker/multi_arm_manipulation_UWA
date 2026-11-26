@@ -22,7 +22,9 @@ direkt mit `right_charuco`; die Anzeige-Aliasse beginnen mit `real_`. RViz
 abonniert für beide Gehäuse, Beschriftungen und Sichtpyramiden gemeinsam
 `/uwa_cell/oak_overview/markers`. Die USB-OAK verwendet das OAK-D-PRO-Mesh aus
 `depthai_descriptions`. Der OAK4-Dreifuß ist eine schematische Visualisierung.
-Für das USB-Gehäuse ist die Kamerapose gemessen, der mechanische Halter separat.
+Die linke USB-OAK zeigt seit 26.11.2026 den Rohrschuh, Kameraträger, Ø19-mm-Mast
+und Tischfuß aus dem mechanischen Modell. Die Halterung dient der Veranschaulichung.
+[Montage und abgeleitete Position](../hardware/oak_d_pro_left/README.md).
 
 Die Posen stehen im kalibrierten [Zelllayout](../uwa_cell_description/config/cell_layout_calibrated.yaml),
 mit Quellenhash der Auswertung. Die relative Translation unterscheidet sich bei

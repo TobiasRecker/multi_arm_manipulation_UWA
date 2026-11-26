@@ -14,7 +14,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO / name) for name in ("tools", "uwa_cell_motion", "uwa_cell_tasks")]
 
 import execute_return_home as executor
-from prepare_return_home import coupled_qualification, support_check
+from prepare_return_home import coupled_qualification, support_check, vertical_placement_legs
 from return_home_request import ARMS, PLACEMENT_ROUTES, ROUTES, parse_advice, validate_request
 from uwa_cell_tasks.motion_review import ReviewStore, START_PERCENT
 
@@ -31,7 +31,8 @@ def test_request_and_frozen_stages_support_one_to_four_arms(members):
     arms = list(ARMS[:members])
     request = dict(arms=arms, objects=[object_request(arms)], scene_confirmed=True)
     assert validate_request(request) == request
-    item = dict(arms=arms, loaded=[], retreat=[], name="A")
+    trajectory = dict(joint_names=["q"], points=[{"positions": [0.]}])
+    item = dict(arms=arms, loaded=[dict(start={"q": 0.}, trajectories={arms[0]:trajectory})], retreat=[], name="A")
     stages = executor.stages(dict(start={"q": 0.}, objects=[item], home=[]))
     assert [stage["kind"] for stage in stages] == ["lower", "open", "withdraw"]
     assert all(stage["arms"] == arms and stage["risk"] == "high" for stage in stages)
@@ -74,7 +75,7 @@ def test_placement_retries_from_original_pose_after_blocked_lateral_route(monkey
     import prepare_return_home as compiler
     attempted = []
     arm = ARMS[0]
-    obj = dict(name="Fixture", arms=[arm], qualification={}, pose=np.eye(4), release_pose=np.eye(4))
+    obj = dict(name="Fixture", arms=[arm], qualification={}, release="support", pose=np.eye(4), release_pose=np.eye(4))
     obj["pose"][2, 3] = .1
     obj["release_pose"][0, 3] = .07
 
@@ -100,6 +101,13 @@ def test_placement_retries_from_original_pose_after_blocked_lateral_route(monkey
     assert len(attempted) == 4 and attempted[0][0] == attempted[1][0]
     assert not blockers
     np.testing.assert_allclose(obj["pose"], obj["release_pose"], atol=1e-15)
+
+
+def test_force_preview_uses_bounded_steps_in_the_contact_region():
+    approach, *probe = vertical_placement_legs(-.019, force_preview=True)
+    assert approach[1][2] == pytest.approx(-.009) and approach[2] is None
+    assert len(probe) == 10
+    assert all(delta[2] == pytest.approx(-.001) and speed == .005 for _, delta, speed in probe)
 
 
 def test_drop_gap_and_landing_inside_support(monkeypatch):
@@ -159,6 +167,18 @@ def test_home_trust_is_task_specific_and_never_auto_approves_high(tmp_path):
     high = store.submit("high", dict(meta, risk="high"), {})
     store.settings(task="return_to_home", trust=100)
     assert not store.claim(high)
+
+
+def test_low_risk_return_home_open_can_use_task_trust_and_still_needs_a_photo(tmp_path):
+    store = ReviewStore(tmp_path)
+    store.area("new", True)
+    store.settings(task="return_to_home", trust=50)
+    meta = dict(task="return_to_home", stage="contact", risk="low", reason="Checked stable placement",
+                summary="Open", arms=[ARMS[0]], components=["frozen"], speed_percent=START_PERCENT)
+    with pytest.raises(ValueError, match="visual evidence"):
+        store.submit("without capture", meta, {})
+    ticket = store.submit("with capture", meta, {"image": {"original_sha256": "fixture"}})
+    assert store.claim(ticket)
 
 
 def test_changed_measured_start_blocks_before_dispatch():

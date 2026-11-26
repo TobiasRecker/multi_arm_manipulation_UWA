@@ -235,13 +235,23 @@ function homeForm(program) {
     group.append(legend, members, homeSelect("action", "Handling", [
       ["place", "Put down"], ["keep", "Keep holding"],
     ], "Choose handling"), homeSelect("release", "Release method", [
-      ["support", "Supported release"], ["drop", "Short drop from object profile"],
+      ["support", "Supported release"], ["drop", "Bounded drop"],
+      ["force", "Force-based placement"],
     ]));
+    if (recorded) {
+      const label = element("label", "");
+      const probe = element("input", "");
+      probe.type = "checkbox";
+      probe.name = "commissioning";
+      label.append(probe, document.createTextNode(" Run the 3 mm commissioning descent only"));
+      group.append(label);
+    }
     if (!recorded) group.append(
       homeInput("name", "Object name"),
       homeInput("size", "Enclosing size XYZ (m)", "0.20, 0.12, 0.06"),
       homeInput("pose", "Measured world bottom-centre XYZ (m), yaw (°)", "0.3, 0.2, 0.92, 0"),
       homeInput("error", "Position and placement uncertainty (m)", "0.002"),
+      homeInput("max-drop", "Maximum permitted drop height (mm)", "0 for supported placement"),
       homeSelect("table", "Support", [["left", "Left table"], ["right", "Right table"]], "Choose table"),
       homeInput("target", "Support centre world XY (m)", "0.3, 0.2"),
       homeInput("profile", "Local object profile ID, if applicable")
@@ -290,9 +300,14 @@ function homeOptions() {
   const objects = [...form.querySelectorAll("fieldset")].map(group => {
     const get = name => group.querySelector(`[name="${name}"]`).value.trim();
     const common = { arms: selected(group), action: get("action"), release: get("release") };
-    if (group.dataset.recorded) return { ...common, source: "carton", run_id: group.dataset.recorded };
+    if (group.dataset.recorded) {
+      const carton = { ...common, source: "carton", run_id: group.dataset.recorded };
+      if (group.querySelector("[name=commissioning]").checked) carton.commissioning = true;
+      return carton;
+    }
     return { ...common, source: "manual", name: get("name"), size_m: measured(get("size"), 3),
       pose_xyz_yaw_deg: measured(get("pose"), 4), position_error_m: measured(get("error"), 1)[0],
+      max_drop_m: measured(get("max-drop"), 1)[0] / 1000,
       table: get("table"), target_xy_m: measured(get("target"), 2), profile: get("profile") };
   });
   return { arms: selected(arms), objects, scene_confirmed: document.querySelector("#home-scene-confirmed").checked };

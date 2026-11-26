@@ -1,9 +1,10 @@
-"""Shared OAK CAD and an illustrative tripod for Gazebo and RViz.
+"""Shared OAK camera and stand geometry for Gazebo and RViz.
 
 Visual geometry only. The stand is a local design, not a measured collision
 model; its height follows the optical pose without changing that pose.
 """
 from dataclasses import dataclass
+import json
 from pathlib import Path
 import math
 import xml.etree.ElementTree as ET
@@ -13,6 +14,7 @@ from scipy.spatial.transform import Rotation
 
 MESH = 'meshes/visual/oak4_pro/oak4_pro.stl'
 GLASS = 'meshes/visual/oak4_pro/oak4_pro_glass.stl'
+LEFT_MOUNT = 'meshes/visual/oak_d_pro_mount'
 BODY = (.32, .35, .39, 1.)
 TUBE = (.25, .28, .33, 1.)
 METAL = (.62, .65, .69, 1.)
@@ -121,7 +123,40 @@ def add_visual(parent, visual, reference=None):
         ET.SubElement(material,key).text = ' '.join(map(str,visual.color))
 
 
-def append_sdf_visuals(model, camera_link, sensor_pose, camera='oak4'):
+def left_rod_mount(sensor_pose, tabletop):
+    """Place the upright shoe from the calibrated RGB centre and nominal pivot."""
+    from ament_index_python.packages import get_package_share_directory
+    folder = Path(get_package_share_directory('uwa_cell_description')) / LEFT_MOUNT
+    cad = json.loads((folder/'provenance.json').read_text())
+    up = np.array([0., 0., 1.])
+    forward = sensor_pose[:3, 0]
+    flat = forward.copy()
+    flat[2] = 0.
+    run = np.linalg.norm(flat)
+    if run < 1e-6:
+        raise ValueError('The OAK-D Pro tilt joint needs a horizontal heading')
+    flat /= run
+    shoe_rotation = np.column_stack((np.cross(flat, up), flat, up))
+    pitch = math.atan2(-forward[2], run)
+    carrier_rotation = shoe_rotation @ Rotation.from_euler('x', -pitch).as_matrix()
+    pivot = sensor_pose[:3, 3] - carrier_rotation @ (np.array(cad['neutral_flip_rgb_mm']) * .001)
+    tabletop = np.asarray(tabletop)
+    normal = tabletop[:3, 2]
+    foot = pivot - up * (np.dot(pivot-tabletop[:3, 3], normal) / normal[2])
+    foot_rotation = tabletop[:3, :3] @ Rotation.from_euler('z', -math.pi/2).as_matrix()
+    lower = foot + up * cad['table_foot_rod_stop_mm'] * .001
+    upper = pivot + up * cad['shoe_socket_stop_mm'] * .001
+    parts = [
+        ('shoe', transform(pivot, shoe_rotation), (.08, .35, .60, 1.)),
+        ('carrier', transform(pivot, carrier_rotation), (.85, .45, .09, 1.)),
+        ('foot', transform(foot, foot_rotation), (.11, .38, .45, 1.)),
+    ]
+    meshes = [Visual(f'oak_usb_{part}', pose, 'mesh', (1., 1., 1.), color,
+                     (folder / f'{part}.stl').as_uri()) for part, pose, color in parts]
+    return [*meshes, tube('oak_usb_rod_19mm', lower, upper, .0095, METAL)]
+
+
+def append_sdf_visuals(model, camera_link, sensor_pose, camera='oak4', mount_tabletop=None):
     if camera == 'oak_usb':
         from ament_index_python.packages import get_package_share_directory
         share = Path(get_package_share_directory('depthai_descriptions'))
@@ -131,6 +166,9 @@ def append_sdf_visuals(model, camera_link, sensor_pose, camera='oak4'):
         rotation = Rotation.from_euler('xyz', [math.pi/2, 0, math.pi/2]).as_matrix()
         pose = sensor_pose @ transform([0, 0, 0], rotation)
         add_visual(camera_link, Visual('oak_d_pro', pose, 'mesh', (1., 1., 1.), BODY, mesh.as_uri()), sensor_pose)
+        if mount_tabletop is not None:
+            for visual in left_rod_mount(sensor_pose, mount_tabletop):
+                add_visual(camera_link, visual, sensor_pose)
         return
     visuals = camera_and_tripod(sensor_pose)
     for visual in visuals[:2]:
