@@ -38,7 +38,7 @@ def nearest_winding(positions, initial, bounds):
     return result
 
 
-def targets(description, contacts, world_object, pregrasp_m=.08):
+def targets(description, contacts, world_object, pregrasp_m=.08, *, object_to_tool0=None):
     from uwa_cell_gazebo.charuco_views import Chain
     world_object = rigid(world_object)
     if world_object[2, 2] < np.cos(np.deg2rad(2)):
@@ -47,6 +47,8 @@ def targets(description, contacts, world_object, pregrasp_m=.08):
         raise ValueError('Pregrasp separation must be50–300mm')
     if set(contacts) != set(MEMBERS):
         raise ValueError('Exactly both right wall contacts required')
+    if object_to_tool0 is not None and set(object_to_tool0) != set(MEMBERS):
+        raise ValueError('Exactly both object-relative tool transforms required')
     result = {}
     for arm in MEMBERS:
         contact = contacts[arm]
@@ -64,6 +66,8 @@ def targets(description, contacts, world_object, pregrasp_m=.08):
         base[:3, 3] = world_object[:3, :3]@point+world_object[:3, 3]-rotation@np.array([0., 0., .145])
         tool_base = Chain(description, arm+'_tool0', arm+'_robotiq_85_base_link').forward({})
         entry = base@np.linalg.inv(tool_base)
+        if object_to_tool0 is not None:
+            entry = world_object@rigid(object_to_tool0[arm])
         pre = entry.copy(); pre[2, 3] += pregrasp_m
         result[arm] = dict(tool0_pregrasp=pre.tolist(), theoretical_tool0_entry=entry.tolist(),
                            point_object_m=point.tolist(), world_contact_m=(world_object[:3, :3]@point+world_object[:3, 3]).tolist())
@@ -143,7 +147,8 @@ def prepare(args):
         q = np.asarray(sample['actual_q'], float)
         if q.shape != (6,) or not np.isfinite(q).all(): raise ValueError('Invalid saved joints')
         start.update(zip(names[:6], q)); start.update({j: 0. for j in names[6:]})
-    goal_frames = {a:targets(problem.original_description,source_plan['candidate']['contacts'],t,args.pregrasp_m)[a]
+    goal_frames = {a:targets(problem.original_description,source_plan['candidate']['contacts'],t,args.pregrasp_m,
+                   object_to_tool0=source_plan['candidate'].get('object_to_tool0'))[a]
                    for a,t in object_frames.items()}
     open_meshes = None
     if not problem.check(dict(start=start,joint_names=[]),[]):

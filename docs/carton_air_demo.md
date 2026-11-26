@@ -16,12 +16,12 @@ Dateipfade. Die ursprüngliche pathabhängige Kennung wird nicht blind umgangen.
 Referenz sind54 tatsächlich abgeschlossene Gazebo-Phasen aus
 `setup/tasks/house_drill_home_20261120_01/run05/drawing-trajectories/`.
 Kartongeometrie und Werkzeugbezug werden aus dem damaligen Zellmodell
-rekonstruiert; die neuen Halter behalten ihre aktuellen festen Griffe.
+rekonstruiert; die Übertragung bindet entweder den gemessenen Griff oder ausdrücklich eine
+hypothetische Neuaufnahme mit den exakten Referenzgriffen.
 Der übrige linke Arm steht derzeit nahe der Stiftaufnahme und behindert die
 Unterseitenpräsentation. Eine vorgeschaltete Parkfahrt wird deshalb mit
-dem aktuell gehaltenen Karton geprüft. Vor einer tatsächlichen Parkfahrt
-muss bestätigt sein, dass dieser Greifer leer ist. Die reine Offline-
-Hypothese ist keine Freigabe oder Behauptung eines unbeladenen Arms.
+dem aktuell gehaltenen Karton geprüft. Der Nutzer hat ausdrücklich bestätigt, dass dieser Greifer leer ist.
+Die konkrete Parkfahrt bleibt Bestandteil der Gesamtprüfung und Motion Review.
 
 Zusätzlich zu den54 Referenzphasen werden die aktuelle Kartonpose und die
 Arbeitspräsentation durch zwei geprüfte Ausrichtphasen verbunden. Eine
@@ -72,3 +72,22 @@ eine solche Qualifikation darf nicht durch diesen Entwurf vorgetäuscht werden.
 Der Entwurf öffnet keine Greifer und kehrt nach seinem Schlussabstieg
 zunächst zur gehaltenen Ausgangshöhe zurück; er setzt den Karton nicht
 automatisch ab. Keine Änderungen am Schutzdienst oder an Controllern.
+
+Für den Nutzerauftrag mit unverändertem Kamerahalter enthält `input.json`
+eine explizit protokollierte `task_obstacles`-Box. Ihre bild-/kalibrierungs-
+basierten Grenzen sind eine Schätzung. Sie ergänzt nur die endlichen
+Offline-Szenen; der aktive Schutzdienst wird nicht geändert. Überdeckung
+mit festen Tischkörpern ist zulässig, Roboter und Karton bleiben geprüft.
+Freie Arbeitsarmwege vergleichen direkte und aufgerichtete Wege mit
+getrennter Basisdrehung; bei Bedarf folgt eine begrenzte deterministische
+RRT-Connect-Suche. Jede Kante bleibt vollständig geometrisch geprüft.
+
+Das eigene Rezept `carton-supported-simulation-v1` übernimmt die exakten
+Objekt/Tool0-Transformationen und Halterzweige aus `run05/group.json`, ohne
+die bisherige zusätzliche Einwärtsverschiebung. Es ändert kein Legacy-
+Rezept und erhält den Kraftreferenz-/Wiegehubablauf. Für den Griff und Hub
+prüft die vorhandene physische Assethaut nur erlaubte Fingerspitzenkontakte;
+die konservative Außenhülle prüft weiter Arme, Kameras und Umgebung. Die
+Wanddicke bleibt eine Assetschätzung. Ein bestandener hypothetischer
+Folgeplan ersetzt weder die neue Lokalisierung nach Ablegen noch die
+vollständige Prüfung der realen Neuaufnahme.

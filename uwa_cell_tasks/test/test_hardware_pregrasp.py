@@ -70,3 +70,17 @@ def test_equivalent_winding_uses_start_and_real_limits():
     assert tool.nearest_winding([.1], [6.], [(-.2, .2)]) == [.1]
     with pytest.raises(ValueError):
         tool.nearest_winding([1.], [0.], [(-.2, .2)])
+
+
+def test_exact_simulation_grip_preserves_the_two_object_relative_transforms():
+    xml, contacts = fixture()
+    T=np.eye(4);T[:3,:3]=Rotation.from_euler('z',.9).as_matrix();T[:3,3]=[.3,-.2,.9]
+    offsets={}
+    for arm,x in zip(tool.MEMBERS,(.0013,.4028)):
+        offset=np.eye(4);offset[:3,:3]=Rotation.from_euler('xyz',[np.pi,0.,.0016]).as_matrix()
+        offset[:3,3]=[x,.171,.254];offsets[arm]=offset.tolist()
+    result=tool.targets(xml,contacts,T,.15,object_to_tool0=offsets)
+    for arm in tool.MEMBERS:
+        entry=np.asarray(result[arm]['theoretical_tool0_entry'])
+        np.testing.assert_allclose(np.linalg.inv(T)@entry,offsets[arm],atol=1e-12)
+        np.testing.assert_allclose(np.asarray(result[arm]['tool0_pregrasp'])[:3,3]-entry[:3,3],[0,0,.15])

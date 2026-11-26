@@ -52,8 +52,13 @@ def prepare(args):
     binding=json.loads(Path(e['inputs']['object_pose']['path']).read_text());scene=json.loads(Path(e['inputs']['contact_scene']['path']).read_text());p=HardwareProblem(out/'base',e['configuration'],args.inventory);p.chains={r:Chain(p.original_description,'world',r+'_tool0') for r in p.names};start=dict(run['segments'][-1]['final_positions']);report=dict(start_kind='PLANNED_HIGH_TARGET_NOT_CURRENT' if args.planned_start else 'MEASURED_HELD_HIGH',inputs={str(path.resolve()):hashlib.sha256(path.read_bytes()).hexdigest() for path in [args.evidence/'evidence.json',args.approach,Path(e['inputs']['object_pose']['path']),Path(e['inputs']['contact_scene']['path']),Path(__file__)]},success=False,executable=False,finger_commands=[],arm_commands=[],loaded_motion=False,base_signature=p.signature,shell_boxes=shell_boxes(scene),segments=[],limits=['35mm short-wall normal envelope and5mm rim expansion are conservative DESIGN assumptions, not measured bounds.','Actual open jaw state and independent visual agreement required before any execution.','Primary full-opening/interarm/table model and40mm neighbor margin retained.','No arm/carton contact exemptions in exact-open model; shared board/object frame required.'])
     dump(out/'result.json',report)
     try:
+        design=json.loads(Path(e['inputs']['contact_design']['path']).read_text())['candidate']
+        shift=design.get('entry_inward_shift_m',.01125)
+        if not isinstance(shift,(int,float)) or not np.isfinite(shift) or not 0<=shift<=.01125:
+            raise ValueError('Invalid named contact-design entry shift')
+        report['entry_inward_shift_m']=shift
         for arm in ['right_front','right_rear']:
-            target=np.array(e['goals'][arm]['theoretical_tool0_entry']);normal=np.array(binding['world_object_by_arm'][arm])[:3,0];target[:3,3]+=normal*(.01125 if arm=='right_front' else -.01125)
+            target=np.array(e['goals'][arm]['theoretical_tool0_entry']);normal=np.array(binding['world_object_by_arm'][arm])[:3,0];target[:3,3]+=normal*(shift if arm=='right_front' else -shift)
             qstart=np.array([start[j] for j in joint_names(arm)]);qend=solve_near(p,arm,start,target,qstart);line=cartesian_entry(p,arm,start,target,qend,pregrasp_m=.15);align=joint_segment(qstart,line['positions'][0]);cm=open_model(p,binding,scene,arm,out/('open-'+arm));request=p.normalize(dict(start=start,goals={arm:qend.tolist()}))
             for name,segment in [('ALIGN',align),('ENTRY',line)]:
                 u=np.linspace(0,1,257);qs=evaluate(segment,u);max_pe=0.;max_re=0.

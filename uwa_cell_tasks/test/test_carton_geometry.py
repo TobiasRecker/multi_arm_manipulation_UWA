@@ -126,7 +126,8 @@ def test_model_must_call_checker_before_submitting(tmp_path, monkeypatch):
     assert all('raw_response' in r for r in audit['rounds'])
 
 
-def test_depth_uses_its_own_projection_and_local_table_plane(tmp_path,monkeypatch):
+@pytest.mark.parametrize('mode', ['rgbd', 'rgbd_hq'])
+def test_depth_uses_its_own_projection_and_local_table_plane(tmp_path,monkeypatch,mode):
     import carton_depth_geometry as depth_tool
     from types import ModuleType
     old=ModuleType('register_carton_from_oak')
@@ -142,13 +143,16 @@ def test_depth_uses_its_own_projection_and_local_table_plane(tmp_path,monkeypatc
     depth[450:455,650:655]=0  # Invalid stereo remains invalid, no filling.
     cv2.imwrite(str(tmp_path/'rgb.png'),np.zeros((1200,1600,3),np.uint8));cv2.imwrite(str(tmp_path/'depth.png'),depth)
     stamp='2026-11-26T06:00:00+00:00'
-    metadata=dict(success=True,kind='rgbd',device_id=ctx['device_id'],requested_focus=107,started_at=stamp,
+    metadata=dict(success=True,kind='rgbd',mode=mode,device_id=ctx['device_id'],requested_focus=107,started_at=stamp,
         projection=dict(K=ctx['K'],depth_K=ctx['K'],D=[0]*5,size=[1600,1200],coordinate_frame='CAM_A undistorted optical: X right, Y down, Z forward'),
         pairs=[dict(index=0,actual_focus=107,rgb_path='rgb.png',depth_path='depth.png')])
+    if mode=='rgbd_hq':
+        metadata['hq']=dict(metadata['pairs'].pop(),sample_kind='static_rgb_stereo_hdr')
     (tmp_path/'metadata.json').write_text(json.dumps(metadata));(tmp_path/'native.json').write_text(json.dumps(dict(started_at=stamp)))
     result=depth_tool.check_depth(tmp_path,ctx,measured,tmp_path/'native.json')
     assert result['status']=='measured' and not result['depth_used_for_pose']
     assert result['relative_floor_height_median_mm']==pytest.approx(3,abs=.05)
+    assert result['per_frame'][0]['sample_kind']==('static_rgb_stereo_hdr' if mode=='rgbd_hq' else 'single_aligned_frame')
     assert result['camera_reference_check']['status']=='unavailable'
     metadata['projection']['depth_K']=[[1,0,0],[0,1,0],[0,0,1]]
     (tmp_path/'metadata.json').write_text(json.dumps(metadata))

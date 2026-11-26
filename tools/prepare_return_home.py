@@ -355,8 +355,8 @@ def actual_scene(model, objects, state, *, moving=None, pose=None):
             for link, support_top in obj.get('thin_support_tops',{}).items():
                 # Raw support mismatch may only use the existing qualified
                 # vertical position error; the shell already encloses it.
-                contact=(support_top-obj['tolerance']-1e-7 <= model_bottom
-                         <= support_top+extension+1e-7)
+                contact=bool(support_top-obj['tolerance']-1e-7 <= model_bottom
+                             <= support_top+extension+1e-7)
                 model.scene.allowed_collision_matrix.set_entry(obj['link']+'_body',link,contact)
     return combined
 

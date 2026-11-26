@@ -54,7 +54,7 @@ def separating_supports(problem, table, existing_shell_expansion):
     return result
 
 
-def moving_carton(problem, pose, scene, directory):
+def moving_carton(problem, pose, scene, directory, *, physical=False):
     """Nominal grasp geometry, separate from the unchanged full-opening cell proof."""
     root = ET.fromstring(problem.description)
     original = ET.fromstring(problem.original_description)
@@ -65,11 +65,20 @@ def moving_carton(problem, pose, scene, directory):
                 link.append(copy.deepcopy(collision))
     body = ET.SubElement(root, 'link', name='weigh_carton')
     boxes = shell_boxes(scene)
-    for box in boxes:
-        lo, hi = np.asarray(box['lo']), np.asarray(box['hi'])
-        collision = ET.SubElement(body, 'collision')
-        ET.SubElement(collision, 'origin', xyz=' '.join(map(str, (lo+hi)/2)))
-        ET.SubElement(ET.SubElement(collision, 'geometry'), 'box', size=' '.join(map(str, hi-lo)))
+    if physical:
+        from urllib.parse import urlsplit, unquote
+        for shape in scene['shapes']:
+            uri=urlsplit(shape['uri'])
+            if uri.scheme!='file' or uri.netloc or file_hash(Path(unquote(uri.path)))!=shape['sha256']:
+                raise ValueError('Physical contact skin must match the bound carton mesh')
+            collision=ET.SubElement(body,'collision')
+            ET.SubElement(ET.SubElement(collision,'geometry'),'mesh',filename=shape['uri'])
+    else:
+        for box in boxes:
+            lo, hi = np.asarray(box['lo']), np.asarray(box['hi'])
+            collision = ET.SubElement(body, 'collision')
+            ET.SubElement(collision, 'origin', xyz=' '.join(map(str, (lo+hi)/2)))
+            ET.SubElement(ET.SubElement(collision, 'geometry'), 'box', size=' '.join(map(str, hi-lo)))
     joint = ET.SubElement(root, 'joint', name=LIFT_JOINT, type='prismatic')
     ET.SubElement(joint, 'parent', link='world'); ET.SubElement(joint, 'child', link='weigh_carton')
     set_origin(joint, pose)
@@ -195,7 +204,14 @@ def prepare(plan, output):
     proof, error = prove_group(problem,start,trajectories,joint_cap)
     if error: raise ValueError('Joint lift primary cell proof: '+error)
     model, support = moving_carton(problem,pose,scene,output/'carton-scene')
-    grasp_joints=nominal_pad_contact(model,problem,start,support)
+    design=json.loads(Path(evidence['inputs']['contact_design']['path']).read_text())['candidate']
+    physical=None
+    if design.get('contact_model')=='physical_skin_and_outer_hull':
+        physical,_=moving_carton(problem,pose,scene,output/'physical-contact',physical=True)
+        for link in ET.fromstring(problem.original_description).findall('link'):
+            if any(link.get('name').startswith(arm+'_robotiq_85_') for arm in ARMS):
+                model.scene.allowed_collision_matrix.set_entry('weigh_carton',link.get('name'),True)
+    grasp_joints=nominal_pad_contact(physical if physical is not None else model,problem,start,support)
     maxima = {arm: dict(position_m=0.,angle_rad=0.) for arm in ARMS}
     polynomials = {arm:BPoly.from_derivatives([p['time'] for p in t['points']],
         [[p['positions'],p['velocities'],p['accelerations']] for p in t['points']])
@@ -215,13 +231,20 @@ def prepare(plan, output):
         for link,top in support['support_links_top_above_table_m'].items():
             model.scene.allowed_collision_matrix.set_entry('weigh_carton',link,
                 support['initial_shell_bottom_above_table_m']+height<=top+1e-9)
+            if physical is not None:
+                physical.scene.allowed_collision_matrix.set_entry('weigh_carton',link,
+                    support['initial_shell_bottom_above_table_m']+height<=top+1e-9)
         if not model.check(dict(state, **{LIFT_JOINT:height}))[0]:
             model.check(dict(state, **{LIFT_JOINT:height}), contacts=True)
             raise ValueError(f'Moving carton collision at lift progress {phase:.6f}')
+        if physical is not None and not physical.check(dict(state, **{LIFT_JOINT:height}))[0]:
+            physical.check(dict(state, **{LIFT_JOINT:height}),contacts=True)
+            raise ValueError(f'Physical carton skin collision outside holder pads at lift progress {phase:.6f}')
     end = dict(start)
     for arm,t in trajectories.items(): end.update(zip(joint_names(arm),t['points'][-1]['positions']))
     sources = [plan/'entry-plan/result.json',plan/'review-entry.json',
         Path(evidence['inputs']['object_pose']['path']),Path(evidence['inputs']['contact_scene']['path']),
+        Path(evidence['inputs']['contact_design']['path']),
         Path(__file__), REPO/'tools/prepare_carton_open_entry.py',
         REPO/'tools/carton_weigh_phase.py',REPO/'uwa_cell_tasks/uwa_cell_tasks/carton_weighing.py']
     report = dict(schema_version=1, success=True, phase='OFFLINE_WEIGH_LIFT_PREPARED',
@@ -229,10 +252,13 @@ def prepare(plan, output):
         inputs={str(p.resolve()):file_hash(p) for p in sources}, support=support,
         joint_group_proof=proof, moving_carton_samples=257, tool_pose_error=maxima,
         nominal_contact_joints=grasp_joints,nominal_contact_is_measured_opening=False,
+        contact_model='physical_skin_and_outer_hull' if physical is not None else 'outer_hull_nominal_pads',
         force_base_to_world={arm:Chain(problem.original_description,'world',arm+'_base').forward({})[:3,:3].tolist() for arm in ARMS},
         limits=['Sampled task-object/coupling geometry, not a proof of real pad contact or mechanical synchronization.',
                 'Full-opening whole-cell and independent-progress interarm proof retained; common commanded time law.',
-                'Carton/gripper scene uses first nominal pad contact on the existing design shell; jaw angle and wall thickness are not measured.'])
+                ('Carton/gripper contact uses existing physical skin; outer hull checks wrists/cameras/arms/environment; only fingertips may touch the skin.'
+                 if physical is not None else 'Carton/gripper scene uses first nominal pad contact on the existing design shell; jaw angle and wall thickness are not measured.'),
+                'Jaw contact and wall thickness are modeled, not independently measured.'])
     dump(output/'proof.json',report)
     preview = preview_model(problem,output)
     carton = dict(world_pose=pose.tolist(),shell_boxes=shell_boxes(scene))

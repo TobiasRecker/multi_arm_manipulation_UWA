@@ -63,22 +63,22 @@ def oak4_capture(workspace, directory, rgbd):
     spec.loader.exec_module(module)
     service = module.PhotoCapture(workspace)
     if rgbd:
-        result = service.capture('rgbd_hdr', frames=8, focus=116)
+        result = service.capture('rgbd_hq', focus=116)
         target = directory / 'rgbd'
         shutil.copytree(result['directory'], target)
         metadata = target / 'metadata.json'
         report = read_json(metadata)
-        if not report.get('success') or report.get('kind') != 'rgbd':
+        if not report.get('success') or report.get('kind') != 'rgbd' or report.get('mode') != 'rgbd_hq':
             raise ValueError('OAK4 did not save a complete aligned RGB-D capture.')
-        image = checked_file(target, report['hdr']['path'])
-        return image, metadata, dict(rgbd=str(target), source='oak4_aligned_rgbd_hdr',
+        image = checked_file(target, report['hq']['rgb_path'])
+        return image, metadata, dict(rgbd=str(target), source='oak4_aligned_rgbd_hq',
                                       display_rotation_deg=0)
-    result = service.capture('hdr', focus=107, iso=400)
+    result = service.capture('hdr_hq', focus=107)
     target = directory / 'hdr'
     shutil.copytree(result['directory'], target)
     metadata = target / 'metadata.json'
     return checked_file(target, read_json(metadata)['hdr']['path']), metadata, dict(
-        source='oak4_native_rgb_hdr', display_rotation_deg=0)
+        source='oak4_native_rgb_hdr_hq', display_rotation_deg=0)
 
 
 def oak_pro_capture(workspace, directory):
@@ -285,7 +285,12 @@ def aligned_depth(photo):
             or min(intrinsics[0, 0], intrinsics[1, 1]) <= 0
             or tuple(projection['size']) != (photo['width'], photo['height'])):
         raise ValueError('Expected matching rectified RGB and depth projection.')
-    if report.get('mode') == 'rgbd_hdr':
+    if report.get('mode') == 'rgbd_hq':
+        hq = report['hq']
+        if hq.get('sample_kind') != 'static_rgb_stereo_hdr':
+            raise ValueError('Expected aligned static HQ color and depth.')
+        image_path, depth_path = hq['rgb_path'], hq['depth_path']
+    elif report.get('mode') == 'rgbd_hdr':
         hdr = report['hdr']
         if hdr['reference_bracket'] != 'base' or sum(
                 bracket['name'] == 'base' for bracket in hdr['brackets']) != 1:

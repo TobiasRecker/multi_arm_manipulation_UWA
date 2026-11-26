@@ -32,8 +32,8 @@ def test_capture_keeps_photo_when_second_camera_times_out(tmp_path, monkeypatch)
     assert records[1]['camera'] == 'oak_pro' and 'timed out' in records[1]['error']
 
 
-@pytest.mark.parametrize('hdr', [False, True])
-def test_rgbd_obb_preserves_beam_axis_and_table_height(tmp_path, hdr):
+@pytest.mark.parametrize('mode', ['rgbd', 'rgbd_hdr', 'rgbd_hq'])
+def test_rgbd_obb_preserves_beam_axis_and_table_height(tmp_path, mode):
     depth = np.full((480, 640), 1000, dtype=np.uint16)
     polygon = cv2.boxPoints(((310, 230), (220, 40), 17)).round().astype(np.int32)
     cv2.fillConvexPoly(depth, polygon, 962)
@@ -45,15 +45,19 @@ def test_rgbd_obb_preserves_beam_axis_and_table_height(tmp_path, hdr):
     report = dict(success=True, kind='rgbd',
         projection=dict(K=k, depth_K=k, D=[0] * 5, size=[640, 480]),
         pairs=[dict(rgb_path=rgb.name, depth_path=depth_path.name)])
-    if hdr:
+    if mode != 'rgbd':
         hdr_image = tmp_path / 'hdr.png'
         Image.new('RGB', (640, 480)).save(hdr_image)
-        report.update(mode='rgbd_hdr', hdr=dict(path=hdr_image.name, depth_path=depth_path.name,
-                      reference_bracket='base', brackets=[dict(name='base')]))
+        if mode == 'rgbd_hdr':
+            report.update(mode=mode, hdr=dict(path=hdr_image.name, depth_path=depth_path.name,
+                          reference_bracket='base', brackets=[dict(name='base')]))
+        else:
+            report.update(mode=mode, pairs=[], hq=dict(rgb_path=hdr_image.name, depth_path=depth_path.name,
+                                                       sample_kind='static_rgb_stereo_hdr'))
     metadata.write_text(json.dumps(report))
     photo = dict(image=str(rgb), image_sha256=scan.digest(rgb), metadata=str(metadata),
                  rgbd=str(tmp_path), width=640, height=480, camera='oak4')
-    if hdr:
+    if mode != 'rgbd':
         with pytest.raises(ValueError, match='does not belong'):
             scan.aligned_depth(photo)
         photo.update(image=str(hdr_image), image_sha256=scan.digest(hdr_image))

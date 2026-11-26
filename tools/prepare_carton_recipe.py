@@ -46,8 +46,18 @@ def load_program(name):
 
     design = program["contact_design"]
     design_fields = {"depth_below_continuous_wall_top_m", "elbow_signs", "preferred_ik_seeds", "seed_origin", "posture_reason"}
-    if not isinstance(design, dict) or set(design) != design_fields:
+    optional_fields = {'object_to_tool0', 'entry_inward_shift_m', 'contact_model'}
+    if not isinstance(design, dict) or not design_fields <= set(design) or set(design)-design_fields-optional_fields:
         raise ValueError("Invalid carton program contact design")
+    if set(design) & optional_fields:
+        from match_cooperative_handling.rigid_object import rigid
+        if (not optional_fields <= set(design) or design['entry_inward_shift_m'] != 0.
+                or design['contact_model'] != 'physical_skin_and_outer_hull'
+                or not isinstance(design['object_to_tool0'], dict)
+                or set(design['object_to_tool0']) != {'right_front', 'right_rear'}):
+            raise ValueError('Exact simulation grips require both rigid offsets, zero entry shift and physical skin contact')
+        for transform in design['object_to_tool0'].values():
+            rigid(transform)
     depth = design["depth_below_continuous_wall_top_m"]
     if type(depth) not in (int, float) or not math.isfinite(depth) or depth <= 0:
         raise ValueError("Contact depth must be finite and positive")
@@ -115,6 +125,9 @@ def prepare(asset, output, config_path, inventory, program=None):
                              point_object=[x, width / 2, top - depth], continuous_wall_top_object_m=top)
     candidate = dict(contacts=contacts, elbow_signs=design["elbow_signs"], preferred_ik_seeds=design["preferred_ik_seeds"],
                      seed_origin=design["seed_origin"], posture_reason=design["posture_reason"])
+    for key in ('object_to_tool0', 'entry_inward_shift_m', 'contact_model'):
+        if key in design:
+            candidate[key] = design[key]
     contact_design = dict(schema_version=1, candidate=candidate,
                           scope="Nominal end-wall recipe; current camera pose and actual open-jaw alignment still required",
                           force_raw=0, speed_raw=16, mass_kg_user_reported=.5, wall_force_reference_n_user_reported=50.,

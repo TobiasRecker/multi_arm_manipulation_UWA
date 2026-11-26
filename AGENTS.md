@@ -9,6 +9,10 @@
   halten. Keine echten Zeichenkontakte, Bohrkräfte oder Materialbearbeitung
   daraus behaupten. Aktuellen Griff und alle vier Iststellungen binden,
   ganze Folge offline neu prüfen; konkrete Realfahrt über Motion Review.
+- Nutzer konkretisiert: denselben objektbezogenen Griff und die Halterzweige
+  wie im abgeschlossenen Gazebo-Lauf verwenden. Aktuellen schwebenden Griff
+  dafür erst tischgestützt lösen und frisch planen. Der vorhandene
+  Kamerahalter bleibt stehen und ist in der Offline-Aufgabenszene zu beachten.
 - Reale0,1rad/s-Grenze und vorhandene40mm-Nachbararmmarge erhalten;
   Simulationsgeschwindigkeit1rad/s nicht auf Hardware übertragen.
 
@@ -36,6 +40,13 @@
 - **Object scan** in der Program Library und **Asset Library** darunter im
   selben lokalen Webserver. Der erste beschriebene Gegenstand ist ein
   Holzbalken. OAK4, OAK Pro und Wrist-Ansichten einzeln auswählbar halten.
+- Programmübergreifend für geplante statische Qualitätsaufnahmen
+  `hdr_hq` (3×6) oder `rgbd_hq` (3×6 Farbe und 4×4 Stereo mit einem IR-Block)
+  aus dem bestehenden OAK4-Fotodienst nutzen. **Object scan** übernimmt die
+  kombinierte HQ-Übersicht und danach native 48-MP-HQ-Fotos. Beim Karton
+  ist HQ-RGB-D ergänzende Tiefenevidenz vor den nativen Bildern. Kamera-
+  Kalibrierung und zeitgebundene Einfahr-/Freigabebilder verwenden weiterhin
+  ihre jeweiligen kalibrierten und frischen Einzelbilder.
 - Gemini soll Sichtbefund, mögliche Griffstellen, Rückfragen zur Armzahl und
   Präsentationsansichten liefern. Wirkung der Verdeckung auf Geometrie und
   Texturen sichtbar machen. Eine andere stabile Ablage oder ein begründet

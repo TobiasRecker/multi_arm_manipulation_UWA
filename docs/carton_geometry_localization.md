@@ -44,10 +44,11 @@ prüfen und reguläre Motion Review verwenden.
 
 ## Tiefe
 
-`depth_geometry: true` nimmt vor den nativen Fotos einmal acht ausgerichtete
-RGB-D-Paare mit demselben Fokus auf. Der bestehende Kamerapfad und dessen
-Geräte-Lease werden verwendet. Die8K-Pipeline startet erst nach Freigabe
-dieser Lease und bleibt für Registrierung/Einfahrfoto offen.
+`depth_geometry: true` nimmt vor den nativen Fotos einen ruhenden
+`rgbd_hq`-Datensatz mit demselben Fokus auf. Er kombiniert 4×4
+Stereo-Bilder einschließlich des IR-Blocks und 3×6 Farbbilder auf
+dem entzerrten RGB-Gitter. Die 8K-Pipeline startet erst danach und
+bleibt für Registrierung und frisches Einfahrfoto offen.
 
 Tiefe wird mit ihrer eigenen tatsächlichen1280×960-Projektion und D=0
 ausgewertet, nicht über8K-Pixelindizes. Eine endliche kamerabezogene

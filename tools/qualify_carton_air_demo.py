@@ -42,6 +42,8 @@ def qualify(args):
     data=demo.read(folder/'input.json');draft=demo.read(args.draft)
     if not draft.get('success') or draft.get('phase')!='COARSE_HARDWARE_DRAFT_PASSED':
         raise ValueError('A complete accepted draft is required')
+    data=dict(data,start=draft['start'],pose=draft.get('proposed_pose',data['pose']),
+        offsets=draft.get('proposed_offsets',data['offsets']),nominal_jaws=draft.get('nominal_jaws',data['nominal_jaws']))
     p=HardwareProblem.__new__(HardwareProblem);p.directory=out/'cell'
     p.cfg=data['config'];p.names=data['names'];p.description=(folder/'hardware.urdf').read_text()
     p.original_description=(folder/'original.urdf').read_text()
@@ -49,9 +51,16 @@ def qualify(args):
     shutil.copyfile(folder/'hardware.srdf',p.directory/'moveit/robot.srdf')
     for pair in ET.parse(folder/'hardware.srdf').findall('disable_collisions'):
         p.collision.scene.allowed_collision_matrix.set_entry(pair.get('link1'),pair.get('link2'),True)
+    if data.get('task_obstacles'):
+        p.collision=demo.robot_model(p,data['task_obstacles'],out/'obstacle-cell')
     p.spheres=SphereModel(p.description,p.names,p.cfg['sphere_spacing_m'])
     p.chains={a:Chain(p.original_description,'world',a+'_tool0')for a in p.names}
     held=demo.moving_model(p,data,out)
+    if draft.get('contact_model')=='physical_skin_and_outer_hull':
+        held.physical_contact_model=demo.moving_model(p,data,out/'nominal-contact',physical=True)
+        for link in ET.fromstring(p.original_description).findall('link'):
+            if any(link.get('name').startswith(a+'_robotiq_85_')for a in demo.HOLDERS):
+                held.scene.allowed_collision_matrix.set_entry('air_demo_carton',link.get('name'),True)
     names=[j for arm in p.names for j in joint_names(arm)]
     envelope=speed_envelope(p,list(p.names),.1,1/12)
     offsets={a:np.asarray(v)for a,v in data['offsets'].items()}
@@ -62,7 +71,7 @@ def qualify(args):
     report=dict(success=False,executable=False,robot_commands_sent=False,physical_tool=False,
         phase='CONTROLLER_INTERPOLATION_AUDIT',start_kind=draft['start_kind'],
         limits=dict(joint_rad_s=.1,tcp_m_s=1/12,acceleration_rad_s2=p.cfg['acceleration_limit_rad_s2']),
-        geometry_check_step_rad=.0025,phases=[],required_followup=
+        geometry_check_step_rad=.0025,task_obstacles=data.get('task_obstacles',[]),phases=[],required_followup=
         'Current N100 binding, coupled-motion commissioning and explicit Motion Review',
         sources={str(path):demo.digest(path)for path in [folder/'input.json',args.draft,Path(demo.__file__),Path(__file__)]})
     demo.write(out/'proof.json',report)

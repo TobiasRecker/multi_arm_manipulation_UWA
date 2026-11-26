@@ -1,5 +1,28 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Qualitätsaufnahmen der Program Library, 26.11.2026
+
+Auf Nutzerwunsch greifen statische Qualitätsaufnahmen auf die OAK4-HQ-Modi
+zu. **Object scan** nimmt einmal `rgbd_hq` auf. Bereits vorhandene Scans
+mit einem älteren Übersichtsprofil erhalten die neue HQ-Übersicht beim
+nächsten OAK4-Aufnahmeklick. Weitere OAK4-Detailbilder nutzen `hdr_hq`
+(3×6 bei nativen 48 MP). **Supported carton grasp** nutzt `rgbd_hq` bei
+`depth_geometry: true` als kamerabezogene Zusatzmessung vor der nativen
+Poseaufnahme. Die Tiefenmessung verwendet ihr eigenes entzerrtes RGB-Gitter.
+Die kalibrierten Pose-, Einfahr- und Freigabeaufnahmen nutzen ihre
+bisherigen frischen Einzelbilder an den jeweiligen Aufgabenzeitpunkten.
+
+Am realen Arbeitsplatz geprüft: **Object scan** über die tatsächlich
+verwendete Capture-Aktion in einer separaten Testsitzung, Übersicht
+1280×960 in 12,05 s, Detail 8000×6000 in 23,48 s. Bestellung des
+Karton-Tiefendatensatzes separat erfolgreich, 16 Stereo- und 18 Farbframes
+verifiziert. 60 gezielte Offline-Tests und 14 Subtests bestanden. Der
+laufende Library-Webserver wurde bei freiem Auftragslock neu geladen.
+Aktualisierter Katalog und der vorhandene Scan waren auf Port 34911
+abrufbar. Prüfnachweis unter
+`setup/tasks/library-hq-capture-20261126/validation.json`.
+[Object scan](docs/object_scan_library.md) · [Karton-Tiefennachweis](docs/carton_geometry_localization.md)
+
 ## Fortsetzung als reale Dreiarmprobe ohne Werkzeug,26.11.2026
 
 Nutzer bestätigt erfolgreichen Kartongriff und beauftragt Haus-/Kreis-/
@@ -29,63 +52,68 @@ Erster lokaler Packversuch verweigerte korrekt den pfadabhängigen
 Modellvergleich; anschließend dieselben Meshinhalte über bestehende
 inhaltsgebundene Kennung auf N100/ROSmini bestätigt, kein Modellbypass.
 
-Offlinecontainer01 scheiterte vor Planung an `set -u` im ROS-Setup.
-02 zeigte Übertritt eines Welt-Kartonobjekts in die nächste Basismodell-
-prüfung. Karton deshalb in separatem URDF mit sechs virtuellen Modell-
-koordinaten geführt, keine Weltobjekte mehr eingefügt. 03/04: reine
-Übertragung auf aktuelle53,31°-Pose verlangt unerreichbare1,228m LF-
-Vorpose. Geprüfte zusätzliche Ausrichtung in Richtung Referenzlage
-(rund37° Drehung/95mm Zentrumsversatz) statt Übernahme der alten Winkel.
-05: nächster IK-Zweig führt LF-Oberarm beim freien Übergang durch Tisch;
-mehrere Vorpositionszweige und ganze direkte/aufgerichtete Wege geprüft.
-06: erste Seitenzeichnung bestanden, beim Unterseitenübergang27,466mm
-LF/LR-Hüllabstand (LF-Fingerspitze/LR-Finger) statt40mm. Keine Marge geändert.
-Leeren LR-Greifer erfragt, Antwort noch ausstehend; zunächst nur
-hypothetische Parkfahrt geplant.
+Die zunächst auf den aktuellen höheren/weiter innen liegenden Griff
+übertragenen Entwürfe scheiterten am Gegenwandübergang. Nutzer verlangt
+anschließend ausdrücklich denselben Griff wie in der Simulation. Exakte
+Objekt/Tool0-Transformationen und Halterzweige des abgeschlossenen
+Gazebo-Laufs werden für eine **hypothetische tischgestützte Neuaufnahme**
+verwendet, niemals als aktueller schwebender Istgriff ausgegeben.
 
-07 (`result07/`): LR-Parken, Hub, Ausrichtung, erste Seitenzeichnung,
-Hauskanten, alle sechs virtuellen Axialzyklen und Bodenkreis grob geprüft;
-48 von57 angepassten Phasen bestanden. Gegenwandübergang benötigt
-LF-Tool0-Pose etwa0,937m von Basis; kontinuierliche IK verworfen.
-08 läuft mit explizit80mm zur LF-Seite verschobener Arbeitslage,
-33 statt17 groben Phasenpunkten und bestehender beschränkter Least-Squares-
-IK als Fortsetzungsalternative, ohne Zweigsprung. Alle Rechenjobs im
-planning.sif auf titanpc; Nachweise unter Taskverzeichnis. Bisher8 gezielte
-Bindungs-/Frame-Tests bestanden. Noch keine dichte Controllerqualifikation,
-kein erfolgreicher kompletter Realplan und keine Motion-Review-Anfrage.
-Im bestehenden Return-to-Home-Profil fehlt `loaded_sync`; die dortige
-3-mm-Absenkqualifikation ist ausdrücklich kein Nachweis großer beladener
-Transport-/Drehbewegungen. Im neuen Entwurf nicht stillschweigend umgehen.
-Nutzer bestätigt anschließend ausdrücklich: linker Hintergreifer ist leer.
+Alle62 angepassten Phasen damit grob bestanden, Job
+`carton-air-simskin-20261126-01`, Nachweis `simskin-result01/`.
+Minimaler Nachbararmabstand48,624mm bei erhaltener40mm-Grenze.
+Die bestehende30mm-Innenhülle an den kurzen Wänden ist eine konservative
+Designhülle, keine physische Wanddicke. Ein zusätzlicher Hautmodellprüfer
+verwendet die gebundene bestehende2,5mm-Assetgeometrie (Schätzung, nicht
+vermessen) für den eigentlichen Kontakt. Nur Fingerspitzen dürfen diese
+Haut berühren; Außenhülle prüft Arme, Handgelenke, Kameras und Umgebung.
+Primäre vollständige Öffnungshüllen und alle Roboterpaarprüfungen bleiben.
 
-Weitere Offlinebefunde: Arbeitsarm beim Kartondrehen in geprüfte freie
-Homeform, anschließend pro Fläche neu anfahren. Damit Unterseitenarbeiten
-einschließlich Haus, sechs Axialzyklen und Bodenkreis in groben Entwürfen
-bestanden. Gesamtfolge umfasst nun62 Phasen einschließlich Vorbereitung,
-Ausrichtungen und freier Arbeitsarmübergänge. Gegenwandübergang weiter
-Blocker: u.a. RF-Handgelenk/Kamera gegen eigenen Unterarm oder RF-Handgelenk
-gegen RR-Unterarm unter40mm. Kleinste verworfene Erstunterschreitungen
-teilweise knapp unter40mm; kein Nachweis, dass der Restpfad nur knapp
-danebenliegt, und keine Grenze geändert.
+`qualify_carton_air_demo.py` prüft tatsächliche JTC-Quintiken, gemeinsame
+Nanosekundenzeiten,0,1rad/s,83,333mm/s,0,2rad/s², starre Griffbeziehung
+bis0,1mm/1mrad und virtuelle lokale Aufgabenbahn bis0,25mm. Erste
+Audits verwarfen Ausrichtung mit0,106mm sowie Gegenwandübergang mit
+0,100285mm Griffabweichung. Übergangsknoten werden verdichtet;
+kein Grenzwert und kein Tempo geändert. Keine reale mechanische
+Synchronisierung großer Drehungen durch den Modellnachweis behaupten.
 
-Begrenzte Arbeitslagen-Suche `workspace-result01/` und Gegenwand-Drehlagen-
-Suche `face-result01/` ohne vollständigen Erfolg. Drehung um die Gegenwand-
-normale erhält Normalenrichtung und Kartonzentrum, getrennte Tests vorhanden.
-Hypothetische Neuaufnahme mit Referenz-Halterzweigen ebenfalls als solche
-markiert, `regrasp-result01/`, nicht als aktueller Start verwendet. Aktuelle
-Griffe gegenüber Gazebo etwa20mm höher am Tool0 und11mm weiter innen;
-aktuelle RF-Konfiguration unterscheidet sich deutlich vom alten Referenzzweig.
-Zusätzlicher begrenzter Vergleich `carton-air-final-20261126-01` sowie
-direkte räumliche Gegenwandübergänge `carton-air-direct-20261126-01` ebenfalls
-ohne vollständigen Erfolg. Aktuell `carton-air-goal-20261126-01`: nur die
-Gegenwand-Präsentation150–200mm tiefer, vorherige Unterseitenlage erhalten;
-Ergebnis noch offen. Job- und Artefaktnamen im Taskverzeichnis.
+Vor der Rücksetzung frisches Foto geprüft; lose, unmodellierte Objekte
+festgestellt und Arbeitsbereich im N100-ReviewStore ausdrücklich widerrufen.
+Keine Bewegung/kein Greiferbefehl. Nutzer entfernt Balken, lose Ständer,
+aufrechtes Schachbrett und Stifthalter; der Kamerahalter soll bleiben.
+Nachaufnahme `clearance-photo/current-photo/standard.png` geprüft.
+Konservative bild-/kalibrierungsbasierte Hülle des verbleibenden USB-
+Kamerahalters unter `camera-holder-obstacle.json`: Weltbox
+[-1,03;-0,17;0,90] bis[-0,70;0,17;2,30]m, **Schätzung, nicht vermessen**.
+Nur in endlichen Offline-Aufgabenszenen, keine Änderung am Schutzdienst.
+Statische Tischüberdeckung ignoriert; keine Roboter-/Kartonpaarfreigabe.
+Die nun nötige freie Arbeitsarmumfahrung wird mit deterministischer
+begrenzter RRT-Connect-Suche und denselben vollständigen Prüfungen gesucht.
+Job `carton-air-qualified-20261126-05` läuft mit129 groben Knoten und
+anschließender dichter Controllerprüfung. Status nicht als Realfreigabe werten.
 
-`qualify_carton_air_demo.py` als rein dateibasierte Folgequalifikation
-vorbereitet; noch kein kompletter bestandener Entwurf dafür vorhanden.
-Keine neuen Dateien auf N100 installiert und keine Motion Review zur
-Fortsetzung angelegt. Reale Zelle seit dem Greifabschluss durch diesen
-Auftrag nicht bewegt. Kein kompletter Ablauf als geprüft/freigegeben behaupten.
+Tischgestütztes Freigeben und Homefahrt konkret als `release-plan03`
+geprüft:20mm Restspalt innerhalb der nutzergebundenen50mm-Freigabe;
+kein beladener Armtransport. Beide ziehen nach Öffnen gemeinsam zurück,
+danach unbeladene Homefahrten,100,250s nominal. Plan-SHA
+`d950c2771701f5b9dc15626ab8ad8fb8dced4d2d346ef2048537e52d52c07268`.
+Zusätzlicher Halternachweis `carton-release-holder-20261126-01` bestanden:
+558/2155/2579 geprüfte Controllerzustände für Rückzug/RF-Home/RR-Home,
+Karton-Falltube einschließlich vorhandener5mm-Positions-/3mm-Landehülle
+außerhalb des Halters. Noch nicht ausgeführt; normale frische Aufnahme und
+Motion Review bleiben. Arbeitsbereich noch widerrufen; Nutzer bestätigt
+nur „Rest ist weg“, explizite Bestätigung des Verlassens ist angefragt.
+
+Eigenes Rezept `carton-supported-simulation-v1` lokal vorbereitet, exakte
+Referenzgriffe ohne bisherige11,25mm-Einwärtsverschiebung. Kraftreferenz,
+FOR0/SPE16 und20mm-Wiegehub erhalten. Wiegehub des neuen Profils nutzt
+Hautmodell plus Außenhülle; Legacyprofile unverändert. Neue optionale
+Konfiguration `setup/skill_library/live-carton-simulation-grip.json`,
+aktive Standardkonfiguration nicht umgestellt. Noch keine neue
+N100-Installation oder Ausführungsanfrage.63 gezielte Tests bestanden
+(`task-tests05.log`), einschließlich Referenzframes und gezielter
+Halter-/statischer Kontakttrennung. Gesamte neue Anfahrt samt Hub muss
+nach tatsächlichem Ablegen und neuer Lokalisierung frisch geprüft werden.
 
 ## Direkte Eckengeometrie eingebaut,26.11.2026
 

@@ -59,7 +59,14 @@ def check_depth(directory, context, geometry, native_metadata, output=None):
     floor_polygon=projected_polygon(points,Tco,K)
     results=[];sources=[directory/'metadata.json']
     board_check=None
-    for pair in report['pairs']:
+    if report.get('mode') == 'rgbd_hq':
+        hq = report['hq']
+        if hq.get('sample_kind') != 'static_rgb_stereo_hdr':
+            raise ValueError('Expected a static HQ depth sample on the RGB projection grid')
+        pairs = [hq]
+    else:
+        pairs = report['pairs']
+    for pair in pairs:
         if pair['actual_focus']!=context['focus']:
             raise ValueError('RGB-D focus changed between frames')
         image_path=checked_path(directory,pair['rgb_path']);depth_path=checked_path(directory,pair['depth_path'])
@@ -91,7 +98,8 @@ def check_depth(directory, context, geometry, native_metadata, output=None):
         table=camera_points(depth,table_mask>0,K);floor=camera_points(depth,floor_mask,K)
         centre,normal,fraction,rms=support_plane(table)
         heights=(floor-centre)@normal
-        results.append(dict(index=pair['index'],floor_above_local_table_mm=float(np.median(heights)*1000),
+        results.append(dict(index=pair['index'],sample_kind=pair.get('sample_kind','single_aligned_frame'),
+            floor_above_local_table_mm=float(np.median(heights)*1000),
             floor_central_90_percent_mm=(np.percentile(heights,[5,95])*1000).tolist(),
             floor_valid_samples=len(floor),table_valid_samples=len(table),
             table_plane_inlier_fraction=fraction,table_plane_rms_mm=rms*1000))
@@ -108,4 +116,4 @@ def check_depth(directory, context, geometry, native_metadata, output=None):
         nominal_model_floor_height_mm=1000*context['floor_z_m'],floor_polygon_rgbd_xy=floor_polygon.tolist(),
         projection=projection,sources=[str(p.resolve()) for p in sources],
         absolute_accuracy_validated=False,
-        interpretation='Camera-local floor/table height, selected by projected image ROIs. Board projection check is separate. No raw depth correction, pose averaging, or pixel-grid reuse.')
+        interpretation='Camera-local floor/table height in the same aligned depth sample, selected by projected image ROIs. Board projection check is separate. No raw depth correction, pose averaging, or pixel-grid reuse.')

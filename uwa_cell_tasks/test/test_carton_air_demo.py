@@ -122,3 +122,40 @@ def test_controller_knots_reproduce_the_audited_quintic_and_rest_endpoints():
     np.testing.assert_allclose(actual(samples),spline(samples/duration),atol=1e-8)
     np.testing.assert_allclose(actual([0.,duration],1),0.,atol=1e-12)
     np.testing.assert_allclose(actual([0.,duration],2),0.,atol=1e-10)
+
+
+def test_task_obstacle_overlap_exempts_static_table_but_never_robot_or_carton():
+    import xml.etree.ElementTree as ET
+    from task_obstacles import append_boxes, static_pairs
+    root=ET.fromstring('<robot><link name="world"/><link name="left_table_plate"/>'
+        '<link name="left_front_forearm_link"/><link name="air_demo_carton"/></robot>')
+    boxes=[dict(name='task_obstacle_camera',lo_m=[-1.,-.1,.9],hi_m=[-.8,.1,2.3])]
+    append_boxes(root,boxes)
+    flags={}
+    model=SimpleNamespace(scene=SimpleNamespace(allowed_collision_matrix=SimpleNamespace(
+        set_entry=lambda a,b,value:flags.__setitem__((a,b),value))))
+    static_pairs(model,root,boxes,['left_front'],objects=['air_demo_carton'])
+    assert flags[('task_obstacle_camera','left_table_plate')]
+    assert ('task_obstacle_camera','left_front_forearm_link') not in flags
+    assert ('task_obstacle_camera','air_demo_carton') not in flags
+
+
+def test_named_simulation_recipe_requires_rigid_offsets_and_keeps_reference_branches():
+    from prepare_carton_recipe import load_program
+    program=load_program('carton-supported-simulation-v1')
+    design=program['contact_design']
+    assert design['entry_inward_shift_m']==0.
+    assert design['elbow_signs']==dict(right_front=1,right_rear=-1)
+    for transform in design['object_to_tool0'].values():
+        T=np.asarray(transform)
+        np.testing.assert_allclose(T[:3,:3].T@T[:3,:3],np.eye(3),atol=1e-10)
+
+
+def test_offline_obstacle_route_checks_a_whole_detour_and_its_final_shortcuts():
+    def valid(q):return not (.4<q[0]<.6 and abs(q[1])<.15)
+    start=np.array([0.,0.]);goal=np.array([1.,0.])
+    route=demo.obstacle_route(start,goal,np.array([[0.,1.],[-.5,.5]]),valid,budget_s=2.)
+    assert route is not None and len(route)>2
+    np.testing.assert_allclose(route[0],start);np.testing.assert_allclose(route[-1],goal)
+    for a,b in zip(route,route[1:]):
+        assert all(valid(a+(b-a)*u)for u in np.linspace(0,1,513))

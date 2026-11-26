@@ -280,7 +280,7 @@ function captureSection(view, scan) {
   notes.rows = 2;
   notes.placeholder = "Rolled onto the broad side. The end facing OAK4 was previously under a gripper.";
   const cameras = cameraSelection(scan.camera_ids, "Cameras for this view");
-  form.append(el("p", "", "Keep the object and arms still during capture. Reposition the object manually between views."),
+  form.append(el("p", "", "Keep the object and arms still until capture finishes. OAK4 uses HQ HDR color and Stereo HDR for the overview, then native 48 MP HQ HDR for detail views."),
     field("View label", label), field("Support, occlusion or repositioning notes (optional)", notes), cameras);
   submit(form, "Capture view");
   const action = bindAction(view, form, "Starting camera capture…", scanAction(view, "/capture", () => {

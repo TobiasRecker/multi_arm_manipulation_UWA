@@ -11,6 +11,8 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+import struct
+import time
 import xml.etree.ElementTree as ET
 
 import numpy as np
@@ -26,6 +28,7 @@ from uwa_cell_motion.carton_paths import solve_near
 from uwa_cell_tasks.reviewed_carton import START_TOLERANCE
 from prepare_carton_open_entry import shell_boxes
 from return_home_model import model_identity
+from task_obstacles import append_boxes, static_pairs, robot_model
 
 REPO = Path(__file__).resolve().parents[1]
 HOLDERS = ('right_front', 'right_rear')
@@ -117,7 +120,7 @@ def pack(args):
     record = dict(start=state, pose=pose.tolist(), offsets={a:v.tolist() for a,v in offsets.items()},
         nominal_jaws=proof['nominal_contact_joints'], names=problem.names, config=problem.cfg,
         model_signature=problem.signature, model_identity=model_identity(problem), source_grasp=str(run), tool_length_m=.300,
-        object_boxes=shell_boxes(read(scene_path)), reference_group=group,
+        object_boxes=shell_boxes(read(scene_path)), object_shapes=read(scene_path)['shapes'], reference_group=group,
         dimensions_m=recipe['drawing']['dimensions_m'],
         reference_initial=recipe['drawing']['initial_state'], phases=trajectories,
         inputs={str(p):digest(p) for p in [args.observations, run/'plan/weigh-plan/proof.json',
@@ -151,12 +154,13 @@ def pack(args):
     match=REPO.parents[0]/'match_mobile_robotics_jazzy/ur_robot/match_ur_hardware/match_ur_hardware'
     shutil.copytree(match,sources/'match_ur_hardware',ignore=shutil.ignore_patterns('__pycache__'))
     shutil.copyfile(Path(__file__),out/'prepare.py')
+    shutil.copyfile(REPO/'tools/task_obstacles.py',out/'task_obstacles.py')
     shutil.copyfile(REPO/'tools/prepare_carton_open_entry.py',out/'prepare_carton_open_entry.py')
     shutil.copyfile(REPO/'tools/return_home_model.py',out/'return_home_model.py')
     print(json.dumps(dict(packed=str(out),phases=len(phases),robot_commands_sent=False)))
 
 
-def moving_model(problem, data, output):
+def moving_model(problem, data, output, *, physical=False):
     """Auxiliary held-object scene; the cell proof retains every opening."""
     root = ET.fromstring(problem.description)
     original = ET.fromstring(problem.original_description)
@@ -183,11 +187,27 @@ def moving_model(problem, data, output):
     body=ET.SubElement(root,'link',name='air_demo_carton')
     anchor=ET.SubElement(root,'joint',name='air_demo_anchor',type='fixed')
     ET.SubElement(anchor,'parent',link=parent);ET.SubElement(anchor,'child',link='air_demo_carton')
-    for box in data['object_boxes']:
-        lo,hi=np.asarray(box['lo']),np.asarray(box['hi'])
-        collision=ET.SubElement(body,'collision')
-        ET.SubElement(collision,'origin',xyz=' '.join(map(str,(lo+hi)/2)))
-        ET.SubElement(ET.SubElement(collision,'geometry'),'box',size=' '.join(map(str,hi-lo)))
+    if physical:
+        folder=output/'physical-shapes';folder.mkdir(parents=True,exist_ok=True)
+        for index,shape in enumerate(data['object_shapes']):
+            vertices=np.asarray(shape['vertices']);faces=shape['triangles']
+            path=folder/f'shape-{index:03d}.stl'
+            with path.open('wb')as stream:
+                stream.write(b'Bound existing carton contact skin'.ljust(80,b'\0'))
+                stream.write(struct.pack('<I',len(faces)))
+                for face in faces:
+                    triangle=vertices[face]
+                    stream.write(struct.pack('<12fH',0.,0.,0.,*triangle.ravel(),0))
+            collision=ET.SubElement(body,'collision')
+            ET.SubElement(ET.SubElement(collision,'geometry'),'mesh',filename=path.resolve().as_uri())
+    else:
+        for box in data['object_boxes']:
+            lo,hi=np.asarray(box['lo']),np.asarray(box['hi'])
+            collision=ET.SubElement(body,'collision')
+            ET.SubElement(collision,'origin',xyz=' '.join(map(str,(lo+hi)/2)))
+            ET.SubElement(ET.SubElement(collision,'geometry'),'box',size=' '.join(map(str,hi-lo)))
+    obstacles=data.get('task_obstacles',[])
+    append_boxes(root,obstacles)
     model = CollisionModel(ET.tostring(root, encoding='unicode'), output/'held-model')
     model.bounds.update({'air_demo_'+axis+'_joint':(-10.,10.)for axis in ('x','y','z')})
     for pair in ET.parse(problem.directory/'moveit/robot.srdf').findall('disable_collisions'):
@@ -196,6 +216,7 @@ def moving_model(problem, data, output):
         for side in ('left','right'):
             model.scene.allowed_collision_matrix.set_entry('air_demo_carton',
                 arm+f'_robotiq_85_{side}_finger_tip_link',True)
+    static_pairs(model,root,obstacles,problem.names,objects=('air_demo_carton',))
     return model
 
 
@@ -235,7 +256,42 @@ def check_state(problem, held, data, state, pose, *, contacts=False):
     if not held.check(combined)[0]:
         if contacts:held.check(combined,contacts=True)
         raise ValueError('held carton/body/environment collision')
+    physical=getattr(held,'physical_contact_model',None)
+    if physical is not None and not physical.check(combined)[0]:
+        if contacts:physical.check(combined,contacts=True)
+        raise ValueError('physical carton skin collides outside intended holder pads')
     return min(gaps)
+
+
+def nominal_reference_contact(problem, model, data):
+    """First modeled pad contact for a future reference grasp, never a SET."""
+    state=dict(data['start'],**carton_coordinates(np.asarray(data['pose'])))
+    nominal={problem.names[arm][6]:0. for arm in HOLDERS}
+    state.update(nominal)
+    for arm in HOLDERS:
+        joint=problem.names[arm][6]
+        tips=[arm+f'_robotiq_85_{side}_finger_tip_link'for side in ('left','right')]
+        for tip in tips:model.scene.allowed_collision_matrix.set_entry('air_demo_carton',tip,False)
+        lo,hi=model.bounds[joint];state[joint]=lo
+        if not model.check(state)[0]:raise ValueError(arm+': reference open grasp collides')
+        bracket=None;previous=lo
+        for value in np.linspace(lo,hi,81)[1:]:
+            state[joint]=float(value)
+            if not model.check(state)[0]:bracket=(previous,float(value));break
+            previous=float(value)
+        if bracket is None:raise ValueError(arm+': reference pads do not contact the carton')
+        lo,hi=bracket
+        for _ in range(20):
+            middle=(lo+hi)/2;state[joint]=middle
+            if model.check(state)[0]:lo=middle
+            else:hi=middle
+        state[joint]=hi
+        for tip in tips:model.scene.allowed_collision_matrix.set_entry('air_demo_carton',tip,True)
+        if not model.check(state)[0]:
+            model.check(state,contacts=True)
+            raise ValueError(arm+': reference first contact extends beyond the intended pads')
+        nominal[joint]=hi
+    return nominal
 
 
 def polyline_at(points, u):
@@ -256,8 +312,15 @@ def free_route(problem, held, data, start, pose, arm, goals, preferred=None):
         # the free approach from an unrelated current inspection posture.
         difference=np.arctan2(np.sin(q-preferred),np.cos(q-preferred))
         return np.linalg.norm(difference)
+    clear_goals=[]
     for goal in sorted(goals,key=preference):
-        for route in ([initial,goal],[initial,upright,goal]):
+        try:
+            check_state(problem,held,data,dict(start,**dict(zip(names,goal))),pose)
+            clear_goals.append(goal)
+        except ValueError as error:
+            reasons.append('endpoint: '+str(error));continue
+        turned=upright.copy();turned[0]=goal[0]
+        for route in ([initial,goal],[initial,upright,goal],[initial,upright,turned,goal]):
             try:
                 for left,right in zip(route,route[1:]):
                     n=max(3,int(np.ceil(np.max(abs(right-left))/.015))+1)
@@ -267,7 +330,60 @@ def free_route(problem, held, data, start, pose, arm, goals, preferred=None):
             except ValueError as error:
                 reasons.append(str(error));continue
             return route
+    if data.get('task_obstacles'):
+        bounds=np.asarray([problem.collision.bounds[j]for j in names])
+        def valid(q):
+            try:check_state(problem,held,data,dict(start,**dict(zip(names,q))),pose)
+            except ValueError:return False
+            return True
+        for goal in clear_goals[:3]:
+            route=obstacle_route(initial,goal,bounds,valid)
+            if route is not None:return route
+    if problem is not None and data.get('task_obstacles'):
+        problem.collision.check(dict(start,**dict(zip(names,goals[0]))),contacts=True)
     raise ValueError(arm+': no checked direct/upright free route: '+str(sorted(set(reasons))))
+
+
+def obstacle_route(initial,goal,bounds,valid,*,budget_s=30.,seed=26):
+    """Bounded offline RRT-Connect; every edge uses the same full scene check."""
+    deadline=time.monotonic()+budget_s;rng=np.random.default_rng(seed)
+    def edge(a,b):
+        n=max(2,int(np.ceil(np.max(abs(b-a))/.015))+1)
+        return all(time.monotonic()<deadline and valid(a+(b-a)*u)for u in np.linspace(0,1,n))
+    trees=[([np.asarray(initial)],[-1]),([np.asarray(goal)],[-1])]
+    def extend(tree,target):
+        points,parents=tree
+        index=int(np.argmin(np.linalg.norm(np.asarray(points)-target,axis=1)))
+        delta=target-points[index];length=float(np.linalg.norm(delta))
+        q=points[index]+delta*min(1.,.3/max(length,1e-12))
+        if not edge(points[index],q):return None,False
+        points.append(q);parents.append(index)
+        return len(points)-1,length<=.3
+    def trace(tree,index):
+        result=[]
+        while index!=-1:result.append(tree[0][index]);index=tree[1][index]
+        return result[::-1]
+    for iteration in range(4000):
+        if time.monotonic()>=deadline:break
+        side=iteration%2;other=1-side
+        target=trees[other][0][-1]if iteration%5==0 else rng.uniform(bounds[:,0],bounds[:,1])
+        index,_=extend(trees[side],target)
+        if index is None:continue
+        target=trees[side][0][index]
+        while time.monotonic()<deadline:
+            connected,reached=extend(trees[other],target)
+            if connected is None:break
+            if reached:
+                a=trace(trees[side],index);b=trace(trees[other],connected)
+                path=a+b[-2::-1]if side==0 else b+a[-2::-1]
+                # Deterministic collision-checked shortcuts, not a new clearance policy.
+                result=[path[0]];k=0
+                while k<len(path)-1:
+                    j=len(path)-1
+                    while j>k+1 and not edge(path[k],path[j]):j-=1
+                    result.append(path[j]);k=j
+                return result
+    return None
 
 
 def nearest_home(problem, state, arm):
@@ -291,6 +407,8 @@ def compile_draft(args):
     shutil.copyfile(folder/'hardware.srdf',p.directory/'moveit/robot.srdf')
     for pair in ET.parse(folder/'hardware.srdf').findall('disable_collisions'):
         p.collision.scene.allowed_collision_matrix.set_entry(pair.get('link1'),pair.get('link2'),True)
+    if data.get('task_obstacles'):
+        p.collision=robot_model(p,data['task_obstacles'],out/'obstacle-cell')
     p.spheres=SphereModel(p.description,p.names,p.cfg['sphere_spacing_m'])
     p.chains={a:Chain(p.original_description,'world',a+'_tool0')for a in p.names}
     solver=ObjectTransport.__new__(ObjectTransport);solver.problem=p;solver.collision=p.collision
@@ -299,9 +417,18 @@ def compile_draft(args):
     reference=(folder/'reference.urdf').read_text()
     chains={a:Chain(reference,'world',a+'_tool0')for a in solver.arms}
     group=data['reference_group']['object_to_tcp']
+    if args.simulation_grasps:
+        if not args.regrasp_reference_branch:
+            raise ValueError('Simulation grips require an explicitly hypothetical regrasp')
+        offsets={arm:np.asarray(group[arm])for arm in HOLDERS}
+        data=dict(data,offsets={arm:offset.tolist()for arm,offset in offsets.items()})
     initial=dict(data['reference_initial'])
     first=data['phases'][0];initial.update(zip(first['joint_names'],first['points'][0]['positions']))
     reference_origin=chains[HOLDERS[0]].forward(initial)@np.linalg.inv(group[HOLDERS[0]])
+    if args.regrasp_canonical:
+        if not args.regrasp_reference_branch:raise ValueError('Canonical pose requires a hypothetical new acquisition')
+        proposed_pose=reference_origin.copy();proposed_pose[2,3]+=.020
+        data=dict(data,pose=proposed_pose.tolist())
     hypothetical=bool(args.regrasp_reference_branch)
     if hypothetical:
         # Only a proposed future regrasp. These joint values are never an
@@ -323,7 +450,7 @@ def compile_draft(args):
     canonical=np.eye(4);canonical[:3,3]=args.work_offset
     high_ref=dict(initial,**dict(zip(first['joint_names'],first['points'][-1]['positions'])))
     high=chains[HOLDERS[0]].forward(high_ref)@np.linalg.inv(group[HOLDERS[0]])
-    align=dict(id='align_reference',joint_names=[],points=[dict(positions=[])for _ in range(17)])
+    align=dict(id='align_reference',joint_names=[],points=[dict(positions=[])for _ in range(max(17,args.samples))])
     restore=dict(align,id='restore_current_pose')
     park=dict(align,id='park_left_rear')
     phases=[park,first,align]
@@ -335,6 +462,16 @@ def compile_draft(args):
             phases.append(dict(align,id='enter_worker_after_'+item['id']))
     phases.extend([restore,data['phases'][-1]])
     state=dict(data['start']);held=moving_model(p,data,out)
+    if args.simulation_grasps:
+        physical=moving_model(p,data,out/'nominal-contact',physical=True)
+        data=dict(data,nominal_jaws=nominal_reference_contact(p,physical,data))
+        # Near the intended holder grip use the actual skin contact model.
+        # The outer hull still checks cameras, wrists, arms, other robots and
+        # the environment; the primary cell proof retains every opening.
+        for link in ET.fromstring(p.original_description).findall('link'):
+            if any(link.get('name').startswith(a+'_robotiq_85_')for a in HOLDERS):
+                held.scene.allowed_collision_matrix.set_entry('air_demo_carton',link.get('name'),True)
+        held.physical_contact_model=physical
     report=dict(success=False,executable=False,phase='COARSE_HARDWARE_DRAFT',
         robot_commands_sent=False,physical_tool=False,virtual_tool_length_m=.300,
         required_followup='Exact controller interpolation, speed, fixed-grip, task-shape and review binding',
@@ -348,6 +485,12 @@ def compile_draft(args):
     report['opposite_offset_m']=args.opposite_offset
     report['opposite_pose_center_xyz_rpy_deg']=args.opposite_pose
     report['regrasp_wrist_signs']=args.regrasp_wrist_signs
+    report['simulation_grasps']=args.simulation_grasps
+    report['proposed_pose']=data['pose']
+    report['proposed_offsets']=data['offsets']
+    report['nominal_jaws']=data['nominal_jaws']
+    report['contact_model']='physical_skin_and_outer_hull'if args.simulation_grasps else 'outer_hull_nominal_pads'
+    report['task_obstacles']=data.get('task_obstacles',[])
     write(out/'result.json',report)
     refstate=dict(initial);minimum=float('inf');opposite=False;opposite_adjust=np.eye(4)
     try:
@@ -500,6 +643,8 @@ if __name__=='__main__':
     p.add_argument('--opposite-offset',type=float,nargs=3,default=[0.,0.,0.])
     p.add_argument('--opposite-pose',type=float,nargs=6)
     p.add_argument('--regrasp-wrist-signs',type=int,nargs=2,choices=(-1,1))
+    p.add_argument('--simulation-grasps',action='store_true')
+    p.add_argument('--regrasp-canonical',action='store_true')
     a=parser.parse_args()
     if a.operation=='pack':pack(a)
     else:raise SystemExit(compile_draft(a))

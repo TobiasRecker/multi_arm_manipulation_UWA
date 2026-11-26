@@ -272,6 +272,8 @@ def stage(plan, output, target_root, target_workspace, description_share=None, d
         verify_file(plan/relative/'proof.json', bundle['source_sha256'])
         mapping = {plan/ENTRY: ENTRY, plan/'review-entry.json': Path('review-entry.json'),
                    source_pose: Path('inputs/object-pose.json'), source_recipe/SCENE.name: SCENE}
+        if str(source_recipe/CONTACTS.name) in proof['inputs']:
+            mapping[source_recipe/CONTACTS.name] = CONTACTS
         expected = {*map(str,mapping), str(REPO/'tools/prepare_carton_weigh.py'),
                     str(REPO/'tools/prepare_carton_open_entry.py'),
                     str(REPO/'tools/carton_weigh_phase.py'),str(REPO/'uwa_cell_tasks/uwa_cell_tasks/carton_weighing.py')}

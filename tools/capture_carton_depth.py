@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One current RGB-D snapshot through the existing OAK photo service/lease."""
+"""One current static HQ RGB-D snapshot through the existing OAK photo lease."""
 import argparse
 import importlib.util
 import json
@@ -13,13 +13,16 @@ def capture(output,focus):
     source=WORKSPACE/'src/oak_camera_calibration/tools/oak4_photo_service.py'
     spec=importlib.util.spec_from_file_location('uwa_carton_depth_capture',source)
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
-    result=module.PhotoCapture(WORKSPACE).capture('rgbd',frames=8,focus=focus)
+    result=module.PhotoCapture(WORKSPACE).capture('rgbd_hq',focus=focus)
     directory=Path(result['directory'])
     metadata=json.loads((directory/'metadata.json').read_text())
-    if not metadata.get('success') or metadata.get('kind')!='rgbd' or metadata.get('requested_focus')!=focus:
-        raise ValueError('No matching current aligned RGB-D snapshot was saved')
+    if (not metadata.get('success') or metadata.get('kind')!='rgbd'
+            or metadata.get('mode')!='rgbd_hq' or metadata.get('requested_focus')!=focus
+            or metadata.get('hq',{}).get('sample_kind')!='static_rgb_stereo_hdr'):
+        raise ValueError('No matching current aligned HQ RGB-D snapshot was saved')
     shutil.copytree(directory,output)
-    return dict(directory=str(output.resolve()),focus=focus,pairs=len(metadata['pairs']),device_commands=[])
+    return dict(directory=str(output.resolve()),focus=focus,mode='rgbd_hq',
+                depth_frame_count=len(metadata['depth_hdr']['frames']))
 
 
 if __name__=='__main__':

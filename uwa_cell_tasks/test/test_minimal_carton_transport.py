@@ -50,6 +50,15 @@ def test_actual_preflight_refuses_other_candidate_before_local_checker(tmp_path,
     assert len(calls)==1
 
 
+def test_exact_simulation_recipe_is_included_in_executor_source_preflight(tmp_path,monkeypatch):
+    candidate=Path('/home/rosmatch/uwa-ur-runtime/minimal-candidates/minimal.test')
+    monkeypatch.setenv('UWA_PROTECTION_BACKEND','minimal')
+    monkeypatch.setenv('UWA_MINIMAL_RUNTIME',str(candidate))
+    calls,_=mock_preflight(monkeypatch,candidate)
+    program.n100_preflight(tmp_path,program.PROGRAM,weigh=True,grasp_program='carton-supported-simulation-v1')
+    assert 'config/carton_programs/carton-supported-simulation-v1.json' in str(calls[0][0])
+
+
 @pytest.mark.parametrize('backend',['legacy','minimal'])
 def test_actual_preflight_preserves_default_runtime_when_no_candidate(tmp_path,monkeypatch,backend):
     monkeypatch.setenv('UWA_PROTECTION_BACKEND',backend)

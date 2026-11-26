@@ -66,6 +66,32 @@ def new_scan(scans):
                              dimensions_mm=[600, 38, 89]))['id']
 
 
+def test_existing_scan_upgrades_its_overview_before_using_hq_details(tmp_path):
+    class CaptureProfiles(TestImages):
+        def __init__(self):
+            self.requests = []
+
+        def capture(self, cameras, output, *, workspace, rgbd):
+            self.requests.append(rgbd)
+            images = super().capture(cameras, output, workspace=workspace, rgbd=rgbd)
+            photo = images[0]
+            if len(self.requests) == 1:
+                photo.update(source='oak4_aligned_rgbd_hdr', rgbd=str(output))
+            elif rgbd:
+                photo.update(source='oak4_aligned_rgbd_hq', rgbd=str(output))
+            else:
+                photo.update(source='oak4_native_rgb_hdr_hq')
+            return images
+
+    provider = CaptureProfiles()
+    scans = Scans(tmp_path / 'object-scans', tmp_path, perception=provider)
+    identifier = new_scan(scans)
+    for label in ('old overview', 'new overview', 'detail'):
+        scans.action(identifier, 'capture', dict(label=label, camera_ids=['oak4']))
+        assert wait(scans, identifier)['status'] == 'ready'
+    assert provider.requests == [True, True, False]
+
+
 def test_scan_revisions_partial_capture_and_publish(tmp_path):
     scans = Scans(tmp_path / 'object-scans', tmp_path, perception=TestImages())
     identifier = new_scan(scans)

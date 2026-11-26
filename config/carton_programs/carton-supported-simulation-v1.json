@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "program_id": "carton-supported-simulation-v1",
+  "task": "carton_supported_grasp",
+  "asset_id": "carton_avocado_v1",
+  "asset_version": 1,
+  "pregrasp_m": 0.15,
+  "contact_design": {
+    "depth_below_continuous_wall_top_m": 0.0320907634783028,
+    "elbow_signs": {
+      "right_front": 1,
+      "right_rear": -1
+    },
+    "preferred_ik_seeds": {
+      "right_front": [
+        3.7108371440033,
+        -1.1730987606572922,
+        1.266923389196047,
+        -1.6633751134819619,
+        -1.5697658357529904,
+        -0.9972994959198939
+      ],
+      "right_rear": [
+        -0.5753250546716805,
+        -1.9428288156582278,
+        -1.3112934171230108,
+        -1.4618098273201938,
+        1.5723027598163022,
+        1.0011524043765423
+      ]
+    },
+    "seed_origin": "Completed Gazebo house/drill run05, 20November2026. Exact object_to_tool0 contact transforms; seeds identify branches only, never executable joint endpoints.",
+    "posture_reason": "User26November explicitly requests the same grasp as the completed simulation for the complete carton air demo. Full hardware approach, opening, contact skin, shared lift and all later poses require fresh offline checks. No inherited inward entry shift.",
+    "object_to_tool0": {
+      "right_front": [
+        [
+          0.9999985977195631,
+          0.001674681733242367,
+          -8.495326924407623e-12,
+          0.0013027080903785515
+        ],
+        [
+          0.0016746817332423754,
+          -0.999998597719563,
+          -2.2072839711779212e-12,
+          0.17082445007607866
+        ],
+        [
+          -8.49908863259476e-12,
+          2.1930215010135725e-12,
+          -1.0000000000000002,
+          0.2542897650903725
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "right_rear": [
+        [
+          0.9999985977195638,
+          0.0016746817325643828,
+          9.585729155693362e-12,
+          0.4028398888325092
+        ],
+        [
+          0.001674681732564332,
+          -0.9999985977195639,
+          -2.4560082162257583e-12,
+          0.171496898001603
+        ],
+        [
+          9.581517185819248e-12,
+          2.4719386673781685e-12,
+          -1.0,
+          0.2515332737874111
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    "entry_inward_shift_m": 0.0,
+    "contact_model": "physical_skin_and_outer_hull"
+  }
+}

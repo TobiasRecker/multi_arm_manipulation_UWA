@@ -13,10 +13,13 @@ Robot Power den aktualisierten Server.
    und die gewünschte Zahl der Haltearme oder **Ask Gemini to discuss**.
    Gemessene Außenmaße lassen sich in Millimetern als X Länge, Y Breite,
    Z Höhe eintragen oder später ergänzen.
-2. Halte Objekt und Arme für **Capture view** ruhig. Der erste OAK4-Satz
-   verwendet RGB-HDR und dazu ausgerichtete Tiefe. Die Tiefenkarte gehört
-   zur mittleren RGB-Belichtung. Weitere OAK4-Sätze verwenden native
-   48-MP-HDR-Farbfotos. OAK Pro liefert native Farbfotos im unveränderten Sensorframe.
+2. Halte Objekt und Arme für **Capture view** ruhig. Die erste OAK4-
+   HQ-Übersicht verwendet 3×6 RGB-HQ-HDR und 4×4 Stereo-HDR auf dem
+   gemeinsamen entzerrten 1280×960-Gitter. Ein Stereo-Block nutzt den
+   IR-Punktprojektor. Auch bei bestehenden Scans mit älterer Tiefenübersicht
+   erstellt die nächste OAK4-Aufnahme einmal diese HQ-Übersicht.
+   Anschließend verwendet OAK4 für Detailansichten native 48-MP-HQ-HDR-
+   Farbfotos. OAK Pro liefert native Farbfotos im unveränderten Sensorframe.
    Die Wrist-Optionen verwenden die vorhandenen Kamera-Snapshots in VGA.
    Kameras werden nacheinander ausgelöst und anschließend freigegeben.
 3. **Analyze with Gemini** sendet verkleinerte Ansichten und die

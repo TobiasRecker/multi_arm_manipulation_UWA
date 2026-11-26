@@ -32,7 +32,8 @@ def catalog():
     return dict(id=PROGRAM, kind='object_scan', title='Object scan', object='User-described object',
                 description='Locate an object, review proposed grasps and camera views, then build an Asset Library candidate.',
                 device='OAK4 · OAK Pro · wrist cameras', arms=[], demo_available=False, live_available=False,
-                stages=[dict(id='capture', title='Capture the object on the table'),
+                stages=[dict(id='capture', title='Capture the object on the table',
+                             description='Keep the scene still for the OAK4 RGB HQ HDR and Stereo HDR overview. Detail views use native 48 MP RGB HQ HDR.'),
                         dict(id='analyze', title='Review Gemini’s object and view proposals'),
                         dict(id='assess', title='Check coverage and identify missing views'),
                         dict(id='publish', title='Publish an asset candidate')])
@@ -271,7 +272,8 @@ class Scans:
 
         def work():
             overview = 'oak4' in camera_ids and not any(
-                'rgbd_path' in photo for group in data['captures'] for photo in group['files'])
+                photo.get('source') == 'oak4_aligned_rgbd_hq' and 'rgbd_path' in photo
+                for group in data['captures'] for photo in group['files'])
             captures = self._provider().capture(camera_ids, output, workspace=self.workspace, rgbd=overview)
             artifacts = dict(data.get('artifacts', {}))
             files = []

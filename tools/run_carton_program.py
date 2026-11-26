@@ -179,11 +179,14 @@ def live_inputs(path, *, camera_id="oak4"):
         raise ValueError("Live mode is disabled in the local configuration.")
     fields = {"enabled", "intrinsics", "roi", "face_roi", "camera_reference_pose", "camera_session", "planar_texture", "localization_method"}
     if camera_id == "oak4":
-        fields.update(("secondary_camera", "weigh_after_grasp", "depth_geometry"))
+        fields.update(("secondary_camera", "weigh_after_grasp", "depth_geometry", "grasp_program"))
     else:
         fields.add("gemini_enabled")
     if set(config) - fields:
         raise ValueError("Live config contains unknown fields.")
+    if 'grasp_program' in config:
+        from prepare_carton_recipe import load_program
+        load_program(config['grasp_program'])
     if config.get('localization_method','texture') not in ('texture','mesh_landmarks'):
         raise ValueError('Unknown carton localization method')
     if not isinstance(config.get('depth_geometry',False),bool):
@@ -277,7 +280,7 @@ def n100(script, *args):
     return ["/usr/bin/ssh", *SSH_OPTIONS, "-T", N100_HOST, command]
 
 
-def n100_preflight(out, program, *, weigh=False, geometry=False):
+def n100_preflight(out, program, *, weigh=False, geometry=False, grasp_program=None):
     files = [
         CELL / "tools/run_carton_cycle.py",
         CELL / "tools/carton_gripper_phase.py",
@@ -298,6 +301,10 @@ def n100_preflight(out, program, *, weigh=False, geometry=False):
         files.extend(CELL/path for path in ('tools/carton_weigh_phase.py','tools/prepare_carton_weigh.py',
             'uwa_cell_tasks/uwa_cell_tasks/carton_weighing.py',
             f'config/carton_programs/{WEIGH_PROGRAM}.json'))
+    if grasp_program is not None:
+        from prepare_carton_recipe import load_program
+        load_program(grasp_program)
+        files.append(CELL / 'config/carton_programs' / (grasp_program+'.json'))
     arguments = []
     for file in files:
         with (WORKSPACE / file).open("rb") as source:
@@ -761,7 +768,7 @@ def register_multiview(config, progress, recipe, image, metadata, *, window_cach
 def prepare_local_approach(program, progress, config, observations, status, checker_prefix, camera, *, window_cache=None):
     out = progress.output
     progress.update("oak_capture", "Capturing a current native OAK4 photo for carton registration.")
-    recipe_program = WEIGH_PROGRAM if config.get('weigh_after_grasp',False) else program
+    recipe_program = config.get('grasp_program') or (WEIGH_PROGRAM if config.get('weigh_after_grasp',False) else program)
     cache_command = offline_tool("prepare_carton_recipe.py", "--program", recipe_program, "--cache-dir", RECIPE_CACHE)
     with ThreadPoolExecutor(max_workers=1) as workers:
         recipe_ready = workers.submit(logged_command, cache_command, out / "static-recipe.log", 120,
@@ -888,6 +895,7 @@ def run_live(program, progress, config_path):
     preflight_options={}
     if config.get('weigh_after_grasp',False):preflight_options['weigh']=True
     if config.get('localization_method')=='mesh_landmarks':preflight_options['geometry']=True
+    if config.get('grasp_program'):preflight_options['grasp_program']=config['grasp_program']
     target_workspace, status, checker_prefix = n100_preflight(out, program,**preflight_options)
     remote = f"setup/tasks/skill-library-carton-{uuid.uuid4().hex}"
     (out / "n100-run.txt").write_text(remote + "\n")
@@ -895,7 +903,7 @@ def run_live(program, progress, config_path):
     try:
         observations = observe_start(remote, out, status["session_id"], progress)
         if config.get('depth_geometry'):
-            progress.update('oak_capture','Recording current aligned RGB-D geometry with its own projection before native photos.')
+            progress.update('oak_capture','Recording aligned Stereo HDR and RGB HQ HDR of the stationary carton before native pose photos.')
             depth=json.loads(logged_command(offline_tool('capture_carton_depth.py','--output',out/'rgbd',
                 '--focus',config['focus']),out/'rgbd-capture.log',180,separate_stdout=True))
             config['_rgbd_directory']=Path(depth['directory'])
