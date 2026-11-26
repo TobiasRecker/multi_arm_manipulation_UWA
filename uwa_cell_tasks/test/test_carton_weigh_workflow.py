@@ -74,6 +74,18 @@ def test_changed_lift_is_rejected_before_reference_or_grasp(tmp_path,monkeypatch
     assert not calls
 
 
+@pytest.mark.parametrize('height,thickness,tilt,expected',[
+    (.00145,.003,0,True),(.010,.003,0,False),(.00145,.012,0,False),(.00145,.003,.05,False)])
+def test_marker_support_is_bounded_by_existing_shell_and_horizontal_plate(height,thickness,tilt,expected):
+    import prepare_carton_weigh as planner
+    import numpy as np
+    from scipy.spatial.transform import Rotation
+    T=np.eye(4);T[2,3]=.9+height;T[:3,:3]=Rotation.from_euler('x',tilt).as_matrix()
+    top=planner.flat_support_top(T,np.array([.32,.24,thickness]),.9,.005)
+    assert (top is not None)==expected
+    if expected:assert top==pytest.approx(.00295)
+
+
 @pytest.mark.parametrize('inner_knuckle_first',[False,True])
 def test_nominal_contact_accepts_pads_but_never_exempts_inner_knuckles(inner_knuckle_first):
     import prepare_carton_weigh as planner

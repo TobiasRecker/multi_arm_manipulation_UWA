@@ -25,6 +25,35 @@ HEIGHT = .020
 LIFT_JOINT = 'weigh_carton_vertical'
 
 
+def flat_support_top(transform, size, table_z, existing_shell_expansion):
+    """Only a horizontal thin board within the existing shell expansion.
+
+    This qualifies the already modeled fixed marker plates as support;
+    it adds neither a table margin nor an exemption for a raised obstacle.
+    """
+    if (not np.allclose(abs(transform[:3,2]),[0,0,1],atol=1e-8)
+            or size[2]>existing_shell_expansion+1e-9):
+        return None
+    z=transform[2,3]+size[2]/2-table_z
+    return float(z) if -1e-8<=z<=existing_shell_expansion+1e-9 else None
+
+
+def separating_supports(problem, table, existing_shell_expansion):
+    result={side+'_table_plate':0. for side in ('left','right')}
+    root=ET.fromstring(problem.original_description)
+    for side in ('left','right'):
+        name=side+'_charuco_plate';link=root.find(f"link[@name='{name}']")
+        if link is None:continue
+        collisions=link.findall('collision')
+        if len(collisions)!=1:continue
+        collision=collisions[0];box=collision.find('geometry/box')
+        if box is None or collision.find('origin') is not None:continue
+        T=Chain(problem.original_description,'world',name).forward({})
+        top=flat_support_top(T,np.fromstring(box.get('size'),sep=' '),table[2,3],existing_shell_expansion)
+        if top is not None:result[name]=top
+    return result
+
+
 def moving_carton(problem, pose, scene, directory):
     """Nominal grasp geometry, separate from the unchanged full-opening cell proof."""
     root = ET.fromstring(problem.description)
@@ -68,10 +97,14 @@ def moving_carton(problem, pose, scene, directory):
         other = Chain(problem.original_description, 'world', side+'_table_top').forward({})
         if not np.allclose(other[:3,2],[0,0,1],atol=1e-8) or abs(other[2,3]-table[2,3])>1e-8:
             raise ValueError('Initial support contact requires coplanar horizontal tables')
+    supports=separating_supports(problem,table,-bottom)
+    if max(supports.values())>=bottom+HEIGHT:
+        raise ValueError('The20mm lift must clear every qualified support plate')
     return model, dict(initial_shell_bottom_above_table_m=bottom,
         final_shell_bottom_above_table_m=bottom+HEIGHT,
         initial_physical_model_bottom_above_table_m=raw_bottom,
-        support_contact_policy='horizontal table plates only while the original5mm shell expansion intersects; monotonically separating vertical lift')
+        support_links_top_above_table_m=supports,
+        support_contact_policy='horizontal tables and qualified existing thin marker plates only while the original5mm shell intersects; monotonically separating vertical lift')
 
 
 def nominal_pad_contact(model,problem,start,support):
@@ -81,8 +114,10 @@ def nominal_pad_contact(model,problem,start,support):
     scene describes the nominal contact constraint, not a measured jaw angle.
     """
     state=dict(start);result={}
-    for side in ('left','right'):
-        model.scene.allowed_collision_matrix.set_entry('weigh_carton',side+'_table_plate',True)
+    supports=(support or {}).get('support_links_top_above_table_m',
+        {side+'_table_plate':0. for side in ('left','right')})
+    for link in supports:
+        model.scene.allowed_collision_matrix.set_entry('weigh_carton',link,True)
     for arm in ARMS:
         tips=[arm+f'_robotiq_85_{side}_finger_tip_link' for side in ('left','right')]
         for tip in tips:model.scene.allowed_collision_matrix.set_entry('weigh_carton',tip,False)
@@ -177,9 +212,9 @@ def prepare(plan, output):
             maxima[arm]['angle_rad'] = max(maxima[arm]['angle_rad'],re)
             if pe>1e-4 or re>1e-3: raise ValueError('Shared carton/tool lift pose error')
         # Only the explicitly intended separating support contact is admitted.
-        for side in ('left','right'):
-            model.scene.allowed_collision_matrix.set_entry('weigh_carton',side+'_table_plate',
-                support['initial_shell_bottom_above_table_m']+height<=1e-9)
+        for link,top in support['support_links_top_above_table_m'].items():
+            model.scene.allowed_collision_matrix.set_entry('weigh_carton',link,
+                support['initial_shell_bottom_above_table_m']+height<=top+1e-9)
         if not model.check(dict(state, **{LIFT_JOINT:height}))[0]:
             model.check(dict(state, **{LIFT_JOINT:height}), contacts=True)
             raise ValueError(f'Moving carton collision at lift progress {phase:.6f}')

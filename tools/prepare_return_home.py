@@ -19,6 +19,7 @@ WORKSPACE = REPO.parents[1]
 sys.path.insert(0, str(REPO / "uwa_cell_tasks"))
 
 from prepare_carton_open_entry import shell_boxes
+from prepare_carton_weigh import separating_supports
 from prepare_carton_return import home_near
 from return_home_model import model_identity
 from return_home_request import ARMS, CARTON_ARMS, PLACEMENT_ROUTES, recorded_carton, validate_request
@@ -170,6 +171,12 @@ def load_profile(obj, problem):
     return dict(data, sha256=file_hash(path))
 
 
+def footprint_inside_table(points, table, dimensions, padding):
+    local = (points - table[:3, 3]) @ table[:3, :3]
+    return bool(np.all(np.max(np.abs(local[:, :2]), axis=0) + padding <=
+                       np.array([dimensions['width'], dimensions['length']]) / 2))
+
+
 def support_check(problem, obj):
     side = obj["table"]
     pose = obj["support"]
@@ -188,16 +195,30 @@ def support_check(problem, obj):
     if type(drift) not in (int, float) or not 0 <= drift < 1:
         raise ValueError("Invalid profiled landing uncertainty.")
     points = world_points(obj["boxes"], pose)
+    if len(obj['support_sides']) > 1 and footprint_inside_table(
+            points, table, problem.layout['tables'][side], footprint_error + drift):
+        # The grasp may have been acquired in a different pose from the first
+        # two-table commissioning run. Full conservative containment proves a
+        # single-table support; do not require a fictitious second contact.
+        obj['support_sides'] = [side]
+        obj['support_selection'] = 'Complete conservative footprint fits the selected table with the existing uncertainty and drift'
+    if (obj.get('profile')=='avocado-carton' and drop
+            and profile.get('upright_drop_qualified') is True and footprint_error>0):
+        # The already inflated carton shell and qualified placement error
+        # contain these fixed thin marker plates. This is a bounded support
+        # contact band, not an exemption for raised or tilted obstacles.
+        expansion=max(0.,bottom(obj,pose)-float(points[:,2].min()))
+        tops=separating_supports(problem,table,min(expansion,footprint_error))
+        obj['thin_support_tops']={name:float(table[2,3]+top) for name,top in tops.items()
+            if name.endswith('_charuco_plate') and name.split('_')[0] in obj['support_sides']}
     if drop:
         # Isotropic inflation allows the profiled horizontal and tilt envelope during the fall.
         radius = float(np.linalg.norm(points[:, :2] - pose[:2, 3], axis=1).max())
         if profile.get("upright_drop_qualified") is not True or drift <= 0 or radius <= 0:
             raise ValueError(f"{obj['name']}: a qualified upright short-drop envelope is required.")
     if len(obj["support_sides"]) == 1:
-        local = (points - table[:3, 3]) @ table[:3, :3]
         table_data = problem.layout["tables"][side]
-        if np.any(np.max(np.abs(local[:, :2]), axis=0) + footprint_error + drift >
-                  np.array([table_data["width"], table_data["length"]]) / 2):
+        if not footprint_inside_table(points, table, table_data, footprint_error + drift):
             raise ValueError(f"{obj['name']}: the complete placement footprint must fit inside the {side} table.")
     else:
         raw = obj["bottom_points"] @ pose[:3, :3].T + pose[:3, 3]
@@ -331,6 +352,12 @@ def actual_scene(model, objects, state, *, moving=None, pose=None):
             for side in obj["support_sides"]:
                 model.scene.allowed_collision_matrix.set_entry(
                     obj["link"] + "_body", side + "_table_plate", on_support)
+            for link, support_top in obj.get('thin_support_tops',{}).items():
+                # Raw support mismatch may only use the existing qualified
+                # vertical position error; the shell already encloses it.
+                contact=(support_top-obj['tolerance']-1e-7 <= model_bottom
+                         <= support_top+extension+1e-7)
+                model.scene.allowed_collision_matrix.set_entry(obj['link']+'_body',link,contact)
     return combined
 
 

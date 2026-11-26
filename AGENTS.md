@@ -1,5 +1,36 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Reale Haus-/Bohrbahnprobe ohne Werkzeug, Nutzerauftrag26.11.2026
+
+- Nach dem erfolgreichen Kartongriff den vollständigen in Gazebo erprobten
+  Zeichen-/Axialablauf für die echte Zelle vorbereiten. Nutzer bestätigt:
+  der dritte Arm fährt mit leerem Greifer mit; keinen Stift aufnehmen.
+- Virtuelle Werkzeugreferenz und real vorhandene Greifergeometrie getrennt
+  halten. Keine echten Zeichenkontakte, Bohrkräfte oder Materialbearbeitung
+  daraus behaupten. Aktuellen Griff und alle vier Iststellungen binden,
+  ganze Folge offline neu prüfen; konkrete Realfahrt über Motion Review.
+- Reale0,1rad/s-Grenze und vorhandene40mm-Nachbararmmarge erhalten;
+  Simulationsgeschwindigkeit1rad/s nicht auf Hardware übertragen.
+
+## Direkte Kartongeometrie, Nutzerauftrag26.11.2026
+
+- Verpflichtenden Aufdruck-/Texturabgleich im Kartonpiloten durch direkte
+  geometrische Lokalisierung ersetzen. Gemini soll von Anfang an eindeutig
+  benannte sichtbare Modellpunkte markieren. Keine perfekte rechteckige
+  obere Wandkontur voraussetzen; Laschen und Randausschnitte unterscheiden.
+- Vorhandenes Kartonmesh und Kamerakalibrierung verwenden. Gemini darf
+  über begrenzte JSON-Aktionen den rein lokalen Geometrieprüfer anfordern;
+  keine Dateipfade, Shell, Roboterdienste oder absolute Roboterposen darüber.
+  Übersicht zum Finden, nativer Detailausschnitt zum Markieren. Rohantwort
+  vor Validierung speichern, auch bei verworfenen Antworten.
+- Aktuelle OAK4-Tiefe mit ihrem tatsächlichen RGB-D-Projektionsmodell
+  auswerten; 8K-RGB-Pixel niemals direkt als Tiefenpixel benutzen. Fehlende
+  Stereo-Tiefe als fehlende Messung anzeigen, nicht ergänzen oder pauschal
+  korrigieren. Eine zusätzliche Tiefenbeobachtung ist kein Genauigkeitsnachweis.
+- OAK4-Vorrang,30mm/3°-Kameravergleich und180°-Symmetrie erhalten.
+  Ganze Folge offline prüfen und normale Motion Review beibehalten.
+  Dies ist eine endliche Aufgabenlokalisierung, kein neuer Laufzeitwächter.
+
 ## Objektaufnahme für die Asset Library, Nutzerauftrag 26.11.2026
 
 - **Object scan** in der Program Library und **Asset Library** darunter im

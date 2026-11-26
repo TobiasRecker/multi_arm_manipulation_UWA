@@ -63,22 +63,22 @@ def oak4_capture(workspace, directory, rgbd):
     spec.loader.exec_module(module)
     service = module.PhotoCapture(workspace)
     if rgbd:
-        result = service.capture('rgbd', frames=8, focus=116)
+        result = service.capture('rgbd_hdr', frames=8, focus=116)
         target = directory / 'rgbd'
         shutil.copytree(result['directory'], target)
         metadata = target / 'metadata.json'
         report = read_json(metadata)
         if not report.get('success') or report.get('kind') != 'rgbd':
             raise ValueError('OAK4 did not save a complete aligned RGB-D capture.')
-        image = checked_file(target, report['pairs'][0]['rgb_path'])
-        return image, metadata, dict(rgbd=str(target), source='oak4_aligned_rgbd',
+        image = checked_file(target, report['hdr']['path'])
+        return image, metadata, dict(rgbd=str(target), source='oak4_aligned_rgbd_hdr',
                                       display_rotation_deg=0)
-    result = service.capture('standard', focus=107)
-    source = Path(result['images']['standard'])
-    image, metadata = directory / source.name, directory / 'metadata.json'
-    shutil.copy2(source, image)
-    shutil.copy2(result['metadata'], metadata)
-    return image, metadata, dict(source='oak4_native_rgb', display_rotation_deg=0)
+    result = service.capture('hdr', focus=107, iso=400)
+    target = directory / 'hdr'
+    shutil.copytree(result['directory'], target)
+    metadata = target / 'metadata.json'
+    return checked_file(target, read_json(metadata)['hdr']['path']), metadata, dict(
+        source='oak4_native_rgb_hdr', display_rotation_deg=0)
 
 
 def oak_pro_capture(workspace, directory):
@@ -285,10 +285,18 @@ def aligned_depth(photo):
             or min(intrinsics[0, 0], intrinsics[1, 1]) <= 0
             or tuple(projection['size']) != (photo['width'], photo['height'])):
         raise ValueError('Expected matching rectified RGB and depth projection.')
-    pair = report['pairs'][0]
-    if checked_file(directory, pair['rgb_path']) != Path(photo['image']).resolve():
+    if report.get('mode') == 'rgbd_hdr':
+        hdr = report['hdr']
+        if hdr['reference_bracket'] != 'base' or sum(
+                bracket['name'] == 'base' for bracket in hdr['brackets']) != 1:
+            raise ValueError('Expected one base exposure for the HDR depth reference.')
+        image_path, depth_path = hdr['path'], hdr['depth_path']
+    else:
+        pair = report['pairs'][0]
+        image_path, depth_path = pair['rgb_path'], pair['depth_path']
+    if checked_file(directory, image_path) != Path(photo['image']).resolve():
         raise ValueError('The depth image does not belong to this photograph.')
-    depth = cv2.imread(str(checked_file(directory, pair['depth_path'])), cv2.IMREAD_UNCHANGED)
+    depth = cv2.imread(str(checked_file(directory, depth_path)), cv2.IMREAD_UNCHANGED)
     if depth is None or depth.dtype != np.uint16 or depth.shape != (photo['height'], photo['width']):
         raise ValueError('Expected depth in millimetres on the matching image grid.')
     return depth, intrinsics

@@ -314,6 +314,27 @@ def file_sha256(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+def registration_source_paths(args,binding):
+    paths=[args.image,args.metadata,args.intrinsics]
+    method=binding.get('localization_method','texture')
+    if method=='mesh_landmarks':
+        if not args.camera_session:
+            raise ValueError('Mesh landmark localization requires its original camera session')
+        paths += [REPO/'tools'/name for name in ('register_carton_geometry.py','carton_geometry.py',
+            'carton_geometry_agent.py','carton_hydrogen.py')]
+        paths += [REPO/'docs/agent_trials/PROMPT_CARTON_GEOMETRY.md',
+                  REPO/'uwa_cell_description/assets/carton_avocado_v1/asset.json',
+                  REPO/'uwa_cell_description/assets/carton_avocado_v1/carton.dae']
+        if binding.get('depth_evidence'):
+            paths.append(REPO/'tools/carton_depth_geometry.py')
+    elif method=='texture':
+        paths += [REPO/'tools/register_carton_from_oak.py',
+                  REPO.parents[1]/'setup/tracking/models/carton_avocado_v1/reference.npz']
+    else:
+        raise ValueError('Unknown staged carton localization method')
+    return paths
+
+
 def staged_approach(flow, args, status, photo):
     from uwa_cell_tasks.reviewed_carton import checker_identity
 
@@ -372,11 +393,7 @@ def staged_approach(flow, args, status, photo):
 
     binding = read_json(expected["object_pose"])
     source_hashes = set(binding["source_inputs"].values())
-    source_paths = [
-        args.image, args.metadata, args.intrinsics,
-        REPO/"tools/register_carton_from_oak.py",
-        REPO.parents[1]/"setup/tracking/models/carton_avocado_v1/reference.npz",
-    ]
+    source_paths = registration_source_paths(args,binding)
     registration_source = binding["source"]
     if args.camera_session:
         from carton_camera_session import validate_session

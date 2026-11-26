@@ -1,5 +1,194 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Fortsetzung als reale Dreiarmprobe ohne Werkzeug,26.11.2026
+
+Nutzer bestätigt erfolgreichen Kartongriff und beauftragt Haus-/Kreis-/
+virtuelle Bohrfolge aus Gazebo. Rückfrage beantwortet: dritter Arm soll
+leer mitfahren, nicht geparkt bleiben; keine Stiftaufnahme. Vorbereitung
+und vollständige Offline-Prüfung beauftragt, konkrete neue Realbahn noch
+nicht durch Motion Review freigegeben.
+
+Library-Lauf7004b3c7e1f84e9dbd1733cc7645667b tatsächlich15:28:32AWST
+abgeschlossen, Anfahrt und Kontakt vom Bediener in GUI freigegeben.
+20-mm-Hub erfolgreich,0,509568kg, RF2,37803N/RR2,61913N
+(47,588%/52,412%), BOTH_ARMS_LOAD_PLAUSIBLE. Empirisches Streuband
+0,416094–0,603043kg ist kein absolutes Genauigkeitsintervall.
+Aktuelle vierarmige Momentaufnahme mit dem Wiege-Endzustand bis auf
+maximal0,000044rad übereinstimmend. Schutzstatus RUNNING, keine Konflikte,
+keine aktiven Armziele. Nur gelesen, keine Bewegungs-/Greiferbefehle.
+Neue Taskdaten `setup/tasks/carton-air-demo-20261126/` im Workspace.
+Compute-Host erreichbar, TITAN RTX0%/175MiB,21GiB RAM verfügbar,
+500,9GiB eigener Datenbereich frei. Längere Folgeplanung dort im Container.
+
+Neuer rein dateibasierter Adapter `tools/prepare_carton_air_demo.py`,
+Bedien-/Prüfgrenzen in `docs/carton_air_demo.md`. Alle Entwürfe ausdrücklich
+`executable:false`, keine neue Runtimeinstallation, keine Greifer-/Armbefehle.
+Vierarm-Start über bestehende Return-to-Home-Aufnahme inhaltlich gebunden:
+Modellidentität ba2c9bcc8a5dd50f5594a0da09b5844fa2b49d3250c752a48181563a2d6a0790.
+Erster lokaler Packversuch verweigerte korrekt den pfadabhängigen
+Modellvergleich; anschließend dieselben Meshinhalte über bestehende
+inhaltsgebundene Kennung auf N100/ROSmini bestätigt, kein Modellbypass.
+
+Offlinecontainer01 scheiterte vor Planung an `set -u` im ROS-Setup.
+02 zeigte Übertritt eines Welt-Kartonobjekts in die nächste Basismodell-
+prüfung. Karton deshalb in separatem URDF mit sechs virtuellen Modell-
+koordinaten geführt, keine Weltobjekte mehr eingefügt. 03/04: reine
+Übertragung auf aktuelle53,31°-Pose verlangt unerreichbare1,228m LF-
+Vorpose. Geprüfte zusätzliche Ausrichtung in Richtung Referenzlage
+(rund37° Drehung/95mm Zentrumsversatz) statt Übernahme der alten Winkel.
+05: nächster IK-Zweig führt LF-Oberarm beim freien Übergang durch Tisch;
+mehrere Vorpositionszweige und ganze direkte/aufgerichtete Wege geprüft.
+06: erste Seitenzeichnung bestanden, beim Unterseitenübergang27,466mm
+LF/LR-Hüllabstand (LF-Fingerspitze/LR-Finger) statt40mm. Keine Marge geändert.
+Leeren LR-Greifer erfragt, Antwort noch ausstehend; zunächst nur
+hypothetische Parkfahrt geplant.
+
+07 (`result07/`): LR-Parken, Hub, Ausrichtung, erste Seitenzeichnung,
+Hauskanten, alle sechs virtuellen Axialzyklen und Bodenkreis grob geprüft;
+48 von57 angepassten Phasen bestanden. Gegenwandübergang benötigt
+LF-Tool0-Pose etwa0,937m von Basis; kontinuierliche IK verworfen.
+08 läuft mit explizit80mm zur LF-Seite verschobener Arbeitslage,
+33 statt17 groben Phasenpunkten und bestehender beschränkter Least-Squares-
+IK als Fortsetzungsalternative, ohne Zweigsprung. Alle Rechenjobs im
+planning.sif auf titanpc; Nachweise unter Taskverzeichnis. Bisher8 gezielte
+Bindungs-/Frame-Tests bestanden. Noch keine dichte Controllerqualifikation,
+kein erfolgreicher kompletter Realplan und keine Motion-Review-Anfrage.
+Im bestehenden Return-to-Home-Profil fehlt `loaded_sync`; die dortige
+3-mm-Absenkqualifikation ist ausdrücklich kein Nachweis großer beladener
+Transport-/Drehbewegungen. Im neuen Entwurf nicht stillschweigend umgehen.
+Nutzer bestätigt anschließend ausdrücklich: linker Hintergreifer ist leer.
+
+Weitere Offlinebefunde: Arbeitsarm beim Kartondrehen in geprüfte freie
+Homeform, anschließend pro Fläche neu anfahren. Damit Unterseitenarbeiten
+einschließlich Haus, sechs Axialzyklen und Bodenkreis in groben Entwürfen
+bestanden. Gesamtfolge umfasst nun62 Phasen einschließlich Vorbereitung,
+Ausrichtungen und freier Arbeitsarmübergänge. Gegenwandübergang weiter
+Blocker: u.a. RF-Handgelenk/Kamera gegen eigenen Unterarm oder RF-Handgelenk
+gegen RR-Unterarm unter40mm. Kleinste verworfene Erstunterschreitungen
+teilweise knapp unter40mm; kein Nachweis, dass der Restpfad nur knapp
+danebenliegt, und keine Grenze geändert.
+
+Begrenzte Arbeitslagen-Suche `workspace-result01/` und Gegenwand-Drehlagen-
+Suche `face-result01/` ohne vollständigen Erfolg. Drehung um die Gegenwand-
+normale erhält Normalenrichtung und Kartonzentrum, getrennte Tests vorhanden.
+Hypothetische Neuaufnahme mit Referenz-Halterzweigen ebenfalls als solche
+markiert, `regrasp-result01/`, nicht als aktueller Start verwendet. Aktuelle
+Griffe gegenüber Gazebo etwa20mm höher am Tool0 und11mm weiter innen;
+aktuelle RF-Konfiguration unterscheidet sich deutlich vom alten Referenzzweig.
+Zusätzlicher begrenzter Vergleich `carton-air-final-20261126-01` sowie
+direkte räumliche Gegenwandübergänge `carton-air-direct-20261126-01` ebenfalls
+ohne vollständigen Erfolg. Aktuell `carton-air-goal-20261126-01`: nur die
+Gegenwand-Präsentation150–200mm tiefer, vorherige Unterseitenlage erhalten;
+Ergebnis noch offen. Job- und Artefaktnamen im Taskverzeichnis.
+
+`qualify_carton_air_demo.py` als rein dateibasierte Folgequalifikation
+vorbereitet; noch kein kompletter bestandener Entwurf dafür vorhanden.
+Keine neuen Dateien auf N100 installiert und keine Motion Review zur
+Fortsetzung angelegt. Reale Zelle seit dem Greifabschluss durch diesen
+Auftrag nicht bewegt. Kein kompletter Ablauf als geprüft/freigegeben behaupten.
+
+## Direkte Eckengeometrie eingebaut,26.11.2026
+
+Nutzer bestätigt B/D in der alten Vorderwanddarstellung als fehlerhaft,
+verlangt den verpflichtenden Aufdruckfit zu ersetzen und präzisen Erstprompt,
+begrenzten Gemini-Zugriff auf die lokale Prüfung sowie Nutzung vorhandener
+Modell-/Kalibrierdaten und Tiefe. Neuer Pfad umgesetzt und in beiden lokalen
+Live-Konfigurationen `localization_method=mesh_landmarks` aktiviert;
+primär `depth_geometry=true`. Vorherige JSON-Konfigurationen gesichert.
+Bedienung, Geometriekriterien und Grenzen in
+[direkter Kartongeometrie](docs/carton_geometry_localization.md).
+
+Übersicht→locate_box→nativer Detailausschnitt→maximal3 check_geometry-Aufrufe
+→submit einer bestandenen Kennung. Das ist ein lokales begrenztes JSON-
+Werkzeugprotokoll, kein freier MCP-/Shell-/ROS-Zugang. Andere ACP-Werkzeuge
+weiter gesperrt. Volle Rohantworten einschließlich Parserfehler gespeichert.
+Vier obere äußere Eckfalten des ganzen Kartons statt Ecken einer einzelnen
+Wand. Mesh-Eckhöhen einschließlich3,93mm Höhenunterschied verwendet.
+Keine Texturmehrfachfits mehr im aktiven Pfad. Einzelbildkriterium nun
+max10mm je Modelleckrest, Weglassprüfung max10mm Zentrum und2°; keine
+unabhängige Genauigkeitsqualifizierung daraus.30mm/3° und OAK4-Vorrang bleiben.
+
+Auf den zuvor gescheiterten nativen Bildern beide Ansichten erfolgreich:
+OAK4 max2,714mm, OAK Pro max0,313mm Eckrest; gegen180° ausgerichteter
+Kameravergleich22,602mm/0,03909°, OAK4 unverändert übernommen. Neue Verbindungslinien
+sind in echte Rasterbilder eingezeichnet, unabhängig von der fehlerhaften
+HTML-/SVG-Stildarstellung. Vorher/nachher unter
+`work/carton-geometry-20261126/` im Workspace. A–D bezeichnen im neuen
+Bild andere, eindeutig definierte Modellpunkte als im alten Wandbild.
+
+Aktuelle8-Paar-RGB-D-Aufnahme Fokus107 um14:04AWST erfolgreich, tatsächliche
+1280×960-Projektion gespeichert. Innenboden zeigt große Tiefenlöcher;
+fehlende Daten nicht ergänzt oder in die RGB-Pose gemittelt. Die endliche
+Tiefengeometrie protokolliert diesen Grund. Die Board-Projektionsprüfung
+ist separat; verdecktes Board erzeugt keinen vorgetäuschten Tiefennachweis.
+
+Erster vollständiger Offlineplan scheiterte im Wiege-Startmodell am Kontakt
+weigh_carton/right_charuco_plate. Platte liegt im Modell2,95mm über Tisch;
+die bestehende5-mm-Kartonhülle überschneidet die Auflage. Taskmodell nun
+um streng qualifizierte horizontale dünne Markerplatten innerhalb dieser
+bereits bestehenden Aufweitung ergänzt: Kontakt ausschließlich während
+monotonen senkrechten Abhebens, danach wieder geprüft. Höhere/dickere oder
+geneigte Platte weiter Hindernis. Keine zusätzliche Marge, kein Arm-/Greifer-
+Kontakt ausgenommen, kein Schutzprogramm geändert.
+
+`complete-plan-qualified/` mit Archivbildern/-Gelenken vollständig bestanden,
+80 gezielte Tests bestanden. N100 vor Installation RUNNING, Daten verfügbar,
+keine Kontakte, keine aktiven Armziele/Reviews. Nur prepare_carton_weigh.py
+versionsgeprüft mit Backup installiert: alt a1824c60…, neu cd5a6d73…,
+`n100-task-receipt.json`; keine Dienste neu gestartet/Hardwarebefehle.
+Erster Installationsaufruf scheiterte vor jeder Änderung an der Eingabe;
+korrigierte Übertragung und Receipt geprüft. Lokalen Library-Server mit
+freier globaler Run-Lease am selben Port34911 neu geladen, GUI weiter offen.
+
+Neuer normaler Library-Lauf `0f736e234ab8427b9cae38ba50b76f7c`,
+Start14:29:05AWST, mit frischen RGB-D-/RGB-Aufnahmen und Gelenkdaten.
+Dieser Lauf scheiterte vor jeder Fahrt an einer verbliebenen Legacy-
+Quellenprüfung auf N100 (`register_carton_from_oak.py`). OAK4-Geometrie
+war gültig (max8,135mm Eckrest), USB-Ecken diesmal verworfen. Bestehende
+USB-Sichtbestätigung ergab gültigen single_confirmed-Pfad. Aktuelle Tiefe
+im ausgewählten Innenboden0 gültige Pixel, im Tischbereich51308; keine
+Zusatzposition aus diesen Löchern abgeleitet. Vollständiger Plan bestand.
+
+Quellenbindung nun explizit nach localization_method: Geometrie verlangt
+eigene Rechenmodule, Prompt, Asset/Mesh und Kamerasitzung, optional das
+Tiefenmodul. Die alte Texturbindung bleibt für historische Texturprogramme
+unverändert. Unbekannte Methode/fehlende Kamerasitzung werden abgewiesen.
+Vorabprüfung prüft passende Dateien vor neuer Bildaufnahme. Alle neuen
+Geometriequellen und Task-Ablaufhelfer versionsgeprüft mit Backup auf N100,
+keine Dienste neu gestartet; Receipt `geometry-binding-receipt.json`.
+
+Neue Dateiqualifikation an exakt gebundenen gespeicherten Bildern und
+Ecken mit kompletter Offline-Neuberechnung: `binding-qualified/`.
+Echter staged_approach- und checked_plan-Lader auf N100 bestanden:
+60 Dateien, high/entry und ein gemeinsamer RF/RR-Hub. Explizit kein
+aktueller Startnachweis und kein Hardwarekommando aus dieser Dateiqualifikation.
+Beleg `n100-filecheck.log`.82 gezielte Tests bestanden, `final-all-regression.log`.
+
+Webserver34911 wurde zwischenzeitlich beendet (SIGTERM), Robot Power blieb
+offen. Nur den Library-Server am selben Port neu gestartet. Neuer normaler
+Live-Lauf `7004b3c7e1f84e9dbd1733cc7645667b`, Start14:42:35AWST.
+Nur diesen weiterverfolgen. Noch keine tatsächliche Kartonfahrt dieses
+neuen Laufs bestätigt; keine neue Sicherheitsfreigabe erfunden.
+
+Dieser Lauf wartet seit14:45:27AWST auf Motion Review
+`e8e5f7b3765748e58a20d86e94afbc6d`, SHA
+`c597c9164068542a3d4e05abb124da30200b014be28b50ea78cfd05e8a0901a1`.
+Frische OAK4-Geometrie akzeptiert (max6,334mm Modelleckrest); USB diesmal
+nur Sichtbestätigung, keine zweite metrisch akzeptierte Pose:
+`single_confirmed`, OAK4 alleinige metrische Quelle. Vollständiger Plan
+und N100-Quellenbindung bestanden. Hohe Anfahrt jedoch serieller Rückfall:
+RF33,396s, RR46,912s; offene Einfahrt gemeinsam8,423s. Gemeinsamer20-mm-Hub
+separat geplant1,279s. Gemeinsame hohe Bahn am Nachweis unabhängigen
+Fortschritts gescheitert: konservative RF/RR-Abstandsuntergrenze−57,831mm
+bei40mm Modellmarge. Das ist keine gemessene reale Durchdringung und
+kein Beweis, dass jede alternative gemeinsame Bahn unmöglich ist.
+Nutzer um konkrete Freigabe dieser88,731-s-Anfahrt oder weitere gemeinsame
+Planung gebeten; keine Freigabe durch den Agenten gesetzt. Der Reviewtext
+enthält noch den überholten allgemeinen Hinweis, die höhere Griffhöhe sei
+nie auf Hardware gezeigt worden; tatsächlich ist der Erfolg25.11. dokumentiert.
+Die aktuelle neue Pose/Bahn bleibt konkret zu prüfen. Quellen des laufenden
+gebundenen Reviews deshalb nicht nachträglich verändert.
+
 ## Kartongewicht und neue Pose,26.11.2026
 
 Der gestrige Library-Lauf `7d124f9a84e54252b3d7e0261e7ad981` ist laut
@@ -302,10 +491,18 @@ ab 12:52 AWST bei Aufgabenvertrauen `Unsure`. Artefakte unter
 - Zwei getrennte Aufrufe am konfigurierten Gemini Hydrogen über Antigravity
   mit ausschließlich synthetischem Balkenbild bestanden. Identifikation
   meldete `found`. Die Abdeckungsprüfung lieferte sechs Flächen und `more_views`.
-- Erster realer Balkenscan und ein ausführbarer Greif-/Präsentationspfad
-  stehen aus. Dafür fehlen verifizierte Zellpose, Kontakte und Last sowie
-  offline geprüfte Bewegungen und, für aufrechtes Umgreifen, Lastübergänge.
-  Stabile manuelle Umpositionierung ist in der aktuellen Aufnahmefolge nutzbar.
+- Erste reale Ansichten am 26.11. um 15:43–15:44 AWST. Nutzer meldet
+  Balken auf dem linken Tisch, ungefähr 70 × 30 × 1.100 mm. **Holzbalken –
+  linker Tisch**, Sitzung `e6fa878e0efe44d0aefbc0e4186ca121` unter
+  `setup/tasks/uwa_program_library/object-scans/`: OAK4 RGB-D (1280 × 960),
+  OAK Pro nativ (4056 × 3040) und OAK4 nativ (8000 × 6000). Originale
+  und Vorschauen dekodiert und gegen ihre Dateihashes geprüft. Balken
+  liegt parallel zur Tischkante. Die Aufsicht der OAK Pro zeigt die
+  Oberseite am besten. Arme verdecken je nach Ansicht einen Endbereich.
+  Lokale Sichtprüfung, reine Kameraaufnahme während laufender Zellarbeit.
+- Vollständiger Scan und ausführbarer Greif-/Präsentationspfad stehen aus.
+  Dafür fehlen verifizierte Zellpose, Kontakte und Last sowie offline
+  geprüfte Bewegungen und für aufrechtes Umgreifen die Lastübergänge.
 
 ## Return to Home, 26.11.2026
 

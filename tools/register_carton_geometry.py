@@ -90,15 +90,16 @@ def register(args):
                 Chain(description, 'world', arm+'_base_link').forward({})) @ Twc).tolist())
             for arm in ['right_front', 'right_rear']})
         binding = per_arm_camera_binding(description, registration, Tco)
-        import carton_geometry, carton_geometry_agent
+        import carton_geometry, carton_geometry_agent, carton_hydrogen
         sources = [args.image, args.metadata, args.intrinsics, args.camera_session, args.description,
                    ASSET, ASSET.parent/read(ASSET)['visual_mesh'], Path(__file__),
                    Path(carton_geometry.__file__), Path(carton_geometry_agent.__file__), PROMPT,
+                   Path(carton_hydrogen.__file__),
                    output/'geometry-context.json', output/'geometry-result.json']
         if args.rgbd_directory:
             import carton_depth_geometry
             try:
-                depth=carton_depth_geometry.check_depth(args.rgbd_directory,context,result,args.metadata)
+                depth=carton_depth_geometry.check_depth(args.rgbd_directory,context,result,args.metadata,output)
             except (ValueError,KeyError,TypeError,OSError) as error:
                 depth=dict(status='unavailable',reason=str(error),depth_used_for_pose=False)
             write(output/'depth-geometry.json',depth)
@@ -110,6 +111,7 @@ def register(args):
         elif (output/'hydrogen-geometry.json').is_file():
             sources.append(output/'hydrogen-geometry.json')
         binding.update(source='Current mesh corner measurement + calibrated camera + fixed table',
+                       localization_method='mesh_landmarks', depth_evidence=bool(args.rgbd_directory),
                        focus=context['focus'], support_prior=report['support_prior'],
                        source_inputs={str(p.resolve()): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources})
         validate_per_arm_binding(description, binding)

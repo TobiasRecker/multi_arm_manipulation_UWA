@@ -19,6 +19,16 @@ forces and plans a joint20mm lift. The first real run on25November completed
 with an estimated0.51kg and plausible load on both arms. This is a force-based
 estimate without independently validated absolute mass accuracy.
 
+The [direct carton geometry localizer](docs/carton_geometry_localization.md)
+uses Gemini's explicitly identified mesh corners, camera calibration and table
+support without mandatory print matching. A bounded local geometry call checks
+proposals; aligned RGB-D records separate surface evidence and missing depth.
+
+The [real air-demo preparation](docs/carton_air_demo.md) retargets the archived
+house, circle and axial sequence to a measured carton grasp with an empty
+worker gripper. It currently produces offline drafts and interpolation audits;
+there is no qualified hardware execution endpoint for this extension yet.
+
 **Program library → [Pick pen from holder](docs/pen_grasp_library.md)**
 uses OAK Pro/OpenCV with Gemini as an ROI fallback and plans a complete
 left-rear pickup. **Inspect pen** and **Plan pickup only** send no robot or

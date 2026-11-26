@@ -177,13 +177,17 @@ def live_inputs(path, *, camera_id="oak4"):
     config = load_json(path)
     if not isinstance(config, dict) or config.get("enabled") is not True:
         raise ValueError("Live mode is disabled in the local configuration.")
-    fields = {"enabled", "intrinsics", "roi", "face_roi", "camera_reference_pose", "camera_session", "planar_texture"}
+    fields = {"enabled", "intrinsics", "roi", "face_roi", "camera_reference_pose", "camera_session", "planar_texture", "localization_method"}
     if camera_id == "oak4":
-        fields.update(("secondary_camera", "weigh_after_grasp"))
+        fields.update(("secondary_camera", "weigh_after_grasp", "depth_geometry"))
     else:
         fields.add("gemini_enabled")
     if set(config) - fields:
         raise ValueError("Live config contains unknown fields.")
+    if config.get('localization_method','texture') not in ('texture','mesh_landmarks'):
+        raise ValueError('Unknown carton localization method')
+    if not isinstance(config.get('depth_geometry',False),bool):
+        raise ValueError('depth_geometry must be true or false')
     if not isinstance(config.get("planar_texture", False), bool):
         raise ValueError("planar_texture must be true or false.")
     if not isinstance(config.get('weigh_after_grasp',False),bool):
@@ -273,17 +277,22 @@ def n100(script, *args):
     return ["/usr/bin/ssh", *SSH_OPTIONS, "-T", N100_HOST, command]
 
 
-def n100_preflight(out, program, *, weigh=False):
+def n100_preflight(out, program, *, weigh=False, geometry=False):
     files = [
         CELL / "tools/run_carton_cycle.py",
         CELL / "tools/carton_gripper_phase.py",
-        CELL / "tools/register_carton_from_oak.py",
         CELL / "tools/carton_camera_session.py",
         CELL / "tools/start_carton_browser_programs.py",
         CELL / "scripts/ur_bringup.py",
         CELL / "config/carton_programs" / f"{program}.json",
         LIVE_PROFILE,
     ]
+    if geometry:
+        files.extend(CELL/'tools'/name for name in ('register_carton_geometry.py','carton_geometry.py',
+            'carton_geometry_agent.py','carton_hydrogen.py','carton_depth_geometry.py'))
+        files.append(CELL/'docs/agent_trials/PROMPT_CARTON_GEOMETRY.md')
+    else:
+        files.append(CELL/'tools/register_carton_from_oak.py')
     # Task code only; the collision core and controllers are not modified.
     if weigh:
         files.extend(CELL/path for path in ('tools/carton_weigh_phase.py','tools/prepare_carton_weigh.py',
@@ -554,6 +563,22 @@ def register_attempt(config, out, recipe, image, metadata, windows, suffix="", *
 
 def register_current_carton(config, progress, recipe, image, metadata, *, window_cache=None):
     out = progress.output
+    if config.get('localization_method')=='mesh_landmarks':
+        progress.update('oak_registration','Measuring the four outer carton corner seams with the calibrated camera and existing mesh; no print matching.')
+        folder=out/'registration-geometry'
+        options=[]
+        if config.get('_rgbd_directory'):
+            options=['--rgbd-directory',config['_rgbd_directory']]
+        command=offline_tool('register_carton_geometry.py','--image',image,'--metadata',metadata,
+            '--intrinsics',config['intrinsics'],'--camera-session',config.get('session_copy',out/'camera-session.json'),
+            '--description',recipe/'hardware.urdf','--output',folder,*options)
+        try:
+            logged_command(command,out/'geometry-registration.log',200)
+        except RuntimeError as error:
+            report=folder/'registration.json'
+            reason=load_json(report).get('error') if report.exists() else str(error)
+            raise CartonFitRejected('Carton mesh landmark measurement rejected: '+str(reason),folder) from error
+        return folder/'object-pose.json'
     progress.update("oak_registration", "Locating the carton in the current OAK4 image on ROSmini.")
     default_windows = config["roi"], config["face_roi"]
     geometry = config.get("hydrogen_geometry")
@@ -626,6 +651,10 @@ def register_current_carton(config, progress, recipe, image, metadata, *, window
 
 def refine_cross_view(config, progress, recipe, views):
     """Remeasure current native pixels; never waive the camera disagreement."""
+    if config.get('localization_method')=='mesh_landmarks':
+        # The normal geometric 30 mm / 3 degree comparison below still applies.
+        # Never reintroduce the removed printed-texture gate as a refinement.
+        return
     import carton_multiview as multi
     if not config['secondary_camera'].get('gemini_enabled') or not all(
             views.get(name, {}).get('pose') for name in ('oak4', 'oak_usb')):
@@ -856,14 +885,21 @@ def run_live(program, progress, config_path):
             raise ValueError("Calibrate the OAK4 before starting the carton program.")
         session = validate_session(load_json(session_path), config["intrinsics"])
         write_session(out / "camera-session.json", session)
-    target_workspace, status, checker_prefix = n100_preflight(out, program,
-        **({'weigh':True} if config.get('weigh_after_grasp',False) else {}))
+    preflight_options={}
+    if config.get('weigh_after_grasp',False):preflight_options['weigh']=True
+    if config.get('localization_method')=='mesh_landmarks':preflight_options['geometry']=True
+    target_workspace, status, checker_prefix = n100_preflight(out, program,**preflight_options)
     remote = f"setup/tasks/skill-library-carton-{uuid.uuid4().hex}"
     (out / "n100-run.txt").write_text(remote + "\n")
     camera = carton_camera(out, config["focus"])
     try:
-        camera.start()
         observations = observe_start(remote, out, status["session_id"], progress)
+        if config.get('depth_geometry'):
+            progress.update('oak_capture','Recording current aligned RGB-D geometry with its own projection before native photos.')
+            depth=json.loads(logged_command(offline_tool('capture_carton_depth.py','--output',out/'rgbd',
+                '--focus',config['focus']),out/'rgbd-capture.log',180,separate_stdout=True))
+            config['_rgbd_directory']=Path(depth['directory'])
+        camera.start()
         plan, image, metadata = prepare_local_approach(
             program, progress, config, observations, status, checker_prefix, camera, window_cache=window_cache,
         )

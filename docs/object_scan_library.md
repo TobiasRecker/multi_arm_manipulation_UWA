@@ -14,8 +14,9 @@ Robot Power den aktualisierten Server.
    Gemessene Außenmaße lassen sich in Millimetern als X Länge, Y Breite,
    Z Höhe eintragen oder später ergänzen.
 2. Halte Objekt und Arme für **Capture view** ruhig. Der erste OAK4-Satz
-   verwendet ausgerichtetes RGB-D. Weitere OAK4-Sätze verwenden native
-   Farbfotos. OAK Pro liefert native Farbfotos im unveränderten Sensorframe.
+   verwendet RGB-HDR und dazu ausgerichtete Tiefe. Die Tiefenkarte gehört
+   zur mittleren RGB-Belichtung. Weitere OAK4-Sätze verwenden native
+   48-MP-HDR-Farbfotos. OAK Pro liefert native Farbfotos im unveränderten Sensorframe.
    Die Wrist-Optionen verwenden die vorhandenen Kamera-Snapshots in VGA.
    Kameras werden nacheinander ausgelöst und anschließend freigegeben.
 3. **Analyze with Gemini** sendet verkleinerte Ansichten und die

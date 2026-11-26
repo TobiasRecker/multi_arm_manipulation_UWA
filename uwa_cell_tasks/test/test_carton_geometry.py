@@ -124,3 +124,69 @@ def test_model_must_call_checker_before_submitting(tmp_path, monkeypatch):
     assert len(prompts[2])==2
     audit=json.loads((tmp_path/'hydrogen-geometry.json').read_text())
     assert all('raw_response' in r for r in audit['rounds'])
+
+
+def test_depth_uses_its_own_projection_and_local_table_plane(tmp_path,monkeypatch):
+    import carton_depth_geometry as depth_tool
+    from types import ModuleType
+    old=ModuleType('register_carton_from_oak')
+    old.right_board_observation=lambda image:(np.empty((0,3)),np.empty((0,2)))
+    def no_board(*args): raise ValueError('Board occluded')
+    old.validate_visible_board_projection=no_board
+    monkeypatch.setitem(sys.modules,'register_carton_from_oak',old)
+    ctx,corners,_=fixture();ctx.update(device_id='1479883285',focus=107,floor_z_m=.003,T_camera_board=np.eye(4).tolist())
+    measured=geometry.evaluate(ctx,corners);Tct=np.asarray(ctx['T_camera_table']);Tco=Tct@np.asarray(measured['T_table_object'])
+    polygon=depth_tool.projected_polygon([[x,y,.003] for x,y in [(.3*.404,.3*.342),(.7*.404,.3*.342),(.7*.404,.7*.342),(.3*.404,.7*.342)]],Tco,np.asarray(ctx['K'],float))
+    depth=np.full((1200,1600),2000,np.uint16);mask=np.zeros(depth.shape,np.uint8)
+    cv2.fillConvexPoly(mask,polygon,255);depth[mask>0]=1997
+    depth[450:455,650:655]=0  # Invalid stereo remains invalid, no filling.
+    cv2.imwrite(str(tmp_path/'rgb.png'),np.zeros((1200,1600,3),np.uint8));cv2.imwrite(str(tmp_path/'depth.png'),depth)
+    stamp='2026-11-26T06:00:00+00:00'
+    metadata=dict(success=True,kind='rgbd',device_id=ctx['device_id'],requested_focus=107,started_at=stamp,
+        projection=dict(K=ctx['K'],depth_K=ctx['K'],D=[0]*5,size=[1600,1200],coordinate_frame='CAM_A undistorted optical: X right, Y down, Z forward'),
+        pairs=[dict(index=0,actual_focus=107,rgb_path='rgb.png',depth_path='depth.png')])
+    (tmp_path/'metadata.json').write_text(json.dumps(metadata));(tmp_path/'native.json').write_text(json.dumps(dict(started_at=stamp)))
+    result=depth_tool.check_depth(tmp_path,ctx,measured,tmp_path/'native.json')
+    assert result['status']=='measured' and not result['depth_used_for_pose']
+    assert result['relative_floor_height_median_mm']==pytest.approx(3,abs=.05)
+    assert result['camera_reference_check']['status']=='unavailable'
+    metadata['projection']['depth_K']=[[1,0,0],[0,1,0],[0,0,1]]
+    (tmp_path/'metadata.json').write_text(json.dumps(metadata))
+    with pytest.raises(ValueError,match='projection'):
+        depth_tool.check_depth(tmp_path,ctx,measured,tmp_path/'native.json')
+
+
+def test_live_geometry_mode_does_not_invoke_print_matching(tmp_path,monkeypatch):
+    import run_carton_program as runner
+    called=[]
+    monkeypatch.setattr(runner,'offline_tool',lambda script,*args,**kwargs:called.append(script) or [script,*args])
+    monkeypatch.setattr(runner,'logged_command',lambda *args,**kwargs:'')
+    def forbidden(*args,**kwargs): raise AssertionError('Print fitting must not be called')
+    monkeypatch.setattr(runner,'register_attempt',forbidden)
+    config=dict(localization_method='mesh_landmarks',intrinsics=tmp_path/'K',camera_session=tmp_path/'session')
+    result=runner.register_current_carton(config,runner.Progress(tmp_path),tmp_path,tmp_path/'image',tmp_path/'meta')
+    assert result==tmp_path/'registration-geometry/object-pose.json'
+    assert called==['register_carton_geometry.py']
+    runner.refine_cross_view(config,None,None,{})
+
+
+def test_staged_geometry_requires_its_own_sources_and_camera_session(tmp_path):
+    import run_carton_cycle as cycle
+    args=SimpleNamespace(image=tmp_path/'image',metadata=tmp_path/'metadata',intrinsics=tmp_path/'K',camera_session=tmp_path/'session')
+    paths=cycle.registration_source_paths(args,dict(localization_method='mesh_landmarks',depth_evidence=True))
+    names={p.name for p in paths}
+    assert {'register_carton_geometry.py','carton_geometry.py','carton_geometry_agent.py',
+            'carton_depth_geometry.py','PROMPT_CARTON_GEOMETRY.md','carton.dae','asset.json'}<=names
+    assert 'register_carton_from_oak.py' not in names and 'reference.npz' not in names
+    args.camera_session=None
+    with pytest.raises(ValueError,match='original camera session'):
+        cycle.registration_source_paths(args,dict(localization_method='mesh_landmarks'))
+    with pytest.raises(ValueError,match='Unknown'):
+        cycle.registration_source_paths(args,dict(localization_method='invented'))
+
+
+def test_legacy_staged_texture_binding_keeps_its_reference_checks(tmp_path):
+    import run_carton_cycle as cycle
+    args=SimpleNamespace(image=tmp_path/'image',metadata=tmp_path/'metadata',intrinsics=tmp_path/'K',camera_session=None)
+    names={p.name for p in cycle.registration_source_paths(args,{})}
+    assert {'register_carton_from_oak.py','reference.npz'}<=names

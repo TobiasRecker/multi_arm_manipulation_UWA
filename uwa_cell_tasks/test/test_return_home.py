@@ -14,7 +14,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO / name) for name in ("tools", "uwa_cell_motion", "uwa_cell_tasks")]
 
 import execute_return_home as executor
-from prepare_return_home import coupled_qualification, support_check, vertical_placement_legs
+from prepare_return_home import coupled_qualification, support_check, vertical_placement_legs, footprint_inside_table
 from return_home_request import ARMS, PLACEMENT_ROUTES, ROUTES, parse_advice, validate_request
 from uwa_cell_tasks.motion_review import ReviewStore, START_PERCENT
 
@@ -141,6 +141,44 @@ def test_drop_gap_and_landing_inside_support(monkeypatch):
     item["support"][0, 3] = .49
     with pytest.raises(ValueError, match="fit inside"):
         support_check(problem, item)
+
+
+def test_complete_single_table_support_does_not_require_old_second_table(monkeypatch):
+    import prepare_return_home as compiler
+    monkeypatch.setattr(compiler, "Chain", lambda *_: SimpleNamespace(forward=lambda _: np.eye(4)))
+    problem=SimpleNamespace(original_description="",layout={"tables":{"right":{"width":1.,"length":1.}}})
+    item=compiler.manual_object(object_request([ARMS[0]]))
+    item['support_sides']=['left','right'];item['qualification']={}
+    support_check(problem,item)
+    assert item['support_sides']==['right']
+    assert 'conservative footprint' in item['support_selection']
+
+
+def test_support_requires_all_corners_plus_existing_uncertainty():
+    table=np.eye(4);dimensions=dict(width=1.,length=1.)
+    points=np.array([[.49,.1,0.],[.49,-.1,0.],[.3,.1,0.],[.3,-.1,0.]])
+    assert footprint_inside_table(points,table,dimensions,.005)
+    assert not footprint_inside_table(points,table,dimensions,.02)
+    points[0,0]=.51
+    assert not footprint_inside_table(points,table,dimensions,0.)
+
+
+def test_thin_board_support_band_preserves_table_penetration_rejection():
+    import prepare_return_home as compiler
+    entries={}
+    model=SimpleNamespace(scene=SimpleNamespace(allowed_collision_matrix=SimpleNamespace(
+        set_entry=lambda a,b,allow:entries.update({(a,b):allow}))))
+    obj=dict(link='carton',name='Test carton',pose=np.eye(4),bottom_points=np.array([[0.,0.,0.]]),
+        boxes=[dict(lo=[-.1,-.1,-.005],hi=[.1,.1,.1])],table_height=0.,
+        support_sides=['right'],thin_support_tops={'right_charuco_plate':.003},tolerance=.005)
+    compiler.actual_scene(model,[obj],{})
+    assert entries[('carton_body','right_charuco_plate')] is True
+    raised=np.eye(4);raised[2,3]=.010
+    compiler.actual_scene(model,[obj],{},moving=obj,pose=raised)
+    assert entries[('carton_body','right_charuco_plate')] is False
+    below=np.eye(4);below[2,3]=-.001
+    with pytest.raises(ValueError,match='below the support plane'):
+        compiler.actual_scene(model,[obj],{},moving=obj,pose=below)
 
 
 def test_partial_open_reports_each_arm_and_prevents_continue(monkeypatch):
