@@ -79,8 +79,17 @@ def build_plan(followup,grasp_plan):
         phase_sha256={summary['id']:sha(directory/(summary['id']+'.json'))for summary in proof['phases']})
 
 
+def plausible_grip(report):
+    """Use the already requested finite post-grasp weighing result once."""
+    return (report.get('success')is True and report.get('phase')=='CARTON_LIFTED_AND_WEIGHED'
+        and report.get('measurement_available')is True
+        and (report.get('weighing')or{}).get('assessment')=='BOTH_ARMS_LOAD_PLAUSIBLE')
+
+
 def execute_followup(progress,followup,grasp_plan,remote,target_workspace,status):
     followup=Path(followup);out=progress.output
+    if not plausible_grip(read(out/'n100-contact-workflow.json')):
+        raise ValueError('The finite post-grasp measurement does not confirm plausible load on both arms; no air-trial motion was requested')
     plan=build_plan(followup,grasp_plan);stage=followup/'execution';stage.mkdir()
     write(stage/'plan.json',plan)
     camera_config=read(out/'camera-session.json')

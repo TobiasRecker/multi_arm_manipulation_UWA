@@ -91,3 +91,24 @@ die konservative Außenhülle prüft weiter Arme, Kameras und Umgebung. Die
 Wanddicke bleibt eine Assetschätzung. Ein bestandener hypothetischer
 Folgeplan ersetzt weder die neue Lokalisierung nach Ablegen noch die
 vollständige Prüfung der realen Neuaufnahme.
+
+Stand der realen Fortsetzung26.11.2026: Der ursprüngliche Karton wurde regulär
+freigegeben, beide rechten Arme sind Home. Ein endlicher Folgeexecutor und ein
+Library-Profil `live-carton-simulation-grip.json` sind vorbereitet. Die ganze
+Folge wird vor der ersten Anfahrt gebunden; nach dem neuen Griff wird die bereits
+beauftragte endliche Wiegeauswertung auf plausible Last beider Arme geprüft.
+Es gibt keine Kraftüberwachung während des späteren Transports. Der komplette
+Luftversuch erhält eine eigene High-Motion-Review mit tatsächlichem Haltebild.
+Die RViz-Vorschau hängt die Kartongeometrie starr an den Halter und zeigt nur
+einen mathematischen300mm-Referenzpunkt am leeren Arbeitsgreifer.
+
+Die ersten Neuaufnahmeläufe stoppten vor jeder neuen Fahrt: zunächst
+Aufgabenversionsabgleich, danach48,581mm Kamerazentrumsdifferenz statt30mm.
+Gezielte Diagnose zeigt unveränderte feste Marker und Eckhöhen18–19cm in
+Triangulation und OAK4-Tiefe gegenüber15,9–16,3cm im Bildschätzungs-Asset.
+Das ist noch keine unabhängige Vermessung. Der neue Versuch ist bis zur
+Klärung der physischen Außenmaße lokal deaktiviert; Originalkonfiguration,
+Schutzdienst, Antriebe und bestehende Grenzen bleiben erhalten.
+Ein anderer Kartonkörper darf nicht unter dem alten Objektnachweis ausgeführt
+werden. Robotermodell und unveränderte Bahnteile getrennt weiterverwenden;
+betroffene Objekt-/Griff-/Anschlussgeometrie neu nachweisen.

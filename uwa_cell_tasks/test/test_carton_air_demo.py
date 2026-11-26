@@ -226,3 +226,12 @@ def test_air_preview_attaches_carton_to_grasp_and_contains_only_a_virtual_refere
         visual=ET.fromstring(xml).find("link[@name='review_virtual_tool_reference']")
         assert visual.find('visual/geometry/sphere')is not None
         assert visual.find('collision')is None
+
+
+def test_air_continuation_uses_the_requested_post_grasp_result_once():
+    from run_carton_air_followup import plausible_grip
+    report=dict(success=True,phase='CARTON_LIFTED_AND_WEIGHED',measurement_available=True,
+        weighing=dict(assessment='BOTH_ARMS_LOAD_PLAUSIBLE',mass_kg=.51))
+    assert plausible_grip(report)
+    assert not plausible_grip(dict(report,measurement_available=False))
+    assert not plausible_grip(dict(report,weighing=dict(assessment='SINGLE_ARM_LOAD')))

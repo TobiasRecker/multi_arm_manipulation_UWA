@@ -56,3 +56,20 @@
   air_demo_after_grasp:true. GUI-Titel Carton grasp and drawing air trial;
   Original live-carton.json unverändert. Browser bleibt nicht verfügbar,
   Start über normale API, keine GUI-Klicks behauptet.
+
+- Aktueller Status: **wartet auf unabhängig bekannte physische Maße**.
+  Neuaufnahme038645e531d1444c81dfe3045ae6a7d6 vor Bewegung an48,581mm
+  Kamerazentrumsdifferenz beendet. Beide rechten Arme weiterhin Home,
+  Karton auf Tisch, Greifer offen. Linke URs rein lesend ready bestätigt.
+- Bildvergleich fester Marker zur Referenz: beide Kameras etwa1px median;
+  kein deutlicher Kameraversatz. Diagnostische Triangulation Eckhöhen
+  180–190mm; OAK4-Tiefe allein stützt etwa182/191mm an gut erfassten Ecken.
+  Bisheriges Asset ist ausdrücklich Bildschätzung mit163mm Höhe, kein
+  unabhängiges Realmaß. Nutzer nach bekannten Außenmaßen gefragt.
+- Neues Luftprobe-Profil enabled:false bis zur Maßklärung. Standardprofil
+  unverändert. Keine neue Fahrt auf Basis einer geratenen Modellkorrektur.
+  Vor Nutzerbetreten für nötige Messung Arbeitsbereich widerrufen.
+- Controllerdateien in neuen Qualifikationsbelegen zusätzlich per SHA gebunden;
+  alte erfolgreiche Nachweise unverändert. Wiederverwendung57 Mittelphasen
+  im isolierten Cache-End-to-End bestanden. Geänderte Objektgeometrie bleibt
+  davon ausdrücklich ausgenommen. Letzte gezielte Tests erneut bestanden.

@@ -26,8 +26,10 @@ proposals; aligned RGB-D records separate surface evidence and missing depth.
 
 The [real air-demo preparation](docs/carton_air_demo.md) retargets the archived
 house, circle and axial sequence to a measured carton grasp with an empty
-worker gripper. It currently produces offline drafts and interpolation audits;
-there is no qualified hardware execution endpoint for this extension yet.
+worker gripper. It now includes a finite reviewed executor and reuse of unchanged
+qualified phases. The first full real trial remains pending clarification of the
+physical carton dimensions; the old image-based asset height disagrees with
+current camera/depth evidence.
 
 **Program library → [Pick pen from holder](docs/pen_grasp_library.md)**
 uses OAK Pro/OpenCV with Gemini as an ROI fallback and plans a complete

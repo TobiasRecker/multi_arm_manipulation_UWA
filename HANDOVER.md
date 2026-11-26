@@ -25,6 +25,14 @@ abrufbar. Prüfnachweis unter
 
 ## Fortsetzung als reale Dreiarmprobe ohne Werkzeug,26.11.2026
 
+**Aktueller Abschlussstand dieses Arbeitsgangs:** Karton regulär freigegeben,
+beide rechten Arme Home. Neue Neuaufnahme vor Bewegung am30mm-
+Kamerazentrumsvergleich abgebrochen. Tiefen-/Zweikameradiagnose deutet auf
+18–19cm statt der bildgeschätzten16,3cm Modellhöhe. Unabhängige Außenmaße
+beim Nutzer angefragt; neues Luftprobe-Profil bis dahin deaktiviert.
+Vollständiger Offline-Nachweis62Phasen und Cache-Wiederverwendung bestehen
+für die bisherige Geometrie; noch keine vollständige reale Luftprobe.
+
 Nutzer bestätigt erfolgreichen Kartongriff und beauftragt Haus-/Kreis-/
 virtuelle Bohrfolge aus Gazebo. Rückfrage beantwortet: dritter Arm soll
 leer mitfahren, nicht geparkt bleiben; keine Stiftaufnahme. Vorbereitung
@@ -9669,3 +9677,54 @@ Neue Review f16b33c3e97447daa2884e1f10b73d58 wurde vom Bediener freigegeben
 Original-RF-Abschluss und unverändertem RR-Restweg. Beide Greifer offen,
 Karton auf Tisch. Original-Library-Lauf bleibt korrekt als abgebrochen
 dokumentiert; die erfolgreiche Restfahrt ist ein separater Nachweis.
+
+## Neuaufnahme: Kameravergleich führt zu Höhenverdacht,26.11.2026,18:03–18:13AWST
+
+Library45f22c120ab84daa98750cb502c1e9c3 vor Bewegung am Versionsvergleich
+carton_depth_geometry.py beendet; alte Aufgabendatei gesichert und mit
+lokaler geprüfter Fassung abgeglichen. Erneuter normaler Librarylauf
+038645e531d1444c81dfe3045ae6a7d6 erfasst neue HQ-RGB-D-/native Bilder
+und beide unabhängigen geometrischen Kartonposen. Kein neuer Arm-/Greiferbefehl.
+Vergleich nach180°-Symmetrie:48,581mm Zentrumsdifferenz,1,188728°,
+zulässige30mm/3° unverändert; vor Anfahrt abgebrochen.
+
+Beide Landmarkenbilder plausibel. Einmalige gezielte Fehlerdiagnose
+vergleicht aktuell sichtbare feste Marker mit Referenzphotos13:30AWST:
+13 gemeinsame OAK4-Marker/17 USB-Marker, mediane Verschiebung1,207/1,0px.
+Kein deutlicher Hinweis auf Kameraversatz; dies ist kein routinemäßiger
+erneuter Boardcheck oder neue Laufzeitüberwachung.
+
+Unabhängige diagnostische Zweikamera-Triangulation der markierten Ecken
+(keine Übernahme als Metrikquelle für den Greifablauf): Kanten400,89/
+402,30mm und328,76/329,70mm; Eckhöhen179,89–189,75mm. Abstände der
+korrespondierenden Sehstrahlen0,68–5,56mm. Asset carton_avocado_v1
+enthält dagegen404,04×342,33×163,31mm, obere Eckhöhen159,38–163,31mm;
+Metadaten ausdrücklich image_based_estimate, measured_accuracy_validated:false.
+User fragt nach Nutzung bekannter Maße: erklärt, dass diese Geometrie bereits
+im Fit steckt und die Höhenannahme beide monokularen Zentren verschieben kann.
+
+OAK4-HQ-Tiefe separat gegen eine im selben Frame geschätzte lokale Tisch-
+ebene geprüft, RMS5,734mm. Reprojizierte EckpatchesB/C mit136/169 gültigen
+Tiefenpunkten: Mediane190,96/182,07mm; D175,41mm; A durch Wand/Tisch-
+Mischpunkte nicht aussagekräftig. Rohdaten nicht korrigiert, kein Genauigkeits-
+nachweis. Stützt den Höhenverdacht ohne USB als Greif-Metrikquelle zu verwenden.
+Diagnosen fixed-marker-comparison.json, triangulation-diagnostic.json,
+rim-depth-diagnostic.json unter setup/tasks/carton-air-demo-20261126.
+
+Nutzer nach unabhängig bekannten Außenmaßen/Eckhöhen gefragt; vor Betreten
+für eine nötige Messung Arbeitsbereich widerrufen. Noch keine Modelländerung
+oder Grenzaufweitung. Aktuell beide rechten Arme Home, beide Greifer offen,
+Karton auf Tisch. Linke Programme einmal rein lesend bestätigt: beide
+RUNNING/NORMAL/PLAYING ros.urp, Reverse aktiv, commands:[], keine Power/
+Brake/Play-Aktionen nötig. Vollständiger alter Nachweis bleibt an alte
+Assetgeometrie gebunden; Geometriekorrektur muss ausdrücklich berücksichtigt
+werden, kein unveränderter Cache-Nachweis für ein anderes Objekt behaupten.
+
+Neues Luftprobe-Profil anschließend bis zur Maßklärung `enabled:false`
+gesetzt, um keine bekannte ungesicherte Modellkorrektur auszuführen. Nur
+lokale Aufgabenverfügbarkeit, keine Änderung/Stop des Schutzdienstes,
+keine Power-/Brake-/Play-Aktion. Standardprofil unverändert. Aktive Library
+weiter Port34911, foreground-Sitzung4627.82 vorherige Workflowtests sowie zuletzt60 fokussierte Tests einschließlich
+der endlichen Plausibilitätsentscheidung bestanden
+(model-clarification-tests.log). Arbeitsbereich bleibt in dieser
+Sitzung freigegeben, solange niemand zur Messung eintritt; vorher widerrufen.
