@@ -260,3 +260,32 @@ def test_rejected_coupled_peer_cancels_only_accepted_own_goal(monkeypatch):
         executor.follow_loaded(client, dict(start={}, trajectories=dict.fromkeys(ARMS[:2])), evidence)
     assert headers == [200_000_000, 200_000_000]
     assert cancelled == [ARMS[0]] and evidence["cancel_confirmed"] == [ARMS[0]]
+
+
+def test_unloaded_timeout_cancels_only_the_current_group():
+    cancelled = []
+
+    def accepted(arm):
+        def cancel():
+            cancelled.append(arm)
+            response = Future()
+            response.set_result(SimpleNamespace(goals_canceling=[arm]))
+            return response
+
+        goal = Future()
+        goal.set_result(SimpleNamespace(accepted=True, cancel_goal_async=cancel))
+        return goal
+
+    client = SimpleNamespace(pending={ARMS[0]: accepted(ARMS[0])})
+
+    def follow(*_, **__):
+        assert client.pending == {}
+        client.pending[ARMS[1]] = accepted(ARMS[1])
+        raise TimeoutError("Controller did not complete.")
+
+    client.follow_group = follow
+    segment = dict(executed=False)
+    with pytest.raises(TimeoutError, match="Controller did not complete"):
+        executor.follow_unloaded(client, dict(trajectories={ARMS[1]: {}}, duration_s=1.), segment)
+    assert cancelled == [ARMS[1]]
+    assert segment == dict(executed=False, cancel_confirmed=[ARMS[1]])

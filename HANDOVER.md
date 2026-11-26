@@ -1,5 +1,102 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Kartongewicht und neue Pose,26.11.2026
+
+Der gestrige Library-Lauf `7d124f9a84e54252b3d7e0261e7ad981` ist laut
+gespeichertem Ergebnis erfolgreich abgeschlossen: Motionreview17:26:28,
+Kontaktreview17:27:32, gemeinsamer20-mm-Hub und Messung17:28AWST.
+Masse0,508672kg, zusätzliche vertikale Last RF1,136545N/RR3,851825N,
+Anteile22,78%/77,22%, je41Proben/Fenster. `BOTH_ARMS_LOAD_PLAUSIBLE`;
+empirisches Streuband0,406280–0,611065kg kein Genauigkeitsintervall.
+Kein unabhängiger Vierpad-/Schlupf-/Fremdkontaktnachweis. Nutzer bestätigt,
+dass es gut funktioniert hat, meldet Arme in Home und Karton leicht bewegt,
+und beauftragt Wiederholung. Gewichtsschätzung entsprechend erläutert.
+
+Neue Vor-Ort-Bestätigung: Arbeitsbereich frei, leerer Karton direkt auf dem
+Tisch, Buch entfernt.13:27AWST alle vier URs NORMAL/RUNNING/PLAYING mit
+Reverse-Verbindungen, keine aktiven Ziele/Reviews, Schutzstatus RUNNING,
+Kollisionsdaten verfügbar und keine Konflikte/Warnungen. Neue Review-Sitzung
+an diese Arbeitsbereichsfreigabe gebunden, Tempo/Vertrauen unverändert.
+Bestehender GUI-Library-Server auf `http://127.0.0.1:34911`, Backend minimal,
+aktive Runtime unverändert. Browserzugriff weiterhin unavailable; keine
+GUI-Klicks behaupten. Befunde `setup/tasks/carton-repeat-20261126/`.
+
+Beide alten Kamerareferenzen abgelaufen. Reiner Library-Kalibrierlauf
+`c11901ed0ab44e7384b3c125d085d1d1`13:28AWST: OAK4 erfolgreich17Marker,
+1,21px Prüf-RMS, gültig bis27.11.01:28AWST. USB-OAK bei Fokus112 nur6Marker
+statt mindestens12, trotz0,9075px Prüf-RMS nicht veröffentlicht. Aktuelles
+USB-Bild zeigt den Karton vor großen Teilen des rechten Tischboards.
+Keine Grenze gelockert/keine alte Referenz übernommen. Nutzer gebeten,
+Karton vorübergehend aus der Board-Sichtlinie zu stellen; danach zweite
+Referenz erneuern und Karton wieder in die gewünschte Testpose stellen.
+Alternativ OAK4-only ausdrücklich als Auswahl angeboten, nicht gewählt.
+Arbeitsbereich vor manueller Umpositionierung regulär widerrufen; keine
+aktive Fahrt/Review. Nutzer bestätigt Karton zur Seite/Board frei/Bereich
+verlassen. Zweiter reiner Kalibrierlauf `02bcb20918a54702b13431202295a284`
+13:30AWST erfolgreich: je17Marker, OAK4 1,12px/USB0,999px Prüf-RMS.
+Neue zwölfstündige Referenzen gültig bis27.11.01:30AWST. Nutzer gebeten,
+Karton jetzt wieder in die gewünschte Testpose zu stellen und freien
+Arbeitsbereich zu bestätigen. Keine neue Kartonfahrt/kein Greiferbefehl
+in dieser Wiederholung bisher.
+
+Nutzer bestätigt neue Pose/Bereich frei. Neue Review-Sitzung eingetragen,
+normaler Library-Lauf `0c5cd4e9ea474e7a95517ededa3bfd3a`13:31:28AWST
+mit aktuellen Bildern/Gelenken gestartet. Vor Planung ohne Bewegung
+fehlgeschlagen: `Neither camera produced an accepted current carton pose`.
+OAK4-Standardfit ohne Hypothese, drei vorhandene Hydrogen-/OpenCV-Runden
+ergeben höchstens eine akzeptierte Hypothese (zwei nötig). Beste einzelne
+unterstützte RMS5,807px bei bestehender6,375px-Grenze, übrige verworfen.
+USB-Standard und Nachmessung ebenfalls ohne gültige Pose; zusätzlich
+zweite Hydrogenantwort vom Status-/Bildkoordinatenparser verworfen. Ihr
+Rohtext wurde nicht gespeichert; genaue fehlerhafte Stelle daher unbelegt.
+Keine Grenz-
+änderung oder hypothetische Pose an die Planung übergeben.
+
+Drei zusätzliche endliche, visuell abgeleitete Frontwand-Entzerrungen
+derselben OAK4-Aufnahme rein offline geprüft. Beste unterstützte Fehler
+8,422/6,946/7,456px, jeweils oberhalb6,375px, keine übernommen. Protokoll
+`setup/tasks/carton-repeat-20261126/rectification-results.jsonl`, alle
+Bildbefunde erhalten. Kein Safety-, Planer- oder Registrierungsquellstand
+geändert, keine neue Motion Review, kein Greiferkommando/Wiegehub. Nutzer
+um Wahl gebeten: Bildauswertung für diese Schräglage weiter verbessern
+(Karton stehen lassen), oder etwas zurückdrehen und Positionsversatz für
+den Wiederholungsversuch beibehalten. Bestätigte letzte Masse bleibt0,509kg.
+
+Nutzer fragt anschließend nach genauer Ursache und Gemini-Ein-/Ausgaben.
+Interaktive Gegenüberstellung unter
+`work/carton-gemini-explainer/gemini-kartonvergleich.html` im Workspace:
+drei OAK4- und zwei USB-Runden, protokollierte JSON-Koordinaten, echte
+gespeicherte Rückprojektionsbilder und lokale Messwerte. Erste gesendete
+JPEGs aus unveränderten Quellen mit derselben Crop-/Thumbnail-/JPEG-Funktion
+rekonstruiert und ausdrücklich so bezeichnet; Anzeige verkleinert. Spätere
+OAK4-Runden erhielten das jeweilige verworfene Fitoverlay samt Messbericht.
+USB-Runde2 erhielt nur den Bericht im bestehenden Bildgespräch, keine neue
+Bilddatei. Zweite verworfene USB-Rohantwort fehlt, nur Parserfehler vorhanden.
+Gemini meldete in allen gespeicherten Antworten found; Blocker ist die
+nachfolgende metrische Bild-/Tischfitprüfung. Zwei Hypothesen bedeuten
+Auswertungsvarianten pro Bild, nicht die zwei Kameras. Ursachenanteile von
+Perspektive, Texturzuordnung und verformter Pappe noch nicht bewiesen.
+Koordinatenabbildung und alle fünf Auswahlzustände der Darstellung geprüft;
+kein Robot-/Kamerabefehl und keine Registrierungsänderung für diese Erklärung.
+
+Nutzer bittet um schrittweise Erklärung: Bedeutung der vier Punkte,
+Rückkopplung in Runde2 und Nutzen des nachgeschalteten Aufdruckfits.
+Wünscht den verpflichtenden Aufdruckabgleich zu streichen, sofern Gemini
+die für die Lokalisierung erforderlichen Daten liefert. Codebefund:
+`front_quad_2d` wird derzeit nur zur perspektivischen Entzerrung verwendet,
+danach unverändert Texturmerkmale gegen Modell und Tischauflage gefittet;
+keine direkte metrische Eckenauswertung. Vier2D-Punkte plus vorhandene
+Kamerakalibrierung, feste Tischauflage und definierte Kartongeometrie
+ermöglichen prinzipiell einen eigenen geometrischen Lokalisierungspfad.
+Dieser Pfad ist noch nicht implementiert/qualifiziert. Kein Aufdruckgate
+ersatzlos entfernt und keine Fahrt ausgelöst. Gemini-Runde2 erhält den
+besten verworfenen lokalen Modellversuch, keine bestätigte richtige Pose;
+die Korrekturrunden sind keine unabhängigen Messungen.
+Darstellung korrigiert: vier unveränderte Gemini-Wandecken A/B/C/D mit
+Verbindung, robuste Themefarben und ausdrückliche Beschriftung als unsere
+Einzeichnung von Zahlen. Verworfenen Eingabefit klar als unbestätigt markiert.
+Alle fünf Auswahlzustände und Koordinatenabbildung erneut geprüft.
+
 ## Return to Home: Greifer inaktiv, 26.11.2026
 
 Öffnungsreview `a4ef61404c954c1da568e76aac7fb426` um 12:55:34 AWST
@@ -86,6 +183,19 @@ verbleibende gemeinsame Homefahrt. Beide rechten Dashboards meldeten
 vor dem neuen Review RUNNING/NORMAL/PLAYING `ros.urp` mit nativer Skalierung 1.
 Neue Nachweise unter
 `setup/tasks/return_home_20261126/commissioning/home-after-play-4FttPjme/`.
+
+Home-Review `d669d28265274d87ad494597d0f85e92` vom Bediener freigegeben.
+Um 13:26:40 AWST Home von beiden Controllern bestätigt, Review `done`.
+Die separate N100-Endabfrage ergab höchstens 0,000060 rad (0,0035°)
+Abweichung vom jeweiligen Homeziel, gemeldete Gelenkgeschwindigkeit 0,
+keine aktiven Armziele, beide Greifer ACT=1/STA=3/FLT=0/POS=3 und keinen
+aktuellen FCL-Konflikt. Die Greiferfreigabe erfolgte vor Ort und war keine
+erfolgreich ausgeführte automatische Ablage. Der Aufgabenrunner bindet
+das Szenenfoto an die eingefrorene Revision. Künftige Return-to-Home-
+Zeitüberschreitungen versuchen, ausschließlich die eigenen Ziele dieser
+Bahngruppe zu stornieren und quittierte Stornos zu protokollieren. Diese
+Fehlerbehandlung ist lokal mit 42 Tests geprüft und wird mit dem nächsten
+normalen Aufgabenlauf übertragen.
 
 Der Aufgabenrunner liest jetzt vor den Öffnungsbefehlen einmal den Status
 aller Mitglieder der Griffgruppe parallel. Wenn ein Greifer seine

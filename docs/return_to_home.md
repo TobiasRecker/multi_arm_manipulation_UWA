@@ -48,6 +48,11 @@ gripper blocks the group's opening and appears in the phase report. If
 activation is required, use a separate operation with a clear finger path.
 For a held object, arrange on-site support and recovery first.
 
+Check that the URs are playing the External Control program before approving
+arm motion. The task waits for controller completion and excludes software
+pauses from its deadline. If the deadline expires, it requests cancellation
+of its own goals for that group and records any acknowledged cancellations.
+
 A release onto verified support is the default. **Bounded drop** uses the
 operator's maximum drop height for a newly entered object and a bound profile in
 `setup/skill_library/return-home-profiles/<id>.json` and the corresponding

@@ -1,12 +1,13 @@
 # Kraftreferenz und20-mm-Wiegehub
 
-Stand25.11.2026: Taskdateien auf N100 installiert, tatsächlicher Dateilader
-und beide endlichen RTDE-Kraftrezepte geprüft. Die Library unter
-`http://127.0.0.1:8780` verwendet jetzt `weigh_after_grasp: true`.
-Noch kein abgeschlossener Wiegehub: Der Greifer-Parametrierungsblocker ist
-mit einer Verbindung pro Auftrag behoben und über die normale ROS-Öffnung
-beider rechter Greifer bestätigt. Der erste aktuelle Library-Lauf ist
-gestartet; Details und Nachweise im aktuellen HANDOVER.
+Stand26.11.2026: Erster realer Wiegelauf am25.11. um17:28AWST abgeschlossen.
+Library-Lauf `7d124f9a84e54252b3d7e0261e7ad981`: gemeinsamer20-mm-Hub,
+geschätzte Masse0,509kg, `BOTH_ARMS_LOAD_PLAUSIBLE`. Rechts vorne1,137N
+(23%), rechts hinten3,852N (77%) zusätzliche vertikale Last. Je Messfenster
+und Arm41 Proben. Das empirische Streuband0,406–0,611kg ist ausdrücklich
+kein absolutes Genauigkeitsintervall. Ergebnis und Messzusammenfassung:
+`setup/tasks/uwa_program_library/7d124f9a84e54252b3d7e0261e7ad981/progress.json`.
+Die normale Library verwendet `weigh_after_grasp: true`.
 Keine Änderung an Schutzkern, Controllern, nativer UR-Sicherheit oder Payload.
 Der unveränderte Schutzdienst wurde nach Routerunterbrechung und ausdrücklicher
 Nutzerfreigabe im pausierten Leerlauf neu gestartet; frische Geometrie frei,
@@ -24,7 +25,8 @@ anschließend genehmigtes Resume mit vier bestätigten Controllern.
    unterstützte Griff. Grund: Beim bisherigen Griff meldet das konservative
    Aufgabenmodell zuerst Kontakt mit inneren Greifergelenken. In der höheren
    Variante erfolgt der erste modellierte Schließkontakt an den Fingerpads.
-   Das ist eine Offline-Entwurfsentscheidung, noch kein realer Griffnachweis.
+   Diese Variante wurde im oben genannten Lauf real gegriffen und angehoben;
+   daraus folgt kein unabhängiger Nachweis aller vier Padkontakte.
 3. Normale Motion Review für diese neue Greifhöhe anfordern. Nach der offenen
    Einfahrt ein frisches Foto prüfen. Die Kontaktfreigabe enthält ausdrücklich
    Schließen **und**20-mm-Hub; das alte Kontaktvertrauen wird nicht automatisch

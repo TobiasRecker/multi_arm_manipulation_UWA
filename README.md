@@ -15,8 +15,9 @@ active arms. A separate Gazebo runner plays the checked motion with contact
 physics and an idealized assembly joint.
 
 The [carton weighing extension](docs/carton_weighing.md) stores unloaded wrist
-forces and plans a joint20mm lift. It is installed and file-checked on the N100. The first real weighing run
-is in progress after fixing the gripper parameter readback.
+forces and plans a joint20mm lift. The first real run on25November completed
+with an estimated0.51kg and plausible load on both arms. This is a force-based
+estimate without independently validated absolute mass accuracy.
 
 **Program library → [Pick pen from holder](docs/pen_grasp_library.md)**
 uses OAK Pro/OpenCV with Gemini as an ROI fallback and plans a complete

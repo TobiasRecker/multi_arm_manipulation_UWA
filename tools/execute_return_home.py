@@ -158,6 +158,31 @@ class DescentObservation:
         return detail
 
 
+def cancel_submitted_goals(client, pending, segment, timeout_s):
+    cancellations = {}
+
+    def cancel(arm, future):
+        try:
+            handle = future.result()
+            if handle.accepted:
+                cancellations[arm] = handle.cancel_goal_async()
+        except Exception:
+            return
+
+    for arm, future in pending.items():
+        if future.done():
+            cancel(arm, future)
+        else:
+            future.add_done_callback(lambda item, arm=arm: cancel(arm, item))
+    cutoff = time.monotonic() + timeout_s
+    while time.monotonic() < cutoff and (
+            not all(f.done() for f in pending.values()) or not all(f.done() for f in cancellations.values())):
+        client.spin_once(timeout_sec=.005)
+    segment["cancel_confirmed"] = [arm for arm, future in cancellations.items()
+                                   if future.done() and future.exception() is None
+                                   and future.result().goals_canceling]
+
+
 def follow_loaded(client, group, segment, observation=None):
     """Coordinate ordinary provisional Action acceptance before the scheduled start."""
     trajectories = group["trajectories"]
@@ -186,29 +211,8 @@ def follow_loaded(client, group, segment, observation=None):
             if len(handles) < len(pending):
                 client.spin_once(timeout_sec=.002)
     except BaseException:
-        cancelled = {}
-
-        def cancel(arm, future):
-            try:
-                handle = future.result()
-                if handle.accepted:
-                    cancelled[arm] = handle.cancel_goal_async()
-            except Exception:
-                return
-
-        for arm, future in pending.items():
-            if future.done():
-                cancel(arm, future)
-            else:
-                future.add_done_callback(lambda item, arm=arm: cancel(arm, item))
-        cutoff = time.monotonic() + .2
-        while time.monotonic() < cutoff and (
-                not all(f.done() for f in pending.values()) or not all(f.done() for f in cancelled.values())):
-            client.spin_once(timeout_sec=.005)
+        cancel_submitted_goals(client, pending, segment, timeout_s=.2)
         segment["accepted"] = [arm for arm, handle in handles.items() if handle.accepted]
-        segment["cancel_confirmed"] = [arm for arm, future in cancelled.items()
-                                       if future.done() and future.exception() is None
-                                       and future.result().goals_canceling]
         raise
     segment["accepted"] = list(handles)
     results = {arm: handle.get_result_async() for arm, handle in handles.items()}
@@ -220,12 +224,23 @@ def follow_loaded(client, group, segment, observation=None):
         if observation is not None:
             observation.capture(client)
         if timer.tick(client.paused) > group["duration_s"] * 5 + 8:
+            cancel_submitted_goals(client, pending, segment, timeout_s=1.)
             raise TimeoutError("Coupled trajectory result is unconfirmed. Inspect UWA Robot Power.")
     for arm, future in results.items():
         result = future.result()
         if result.status != GoalStatus.STATUS_SUCCEEDED or result.result.error_code != FollowJointTrajectory.Result.SUCCESSFUL:
             raise RuntimeError(f"{arm}: {result.result.error_string or 'coupled trajectory failed'}")
     segment["executed"] = True
+
+
+def follow_unloaded(client, group, segment):
+    # A failure before dispatch must never cancel a goal from the previous group.
+    client.pending = {}
+    try:
+        client.follow_group(group["trajectories"], duration_s=group["duration_s"], segment=segment)
+    except TimeoutError:
+        cancel_submitted_goals(client, client.pending, segment, timeout_s=1.)
+        raise
 
 
 def advance(group):
@@ -445,7 +460,7 @@ def run(args):
                                     segment["descent_observation"] = observation.summary()
                                     save()
                         else:
-                            client.follow_group(group["trajectories"], duration_s=group["duration_s"], segment=segment)
+                            follow_unloaded(client, group, segment)
                         save()
                 finally:
                     client.destroy_node()
