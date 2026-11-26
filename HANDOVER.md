@@ -89,8 +89,15 @@ Nur in endlichen Offline-Aufgabenszenen, keine Änderung am Schutzdienst.
 Statische Tischüberdeckung ignoriert; keine Roboter-/Kartonpaarfreigabe.
 Die nun nötige freie Arbeitsarmumfahrung wird mit deterministischer
 begrenzter RRT-Connect-Suche und denselben vollständigen Prüfungen gesucht.
-Job `carton-air-qualified-20261126-05` läuft mit129 groben Knoten und
-anschließender dichter Controllerprüfung. Status nicht als Realfreigabe werten.
+Job `carton-air-qualified-20261126-05` vollständig bestanden,17:33:04AWST:
+alle62 Phasen,72.218 Zustände der tatsächlichen Controllerinterpolanten,
+minimaler Nachbarabstand46,789mm, maximaler starrer Grifffehler6,364µm,
+maximale virtuelle lokale Bahndifferenz0,265µm. Modellabweichungen, keine
+Hardwaregenauigkeit. Nominal1.759,958s bei unveränderten Geschwindigkeiten.
+Dieser hypothetische Neuaufnahme-Nachweis bleibt `executable:false`;
+neuer Istgriff und tatsächliche Anfahrt sind noch zu binden. Unveränderte
+Bearbeitungsabschnitte sollen wiederverwendet werden; Nutzer hinterfragt
+zu Recht wiederholte Vollprüfungen. Geänderte Anschlüsse separat prüfen.
 
 Tischgestütztes Freigeben und Homefahrt konkret als `release-plan03`
 geprüft:20mm Restspalt innerhalb der nutzergebundenen50mm-Freigabe;
@@ -9618,3 +9625,47 @@ aktiv; separate MuR-Simulation inaktiv. Vor weiterer Prozessarbeit neu prüfen.
 Die Liste beschreibt offene Arbeitspakete, keinen Auftrag, sie ohne weitere
 fachliche Abstimmung sofort alle umzusetzen. Aktuelle Konfigurationswerte und
 Bedienung haben Vorrang vor überholten Gesprächsständen.
+
+## Reale Rücksetzung für Simulationsgriff,26.11.2026,ab17:30AWST
+
+Nutzer bestätigt ausdrücklich: niemand im Arbeitsbereich. Session
+4dcbdf235d344357b4a57a32eac7ab7c regulär freigegeben. Library-Lauf
+400d02e5c2034417a97300bc60236030 über normale API gestartet, Browserzugriff
+nicht verfügbar. Frischer Plan f1bdbb01a699e87a9c005ded50b3f5eb2e16e4879e1414619abb535f3775d5cd,
+zusätzlicher Halternachweis `release-current-holder-audit` bestanden.
+Aktuelle native Bilder vor Öffnen und nach Ablage geprüft. Öffnungsreview
+1903aa0f569b4ee8bb0b961e21a716ea delegiert freigegeben; beide Greifer
+POS3, ACT1/STA3/FLT0, FOR0/SPE16, regulär erfolgreich. Keine beladene
+Armbewegung. Karton im Folgefoto auf Tisch, beide Finger geöffnet.
+Rückzugsreview3297a61b66ef48b79facb1877dfa58a4 freigegeben und gemeinsame
+senkrechte Fahrt erfolgreich. Home-Review6226dac55fba40c7ad161f23486cbd4c
+für geprüfte unbeladene Wege freigegeben; Abschluss noch zu beobachten.
+Neuer Griff noch nicht ausgeführt. Sicherheitsprogramm unverändert.
+
+## Home-Restweg nach verspäteter Abschlussmeldung,26.11.2026,17:35–17:43AWST
+
+Originaler Library-Home-Abschnitt scheitert nach erfolgreicher RF-Fahrt
+vor Dispatch des RR-Ziels: `right_front: controller still owns an action
+or has not acknowledged the current state`. Phase-2-Bericht bestätigt
+RF-Ziel per erfolgreichem FollowJointTrajectory, maximal49µrad vom
+Homeziel. Aktueller Schutzstatus anschließend RUNNING, keine Konflikte,
+alle action_active:false. Passender Schutz-Journalausschnitt ohne Einträge;
+kein neuer Schutzstopp beobachtet. Ursache ist die Aufgabenübergabe nach
+erfolgreichem Aktionsresultat bei noch älterer Aktionsstatusmeldung.
+
+Endlicher Executor kann jetzt mit `--resume-completed` die bestätigte
+Präfixfahrt prüfen und ausschließlich identische verbleibende Homegruppen
+zur neuen Motion Review vorlegen. Originalplan, ursprünglicher Fehlerbericht
+und beide vorhandenen Nachweise bleiben erhalten. Keine neue Bahnplanung,
+kein Schutzdienstwechsel, kein automatisches Resume. Die erste noch nicht
+gefahrene Review wurde wegen einer irrtümlichen Gesamtvorschau zurückgenommen;
+Vorschau zeigt jetzt nur RR,51,657430s, und den abgelegten Karton.
+23 gezielte Home-Tests bestanden, einschließlich bestätigter Präfixe,
+geänderter Resultate und ausschließlicher Restweg-Vorschau.
+
+Neue Review f16b33c3e97447daa2884e1f10b73d58 wurde vom Bediener freigegeben
+(nicht von diesem Agenten); RR-Fahrt erfolgreich17:43:18AWST.
+`remaining-home-result.json` bestätigt beide rechten Homeziele nach
+Original-RF-Abschluss und unverändertem RR-Restweg. Beide Greifer offen,
+Karton auf Tisch. Original-Library-Lauf bleibt korrekt als abgebrochen
+dokumentiert; die erfolgreiche Restfahrt ist ein separater Nachweis.

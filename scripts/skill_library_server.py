@@ -117,9 +117,12 @@ class Runs:
     def catalog(self):
         camera = self.camera_status()
         try:
-            weigh = read_json(self.live_config).get('weigh_after_grasp') is True
+            selected_config=read_json(self.live_config)
+            weigh = selected_config.get('weigh_after_grasp') is True
+            air=selected_config.get('air_demo_after_grasp')is True
         except (OSError, ValueError, TypeError, AttributeError):
             weigh = False
+            air = False
         stages = [dict(s) for s in STAGES]
         if weigh:
             stages[3]['description'] = 'Check the complete high approach, open entry and joint20mm lift before any motion. The weighing variant grasps20mm higher.'
@@ -130,6 +133,13 @@ class Runs:
                            "Both right arms grasp the known Avocado carton at its measured pose and hold it on the table."),
                        object="Avocado carton", arms=["Right front", "Right rear"], stages=stages,
                        demo_available=True, live_available=camera["live_blocker"] is None, **camera)
+        if air:
+            program.update(title='Carton grasp and drawing air trial',
+                description='Use the rehearsed grasp, weigh the empty carton, then carry out the house, circles and six virtual drilling cycles with an empty worker gripper.',
+                arms=['Right front','Right rear','Left front','Left rear'])
+            stages[3]['description']='Check the complete new acquisition and air trial before any approach. Reuse unchanged qualified paths.'
+            stages.append(dict(id='air_demo',title='Drawing trial without a tool',
+                description='Review the complete carry and turning sequence. Left front follows the virtual tool reference with an empty gripper; left rear parks. No pen pickup or material processing.'))
         program['camera_program'] = CAMERA_PROGRAM
         calibration = dict(id=CAMERA_PROGRAM, kind="camera_calibration", title="OAK camera calibration",
             description="Measure separate OAK4 and configured OAK Pro references from the right table board. Each reference lasts 12 hours from its own capture.",

@@ -179,11 +179,15 @@ def live_inputs(path, *, camera_id="oak4"):
         raise ValueError("Live mode is disabled in the local configuration.")
     fields = {"enabled", "intrinsics", "roi", "face_roi", "camera_reference_pose", "camera_session", "planar_texture", "localization_method"}
     if camera_id == "oak4":
-        fields.update(("secondary_camera", "weigh_after_grasp", "depth_geometry", "grasp_program"))
+        fields.update(("secondary_camera", "weigh_after_grasp", "depth_geometry", "grasp_program", "air_demo_after_grasp"))
     else:
         fields.add("gemini_enabled")
     if set(config) - fields:
         raise ValueError("Live config contains unknown fields.")
+    if not isinstance(config.get('air_demo_after_grasp',False),bool):
+        raise ValueError('air_demo_after_grasp must be true or false')
+    if config.get('air_demo_after_grasp') and (config.get('grasp_program')!='carton-supported-simulation-v1' or config.get('weigh_after_grasp')is not True):
+        raise ValueError('Air demo requires the named simulation grip and weighing lift')
     if 'grasp_program' in config:
         from prepare_carton_recipe import load_program
         load_program(config['grasp_program'])
@@ -911,9 +915,16 @@ def run_live(program, progress, config_path):
         plan, image, metadata = prepare_local_approach(
             program, progress, config, observations, status, checker_prefix, camera, window_cache=window_cache,
         )
+        if config.get('air_demo_after_grasp'):
+            progress.update('offline_followup','Reusing the qualified drawing sequence and checking the new acquisition/return connectors before any approach.')
+            logged_command(offline_tool('prepare_carton_air_followup.py','--plan',plan,
+                '--output',out/'air-followup','--job','carton-air-followup-'+out.name[:12]),
+                out/'air-followup.log',1500)
         progress.update("n100_approach", "Sending the checked trajectories to the N100 for motion review.")
         options = transfer_approach(remote, target_workspace, plan, image, metadata, config, out, checker_prefix)
 
+        if config.get('air_demo_after_grasp'):
+            options.extend(['--risk','high','--reason','New simulation-referenced grasp for the complete empty-tool carton trial; the whole followup has been qualified before this approach.'])
         cycle = f"{remote}/cycle"
         report = request_review(progress, cycle, "motion", "--prepared-approach", target_workspace / remote / "prepared",
                                 "--expected-scene-session", status["session_id"],
@@ -935,6 +946,10 @@ def run_live(program, progress, config_path):
                             "--entry-metadata", f"{remote}/entry/metadata.json")
     if report.get("phase") not in {"SUPPORTED_CONTACT_HELD","CARTON_LIFTED_AND_WEIGHED","CARTON_LIFTED_WEIGHING_UNAVAILABLE"} or report.get("success") is not True:
         raise ValueError("The N100 did not confirm the supported contact hold.")
+    air_result=None
+    if config.get('air_demo_after_grasp'):
+        from run_carton_air_followup import execute_followup
+        air_result=execute_followup(progress,out/'air-followup',plan,remote,target_workspace,status)
     if report['phase'].startswith('CARTON_LIFTED'):
         result=report.get('weighing')
         message=('Lift completed; weighing unavailable: '+str(report.get('measurement_error')) if not result else
@@ -943,7 +958,7 @@ def run_live(program, progress, config_path):
         progress.update('weighing_complete',message,weighing=result)
         return dict(remote_run=cycle,contact='Both grippers closed and joint20mm lift completed.',
                     weighing=result,measurement_available=report['measurement_available'],
-                    measurement_error=report.get('measurement_error'))
+                    measurement_error=report.get('measurement_error'),air_demo=air_result)
     return {
         "remote_run": cycle,
         "contact": "N100 confirmed supported contact hold after operator review.",
@@ -976,7 +991,8 @@ def main():
             message = "Right table camera reference saved for 12 hours."
         else:
             result = run_live(args.program, progress, args.live_config)
-            message = "Supported carton contact is held."
+            message = ("Carton air trial completed; no tool was picked up and the carton remains held."
+                       if result.get('air_demo') else "Supported carton contact is held.")
     except (ValueError, KeyError, OSError, RuntimeError, TypeError, KeyboardInterrupt) as error:
         message = str(error) or "Program interrupted."
         progress.update("failed", message, error=message)

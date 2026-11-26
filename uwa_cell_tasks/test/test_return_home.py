@@ -327,3 +327,32 @@ def test_unloaded_timeout_cancels_only_the_current_group():
         executor.follow_unloaded(client, dict(trajectories={ARMS[1]: {}}, duration_s=1.), segment)
     assert cancelled == [ARMS[1]]
     assert segment == dict(executed=False, cancel_confirmed=[ARMS[1]])
+
+
+def test_partial_home_continuation_retains_exact_remaining_path_and_rejects_unconfirmed_prefix():
+    from copy import deepcopy
+    groups=[dict(phase='Return to Home',arms=[arm],start={'joint':float(i)},
+        trajectories={arm:dict(joint_names=['joint'],points=[dict(positions=[float(i+1)])])})
+        for i,arm in enumerate(('right_front','right_rear'))]
+    current=dict(kind='home',groups=groups,start={'joint':0.},arms=['right_front','right_rear'])
+    result=dict(success=False,plan_sha256='bound',phase='home',finger_commands={},segments=[
+        dict(phase='Return to Home',arms=['right_front'],executed=True,final_positions={'joint':1.},
+             completion_source='FollowJointTrajectory result; no standstill test')])
+    suffix=executor.remaining_home(current,result,'bound')
+    assert suffix['groups'][0] is groups[1]
+    assert suffix['start']=={'joint':1.} and suffix['arms']==['right_rear']
+    bad=deepcopy(result);bad['segments'][0]['executed']=False
+    with pytest.raises(ValueError,match='completion evidence'):executor.remaining_home(current,bad,'bound')
+    bad=deepcopy(result);bad['segments'][0]['final_positions']['joint']+=.01
+    with pytest.raises(ValueError,match='completion evidence'):executor.remaining_home(current,bad,'bound')
+    with pytest.raises(ValueError,match='matching partial'):executor.remaining_home(current,result,'changed')
+
+
+def test_partial_home_preview_contains_only_remaining_groups_and_supported_object():
+    group=dict(duration_s=51.,arms=['right_rear'])
+    current=dict(kind='home',remaining_only=True,start={'joint':1.},groups=[group])
+    plan=dict(start={'joint':0.},robot_description='cell',
+        object_tracks=[dict(link='carton',pose='old')],objects=[dict(link='carton',support_pose='landed')])
+    preview=executor.preview_for(plan,current,None)
+    assert preview['groups']==[group] and preview['start']==current['start']
+    assert preview['duration_s']==51. and preview['object_tracks'][0]['pose']=='landed'

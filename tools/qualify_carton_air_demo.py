@@ -79,6 +79,17 @@ def qualify(args):
     try:
         for phase in draft['phases']:
             print('Auditing controller phase',phase['id'],flush=True)
+            if phase.get('reuse_qualified'):
+                from carton_air_cache import controller_record
+                record=controller_record(phase,previous,p.collision.bounds)
+                for arm,trajectory in record['trajectories'].items():
+                    envelope.check_trajectory(arm,trajectory['points'])
+                demo.write(out/(phase['id']+'.json'),record)
+                report.setdefault('controller_files',{})[phase['id']]=demo.digest(out/(phase['id']+'.json'))
+                report['phases'].append({k:v for k,v in record.items()if k not in ('trajectories','start','end')})
+                previous.update(record['end']);total+=record['duration_s']
+                demo.write(out/'proof.json',report)
+                continue
             rows=phase['samples'];u=np.array([row['source_index']for row in rows],float)
             u=(u-u[0])/(u[-1]-u[0])
             q=np.array([[row['positions'][j]for j in names]for row in rows])
@@ -145,11 +156,14 @@ def qualify(args):
                 fixed_grip_error_rad=angle_error,virtual_task_error_m=tip_error,
                 start=dict(previous),end={j:float(v)for j,v in zip(names,actual(duration))})
             demo.write(out/(phase['id']+'.json'),record)
+            report.setdefault('controller_files',{})[phase['id']]=demo.digest(out/(phase['id']+'.json'))
             report['phases'].append({k:v for k,v in record.items()if k not in ('trajectories','start','end')})
             previous.update(record['end']);total+=duration
             demo.write(out/'proof.json',report)
         report.update(success=True,phase='FINITE_CONTROLLER_INTERPOLATION_AUDIT_PASSED',
-                      total_duration_s=total,end=previous)
+                      total_duration_s=total,end=previous,
+                      reused_phases=sum(bool(p.get('reused_qualification'))for p in report['phases']),
+                      newly_checked_samples=sum(p['checked_samples']for p in report['phases']if not p.get('reused_qualification')))
     except Exception as error:
         report.update(error=str(error),phase='CONTROLLER_INTERPOLATION_AUDIT_REJECTED')
         print('REJECTED',error,flush=True)

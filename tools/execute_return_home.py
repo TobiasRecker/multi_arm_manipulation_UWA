@@ -272,7 +272,36 @@ def stages(plan):
     return result
 
 
+def remaining_home(current, previous, plan_sha256):
+    """Reuse only the unmodified suffix after confirmed successful own goals."""
+    done=previous.get('segments',[])
+    groups=current['groups']
+    if (current['kind']!='home' or previous.get('phase')!='home'
+            or previous.get('success') is not False or previous.get('plan_sha256')!=plan_sha256
+            or previous.get('finger_commands') or not 0<len(done)<len(groups)):
+        raise ValueError('A matching partial unloaded Home result is required')
+    for result,group in zip(done,groups):
+        expected=advance(group)
+        actual=result.get('final_positions',{})
+        if (result.get('executed') is not True or result.get('arms')!=group['arms']
+                or result.get('phase')!=group['phase']
+                or result.get('completion_source')!='FollowJointTrajectory result; no standstill test'
+                or set(actual)!=set(expected)
+                or any(not np.isfinite(actual[j]) or abs(actual[j]-q)>START_TOLERANCE
+                       for j,q in expected.items())):
+            raise ValueError('Completed Home prefix lacks matching controller completion evidence')
+    pending=groups[len(done):]
+    return dict(current,groups=pending,start=pending[0]['start'],remaining_only=True,
+                arms=sorted({a for group in pending for a in group['arms']}))
+
+
 def preview_for(plan, current, photo):
+    if current.get('remaining_only'):
+        poses={item['link']:item['support_pose'] for item in plan['objects']}
+        return dict(start=current['start'],groups=current['groups'],
+            robot_description=plan['robot_description'],
+            object_tracks=[dict(obj,pose=poses.get(obj['link'],obj['pose'])) for obj in plan['object_tracks']],
+            duration_s=sum(g['duration_s'] for g in current['groups']))
     tracks = {obj["link"]: dict(obj, motions=[]) for obj in plan["object_tracks"]}
     groups = []
     elapsed = 0.
@@ -365,7 +394,14 @@ def run(args):
     if not 0 <= args.index < len(workflow):
         raise ValueError("Unknown Return to Home phase.")
     current = workflow[args.index]
-    report_path = args.plan.parent / f"phase-{args.index}.json"
+    resume=getattr(args,'resume_completed',None)
+    resume_sha=sha(resume) if resume is not None else None
+    if resume is not None:
+        if resume.resolve()!=args.plan.parent/f'phase-{args.index}.json':
+            raise ValueError('Resume must reference this frozen phase completion report')
+        current=remaining_home(current,read(resume),args.sha256)
+    suffix='-resume-'+resume_sha[:12]+'-'+sha(Path(__file__))[:8] if resume_sha else ''
+    report_path = args.plan.parent / f"phase-{args.index}{suffix}.json"
     if report_path.exists():
         raise ValueError("This phase has already been attempted. Prepare a new revision.")
     if args.index:
@@ -377,6 +413,8 @@ def run(args):
         earliest = args.area_at
     report = dict(success=False, plan_sha256=args.sha256, phase=current["kind"],
                   arms=current["arms"], segments=[], finger_commands={})
+    if resume_sha:
+        report['completed_prefix_sha256']=resume_sha
     def save():
         dump(report_path, report)
     save()
@@ -426,7 +464,7 @@ def run(args):
         else:
             reason = "Checked unloaded Home path, with the other arms and task objects in the cell model."
         stage = "contact" if kind == "open" else "motion"
-        component = digest(f"{args.sha256}/{args.index}/{photo['original_sha256'] if photo else ''}".encode())
+        component = digest(f"{args.sha256}/{args.index}/{photo['original_sha256'] if photo else ''}/{resume_sha or ''}".encode())
         meta = dict(task=TASK, summary=summaries[kind] + (f" · {item['name']}" if item else ""),
                     risk=current["risk"], reason=reason, stage=stage, arms=current["arms"],
                     duration_s=sum(g["duration_s"] for g in groups), components=[component],
@@ -434,7 +472,10 @@ def run(args):
                     scene_session=args.session, requires_area=True)
         if photo:
             meta["capture_sha256"] = photo["original_sha256"]
-        with approval(store, f"{args.plan.parent.name}/{args.index}/{args.sha256}", meta, preview) as ticket:
+        if resume_sha:
+            meta['summary']='Continue remaining Home route'
+            meta['reason']+=' The completed controller-confirmed prefix is retained; only the identical remaining paths execute.'
+        with approval(store, f"{args.plan.parent.name}/{args.index}/{args.sha256}{suffix}", meta, preview) as ticket:
             with motion_context():
                 client = MinimalHardwareClient(problem, "hardware", current["arms"])
                 try:
@@ -483,6 +524,8 @@ def main():
     parser.add_argument("--index", type=int)
     parser.add_argument("--photo", type=Path)
     parser.add_argument("--metadata", type=Path)
+    parser.add_argument('--resume-completed',type=Path,
+                        help='Review only the unchanged remaining unloaded Home groups after confirmed prefix completion')
     args = parser.parse_args()
     if args.observe:
         print(json.dumps(dict(snapshot=observe(), status=ReviewStore().status(TASK)), allow_nan=False))

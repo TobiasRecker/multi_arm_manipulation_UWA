@@ -155,6 +155,7 @@ def pack(args):
     shutil.copytree(match,sources/'match_ur_hardware',ignore=shutil.ignore_patterns('__pycache__'))
     shutil.copyfile(Path(__file__),out/'prepare.py')
     shutil.copyfile(REPO/'tools/task_obstacles.py',out/'task_obstacles.py')
+    shutil.copyfile(REPO/'tools/carton_air_cache.py',out/'carton_air_cache.py')
     shutil.copyfile(REPO/'tools/prepare_carton_open_entry.py',out/'prepare_carton_open_entry.py')
     shutil.copyfile(REPO/'tools/return_home_model.py',out/'return_home_model.py')
     print(json.dumps(dict(packed=str(out),phases=len(phases),robot_commands_sent=False)))
@@ -442,6 +443,14 @@ def compile_draft(args):
             if sign is not None and np.sign(seed[4])!=sign:
                 seed[3]+=np.pi;seed[4]*=-1;seed[5]+=np.pi
             q=solve_near(p,arm,proposed,target,seed)
+            planned=data.get('planned_grip_end')
+            if planned is not None:
+                for k,joint in enumerate(names):
+                    lo,hi=p.collision.bounds[joint]
+                    choices=[q[k]+2*np.pi*n for n in range(-2,3) if lo<=q[k]+2*np.pi*n<=hi]
+                    q[k]=min(choices,key=lambda value:abs(value-planned[joint]))
+                if max(abs(q[k]-planned[joint])for k,joint in enumerate(names))>START_TOLERANCE:
+                    raise ValueError(arm+': future air start differs from the planned weighing end')
             if sign is not None and np.sign(q[4])!=sign:
                 raise ValueError(arm+': proposed wrist branch did not converge')
             proposed.update(zip(names,q))
@@ -491,12 +500,28 @@ def compile_draft(args):
     report['nominal_jaws']=data['nominal_jaws']
     report['contact_model']='physical_skin_and_outer_hull'if args.simulation_grasps else 'outer_hull_nominal_pads'
     report['task_obstacles']=data.get('task_obstacles',[])
+    cache=None
+    if getattr(args,'reuse_qualified',None):
+        from carton_air_cache import Cache
+        if (args.work_offset!=[0.,0.,0.] or args.opposite_roll_deg!=0. or args.opposite_pose is not None
+                or args.opposite_offset!=[0.,0.,0.] or args.opposite_direct or args.regrasp_canonical):
+            raise ValueError('Evidence reuse requires the unchanged canonical middle presentation')
+        cache=Cache(args.reuse_qualified,data,folder)
+        cache.bind_contact(offsets,data['nominal_jaws'])
     write(out/'result.json',report)
     refstate=dict(initial);minimum=float('inf');opposite=False;opposite_adjust=np.eye(4)
     try:
         for phase in phases:
             print('Checking',phase['id'],flush=True)
             positions=np.asarray([point['positions']for point in phase['points']])
+            reused=cache.coarse(phase['id'],state,p.collision.bounds) if cache else None
+            if reused is not None:
+                report['phases'].append(reused);state=dict(reused['samples'][-1]['positions'])
+                refstate.update(zip(phase['joint_names'],positions[-1]))
+                minimum=min(minimum,min(row['minimum_neighbor_gap_m'] for row in cache.proof['phases']))
+                write(out/'result.json',report)
+                print('Reused unchanged qualified phase',phase['id'],flush=True)
+                continue
             # A short coarse rejection pass; never an execution qualification.
             count=max(3,min(len(positions),args.samples))
             indices=np.unique(np.linspace(0,len(positions)-1,count).astype(int))
@@ -645,6 +670,7 @@ if __name__=='__main__':
     p.add_argument('--regrasp-wrist-signs',type=int,nargs=2,choices=(-1,1))
     p.add_argument('--simulation-grasps',action='store_true')
     p.add_argument('--regrasp-canonical',action='store_true')
+    p.add_argument('--reuse-qualified',type=Path,help='Sealed unchanged canonical middle; new connectors still checked')
     a=parser.parse_args()
     if a.operation=='pack':pack(a)
     else:raise SystemExit(compile_draft(a))

@@ -159,3 +159,70 @@ def test_offline_obstacle_route_checks_a_whole_detour_and_its_final_shortcuts():
     np.testing.assert_allclose(route[0],start);np.testing.assert_allclose(route[-1],goal)
     for a,b in zip(route,route[1:]):
         assert all(valid(a+(b-a)*u)for u in np.linspace(0,1,513))
+
+
+def test_cached_middle_accepts_only_whole_turn_equivalence_and_keeps_other_joints():
+    from carton_air_cache import Cache
+    cache=Cache.__new__(Cache);cache.shift=None
+    cache.phases={'draw':dict(id='draw',samples=[dict(positions={'a':.1,'b':.2}),dict(positions={'a':.2,'b':.3})])}
+    # Binding mismatch is rejected before any cached controller file can be used.
+    with pytest.raises(ValueError,match='exact winding'):
+        cache.coarse('draw',{'a':.11,'b':.2},{})
+
+
+def test_cached_controller_turn_shift_preserves_velocity_acceleration_and_checks_all_bounds(tmp_path):
+    import json
+    from carton_air_cache import controller_record,sha
+    root=tmp_path/'cache';(root/'qualified').mkdir(parents=True)
+    record=dict(id='draw',start={'j':.1},end={'j':.2},duration_s=1.,
+        trajectories={'right_front':dict(joint_names=['j'],points=[
+            dict(time=0.,positions=[.1],velocities=[0.],accelerations=[0.]),
+            dict(time=1.,positions=[.2],velocities=[0.],accelerations=[0.])])})
+    path=root/'qualified/draw.json';path.write_text(json.dumps(record))
+    manifest=tmp_path/'manifest.json';manifest.write_text(json.dumps(dict(root=str(root),files={str(path):sha(path)})))
+    phase=dict(id='draw',reuse_qualified=dict(manifest=str(manifest),manifest_sha256=sha(manifest),
+        record_sha256=sha(path),winding_shift_rad={'j':-2*np.pi}))
+    value=controller_record(phase,{'j':.1-2*np.pi},{'j':(-2*np.pi,2*np.pi)})
+    assert value['end']['j']==pytest.approx(.2-2*np.pi)
+    assert value['trajectories']['right_front']['points'][0]['velocities']==[0.]
+    with pytest.raises(ValueError,match='joint bounds'):
+        controller_record(phase,{'j':.1-2*np.pi},{'j':(-6.,6.)})
+    path.write_text('{}')
+    with pytest.raises(ValueError,match='controller path changed'):
+        controller_record(phase,{'j':.1-2*np.pi},{'j':(-2*np.pi,2*np.pi)})
+
+
+def test_air_handoff_consumes_only_own_successful_controller_completion():
+    from execute_carton_air_demo import completion_ack
+    state=dict(arms=dict(right_front=dict(action_active=True),left_front=dict(action_active=True)))
+    calls=[]
+    def wait(predicate,timeout):
+        calls.append(timeout)
+        assert not predicate()
+        state['arms']['right_front']['action_active']=False
+        assert predicate()
+    client=SimpleNamespace(protection_status=state,wait=wait)
+    completion_ack(client,['right_front'])
+    assert calls==[3.]
+    assert state['arms']['left_front']['action_active']
+
+
+def test_air_preview_attaches_carton_to_grasp_and_contains_only_a_virtual_reference():
+    import xml.etree.ElementTree as ET
+    from run_carton_air_followup import preview_model
+    from uwa_cell_gazebo.charuco_views import Chain
+    from tempfile import TemporaryDirectory
+    with TemporaryDirectory()as tmp:
+        root=Path(tmp)
+        (root/'original.urdf').write_text('<robot name="test"><link name="world"/>'
+            '<link name="right_front_tool0"/><link name="left_front_tool0"/>'
+            '<joint name="rf" type="fixed"><parent link="world"/><child link="right_front_tool0"/></joint>'
+            '<joint name="lf" type="fixed"><parent link="world"/><child link="left_front_tool0"/></joint></robot>')
+        offset=np.eye(4);offset[:3,3]=[.01,.17,.25]
+        data=dict(object_shapes=[],reference_group=dict(object_to_tcp=dict(right_front=offset.tolist())))
+        xml=preview_model(data,root,[])
+        np.testing.assert_allclose(Chain(xml,'right_front_tool0','review_carried_carton').forward({}),np.linalg.inv(offset))
+        np.testing.assert_allclose(Chain(xml,'left_front_tool0','review_virtual_tool_reference').forward({})[:3,3],[0,0,.3])
+        visual=ET.fromstring(xml).find("link[@name='review_virtual_tool_reference']")
+        assert visual.find('visual/geometry/sphere')is not None
+        assert visual.find('collision')is None
