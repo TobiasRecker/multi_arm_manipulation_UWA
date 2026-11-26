@@ -1,5 +1,13 @@
 # UWA four-arm laboratory cell
 
+**Program library → [Object scan](docs/object_scan_library.md)** records OAK
+and wrist views, uses Gemini to propose grips and presentation views, and
+publishes photo coverage and rectangular model drafts to the **Asset Library**.
+
+**Program library → [Return to Home](docs/return_to_home.md)** plans a reviewed
+return for selected arms and held objects with one to four grip members.
+**Plan only** and the recorded carton demo provide offline geometry evidence.
+
 The [wood frame assembly demo](docs/wood_frame_demo.md) reuses the two-arm
 rigid carry and axial tool paths for a crossbar and four fastening sites.
 The Browser replay includes synthetic camera registration and all three

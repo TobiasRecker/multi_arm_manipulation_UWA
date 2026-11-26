@@ -11,7 +11,7 @@ import time
 import uuid
 
 TASK = "carton_supported_grasp"
-SUPPORTED_TASKS = {TASK, "pen_holder_grasp"}
+SUPPORTED_TASKS = {TASK, "pen_holder_grasp", "return_to_home"}
 START_PERCENT = 100 / 3
 RISKS = {"low": 1, "medium": 2, "high": 3}
 TRUST = {0: 0, 50: 1, 100: 2}

@@ -150,6 +150,22 @@ def view(record, directory):
                 QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
     carton = preview.get('carton')
     pen = preview.get('pen')
+    object_tracks = preview.get('object_tracks', [])
+    object_markers = []
+    for item in object_tracks:
+        pose = np.asarray(item['pose'], float)
+        rotation = Rotation.from_matrix(pose[:3, :3]).as_quat()
+        for box in item['boxes']:
+            lo, hi = np.asarray(box['lo']), np.asarray(box['hi'])
+            marker = Marker()
+            marker.header.frame_id = 'world'
+            marker.id, marker.ns, marker.type = len(object_markers), 'return-home', Marker.CUBE
+            center = pose[:3, :3] @ ((lo + hi) / 2) + pose[:3, 3]
+            orientation = marker.pose.orientation
+            orientation.x, orientation.y, orientation.z, orientation.w = map(float, rotation)
+            marker.scale.x, marker.scale.y, marker.scale.z = map(float, hi - lo)
+            marker.color.r, marker.color.g, marker.color.b, marker.color.a = 1., .65, .18, .6
+            object_markers.append((marker, center, item.get('motions', [])))
     pen_chain = None
     if pen:
         from uwa_cell_gazebo.charuco_views import Chain
@@ -226,6 +242,18 @@ def view(record, directory):
         if pos >= timeline.duration:
             playing = False
         phase, arms, positions = timeline.at(pos)
+        if object_markers:
+            packet = MarkerArray()
+            for marker, center, motions in object_markers:
+                location = center.copy()
+                for motion in motions:
+                    elapsed = pos - motion['start_s']
+                    duration = motion['duration_s']
+                    fraction = min(1., max(0., elapsed / duration)) if duration else float(elapsed >= 0)
+                    location += np.asarray(motion['delta_m']) * (10*fraction**3 - 15*fraction**4 + 6*fraction**5)
+                marker.pose.position.x, marker.pose.position.y, marker.pose.position.z = map(float, location)
+                packet.markers.append(marker)
+            markers.publish(packet)
         if carton and carton.get('lift'):
             lift = carton['lift']
             u = min(1.,max(0.,pos/lift['duration_s'])) if phase == lift['phase'] else 0.

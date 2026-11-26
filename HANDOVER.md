@@ -1,5 +1,55 @@
 # UWA-Zelle – Ziele, Anforderungen und Übergabe
 
+## Object scan und Asset Library, 26.11.2026
+
+- `object-scan-v1` im bestehenden Loopback-Webserver von **UWA Robot Power**.
+  Scan-Sitzungen speichern Originale, Gerätemetadaten, Auflagenotizen,
+  strukturierte Gemini-Vorschläge, revisionsgebundene Bedienentscheidungen
+  und Abdeckung. Die Asset Library unter den Programmen zeigt suchbare
+  Entwürfe und ihre Quellen. [Bedienung](docs/object_scan_library.md)
+- Erste OAK4-Ansicht als ausgerichtetes RGB-D, weitere als native Fotos.
+  OAK Pro nativ und Wrist-Snapshots separat auswählbar. Gemini Hydrogen
+  erhält verkleinerte Bilder nur auf ausdrückliche Browseraktion. Metrische
+  OBB ist eine vorläufige lokale OAK4-Schätzung im optischen Kameraframe.
+  Abdeckung benennt beim Holzbalken sechs Flächen und fehlende Ansichten.
+- Quader als GLB/OBJ/STEP aus Bedienermaßen oder vorläufiger RGB-D-Schätzung
+  exportierbar. Fotoquellen pro texturierter Fläche an den Originalhash und
+  vier bestätigte Bildpunkte gebunden. Andere Formen können als Datensatz
+  mit Abdeckungsbericht gespeichert werden.
+- 25 gezielte Softwaretests bestanden. Chrome-Ablauf am isolierten
+  Library-Server einschließlich Aufnahme, Vorschlagsrevision, Flächenprüfung,
+  Texturzuordnung, echtem GLB-Export und mobiler Ansicht bestanden. Kamera und
+  Gemini im Browserszenario simuliert. Simulierter Altserver-Katalog bleibt
+  ohne Scan-Routen bedienbar. [Browsernachweis](work/object-scan-web-20261126.md)
+- Zwei getrennte Aufrufe am konfigurierten Gemini Hydrogen über Antigravity
+  mit ausschließlich synthetischem Balkenbild bestanden. Identifikation
+  meldete `found`. Die Abdeckungsprüfung lieferte sechs Flächen und `more_views`.
+- Erster realer Balkenscan und ein ausführbarer Greif-/Präsentationspfad
+  stehen aus. Dafür fehlen verifizierte Zellpose, Kontakte und Last sowie
+  offline geprüfte Bewegungen und, für aufrechtes Umgreifen, Lastübergänge.
+  Stabile manuelle Umpositionierung ist in der aktuellen Aufnahmefolge nutzbar.
+
+## Return to Home, 26.11.2026
+
+Library-Programm, Hydrogen-Beratung und Motion Review für Griffgruppen
+mit einem bis vier Armen ergänzt. Bedienung und Nachweis in
+[Return to Home](docs/return_to_home.md).
+
+Aktueller Vierarm-Start passiv auf N100 gelesen und portabel an das
+ROSmini-Kollisionsmodell gebunden. Hydrogen priorisierte die aufrechte
+Zwischenpose vor der Basisdrehung. Gegenprüfung aus diesen Gelenken:
+beide rechten Arme zusammen, 54,74 s modellierte Gesamtfahrt, 83,5 mm
+Nachbarabstand-Untergrenze in der Homegruppe. Direkte Homepfade bestehen
+seriell, 74,53 s Gesamtfahrt. Erst rund 20 mm gemeinsam absenken und nach
+dem Öffnen 150 mm senkrecht zurückziehen. Der Karton steht in der
+historischen Ablage über der Lücke auf beiden koplanaren Platten.
+
+Lageunsicherheit am Aufsetzpunkt und gemessener belasteter Gleichlauf
+der rechten Gruppe fehlen für die reale Ausführungsfreigabe. Der frühere
+Hub bestätigt Endzustand und Lastschätzung. Für diesen Pilot keine
+Bewegung und keine Greiferbefehle. Dateien unter
+`setup/tasks/return_home_20261126/`.
+
 ## Holzrahmen in Browser und Gazebo, 25.11.2026
 
 Zwei rechte URs tragen den Querbalken gemeinsam. Links hinten fährt parallel

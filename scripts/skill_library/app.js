@@ -1,6 +1,8 @@
 const content = document.querySelector("#content");
 const main = document.querySelector("main");
-const navigation = document.querySelector("nav a");
+const navigation = document.querySelector("#program-navigation");
+const assetNavigation = document.querySelector("#asset-navigation");
+let scanUI;
 const cameraProgramId = "oak4-camera-calibration-v1";
 const timestamp = new Intl.DateTimeFormat("en-AU", {
   hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
@@ -109,6 +111,8 @@ function details(program) {
     ? [["Device", program.device], ["Reference", program.object], ["Validity", "12 hours from capture"], ["Operation", "Camera only"]]
     : program.kind === "multi_camera_capture"
     ? [["Cameras", program.device], ["Board", program.object], ["Motion", "Four arms in sequence · 0.09 rad/s"], ["Result", "Calibration images and robot states"]]
+    : program.kind === "object_scan"
+    ? [["Cameras", "OAK4 · OAK Pro · Wrist cameras"], ["Result", "Scan session and asset draft"]]
     : [["Workpiece", program.object], ["Arms", program.arms.join(" · ")]];
   for (const [term, value] of facts) {
     const item = element("div");
@@ -172,13 +176,139 @@ function startButton(program, mode, label, style) {
   return button;
 }
 
+const homeArms = ["left_front", "left_rear", "right_front", "right_rear"];
+
+function homeArmChoices(selected = []) {
+  const group = element("div", "run-buttons");
+  for (const arm of homeArms) {
+    const label = element("label", "");
+    const input = element("input", "");
+    input.type = "checkbox";
+    input.value = arm;
+    input.checked = selected.includes(arm);
+    label.append(input, document.createTextNode(" " + arm.replaceAll("_", " ")));
+    group.append(label);
+  }
+  return group;
+}
+
+function homeInput(name, title, placeholder = "") {
+  const label = element("label", "", title);
+  const input = element("input", "");
+  input.name = name;
+  input.placeholder = placeholder;
+  label.append(input);
+  return label;
+}
+
+function homeSelect(name, labelText, values, placeholder = null) {
+  const label = element("label", "", labelText);
+  const input = element("select", "");
+  input.name = name;
+  if (placeholder) input.append(element("option", "", placeholder));
+  for (const [value, caption] of values) {
+    const option = element("option", "", caption);
+    option.value = value;
+    input.append(option);
+  }
+  if (placeholder) input.options[0].value = "";
+  label.append(input);
+  return label;
+}
+
+function homeForm(program) {
+  const form = element("div", "home-form");
+  form.id = "home-scene";
+  const targets = homeArmChoices();
+  targets.id = "home-target-arms";
+  form.append(element("h3", "", "Arms to return"), targets);
+  const objects = element("div", "home-objects");
+  const add = element("button", "button secondary", "Add held object");
+  add.type = "button";
+  const addObject = recorded => {
+    if (objects.childElementCount >= 4) return;
+    const group = element("fieldset", "home-object");
+    const legend = element("legend", "", recorded ? "Recorded Avocado carton lift" : "Measured held object");
+    group.dataset.recorded = recorded ? program.recorded_carton.id : "";
+    const members = homeArmChoices(recorded ? program.recorded_carton.arms : []);
+    if (recorded) for (const input of members.querySelectorAll("input")) input.disabled = true;
+    group.append(legend, members, homeSelect("action", "Handling", [
+      ["place", "Put down"], ["keep", "Keep holding"],
+    ], "Choose handling"), homeSelect("release", "Release method", [
+      ["support", "Supported release"], ["drop", "Short drop from object profile"],
+    ]));
+    if (!recorded) group.append(
+      homeInput("name", "Object name"),
+      homeInput("size", "Enclosing size XYZ (m)", "0.20, 0.12, 0.06"),
+      homeInput("pose", "Measured world bottom-centre XYZ (m), yaw (°)", "0.3, 0.2, 0.92, 0"),
+      homeInput("error", "Position and placement uncertainty (m)", "0.002"),
+      homeSelect("table", "Support", [["left", "Left table"], ["right", "Right table"]], "Choose table"),
+      homeInput("target", "Support centre world XY (m)", "0.3, 0.2"),
+      homeInput("profile", "Local object profile ID, if applicable")
+    );
+    const remove = element("button", "button secondary", "Remove object");
+    remove.type = "button";
+    remove.addEventListener("click", () => group.remove());
+    group.append(remove);
+    objects.append(group);
+  };
+  add.addEventListener("click", () => addObject(false));
+  const buttons = element("div", "run-buttons");
+  buttons.append(add);
+  if (program.recorded_carton) {
+    const recorded = element("button", "button secondary", "Use recorded carton lift");
+    recorded.type = "button";
+    recorded.addEventListener("click", () => {
+      if (objects.querySelector("[data-recorded='" + program.recorded_carton.id + "']")) return;
+      addObject(true);
+      for (const input of targets.querySelectorAll("input")) {
+        if (program.recorded_carton.arms.includes(input.value)) input.checked = true;
+      }
+    });
+    buttons.append(recorded);
+  }
+  const confirmed = element("label", "");
+  const checkbox = element("input", "");
+  checkbox.type = "checkbox";
+  checkbox.id = "home-scene-confirmed";
+  confirmed.append(checkbox, document.createTextNode(" I have identified every held object and the participating arms."));
+  form.append(element("h3", "", "Held objects"), objects, buttons, confirmed);
+  return form;
+}
+
+function homeOptions() {
+  const form = document.querySelector("#home-scene");
+  const arms = document.querySelector("#home-target-arms");
+  const selected = root => [...root.querySelectorAll('input[type="checkbox"]:checked')].map(input => input.value);
+  const measured = (value, count) => {
+    const parts = value.split(",").map(value => value.trim());
+    if (parts.length !== count || parts.some(value => !value || !Number.isFinite(Number(value)))) {
+      throw new Error("Enter complete measured values for each held object.");
+    }
+    return parts.map(Number);
+  };
+  const objects = [...form.querySelectorAll("fieldset")].map(group => {
+    const get = name => group.querySelector(`[name="${name}"]`).value.trim();
+    const common = { arms: selected(group), action: get("action"), release: get("release") };
+    if (group.dataset.recorded) return { ...common, source: "carton", run_id: group.dataset.recorded };
+    return { ...common, source: "manual", name: get("name"), size_m: measured(get("size"), 3),
+      pose_xyz_yaw_deg: measured(get("pose"), 4), position_error_m: measured(get("error"), 1)[0],
+      table: get("table"), target_xy_m: measured(get("target"), 2), profile: get("profile") };
+  });
+  return { arms: selected(arms), objects, scene_confirmed: document.querySelector("#home-scene-confirmed").checked };
+}
+
 function actions(program) {
   const section = element("section", "panel actions");
   section.append(element("h2", "", "Run program"));
   const cameraOnly = program.kind === "camera_calibration";
   const multiCamera = program.kind === "multi_camera_capture";
   const pen = program.kind === "pen_grasp";
-  if (pen) {
+  const home = program.kind === "return_to_home";
+  if (home) {
+    if (program.plan_available) section.append(homeForm(program));
+    if (program.live_blocker) section.append(element("p", "feedback", program.live_blocker));
+  } else if (pen) {
     section.append(element("p", "", "Inspect pen uses only the OAK Pro camera. Start program plans the complete pickup from the current joints, then requests motion and contact reviews in UWA Robot Power. Only Left rear moves."));
     section.append(element("p", "", "Keep the pen fully seated. IDs 97 and 96 are both attached to the pen adapter. The centered CAD mounting and nominal gripper TCP are shown in the review. Prepare Left rear with UWA Robot Power and release the work area first."));
     if (program.live_blocker) section.append(element("p", "feedback", program.live_blocker));
@@ -206,7 +336,11 @@ function actions(program) {
   const demoText = "The offline demo uses saved inputs. It plans motion without connecting to the cell.";
   if (program.demo_available) section.append(element("p", "", demoText));
   const buttons = element("div", "run-buttons");
-  if (pen) {
+  if (home) {
+    buttons.append(startButton(program, "plan", "Plan only", "secondary"),
+      startButton(program, "live", "Start program", "primary"));
+    if (program.demo_available) buttons.append(startButton(program, "demo", "Run recorded carton demo", "secondary"));
+  } else if (pen) {
     buttons.append(startButton(program, "inspect", "Inspect pen", "secondary"),
       startButton(program, "plan", "Plan pickup only", "secondary"),
       startButton(program, "live", "Start program", "primary"));
@@ -285,6 +419,9 @@ function summarizeResult(result) {
     ["Valid until", result.valid_until ? `${expiryDate.format(new Date(result.valid_until))} AWST` : null],
     ["Carton pose", result.pose],
     ["Motion plan", result.plan],
+    ["Hydrogen strategy", result.strategy],
+    ["Strategy source", result.strategy_source],
+    ["Arms staying in place", result.kept_arms],
     ["Contact", result.contact],
     ["Wrist check", result.wrist],
   ];
@@ -430,7 +567,20 @@ function updateActions() {
 
 function render() {
   const program = selectedProgram();
-  navigation.setAttribute("aria-current", program ? "location" : "page");
+  const scan = scanUI?.scanRoute(window.location.hash);
+  assetNavigation.hidden = !scanUI;
+  if (scan?.kind === "assets") {
+    navigation.removeAttribute("aria-current");
+    assetNavigation.setAttribute("aria-current", "page");
+  } else {
+    navigation.setAttribute("aria-current", program || scan ? "location" : "page");
+    assetNavigation.removeAttribute("aria-current");
+  }
+  if (scan) {
+    scanUI.renderScanView(content, scan, request);
+    return;
+  }
+  scanUI?.leaveScanView();
   document.title = `${program?.title || "Program library"} · UWA Robot Power`;
   if (program) {
     const intro = heading(program.title, program.description);
@@ -467,6 +617,7 @@ function render() {
     }
     content.replaceChildren(intro, cards);
     if (state.run) content.append(statusPanel());
+    if (scanUI) content.append(scanUI.renderAssetLink());
   }
   updateActions();
   updateStatus();
@@ -494,10 +645,12 @@ async function start(program, mode) {
   state.pending = mode;
   updateActions();
   try {
+    const payload = { program: program.execution_program || program.id, mode };
+    if (program.kind === "return_to_home" && mode !== "demo") payload.options = homeOptions();
     state.run = normalizeRun(await request("/api/runs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ program: program.execution_program || program.id, mode }),
+      body: JSON.stringify(payload),
     }));
     state.connectionError = "";
     updateStatus();
@@ -516,6 +669,9 @@ async function loadCatalog() {
   render();
   try {
     const catalog = await request("/api/catalog");
+    if (catalog.programs.some(program => program.kind === "object_scan")) {
+      scanUI ??= await import("./object-scan.js");
+    }
     state.programs = programsFromCatalog(catalog.programs);
     state.run = normalizeRun(catalog.active_run);
   } catch (error) {

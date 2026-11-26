@@ -8,6 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 from threading import Thread
@@ -20,6 +21,8 @@ from carton_camera_session import validate_session
 from run_carton_program import live_inputs, CAMERA_PROGRAM
 from run_multi_camera_program import PROGRAM as MULTI_CAMERA_PROGRAM
 from run_pen_program import PROGRAM as PEN_PROGRAM, availability as pen_availability
+from run_return_home import PROGRAM as HOME_PROGRAM, catalog as home_catalog, validate_request as home_request
+from object_scan_library import Scans, catalog as scan_catalog
 
 WORKSPACE = ROOT.parents[1]
 PROGRAM_ID = "carton-supported-v1"
@@ -31,6 +34,8 @@ STATIC = {
     "/index.html": (ROOT / "scripts/skill_library/index.html", "text/html; charset=utf-8"),
     "/styles.css": (ROOT / "scripts/skill_library/styles.css", "text/css; charset=utf-8"),
     "/app.js": (ROOT / "scripts/skill_library/app.js", "text/javascript; charset=utf-8"),
+    "/object-scan.js": (ROOT / "scripts/skill_library/object-scan.js", "text/javascript; charset=utf-8"),
+    "/scan-textures.js": (ROOT / "scripts/skill_library/scan-textures.js", "text/javascript; charset=utf-8"),
     "/assets/carton.png": (ROOT / "output/images/carton_in_virtual_cell.png", "image/png"),
 }
 STAGES = [
@@ -82,6 +87,7 @@ class Runs:
         self.directory = directory
         self.live_config = live_config
         self.directory.mkdir(parents=True, exist_ok=True)
+        self.scans = Scans(self.directory / 'object-scans', self.directory)
 
     def camera_status(self):
         try:
@@ -151,7 +157,8 @@ class Runs:
                 dict(id='motion_review', title='Review and enter', description='Review the new left-rear motion in UWA Robot Power. Open the gripper at the pregrasp pose, then enter vertically.'),
                 dict(id='contact_review', title='Inspect, grasp and lift', description='Review a fresh open-entry photo, then close the left-rear gripper, lift vertically and hold.')],
             **pen_availability(self.live_config is not None))
-        return dict(programs=[calibration, multi_camera, program, pen],
+        home = home_catalog(self.directory, self.live_config is not None)
+        return dict(programs=[calibration, multi_camera, program, pen, home, scan_catalog()],
                     camera_reference=dict(status="valid" if camera.get('camera_valid_until') else "required",
                         valid_from=camera.get('camera_valid_from'), valid_until=camera.get('camera_valid_until'),
                         program=CAMERA_PROGRAM),
@@ -212,11 +219,18 @@ class Runs:
         code = process.wait()
         write_json(directory / "exit.json", dict(code=code, at=now()))
 
-    def start(self, program, mode):
+    def start(self, program, mode, options=None):
         allowed = {PROGRAM_ID: {"demo", "live", "calibrate"}, CAMERA_PROGRAM: {"calibrate"},
-                   MULTI_CAMERA_PROGRAM: {'setup', 'gui'}, PEN_PROGRAM: {'inspect', 'plan', 'live'}}
-        if program not in allowed or mode not in allowed[program]:
+                   MULTI_CAMERA_PROGRAM: {'setup', 'gui'}, PEN_PROGRAM: {'inspect', 'plan', 'live'},
+                   HOME_PROGRAM: {'demo', 'plan', 'live'}}
+        if not isinstance(program, str) or not isinstance(mode, str) or program not in allowed or mode not in allowed[program]:
             raise ValueError("Choose a program and execution mode from the library.")
+        if program == HOME_PROGRAM and mode != 'demo':
+            if self.live_config is None:
+                raise ValueError("Open the N100-enabled UWA Robot Power Library.")
+            options = home_request(options)
+        elif options is not None:
+            raise ValueError("This program mode takes no scene options.")
         with (self.directory / ".run.lock").open("a") as lease:
             try:
                 fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -228,7 +242,7 @@ class Runs:
                 status = pen_availability(self.live_config is not None)
                 if not status[mode+'_available']:
                     raise ValueError(status['live_blocker'])
-            if mode in {'live', 'calibrate'} and program != PEN_PROGRAM:
+            if mode in {'live', 'calibrate'} and program not in (PEN_PROGRAM, HOME_PROGRAM):
                 camera = self.camera_status()
                 if mode == "live" and camera["live_blocker"]:
                     raise ValueError(camera["live_blocker"])
@@ -237,7 +251,14 @@ class Runs:
             identifier = uuid4().hex
             output = self.directory / identifier
             output.mkdir()
-            if program == PEN_PROGRAM:
+            if program == HOME_PROGRAM:
+                command = [sys.executable, str(ROOT / 'tools/run_return_home.py'), '--mode', mode,
+                           '--output', str(output), '--runs', str(self.directory)]
+                if options is not None:
+                    path = output / "operator-request.json"
+                    write_json(path, options)
+                    command.extend(['--request', str(path)])
+            elif program == PEN_PROGRAM:
                 command = [sys.executable, str(ROOT / 'tools/run_pen_program.py'),
                            '--mode', mode, '--output', str(output)]
             elif program == MULTI_CAMERA_PROGRAM:
@@ -262,16 +283,19 @@ class Runs:
 class Handler(BaseHTTPRequestHandler):
     server_version = "UWAProgramLibrary"
 
-    def response(self, code, body, media):
+    def headers_for(self, code, length, media):
         self.send_response(code)
         self.send_header("Content-Type", media)
-        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Content-Length", str(length))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Cross-Origin-Resource-Policy", "same-origin")
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("Content-Security-Policy", "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
         self.end_headers()
+
+    def response(self, code, body, media):
+        self.headers_for(code, len(body), media)
         self.wfile.write(body)
 
     def json(self, code, payload):
@@ -286,6 +310,12 @@ class Handler(BaseHTTPRequestHandler):
             self.json(403, {"error": "Open the assigned loopback address."})
         elif self.path == "/api/catalog":
             self.json(200, self.server.runs.catalog())
+        elif self.path == '/api/assets':
+            self.json(200, {'assets': self.server.runs.scans.assets()})
+        elif self.path == '/api/scans':
+            self.json(200, {'scans': self.server.runs.scans.list()})
+        elif self.path.startswith('/api/scans/'):
+            self.scan_get()
         elif self.path.startswith("/api/runs/"):
             identifier, separator, key = self.path.removeprefix("/api/runs/").partition("/artifacts/")
             if separator:
@@ -306,21 +336,43 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self.json(404, {"error": "Page not found."})
 
+    def scan_get(self):
+        identifier, separator, key = self.path.removeprefix('/api/scans/').partition('/files/')
+        scans = self.server.runs.scans
+        try:
+            if separator:
+                path, media = scans.artifact(identifier, key)
+                source = path.open('rb')
+            else:
+                self.json(200, scans.get(identifier))
+                return
+        except FileNotFoundError:
+            self.json(404, {'error': 'Scan or scan file not found.'})
+            return
+        with source:
+            self.headers_for(200, path.stat().st_size, media)
+            shutil.copyfileobj(source, self.wfile, length=262144)
+
     def do_POST(self):
         if self.headers.get("Host") != self.host or self.headers.get("Origin") != f"http://{self.host}":
             self.json(403, {"error": "Start programs from the local library page."})
             return
-        if self.path != "/api/runs":
+        is_scan = self.path == '/api/scans' or self.path.startswith('/api/scans/')
+        if self.path != "/api/runs" and not is_scan:
             self.json(404, {"error": "Page not found."})
             return
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            if not 0 < length <= 1024 or self.headers.get_content_type() != "application/json":
-                raise ValueError("Expected a JSON program and mode.")
+            if not 0 < length <= 8192 or self.headers.get_content_type() != "application/json":
+                raise ValueError("Expected a JSON request of at most 8192 bytes.")
             payload = json.loads(self.rfile.read(length))
-            if not isinstance(payload, dict) or set(payload) != {"program", "mode"}:
+            if is_scan:
+                self.scan_post(payload)
+                return
+            if (not isinstance(payload, dict) or set(payload) not in
+                    ({"program", "mode"}, {"program", "mode", "options"})):
                 raise ValueError("Expected a program and execution mode.")
-            run = self.server.runs.start(payload["program"], payload["mode"])
+            run = self.server.runs.start(payload["program"], payload["mode"], payload.get("options"))
         except ValueError as error:
             self.json(400, {"error": str(error)})
         except RuntimeError as error:
@@ -330,8 +382,23 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self.json(202, run)
 
+    def scan_post(self, payload):
+        scans = self.server.runs.scans
+        if self.path == '/api/scans':
+            self.json(201, scans.create(payload))
+            return
+        identifier, separator, action = self.path.removeprefix('/api/scans/').partition('/')
+        try:
+            if not separator:
+                raise FileNotFoundError
+            asynchronous, scan = scans.action(identifier, action, payload)
+        except FileNotFoundError:
+            self.json(404, {'error': 'Scan or scan action not found.'})
+        else:
+            self.json(202 if asynchronous else 200, scan)
+
     def log_request(self, code="-", size="-"):
-        if str(code) not in {"200", "202"}:
+        if str(code) not in {"200", "201", "202"}:
             super().log_request(code, size)
 
 

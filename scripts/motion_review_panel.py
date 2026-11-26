@@ -139,6 +139,13 @@ class ReviewPanel(QtWidgets.QWidget):
 
         settings = QtWidgets.QGroupBox('Task settings')
         grid = QtWidgets.QGridLayout(settings)
+        self.task = QtWidgets.QComboBox()
+        self.task.addItem('Supported carton grasp', 'carton_supported_grasp')
+        self.task.addItem('Pick pen from holder', 'pen_holder_grasp')
+        self.task.addItem('Return to Home', 'return_to_home')
+        self.task.setAccessibleName('Task for trust setting')
+        self.task.currentIndexChanged.connect(self.refresh)
+        grid.addWidget(self.task, 0, 1, 1, 2)
         self.trust = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
         self.trust.setRange(0, 2)
         self.trust.setTickPosition(QtWidgets.QSlider.TickPosition.TicksBelow)
@@ -147,11 +154,12 @@ class ReviewPanel(QtWidgets.QWidget):
         self.trust_value = plain()
         self.trust.valueChanged.connect(lambda value: self.trust_value.setText(TRUST[value]))
         self.save_trust = QtWidgets.QPushButton('Apply trust')
-        self.save_trust.clicked.connect(lambda: self.command(['settings', '--trust', str(50*self.trust.value())]))
-        grid.addWidget(plain('Trust'), 0, 0)
-        grid.addWidget(self.trust, 0, 1)
-        grid.addWidget(self.trust_value, 1, 1)
-        grid.addWidget(self.save_trust, 0, 2)
+        self.save_trust.clicked.connect(lambda: self.command(
+            ['settings', '--task', self.task.currentData(), '--trust', str(50*self.trust.value())]))
+        grid.addWidget(plain('Trust'), 1, 0)
+        grid.addWidget(self.trust, 1, 1)
+        grid.addWidget(self.trust_value, 2, 1)
+        grid.addWidget(self.save_trust, 1, 2)
 
         self.speed = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
         # Thirds of one percent represent the existing 0.1 rad/s baseline exactly.
@@ -161,16 +169,16 @@ class ReviewPanel(QtWidgets.QWidget):
         self.speed.valueChanged.connect(self.change_speed)
         self.save_speed = QtWidgets.QPushButton('Apply speed')
         self.save_speed.clicked.connect(lambda: self.command(['settings', '--speed-percent', str(self.speed_draft)]))
-        grid.addWidget(plain('Speed limit'), 2, 0)
-        grid.addWidget(self.speed, 2, 1)
-        grid.addWidget(self.speed_value, 3, 1)
-        grid.addWidget(self.save_speed, 2, 2)
+        grid.addWidget(plain('Speed limit'), 3, 0)
+        grid.addWidget(self.speed, 3, 1)
+        grid.addWidget(self.speed_value, 4, 1)
+        grid.addWidget(self.save_speed, 3, 2)
 
         self.series = plain()
         self.series_button = QtWidgets.QPushButton('Authorize test series…')
         self.series_button.clicked.connect(self.edit_series)
-        grid.addWidget(self.series, 4, 0, 1, 2)
-        grid.addWidget(self.series_button, 4, 2)
+        grid.addWidget(self.series, 5, 0, 1, 2)
+        grid.addWidget(self.series_button, 5, 2)
         page.addWidget(settings)
         self.feedback = plain('Connecting…')
         self.feedback.setStyleSheet('background:#17314a;color:white;font-weight:700;padding:8px')
@@ -189,6 +197,10 @@ class ReviewPanel(QtWidgets.QWidget):
         for control in (self.area_button, self.trust, self.speed, self.save_trust,
                         self.save_speed, self.series_button):
             control.setEnabled(bool(enabled))
+        self.task.setEnabled(bool(enabled))
+        trust_current = connected and self.status['settings'].get('task') == self.task.currentData()
+        self.trust.setEnabled(bool(enabled and trust_current))
+        self.save_trust.setEnabled(bool(enabled and trust_current))
         self.save_speed.setEnabled(bool(enabled and self.speed_draft is not None))
         self.area_button.setEnabled(bool((self.active_session or enabled) and not self.revoking))
         self.series_button.setEnabled(bool(enabled and self.status['area_released']))
@@ -210,7 +222,7 @@ class ReviewPanel(QtWidgets.QWidget):
 
     def refresh(self):
         if self.current is None and not (self.revoking or self.closing_session or self.stopping):
-            self.run(['status'])
+            self.run(['status', '--task', self.task.currentData()])
 
     def command(self, args):
         if self.current:
@@ -350,7 +362,8 @@ class ReviewPanel(QtWidgets.QWidget):
         self.active_session = data['session_id'] if data['area_released'] else None
         self.session.setText('WORK AREA RELEASED · Current session' if data['area_released'] else 'WORK AREA AWAITS RELEASE')
         self.area_button.setText('Revoke area release' if data['area_released'] else 'Release work area for session')
-        if settings['trust'] != previous.get('trust'):
+        if settings['task'] == self.task.currentData() and (
+                settings['task'] != previous.get('task') or settings['trust'] != previous.get('trust')):
             self.trust.setValue((0, 50, 100).index(settings['trust']))
             self.trust_value.setText(TRUST[self.trust.value()])
         if settings['speed_percent'] != previous.get('speed_percent'):
@@ -425,8 +438,11 @@ class ReviewPanel(QtWidgets.QWidget):
         self.summary.setText(state + ' · ' + item['summary'])
         arms = ', '.join(arm.replace('_', ' ').capitalize() for arm in item['arms'])
         clock = f"  ·  {item['duration_s']:.1f} s" if item['stage'] == 'motion' else '  ·  Held in place'
+        cap = speed_text(item['speed_percent'])
+        if 'joint_limit_rad_s' in item:
+            cap = f"{2.5 * item['speed_percent']:.4g} mm/s TCP  ·  {item['joint_limit_rad_s']:.4g} rad/s per joint"
         self.details.setText(f"{item['risk'].upper()} risk  ·  {item['reason']}\n{arms}{clock}\n"
-                             f"Arm speed cap  ·  {speed_text(item['speed_percent'])}  ·  Plan {item['sha256'][:12]}")
+                             f"Arm speed cap  ·  {cap}  ·  Plan {item['sha256'][:12]}")
         self.preview.setText('Show held pose in RViz' if item['stage'] == 'contact' else 'Open RViz')
         if item.get('explicit_regular_start'):
             self.details.setText(self.details.text() + '\nIncludes a regular External Control program start.'
@@ -482,9 +498,11 @@ class ReviewPanel(QtWidgets.QWidget):
         viewer.setWindowTitle('Contact photograph · ' + self.key[1][:12])
         self.photo_dialog = viewer
         layout = QtWidgets.QVBoxLayout(viewer)
-        instruction = (' · Check the open left-rear pads around the pen adapter, the holder rim and vertical lift clearance.'
-                       if self.item.get('task') == 'pen_holder_grasp'
-                       else ' · Check support and both open grippers around the carton walls.')
+        instructions = {
+            'pen_holder_grasp': ' · Check the open left-rear pads around the pen adapter, the holder rim and vertical lift clearance.',
+            'return_to_home': ' · Verify the support, grip group and release space against the current image.',
+        }
+        instruction = instructions.get(self.item.get('task'), ' · Check support and both open grippers around the carton walls.')
         layout.addWidget(plain(f'Contact review · {self.photo.width()} × {self.photo.height()} pixels' + instruction))
         scene = QtWidgets.QGraphicsScene(viewer)
         item = scene.addPixmap(self.photo)

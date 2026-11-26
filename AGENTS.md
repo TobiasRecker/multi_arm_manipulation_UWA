@@ -1,5 +1,34 @@
 # Arbeitsregeln für die UWA-Roboterzelle
 
+## Objektaufnahme für die Asset Library, Nutzerauftrag 26.11.2026
+
+- **Object scan** in der Program Library und **Asset Library** darunter im
+  selben lokalen Webserver. Der erste beschriebene Gegenstand ist ein
+  Holzbalken. OAK4, OAK Pro und Wrist-Ansichten einzeln auswählbar halten.
+- Gemini soll Sichtbefund, mögliche Griffstellen, Rückfragen zur Armzahl und
+  Präsentationsansichten liefern. Wirkung der Verdeckung auf Geometrie und
+  Texturen sichtbar machen. Eine andere stabile Ablage oder ein begründet
+  geprüfter Griffwechsel darf verdeckte Flächen für weitere Fotos freilegen.
+- Konkrete Bahn vor Greifen und Präsentation durch den Bediener prüfen und
+  freigeben. Bildannahmen, metrische Messung, überprüfte Griffe, vollständige
+  Offline-Bahnprüfung und Freigabe der konkreten Realfahrt getrennt belegen.
+
+## Return to Home, Nutzerentscheidung 26.11.2026
+
+- Für jede bestätigte Griffgruppe mit einem bis vier Armen **Put down**
+  oder **Keep holding** anbieten. Stehen gelassene Lasten bleiben mit ihren
+  Armen Hindernisse für die übrige geprüfte Homefahrt. Neue Objekte dürfen
+  mit den gemessenen Daten manuell erfasst werden.
+- Gemini 4 Hydrogen als Strategieberatung nutzen. Codex prüft die erste
+  beladene Revision unabhängig. Weitere Freigaben erfolgen in **Motion
+  review** nach Hardwarerisiko. Für reines geometrisches Roboter-zu-Roboter-
+  Risiko bei unbeladener geprüfter Fahrt ist **low** zulässig. Annäherung
+  mit gemeinsam gehobenem Karton und Greiferöffnung sind **high**.
+- Kurzer Fall nur mit maximalem, objekt- und ablagegebundenem Restspalt im
+  qualifizierten Profil. Konkrete Öffnung ausdrücklich freigeben. Nutzer
+  erlaubt für den ersten Karton-Pilot Arm-IDs, Hubhöhe und Phasenfolge über
+  Antigravity. Bilder, Gelenkwinkel, Weltkoordinaten und Logs bleiben lokal.
+
 ## Holzrahmen-Demo, Nutzerentscheidung 25.11.2026
 
 - Reihenfolge der Übertragung ist Browser, Gazebo, reale Zelle. Zwei Arme

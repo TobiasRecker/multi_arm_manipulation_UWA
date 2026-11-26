@@ -12,7 +12,6 @@
   --sidebar: #12252f;
   --sidebar-line: #4c6673;
 }
-
 *, *::before, *::after { box-sizing: border-box; }
 
 body {
@@ -420,4 +419,134 @@ main:focus { outline: none; }
   .program-copy { min-height: 0; }
   .program-image { min-height: 12rem; }
   .program-identity figure { aspect-ratio: 16 / 8; }
+}
+.home-form, .home-objects, .home-object {
+  display: grid;
+  gap: .8rem;
+}
+
+.home-form { margin-block: 1rem; }
+
+.home-object {
+  padding: 1rem;
+  border: 1px solid currentColor;
+  border-radius: .45rem;
+}
+
+.home-object label:has(:is(input:not([type="checkbox"]), select)) {
+  display: grid;
+  gap: .2rem;
+}
+
+.home-object :is(input:not([type="checkbox"]), select) {
+  min-width: 0;
+  padding: .35rem;
+  font: inherit;
+}
+
+.sidebar nav { display: grid; gap: .35rem; }
+#asset-navigation[hidden] { display: none; }
+
+.scan-columns { align-items: start; }
+.columns .scan-stack { display: grid; }
+.scan-panel { overflow-wrap: anywhere; }
+.scan-panel [hidden], .asset-card[hidden] { display: none; }
+.asset-filter-result:empty { display: none; }
+
+.scan-form, .scan-field, .scan-detail, .scan-capture, .scan-optional, .asset-copy {
+  display: grid;
+  justify-items: start;
+  gap: .7rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.scan-field { gap: .25rem; font-weight: 650; }
+.scan-field small { color: var(--muted); font-weight: 400; }
+.scan-field :is(input, select, textarea) {
+  min-width: 0;
+  width: 100%;
+  padding: .6rem .65rem;
+  border: 1px solid #6f8591;
+  border-radius: .35rem;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+  font-weight: 400;
+}
+
+.scan-field textarea { resize: vertical; }
+.content > .scan-field { max-width: 27rem; }
+
+.scan-cameras, .scan-dimensions, .scan-corners {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.3rem), 1fr));
+  gap: .45rem .65rem;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: .45rem .65rem .65rem;
+  border: 1px solid var(--line);
+  border-radius: .35rem;
+}
+
+.scan-cameras legend, .scan-dimensions legend, .scan-corners legend {
+  padding-inline: .2rem;
+  font-weight: 650;
+}
+
+.scan-choice { display: flex; align-items: center; gap: .4rem; min-height: 2.1rem; }
+.scan-choice input { accent-color: var(--primary); width: 1.08rem; height: 1.08rem; }
+.scan-callout {
+  width: 100%;
+  padding: .65rem .8rem;
+  border: 1px solid #6b8799;
+  border-left: 4px solid #345c76;
+  border-radius: .3rem;
+  color: #173e58;
+  background: #e6f2f9;
+  font-weight: 690;
+}
+
+.scan-callout.scan-error { color: #842323; border-color: #a94141; background: #f8ecec; }
+.scan-records, .scan-list { width: 100%; margin: 0; }
+.scan-list { padding-left: 1.4rem; }
+.scan-records { list-style: none; padding: 0; }
+.scan-records li, .scan-detail, .scan-capture { border-top: 1px solid var(--line); padding-top: .65rem; }
+.scan-records li + li { margin-top: .65rem; }
+.scan-detail, .scan-capture { gap: .25rem; }
+
+.scan-photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
+  gap: .65rem;
+  width: 100%;
+}
+
+.scan-photo { min-width: 0; }
+.scan-photo img, .asset-preview {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: .35rem;
+  background: var(--sidebar);
+}
+
+.scan-photo figcaption, .asset-date { color: var(--muted); font-size: .9rem; }
+.scan-observation { width: 100%; }
+.scan-observation canvas { display: block; width: 100%; height: auto; border-radius: .35rem; }
+.scan-observation figcaption { color: var(--muted); font-size: .9rem; }
+.scan-optional summary { cursor: pointer; color: var(--primary-dark); font-weight: 700; }
+.scan-optional[open] summary { margin-bottom: .7rem; }
+.scan-corner-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; width: 100%; }
+.scan-corners { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.scan-texture-image { display: block; width: 100%; height: auto; cursor: crosshair; }
+.asset-card:has(.asset-preview) { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); }
+
+@media (max-width: 42rem) {
+  .sidebar nav { display: flex; flex-wrap: wrap; }
+  .asset-card:has(.asset-preview) { grid-template-columns: 1fr; }
+  .scan-corner-grid { grid-template-columns: 1fr; }
 }
